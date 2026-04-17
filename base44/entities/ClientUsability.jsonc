@@ -1,0 +1,45 @@
+{
+  "name": "ClientUsability",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string"
+    },
+    "empresa_id": {
+      "type": "string"
+    },
+    "nome": {
+      "type": "string"
+    },
+    "data_criacao": {
+      "type": "string"
+    },
+    "numero_funcionarios": {
+      "type": "number"
+    },
+    "numero_funcionarios_ativos": {
+      "type": "number"
+    },
+    "numero_regras_de_calculo": {
+      "type": "number"
+    },
+    "email_ultimo_acesso": {
+      "type": "string"
+    },
+    "data_ultimo_acesso": {
+      "type": "string"
+    },
+    "empregados_batendo_ponto_ultimos_15_dias": {
+      "type": "number"
+    },
+    "data_exportacao": {
+      "type": "string"
+    },
+    "last_synced_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id"
+  ]
+}

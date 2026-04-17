@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { formatDate, impactColor } from "@/lib/utils";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ProgressBar from "@/components/ui/ProgressBar";
+import UsabilitySection from "@/components/project/UsabilitySection";
 import { Plus, Save, AlertTriangle, Clock, CheckCircle2, Calendar } from "lucide-react";
 
 function NewReportForm({ projectId, onSave, onCancel }) {
@@ -265,11 +266,49 @@ function ReportCard({ report }) {
   );
 }
 
-export default function StatusReportTab({ reports, projectId, onRefresh }) {
+function ScheduleSummary({ activities }) {
+  if (!activities || activities.length === 0) return null;
+  const total = activities.length;
+  const done = activities.filter(a => a.status === "Concluído").length;
+  const inProgress = activities.filter(a => a.status === "Em andamento").length;
+  const delayed = activities.filter(a => a.status === "Atrasado").length;
+  const pct = Math.round((done / total) * 100);
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-5 mb-4">
+      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4">Progresso do Cronograma</h3>
+      <div className="mb-3">
+        <div className="flex justify-between mb-1">
+          <span className="text-sm text-slate-600">Conclusão geral das atividades</span>
+          <span className="text-sm font-bold text-slate-700">{pct}%</span>
+        </div>
+        <ProgressBar value={pct} showLabel={false} />
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div className="text-center p-2 bg-green-50 rounded-lg">
+          <p className="text-lg font-bold text-green-700">{done}</p>
+          <p className="text-xs text-green-500">Concluídas</p>
+        </div>
+        <div className="text-center p-2 bg-blue-50 rounded-lg">
+          <p className="text-lg font-bold text-blue-700">{inProgress}</p>
+          <p className="text-xs text-blue-500">Em andamento</p>
+        </div>
+        <div className="text-center p-2 bg-red-50 rounded-lg">
+          <p className="text-lg font-bold text-red-700">{delayed}</p>
+          <p className="text-xs text-red-500">Atrasadas</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function StatusReportTab({ reports, projectId, projectClientName, activities, onRefresh }) {
   const [showForm, setShowForm] = useState(false);
 
   return (
     <div>
+      <ScheduleSummary activities={activities} />
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-base font-semibold text-slate-800">Status Reports</h2>
@@ -303,6 +342,8 @@ export default function StatusReportTab({ reports, projectId, onRefresh }) {
           </div>
         )}
       </div>
+
+      <UsabilitySection projectId={projectId} clientName={projectClientName} />
     </div>
   );
 }

@@ -1,0 +1,86 @@
+{
+  "name": "ProjectDocument",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string"
+    },
+    "doc_type": {
+      "type": "string",
+      "enum": [
+        "TAP",
+        "Termo de Encerramento"
+      ],
+      "description": "Tipo do documento"
+    },
+    "objective": {
+      "type": "string",
+      "description": "Objetivo do projeto"
+    },
+    "scope_description": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o do escopo"
+    },
+    "out_of_scope": {
+      "type": "string",
+      "description": "Fora do escopo"
+    },
+    "deliverables": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Entreg\u00e1veis do projeto"
+    },
+    "assumptions": {
+      "type": "string",
+      "description": "Premissas"
+    },
+    "restrictions": {
+      "type": "string",
+      "description": "Restri\u00e7\u00f5es"
+    },
+    "risks_summary": {
+      "type": "string",
+      "description": "Resumo de riscos"
+    },
+    "success_criteria": {
+      "type": "string",
+      "description": "Crit\u00e9rios de sucesso"
+    },
+    "sign_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "signed_by_client": {
+      "type": "string"
+    },
+    "signed_by_pontotel": {
+      "type": "string"
+    },
+    "additional_notes": {
+      "type": "string"
+    },
+    "closure_summary": {
+      "type": "string",
+      "description": "Resumo de encerramento (Termo de Encerramento)"
+    },
+    "lessons_learned": {
+      "type": "string",
+      "description": "Li\u00e7\u00f5es aprendidas"
+    },
+    "final_status": {
+      "type": "string",
+      "enum": [
+        "Conclu\u00eddo com sucesso",
+        "Conclu\u00eddo parcialmente",
+        "Cancelado"
+      ],
+      "description": "Status final do projeto"
+    }
+  },
+  "required": [
+    "project_id",
+    "doc_type"
+  ]
+}
