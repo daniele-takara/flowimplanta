@@ -1,9 +1,9 @@
 import { useState } from "react";
+import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { formatDate, impactColor } from "@/lib/utils";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ProgressBar from "@/components/ui/ProgressBar";
-import UsabilitySection from "@/components/project/UsabilitySection";
 import { Plus, Save, AlertTriangle, Clock, CheckCircle2, Calendar } from "lucide-react";
 
 function NewReportForm({ projectId, onSave, onCancel }) {
@@ -343,7 +343,6 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         )}
       </div>
 
-      <UsabilitySection projectId={projectId} clientName={projectClientName} />
     </div>
   );
 }
