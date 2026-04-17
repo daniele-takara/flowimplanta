@@ -1,0 +1,106 @@
+{
+  "name": "StatusReport",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string"
+    },
+    "report_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "overall_progress": {
+      "type": "number",
+      "description": "% progresso geral"
+    },
+    "executive_summary": {
+      "type": "string"
+    },
+    "registered_employees": {
+      "type": "number"
+    },
+    "recording_employees": {
+      "type": "number"
+    },
+    "adherence_percent": {
+      "type": "number"
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "impact": {
+            "type": "string",
+            "enum": [
+              "Alto",
+              "M\u00e9dio",
+              "Baixo"
+            ]
+          },
+          "mitigation": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "client_pending": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "string"
+          },
+          "deadline": {
+            "type": "string"
+          },
+          "responsible": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "internal_pending": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "string"
+          },
+          "deadline": {
+            "type": "string"
+          },
+          "responsible": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "next_agenda": {
+      "type": "string"
+    },
+    "next_agenda_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "general_status": {
+      "type": "string",
+      "enum": [
+        "No prazo",
+        "Em risco",
+        "Atrasado",
+        "Conclu\u00eddo"
+      ],
+      "default": "No prazo"
+    }
+  },
+  "required": [
+    "project_id",
+    "report_date"
+  ]
+}

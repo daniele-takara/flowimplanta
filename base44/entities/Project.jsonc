@@ -1,0 +1,151 @@
+{
+  "name": "Project",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome do projeto"
+    },
+    "client_name": {
+      "type": "string",
+      "description": "Nome do cliente/Empresa"
+    },
+    "origin": {
+      "type": "string",
+      "description": "Origem do cliente",
+      "enum": [
+        "Pontotel",
+        "Parceiro",
+        "Indica\u00e7\u00e3o",
+        "Inbound",
+        "Outbound"
+      ]
+    },
+    "mrr": {
+      "type": "number",
+      "description": "MRR do contrato"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Planejamento",
+        "Em andamento",
+        "Em risco",
+        "Atrasado",
+        "Conclu\u00eddo",
+        "Cancelado"
+      ],
+      "default": "Planejamento"
+    },
+    "current_phase": {
+      "type": "string",
+      "enum": [
+        "Abertura de projeto",
+        "Parametriza\u00e7\u00e3o",
+        "Homologa\u00e7\u00e3o",
+        "Rollout",
+        "Go-live",
+        "Conclu\u00eddo"
+      ],
+      "default": "Abertura de projeto"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "planned_end_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "aligned_end_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "implantation_type": {
+      "type": "string",
+      "enum": [
+        "Implanta\u00e7\u00e3o Pontotel",
+        "Implanta\u00e7\u00e3o com integra\u00e7\u00e3o Sankhya",
+        "Implanta\u00e7\u00e3o com integra\u00e7\u00e3o Sankhya adiada",
+        "Implanta\u00e7\u00e3o Pontotel com parametriza\u00e7\u00f5es n\u00e3o finalizadas",
+        "Implanta\u00e7\u00e3o com integra\u00e7\u00e3o Sankhya adiada e parametriza\u00e7\u00f5es n\u00e3o finalizadas"
+      ],
+      "default": "Implanta\u00e7\u00e3o Pontotel"
+    },
+    "contracted_employees": {
+      "type": "number",
+      "description": "N\u00famero de funcion\u00e1rios contratados"
+    },
+    "registered_employees": {
+      "type": "number",
+      "description": "Funcion\u00e1rios cadastrados no sistema"
+    },
+    "recording_employees": {
+      "type": "number",
+      "description": "Funcion\u00e1rios registrando ponto"
+    },
+    "progress_percent": {
+      "type": "number",
+      "description": "Progresso geral do projeto 0-100"
+    },
+    "sponsor_name": {
+      "type": "string"
+    },
+    "sponsor_contact": {
+      "type": "string"
+    },
+    "project_leader_name": {
+      "type": "string"
+    },
+    "project_leader_contact": {
+      "type": "string"
+    },
+    "operation_name": {
+      "type": "string"
+    },
+    "operation_contact": {
+      "type": "string"
+    },
+    "ti_client_name": {
+      "type": "string"
+    },
+    "ti_client_contact": {
+      "type": "string"
+    },
+    "pontotel_manager_name": {
+      "type": "string"
+    },
+    "pontotel_manager_contact": {
+      "type": "string"
+    },
+    "pontotel_analyst_name": {
+      "type": "string"
+    },
+    "pontotel_analyst_contact": {
+      "type": "string"
+    },
+    "contracted_modules": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "contracted_services": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "observations": {
+      "type": "string"
+    },
+    "executive_summary": {
+      "type": "string",
+      "description": "Resumo executivo do projeto"
+    }
+  },
+  "required": [
+    "name",
+    "client_name"
+  ]
+}

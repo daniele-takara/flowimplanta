@@ -1,0 +1,63 @@
+{
+  "name": "ScheduleActivity",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string"
+    },
+    "phase_id": {
+      "type": "string"
+    },
+    "phase_name": {
+      "type": "string"
+    },
+    "activity_name": {
+      "type": "string"
+    },
+    "planned_start": {
+      "type": "string",
+      "format": "date"
+    },
+    "planned_end": {
+      "type": "string",
+      "format": "date"
+    },
+    "actual_start": {
+      "type": "string",
+      "format": "date"
+    },
+    "actual_end": {
+      "type": "string",
+      "format": "date"
+    },
+    "responsible_general": {
+      "type": "string"
+    },
+    "responsible_leader": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "N\u00e3o iniciado",
+        "Em andamento",
+        "Conclu\u00eddo",
+        "Atrasado",
+        "Bloqueado",
+        "Cancelado"
+      ],
+      "default": "N\u00e3o iniciado"
+    },
+    "history_observations": {
+      "type": "string"
+    },
+    "order": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "project_id",
+    "phase_name",
+    "activity_name"
+  ]
+}

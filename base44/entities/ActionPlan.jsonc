@@ -1,0 +1,103 @@
+{
+  "name": "ActionPlan",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string"
+    },
+    "ticket_code": {
+      "type": "string"
+    },
+    "technical_call_code": {
+      "type": "string"
+    },
+    "theme": {
+      "type": "string"
+    },
+    "issue": {
+      "type": "string"
+    },
+    "issue_description": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "Erro",
+        "Melhoria",
+        "D\u00favida",
+        "Pend\u00eancia",
+        "Risco"
+      ],
+      "default": "Pend\u00eancia"
+    },
+    "impact": {
+      "type": "string",
+      "enum": [
+        "Alto",
+        "M\u00e9dio",
+        "Baixo"
+      ],
+      "default": "M\u00e9dio"
+    },
+    "responsible_pontotel": {
+      "type": "string"
+    },
+    "status_pontotel": {
+      "type": "string",
+      "enum": [
+        "Aberto",
+        "Em andamento",
+        "Valida\u00e7\u00e3o",
+        "Conclu\u00eddo",
+        "Cancelado"
+      ],
+      "default": "Aberto"
+    },
+    "status_client": {
+      "type": "string",
+      "enum": [
+        "Aberto",
+        "Em valida\u00e7\u00e3o",
+        "Validado",
+        "Cancelado"
+      ],
+      "default": "Aberto"
+    },
+    "responsible_client": {
+      "type": "string"
+    },
+    "request_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "deadline_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "rollout_start": {
+      "type": "string",
+      "format": "date"
+    },
+    "rollout_end": {
+      "type": "string",
+      "format": "date"
+    },
+    "solution_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "new_solution_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "history": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "theme",
+    "issue"
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "name": "Meeting",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string"
+    },
+    "meeting_number": {
+      "type": "number"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "duration": {
+      "type": "string"
+    },
+    "participants": {
+      "type": "string"
+    },
+    "leader": {
+      "type": "string"
+    },
+    "meeting_type": {
+      "type": "string",
+      "enum": [
+        "Status Report",
+        "Escopo T\u00e9cnico",
+        "Alinhamento Interno",
+        "Homologa\u00e7\u00e3o",
+        "Treinamento",
+        "Go-live",
+        "Outros"
+      ],
+      "default": "Status Report"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "date",
+    "subject"
+  ]
+}

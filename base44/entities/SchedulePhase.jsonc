@@ -1,0 +1,59 @@
+{
+  "name": "SchedulePhase",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string"
+    },
+    "phase_name": {
+      "type": "string",
+      "enum": [
+        "Planejamento",
+        "Abertura de projeto",
+        "Parametriza\u00e7\u00e3o",
+        "Homologa\u00e7\u00e3o",
+        "Rollout",
+        "Go-live",
+        "P\u00f3s Go-live"
+      ]
+    },
+    "planned_start": {
+      "type": "string",
+      "format": "date"
+    },
+    "planned_end": {
+      "type": "string",
+      "format": "date"
+    },
+    "actual_start": {
+      "type": "string",
+      "format": "date"
+    },
+    "actual_end": {
+      "type": "string",
+      "format": "date"
+    },
+    "progress_percent": {
+      "type": "number",
+      "default": 0
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "N\u00e3o iniciado",
+        "Em andamento",
+        "Conclu\u00eddo",
+        "Atrasado",
+        "Bloqueado"
+      ],
+      "default": "N\u00e3o iniciado"
+    },
+    "order": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "project_id",
+    "phase_name"
+  ]
+}
