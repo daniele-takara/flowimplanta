@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ChevronDown, ChevronRight, HelpCircle, AlertCircle, Check, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, HelpCircle, AlertCircle, Check, Loader2, Info } from "lucide-react";
 
 const inputClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";
 const DEBOUNCE_MS = 800;
@@ -128,11 +128,27 @@ function AnswerField({ question, answer, onChange, onBlur }) {
   );
 }
 
+// Bloco informativo — sem resposta, sem progresso
+function InformativoBlock({ question }) {
+  return (
+    <div className="border border-amber-200 rounded-lg mb-2 bg-amber-50 px-4 py-3 flex items-start gap-3">
+      <Info className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+      <div>
+        <p className="text-xs font-semibold text-amber-700 mb-1">{question.prompt}</p>
+        {question.description && (
+          <p className="text-xs text-amber-700 whitespace-pre-line leading-relaxed">{question.description}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ScopeItemRow({ question, savedAnswer, savedObs, onSave }) {
+  const isInfo = question.type === "informativo";
   const [open, setOpen] = useState(false);
   const [answer, setAnswer] = useState(savedAnswer || "");
   const [obs, setObs] = useState(savedObs || "");
-  const [saveStatus, setSaveStatus] = useState(null); // null | "saving" | "saved" | "error"
+  const [saveStatus, setSaveStatus] = useState(null);
   const debounceRef = useRef(null);
   const savedTimerRef = useRef(null);
 
@@ -188,6 +204,8 @@ export default function ScopeItemRow({ question, savedAnswer, savedObs, onSave }
     clearTimeout(debounceRef.current);
     triggerSave(val, obs);
   };
+
+  if (isInfo) return <InformativoBlock question={question} />;
 
   const needsObsWarning = question.rules?.some(r =>
     r.type === "require_observations_when_option_selected" && answer === r.option && !obs

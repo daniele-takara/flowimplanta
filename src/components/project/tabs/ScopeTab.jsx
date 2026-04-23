@@ -125,9 +125,16 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh }) 
     return true;
   };
 
+  // Returns only questions that count toward completeness:
+  // exclude informativo types and conditionally hidden questions
+  const getCountableQuestions = (mod) => {
+    return getModuleQuestions(mod).filter(q =>
+      q.type !== "informativo" && isQuestionVisible(q)
+    );
+  };
+
   const getModuleAnsweredCount = (mod) => {
-    const allQs = getModuleQuestions(mod);
-    return allQs.filter(q => localAnswers[q.id]?.answer).length;
+    return getCountableQuestions(mod).filter(q => localAnswers[q.id]?.answer).length;
   };
 
   if (visibleModules.length === 0) {
@@ -140,7 +147,7 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh }) 
   }
 
   const currentMod = visibleModules[safeIndex];
-  const allCurrentQs = getModuleQuestions(currentMod);
+  const allCurrentQs = getCountableQuestions(currentMod);
   const answeredCurrent = getModuleAnsweredCount(currentMod);
   const totalModules = visibleModules.length;
 
@@ -181,9 +188,9 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh }) 
       {/* Module stepper nav */}
       <div className="flex gap-1.5 mb-5 overflow-x-auto pb-1">
         {visibleModules.map((mod, idx) => {
-          const total = getModuleQuestions(mod).length;
+          const total = getCountableQuestions(mod).length;
           const answered = getModuleAnsweredCount(mod);
-          const complete = answered === total && total > 0;
+          const complete = total > 0 && answered === total;
           const active = idx === safeIndex;
           return (
             <button

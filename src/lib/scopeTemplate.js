@@ -417,7 +417,7 @@ export const SCOPE_MODULES = [
             order: 51, id: "q051",
             prompt: "Observação importante:",
             description: "A aprovação ou não das horas extras não determina se elas serão computadas na folha de ponto.\nCaso o colaborador realize horas extras, elas serão consideradas nos apontamentos.\n\nCabe à empresa definir políticas internas e disciplinares para casos de realização de horas extras sem justificativa ou sem aprovação prévia.",
-            type: "long_text", options: [], placeholder: "[descrever - texto livre]", rules: []
+            type: "informativo", options: [], placeholder: null, rules: []
           },
           {
             order: 52, id: "q052",
