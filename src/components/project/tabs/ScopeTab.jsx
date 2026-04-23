@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { SCOPE_MODULES, getModuleQuestions, isModuleVisible } from "@/lib/scopeTemplate";
+import { generateScopePDF } from "@/lib/scopePdfExport";
 import ScopeItemRow from "@/components/project/tabs/ScopeItemRow";
-import { ChevronDown, ChevronRight, Plus, Minus } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Minus, FileDown } from "lucide-react";
 
 const SANKHYA_KEY = "sankhya_manual_override";
 
@@ -117,20 +118,31 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh }) 
           <p className="text-sm text-slate-400">{visibleModules.length} módulo{visibleModules.length !== 1 ? "s" : ""} visível{visibleModules.length !== 1 ? "s" : ""}</p>
         </div>
 
-        {/* Sankhya toggle (only show if not auto-visible) */}
-        {!sankhyaAutoVisible && (
+        <div className="flex items-center gap-2">
+          {/* Sankhya toggle (only show if not auto-visible) */}
+          {!sankhyaAutoVisible && (
+            <button
+              onClick={toggleSankhya}
+              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                sankhyaManualEnabled
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white text-slate-600 border-slate-200 hover:border-blue-300"
+              }`}
+            >
+              {sankhyaManualEnabled ? <Minus className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+              {sankhyaManualEnabled ? "Remover Sankhya" : "Incluir Integração Sankhya"}
+            </button>
+          )}
+
+          {/* PDF export button */}
           <button
-            onClick={toggleSankhya}
-            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-              sankhyaManualEnabled
-                ? "bg-blue-600 text-white border-blue-600"
-                : "bg-white text-slate-600 border-slate-200 hover:border-blue-300"
-            }`}
+            onClick={() => generateScopePDF(project, localAnswers, contractedModules, origin, manualOverrides)}
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50 transition-colors"
           >
-            {sankhyaManualEnabled ? <Minus className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-            {sankhyaManualEnabled ? "Remover Sankhya" : "Incluir Integração Sankhya"}
+            <FileDown className="w-3.5 h-3.5" />
+            Gerar PDF do Escopo
           </button>
-        )}
+        </div>
       </div>
 
       <div className="space-y-4">
