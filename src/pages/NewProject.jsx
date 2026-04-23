@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { SCHEDULE_TEMPLATE, SCOPE_TEMPLATE } from "@/lib/mockData";
+import { SCHEDULE_TEMPLATE } from "@/lib/mockData";
+import { CONTRACTED_MODULES_OPTIONS } from "@/lib/scopeTemplate";
 import { ArrowLeft, Save, ChevronRight, CheckCircle2 } from "lucide-react";
 
 const STEPS = [
@@ -11,10 +12,7 @@ const STEPS = [
   { id: "schedule", label: "Cronograma" }
 ];
 
-const MODULES = [
-  "Ponto Eletrônico", "Banco de Horas", "Escala", "Controle de Custos",
-  "App Mobile", "REP-C", "Integração Sankhya", "Controle de Acesso"
-];
+const MODULES = CONTRACTED_MODULES_OPTIONS;
 const SERVICES = [
   "Integração Sankhya MGE", "Parametrização Cálculos", "Treinamento Gestores",
   "Treinamento Usuários", "Suporte Estendido", "Migração de Dados"
@@ -84,19 +82,8 @@ export default function NewProject() {
         progress_percent: 0
       });
 
-      // Create scope items from template
-      const scopeItems = SCOPE_TEMPLATE.flatMap(section =>
-        section.items.map(item => ({
-          project_id: project.id,
-          section: section.section,
-          question: item.question,
-          best_practice: item.best_practice,
-          order_number: item.order_number,
-          answer: "",
-          field_type: "text"
-        }))
-      );
-      await base44.entities.ScopeItem.bulkCreate(scopeItems);
+      // Scope items are created on-demand when user fills the ScopeTab
+      // (no bulk creation needed — answers are saved per question as user fills)
 
       // Create schedule phases from template
       const phases = SCHEDULE_TEMPLATE.map((p, i) => ({

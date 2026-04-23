@@ -7,7 +7,7 @@ import {
 } from "@/lib/mockData";
 import ProjectHeader from "@/components/project/ProjectHeader";
 import OverviewTab from "@/components/project/tabs/OverviewTab";
-import ScopeTab from "@/components/project/tabs/ScopeTab";
+import ScopeTab from "@/components/project/tabs/ScopeTab.jsx";
 import ScheduleTab from "@/components/project/tabs/ScheduleTab";
 import StatusReportTab from "@/components/project/tabs/StatusReportTab";
 import ActionPlanTab from "@/components/project/tabs/ActionPlanTab";
@@ -112,7 +112,7 @@ export default function ProjectDetail() {
       <div className="flex-1 p-8 bg-slate-50">
         <div className="max-w-6xl mx-auto">
           {activeTab === "overview" && <OverviewTab project={project} phases={phases} />}
-          {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} onRefresh={loadData} />}
+          {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} project={project} onRefresh={loadData} />}
           {activeTab === "tap" && <TAPTab project={project} scopeItems={scopeItems} documents={documents} projectId={id} onRefresh={loadData} />}
           {activeTab === "schedule" && <ScheduleTab phases={phases} activities={activities} projectId={id} onRefresh={loadData} />}
           {activeTab === "status" && <StatusReportTab reports={reports} projectId={id} projectClientName={project.client_name} activities={activities} onRefresh={loadData} />}
