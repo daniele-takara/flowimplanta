@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, Plus, Minus, FileDown, Check, LayoutList } f
 
 const SANKHYA_KEY = "sankhya_manual_override";
 
-export default function ScopeTab({ scopeItems, projectId, project, onRefresh }) {
+export default function ScopeTab({ scopeItems, projectId, project, onRefresh, readOnly = false }) {
   // manualOverrides: { sankhya_manual_override: true/false }
   const [manualOverrides, setManualOverrides] = useState(() => {
     try {
@@ -162,7 +162,7 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh }) 
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {!sankhyaAutoVisible && (
+          {!sankhyaAutoVisible && !readOnly && (
             <button
               onClick={toggleSankhya}
               className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
@@ -249,7 +249,8 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh }) 
                       question={q}
                       savedAnswer={localAnswers[q.id]?.answer || ""}
                       savedObs={localAnswers[q.id]?.observations || ""}
-                      onSave={handleSave}
+                      onSave={readOnly ? () => {} : handleSave}
+                      readOnly={readOnly}
                     />
                   ))}
                 </div>
@@ -263,7 +264,8 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh }) 
                   question={q}
                   savedAnswer={localAnswers[q.id]?.answer || ""}
                   savedObs={localAnswers[q.id]?.observations || ""}
-                  onSave={handleSave}
+                  onSave={readOnly ? () => {} : handleSave}
+                  readOnly={readOnly}
                 />
               ))}
             </div>

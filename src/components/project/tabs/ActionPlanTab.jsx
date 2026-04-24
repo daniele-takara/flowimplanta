@@ -121,7 +121,7 @@ function ActionRow({ item, onUpdate }) {
   );
 }
 
-export default function ActionPlanTab({ actions, projectId, onRefresh }) {
+export default function ActionPlanTab({ actions, projectId, onRefresh, readOnly = false }) {
   const [showForm, setShowForm] = useState(false);
   const [newItem, setNewItem] = useState({ theme: "", issue: "", issue_description: "", type: "Pendência", impact: "Médio", responsible_pontotel: "", responsible_client: "", request_date: new Date().toISOString().split("T")[0], deadline_date: "" });
   const [saving, setSaving] = useState(false);
@@ -146,7 +146,7 @@ export default function ActionPlanTab({ actions, projectId, onRefresh }) {
           <h2 className="text-base font-semibold text-slate-800">Plano de Ação</h2>
           <p className="text-sm text-slate-400">{openItems.length} iten{openItems.length !== 1 ? "s" : ""} em aberto</p>
         </div>
-        {!showForm && (
+        {!showForm && !readOnly && (
           <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">
             <Plus className="w-4 h-4" />Nova Issue
           </button>
@@ -205,14 +205,14 @@ export default function ActionPlanTab({ actions, projectId, onRefresh }) {
             <AlertTriangle className="w-4 h-4 text-orange-500" />
             <h3 className="text-sm font-semibold text-slate-700">Em Aberto ({openItems.length})</h3>
           </div>
-          {openItems.map(item => <ActionRow key={item.id || item.issue} item={item} onUpdate={onRefresh} />)}
+          {openItems.map(item => <ActionRow key={item.id || item.issue} item={item} onUpdate={onRefresh} readOnly={readOnly} />)}
         </div>
       )}
 
       {closedItems.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-slate-400 mb-3">Encerrados ({closedItems.length})</h3>
-          {closedItems.map(item => <ActionRow key={item.id || item.issue} item={item} onUpdate={onRefresh} />)}
+          {closedItems.map(item => <ActionRow key={item.id || item.issue} item={item} onUpdate={onRefresh} readOnly={readOnly} />)}
         </div>
       )}
 

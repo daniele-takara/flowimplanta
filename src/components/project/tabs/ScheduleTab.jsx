@@ -325,7 +325,7 @@ function PhaseSection({ phaseName, tasks, computedDates, manualOverrides, activi
 
 // ── COMPONENTE PRINCIPAL ──────────────────────────────────────
 
-export default function ScheduleTab({ scopeItems, project, projectId, onRefresh }) {
+export default function ScheduleTab({ scopeItems, project, projectId, onRefresh, readOnly = false }) {
   // manualOverrides: { [taskId]: { plannedStart, plannedEnd } }
   const [manualOverrides, setManualOverrides] = useState(() => {
     try {
@@ -446,9 +446,11 @@ export default function ScheduleTab({ scopeItems, project, projectId, onRefresh 
                   type="date"
                   value={currentVal}
                   onChange={e => {
-                    handleSaveOverride(anchor.id, { plannedStart: e.target.value });
+                    if (!readOnly) handleSaveOverride(anchor.id, { plannedStart: e.target.value });
                   }}
-                  className="w-full px-2 py-1 text-xs border border-amber-200 rounded focus:outline-none focus:ring-1 focus:ring-amber-400 bg-white"
+                  readOnly={readOnly}
+                  disabled={readOnly}
+                  className={`w-full px-2 py-1 text-xs border border-amber-200 rounded focus:outline-none focus:ring-1 focus:ring-amber-400 ${readOnly ? "bg-slate-50 cursor-not-allowed opacity-70" : "bg-white"}`}
                 />
               </div>
             );
@@ -493,8 +495,9 @@ export default function ScheduleTab({ scopeItems, project, projectId, onRefresh 
           computedDates={computedDates}
           manualOverrides={manualOverrides}
           activitiesByTask={activitiesByTask}
-          onSaveOverride={handleSaveOverride}
-          onSaveActivity={handleSaveActivity}
+          onSaveOverride={readOnly ? () => {} : handleSaveOverride}
+          onSaveActivity={readOnly ? () => {} : handleSaveActivity}
+          readOnly={readOnly}
         />
       ))}
 

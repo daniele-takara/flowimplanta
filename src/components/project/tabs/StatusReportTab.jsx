@@ -158,7 +158,7 @@ function MacroScheduleTable({ macroPhases }) {
 
 // ─── Dashboard principal (ref para captura de imagem) ─────────────────────────
 
-const StatusReportDashboard = ({ report, project, macroPhases, overallProgress, usabilityData, form, setForm, locked }) => {
+const StatusReportDashboard = ({ report, project, macroPhases, overallProgress, usabilityData, form, setForm, locked, readOnly = false }) => {
   const today = new Date().toLocaleDateString("pt-BR");
   const contracted = project?.contracted_employees || 0;
   const cadastrados = usabilityData?.numero_funcionarios || report?.registered_employees || 0;
@@ -171,15 +171,15 @@ const StatusReportDashboard = ({ report, project, macroPhases, overallProgress, 
   const labelClass = "block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5";
 
   const editItem = (field, i, key, val) => {
-    if (locked) return;
+    if (locked || readOnly) return;
     setForm(f => ({ ...f, [field]: f[field].map((x, idx) => idx === i ? { ...x, [key]: val } : x) }));
   };
   const addItem = (field, empty) => {
-    if (locked) return;
+    if (locked || readOnly) return;
     setForm(f => ({ ...f, [field]: [...(f[field] || []), empty] }));
   };
   const removeItem = (field, i) => {
-    if (locked) return;
+    if (locked || readOnly) return;
     setForm(f => ({ ...f, [field]: f[field].filter((_, idx) => idx !== i) }));
   };
 
@@ -428,7 +428,7 @@ const DEFAULT_FORM = {
   integration_items: [],
 };
 
-export default function StatusReportTab({ reports, projectId, projectClientName, project, scopeItems, savedActivities, onRefresh }) {
+export default function StatusReportTab({ reports, projectId, projectClientName, project, scopeItems, savedActivities, onRefresh, readOnly = false }) {
   const [report, setReport] = useState(reports?.[0] || null);
   const [form, setForm] = useState(() => {
     const r = reports?.[0];
@@ -622,6 +622,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {!readOnly && (
             <button
               onClick={() => setShowConfirm(true)}
               disabled={updating}
@@ -630,7 +631,9 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
               <RefreshCw className={`w-4 h-4 ${updating ? "animate-spin" : ""}`} />
               {updating ? "Atualizando..." : "Atualizar Status Report"}
             </button>
+            )}
 
+            {!readOnly && (
             <button
               onClick={handleSaveManual}
               disabled={saving}
@@ -639,6 +642,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
               <Save className="w-4 h-4" />
               {saving ? "Salvando..." : "Salvar campos manuais"}
             </button>
+            )}
 
             <button
               onClick={handleGenerateImage}
@@ -692,6 +696,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
           form={form}
           setForm={setForm}
           locked={false}
+          readOnly={readOnly}
         />
       </div>
     </div>

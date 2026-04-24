@@ -15,6 +15,7 @@ import TAPTab from "@/components/project/tabs/TAPTab.jsx";
 import ClosureTab from "@/components/project/tabs/ClosureTab.jsx";
 import TermoEncerramentoTab from "@/components/project/tabs/TermoEncerramentoTab";
 import EditProjectModal from "@/components/project/EditProjectModal";
+import { usePermissions } from "@/lib/usePermissions";
 
 const TABS = [
   { id: "overview",  label: "Dados Iniciais" },
@@ -40,6 +41,7 @@ export default function ProjectDetail() {
   const [loading, setLoading]     = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
 
+  const perms = usePermissions();
   const isMock = id && id.startsWith("proj-");
 
   const loadData = async () => {
@@ -120,16 +122,22 @@ export default function ProjectDetail() {
         </div>
       </div>
 
+      {perms.readOnly && (
+        <div className="bg-amber-50 border-b border-amber-200 px-8 py-2 flex items-center gap-2 text-sm text-amber-700">
+          <span className="font-semibold">Modo somente leitura</span> — seu perfil <strong>{perms.appRole}</strong> não permite edições.
+        </div>
+      )}
+
       <div className="flex-1 p-8 bg-slate-50">
         <div className="max-w-6xl mx-auto">
-          {activeTab === "overview" && <OverviewTab project={project} phases={phases} onEditDadosIniciais={!isMock ? () => setShowEditModal(true) : null} />}
-          {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} project={project} onRefresh={loadData} />}
-          {activeTab === "tap" && <TAPTab project={project} scopeItems={scopeItems} documents={documents} projectId={id} onRefresh={loadData} />}
-          {activeTab === "schedule" && <ScheduleTab scopeItems={scopeItems} project={project} projectId={id} onRefresh={loadData} />}
-          {activeTab === "status" && <StatusReportTab reports={reports} projectId={id} projectClientName={project.client_name} project={project} scopeItems={scopeItems} savedActivities={activities} onRefresh={loadData} />}
-          {activeTab === "actions" && <ActionPlanTab actions={actions} projectId={id} onRefresh={loadData} />}
-          {activeTab === "termo" && <TermoEncerramentoTab project={project} scopeItems={scopeItems} reports={reports} savedActivities={activities} projectId={id} />}
-          {activeTab === "closure" && <ClosureTab project={project} documents={documents} activities={activities} projectId={id} onRefresh={loadData} />}
+          {activeTab === "overview" && <OverviewTab project={project} phases={phases} onEditDadosIniciais={(!isMock && perms.canEditProject) ? () => setShowEditModal(true) : null} />}
+          {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} project={project} onRefresh={loadData} readOnly={!perms.canEditScope} />}
+          {activeTab === "tap" && <TAPTab project={project} scopeItems={scopeItems} documents={documents} projectId={id} onRefresh={loadData} readOnly={!perms.canEditTAP} />}
+          {activeTab === "schedule" && <ScheduleTab scopeItems={scopeItems} project={project} projectId={id} onRefresh={loadData} readOnly={!perms.canEditSchedule} />}
+          {activeTab === "status" && <StatusReportTab reports={reports} projectId={id} projectClientName={project.client_name} project={project} scopeItems={scopeItems} savedActivities={activities} onRefresh={loadData} readOnly={!perms.canEditStatusReport} />}
+          {activeTab === "actions" && <ActionPlanTab actions={actions} projectId={id} onRefresh={loadData} readOnly={!perms.canEditActionPlan} />}
+          {activeTab === "termo" && <TermoEncerramentoTab project={project} scopeItems={scopeItems} reports={reports} savedActivities={activities} projectId={id} readOnly={!perms.canEditTermo} />}
+          {activeTab === "closure" && <ClosureTab project={project} documents={documents} activities={activities} projectId={id} onRefresh={loadData} readOnly={!perms.canEditTermo} />}
         </div>
       </div>
     </div>

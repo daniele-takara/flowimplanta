@@ -232,7 +232,7 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function TermoEncerramentoTab({ project, scopeItems, reports, savedActivities, projectId }) {
+export default function TermoEncerramentoTab({ project, scopeItems, reports, savedActivities, projectId, readOnly = false }) {
   const [termos, setTermos] = useState([]);
   const [current, setCurrent] = useState(null);
   const [loadingTermos, setLoadingTermos] = useState(true);
@@ -426,26 +426,26 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
           <div className="flex flex-wrap items-center gap-2">
             <SaveStatus status={saveStatus} />
 
-            <button onClick={handleRefresh} disabled={refreshing}
+            {!readOnly && <button onClick={handleRefresh} disabled={refreshing}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors disabled:opacity-50">
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
               Atualizar dados automáticos
-            </button>
+            </button>}
 
-            {current?.status === "Rascunho" && (
+            {!readOnly && current?.status === "Rascunho" && (
               <button onClick={() => handleMarkStatus("Enviado")}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
                 <Send className="w-3.5 h-3.5" /> Marcar como Enviado
               </button>
             )}
-            {current?.status === "Enviado" && (
+            {!readOnly && current?.status === "Enviado" && (
               <button onClick={() => handleMarkStatus("Assinado")}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-colors">
                 <CheckCircle2 className="w-3.5 h-3.5" /> Marcar como Assinado
               </button>
             )}
 
-            {isLocked && (
+            {!readOnly && isLocked && (
               <button onClick={handleNewVersion}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors">
                 <Plus className="w-3.5 h-3.5" /> Nova versão
@@ -650,7 +650,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
                 <CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> Sem pendências registradas — o documento exibirá "Não há pendências".
               </div>
             )}
-            {!isLocked && (
+            {!isLocked && !readOnly && (
               <div className="space-y-2 mb-3">
                 {(form.pending_items || []).map((item, i) => (
                   <div key={i} className="flex gap-2 items-start bg-slate-50 rounded-lg p-2 border border-slate-100">
@@ -686,7 +686,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
 
           {/* 8. Adendos */}
           <Section number="8" title="ADENDOS">
-            {!isLocked && (
+            {!isLocked && !readOnly && (
               <div className="mb-4">
                 <p className="text-xs text-slate-500 mb-2">Selecione os adendos a incluir (a ordem de seleção define a ordem no documento):</p>
                 {adendosAll.length === 0 ? (
@@ -734,7 +734,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
             <div className="mb-2 flex items-center gap-2">
               <span className="text-xs text-emerald-600 font-medium bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">✎ Editável</span>
             </div>
-            {isLocked ? (
+            {isLocked || readOnly ? (
               <p className="text-sm text-slate-700 whitespace-pre-wrap bg-slate-50 rounded-lg p-4 border border-slate-100">{form.final_considerations || "—"}</p>
             ) : (
               <textarea
@@ -754,7 +754,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
               <span className="text-xs text-slate-400">Selecione os signatários Pontotel</span>
             </div>
 
-            {!isLocked && (
+            {!isLocked && !readOnly && (
               <div className="grid grid-cols-2 gap-4 mb-5">
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Coordenadora de implantação *</label>

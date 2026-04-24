@@ -14,9 +14,12 @@ import NewProject from './pages/NewProject';
 import Parametrizacoes from './pages/Parametrizacoes';
 import FluxoProjeto from './pages/FluxoProjeto';
 import AppLayout from './components/layout/AppLayout';
+import ProtectedRoute from './components/layout/ProtectedRoute';
+import { usePermissions } from './lib/usePermissions';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const perms = usePermissions();
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
@@ -40,10 +43,22 @@ const AuthenticatedApp = () => {
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/projects" element={<ProjectList />} />
-        <Route path="/projects/new" element={<NewProject />} />
+        <Route path="/projects/new" element={
+          <ProtectedRoute allowed={perms.canCreateProject}>
+            <NewProject />
+          </ProtectedRoute>
+        } />
         <Route path="/projects/:id" element={<ProjectDetail />} />
-        <Route path="/parametrizacoes" element={<Parametrizacoes />} />
-        <Route path="/fluxo" element={<FluxoProjeto />} />
+        <Route path="/parametrizacoes" element={
+          <ProtectedRoute allowed={perms.canAccessParametrizacoes}>
+            <Parametrizacoes />
+          </ProtectedRoute>
+        } />
+        <Route path="/fluxo" element={
+          <ProtectedRoute allowed={perms.canAccessFluxo}>
+            <FluxoProjeto />
+          </ProtectedRoute>
+        } />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

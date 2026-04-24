@@ -401,7 +401,7 @@ function VersionBadge({ status }) {
 
 const DEBOUNCE_MS = 1500;
 
-export default function TAPTab({ project, scopeItems, documents, projectId, onRefresh }) {
+export default function TAPTab({ project, scopeItems, documents, projectId, onRefresh, readOnly = false }) {
   const [versions, setVersions] = useState([]);
   const [currentVersion, setCurrentVersion] = useState(null);
   const [saveStatus, setSaveStatus] = useState(null);
@@ -653,24 +653,24 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
             <SaveStatus status={saveStatus} />
 
             {/* Atualizar dados automáticos */}
-            <button
+            {!readOnly && <button
               onClick={handleRefreshAuto}
               disabled={refreshing}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
               Atualizar dados automáticos
-            </button>
+            </button>}
 
             {/* Finalizar */}
-            {currentVersion && currentVersion.status === "Rascunho" && (
+            {!readOnly && currentVersion && currentVersion.status === "Rascunho" && (
               <button onClick={handleFinalize} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
                 <CheckCircle2 className="w-3.5 h-3.5" />Finalizar versão
               </button>
             )}
 
             {/* Marcar como enviada */}
-            {currentVersion && currentVersion.status === "Finalizada" && (
+            {!readOnly && currentVersion && currentVersion.status === "Finalizada" && (
               <button onClick={handleMarkSent} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-colors">
                 <Send className="w-3.5 h-3.5" />Marcar como enviada ao cliente
               </button>
