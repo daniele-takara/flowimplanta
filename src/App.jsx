@@ -14,6 +14,7 @@ import NewProject from './pages/NewProject';
 import Parametrizacoes from './pages/Parametrizacoes';
 import FluxoProjeto from './pages/FluxoProjeto';
 import UsersPermissions from './pages/UsersPermissions';
+import RBACReport from './pages/RBACReport';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import { usePermissions } from './lib/usePermissions';
@@ -58,6 +59,11 @@ const AuthenticatedApp = () => {
         <Route path="/users-permissions" element={
           <ProtectedRoute allowed={perms.canAccessParametrizacoes}>
             <UsersPermissions />
+          </ProtectedRoute>
+        } />
+        <Route path="/rbac-report" element={
+          <ProtectedRoute allowed={perms.canAccessParametrizacoes}>
+            <RBACReport />
           </ProtectedRoute>
         } />
         <Route path="/fluxo" element={

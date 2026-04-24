@@ -94,6 +94,21 @@ export const AuthProvider = ({ children }) => {
       // Now check if the user is authenticated
       setIsLoadingAuth(true);
       const currentUser = await base44.auth.me();
+
+      // Carregar perfil de permissão vinculado ao usuário
+      if (currentUser?.permission_profile_id) {
+        try {
+          const profiles = await base44.entities.PermissionProfile.filter({
+            id: currentUser.permission_profile_id
+          });
+          if (profiles?.[0]) {
+            currentUser._resolvedProfile = profiles[0];
+          }
+        } catch {
+          // Perfil não encontrado — sem acesso extra
+        }
+      }
+
       setUser(currentUser);
       setIsAuthenticated(true);
       setIsLoadingAuth(false);

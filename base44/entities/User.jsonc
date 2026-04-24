@@ -10,16 +10,18 @@
       ],
       "default": "user"
     },
+    "permission_profile_id": {
+      "type": "string",
+      "description": "ID do PermissionProfile vinculado ao usu\u00e1rio"
+    },
     "app_role": {
       "type": "string",
-      "enum": [
-        "Admin",
-        "Gestor de Projetos",
-        "Implanta\u00e7\u00e3o",
-        "Viewer"
-      ],
-      "default": "Viewer",
-      "description": "Role de acesso no sistema de implanta\u00e7\u00e3o"
+      "description": "Role legado \u2014 mantido por compatibilidade. Use permission_profile_id para RBAC."
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Usu\u00e1rio ativo no sistema"
     }
   }
 }

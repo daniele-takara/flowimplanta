@@ -1,0 +1,100 @@
+{
+  "name": "PermissionProfile",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome do perfil (ex: Gestor, Viewer)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o do perfil"
+    },
+    "is_default": {
+      "type": "boolean",
+      "default": false,
+      "description": "Perfil padr\u00e3o para novos usu\u00e1rios"
+    },
+    "permissions": {
+      "type": "object",
+      "description": "Mapa de permiss\u00f5es por m\u00f3dulo",
+      "properties": {
+        "projetos_ver": {
+          "type": "boolean",
+          "default": false
+        },
+        "projetos_criar": {
+          "type": "boolean",
+          "default": false
+        },
+        "projetos_editar": {
+          "type": "boolean",
+          "default": false
+        },
+        "projetos_excluir": {
+          "type": "boolean",
+          "default": false
+        },
+        "dados_iniciais_ver": {
+          "type": "boolean",
+          "default": false
+        },
+        "dados_iniciais_editar": {
+          "type": "boolean",
+          "default": false
+        },
+        "escopo_ver": {
+          "type": "boolean",
+          "default": false
+        },
+        "escopo_editar": {
+          "type": "boolean",
+          "default": false
+        },
+        "cronograma_ver": {
+          "type": "boolean",
+          "default": false
+        },
+        "cronograma_editar": {
+          "type": "boolean",
+          "default": false
+        },
+        "tap_ver": {
+          "type": "boolean",
+          "default": false
+        },
+        "tap_editar": {
+          "type": "boolean",
+          "default": false
+        },
+        "status_report_ver": {
+          "type": "boolean",
+          "default": false
+        },
+        "status_report_editar": {
+          "type": "boolean",
+          "default": false
+        },
+        "termo_ver": {
+          "type": "boolean",
+          "default": false
+        },
+        "termo_pdf": {
+          "type": "boolean",
+          "default": false
+        },
+        "parametrizacoes_acessar": {
+          "type": "boolean",
+          "default": false
+        },
+        "parametrizacoes_editar": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    }
+  },
+  "required": [
+    "name"
+  ]
+}
