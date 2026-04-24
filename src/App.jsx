@@ -11,7 +11,7 @@ import Dashboard from './pages/Dashboard';
 import ProjectList from './pages/ProjectList';
 import ProjectDetail from './pages/ProjectDetail';
 import NewProject from './pages/NewProject';
-import Adendos from './pages/Adendos';
+import Parametrizacoes from './pages/Parametrizacoes';
 import FluxoProjeto from './pages/FluxoProjeto';
 import AppLayout from './components/layout/AppLayout';
 
@@ -42,7 +42,7 @@ const AuthenticatedApp = () => {
         <Route path="/projects" element={<ProjectList />} />
         <Route path="/projects/new" element={<NewProject />} />
         <Route path="/projects/:id" element={<ProjectDetail />} />
-        <Route path="/adendos" element={<Adendos />} />
+        <Route path="/parametrizacoes" element={<Parametrizacoes />} />
         <Route path="/fluxo" element={<FluxoProjeto />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

@@ -1,0 +1,31 @@
+{
+  "name": "Assinatura",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome completo"
+    },
+    "email": {
+      "type": "string",
+      "description": "E-mail"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "Coordenadora de implanta\u00e7\u00e3o",
+        "L\u00edder de implanta\u00e7\u00e3o"
+      ],
+      "description": "Cargo"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name",
+    "email",
+    "role"
+  ]
+}

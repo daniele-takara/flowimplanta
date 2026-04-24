@@ -45,7 +45,7 @@ function SaveStatus({ status }) {
 
 function esc(s) { return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"); }
 
-function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, finalConsiderations, selectedAdendosData, scopeItems, version }) {
+function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, finalConsiderations, selectedAdendosData, scopeItems, version, coordenadora, liderImpl }) {
   const answersMap = buildAnswersMap(scopeItems);
   const contracted = project?.contracted_employees || 0;
   const batendo = usabilitySnap?.empregados_batendo_ponto_ultimos_15_dias || 0;
@@ -202,18 +202,21 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
   <div class="sig">
     <div class="sig-box">
       <div class="line"></div>
-      <strong>${esc(project?.pontotel_manager_name) || "Gerente Pontotel"}</strong><br>
-      <span style="font-size:10px;color:#64748b">Pontotel · Gerente de Projeto</span>
+      <strong>${esc(coordenadora?.name) || "Coordenadora de Implantação"}</strong><br>
+      <span style="font-size:10px;color:#64748b">Pontotel · Coordenadora de implantação</span>
+      ${coordenadora?.email ? `<br><span style="font-size:9px;color:#94a3b8">${esc(coordenadora.email)}</span>` : ""}
+    </div>
+    <div class="sig-box">
+      <div class="line"></div>
+      <strong>${esc(liderImpl?.name) || "Líder de Implantação"}</strong><br>
+      <span style="font-size:10px;color:#64748b">Pontotel · Líder de implantação (testemunha)</span>
+      ${liderImpl?.email ? `<br><span style="font-size:9px;color:#94a3b8">${esc(liderImpl.email)}</span>` : ""}
     </div>
     <div class="sig-box">
       <div class="line"></div>
       <strong>${esc(project?.project_leader_name) || "Líder do Projeto"}</strong><br>
       <span style="font-size:10px;color:#64748b">${esc(project?.client_name)} · Líder do Projeto</span>
-    </div>
-    <div class="sig-box">
-      <div class="line"></div>
-      <strong>${esc(project?.sponsor_name) || "Patrocinador"}</strong><br>
-      <span style="font-size:10px;color:#64748b">${esc(project?.client_name)} · Patrocinador</span>
+      ${project?.project_leader_contact ? `<br><span style="font-size:9px;color:#94a3b8">${esc(project.project_leader_contact)}</span>` : ""}
     </div>
   </div>
 </div>
@@ -234,6 +237,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
   const [current, setCurrent] = useState(null);
   const [loadingTermos, setLoadingTermos] = useState(true);
   const [adendosAll, setAdendosAll] = useState([]);
+  const [assinaturasAll, setAssinaturasAll] = useState([]);
   const [macroPhases, setMacroPhases] = useState([]);
   const [usabilitySnap, setUsabilitySnap] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -245,6 +249,8 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
     pending_items: [],
     final_considerations: "",
     selected_adendos: [],
+    selected_coordenadora_id: "",
+    selected_lider_id: "",
   });
 
   const answersMap = buildAnswersMap(scopeItems);
@@ -252,12 +258,14 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
   // Carregar termos e adendos
   const load = useCallback(async () => {
     setLoadingTermos(true);
-    const [ts, adendos] = await Promise.all([
+    const [ts, adendos, assinaturas] = await Promise.all([
       base44.entities.TermoEncerramento.filter({ project_id: projectId }, "-version_number"),
       base44.entities.Adendo.filter({ active: true }, "title"),
+      base44.entities.Assinatura.filter({ active: true }, "name"),
     ]);
     setTermos(ts);
     setAdendosAll(adendos);
+    setAssinaturasAll(assinaturas);
     const curr = ts.find(t => t.is_current) || ts[0] || null;
     if (curr) {
       setCurrent(curr);
@@ -265,6 +273,8 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
         pending_items: curr.pending_items || [],
         final_considerations: curr.final_considerations || "",
         selected_adendos: curr.selected_adendos || [],
+        selected_coordenadora_id: curr.selected_coordenadora_id || "",
+        selected_lider_id: curr.selected_lider_id || "",
       });
       if (curr.macro_schedule_snapshot) {
         try { setMacroPhases(JSON.parse(curr.macro_schedule_snapshot)); } catch {}
@@ -288,6 +298,8 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
       pending_items: formData.pending_items,
       final_considerations: formData.final_considerations,
       selected_adendos: formData.selected_adendos,
+      selected_coordenadora_id: formData.selected_coordenadora_id,
+      selected_lider_id: formData.selected_lider_id,
       ...extra,
     };
     let saved;
@@ -358,6 +370,8 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
       pending_items: form.pending_items,
       final_considerations: form.final_considerations,
       selected_adendos: form.selected_adendos,
+      selected_coordenadora_id: form.selected_coordenadora_id,
+      selected_lider_id: form.selected_lider_id,
       macro_schedule_snapshot: JSON.stringify(macroPhases),
     });
     setCurrent(created);
@@ -374,6 +388,11 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
   const selectedAdendosData = (form.selected_adendos || [])
     .map(id => adendosAll.find(a => a.id === id))
     .filter(Boolean);
+
+  const coordenadora = assinaturasAll.find(a => a.id === form.selected_coordenadora_id) || null;
+  const liderImpl = assinaturasAll.find(a => a.id === form.selected_lider_id) || null;
+  const coordenadorasList = assinaturasAll.filter(a => a.role === "Coordenadora de implantação");
+  const liderList = assinaturasAll.filter(a => a.role === "Líder de implantação");
 
   const toggleAdendo = (id) => {
     const sel = form.selected_adendos || [];
@@ -442,7 +461,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
             )}
 
             <button
-              onClick={() => generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems: form.pending_items, finalConsiderations: form.final_considerations, selectedAdendosData, scopeItems, version: current })}
+              onClick={() => generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems: form.pending_items, finalConsiderations: form.final_considerations, selectedAdendosData, scopeItems, version: current, coordenadora, liderImpl })}
               className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors">
               <Download className="w-3.5 h-3.5" /> Gerar PDF
             </button>
@@ -728,24 +747,68 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
             )}
           </Section>
 
-          {/* 10. Aceite Formal */}
-          <Section number="10" title="ACEITE FORMAL">
-            <AutoBadge />
-            <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+          {/* 10. Assinaturas */}
+          <Section number="10" title="ACEITE E ASSINATURAS">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs text-emerald-600 font-medium bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">✎ Editável</span>
+              <span className="text-xs text-slate-400">Selecione os signatários Pontotel</span>
+            </div>
+
+            {!isLocked && (
+              <div className="grid grid-cols-2 gap-4 mb-5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Coordenadora de implantação *</label>
+                  <select
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    value={form.selected_coordenadora_id}
+                    onChange={e => setField("selected_coordenadora_id", e.target.value)}
+                  >
+                    <option value="">— Selecionar —</option>
+                    {coordenadorasList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                  {coordenadorasList.length === 0 && <p className="text-xs text-amber-600 mt-1">Nenhuma coordenadora cadastrada em Parametrizações.</p>}
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Líder de implantação (testemunha) *</label>
+                  <select
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    value={form.selected_lider_id}
+                    onChange={e => setField("selected_lider_id", e.target.value)}
+                  >
+                    <option value="">— Selecionar —</option>
+                    {liderList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                  {liderList.length === 0 && <p className="text-xs text-amber-600 mt-1">Nenhum líder cadastrado em Parametrizações.</p>}
+                </div>
+              </div>
+            )}
+
+            <p className="text-sm text-slate-600 mb-4 leading-relaxed">
               Ao assinar este documento, as partes declaram estar de acordo com os termos e condições do encerramento do projeto de implantação da Pontotel para <strong>{project?.client_name}</strong>, confirmando que todas as atividades previstas foram concluídas conforme acordado.
             </p>
-            <div className="grid grid-cols-3 gap-4 mt-6">
-              {[
-                { role: "Gerente de Projeto", name: project?.pontotel_manager_name, org: "Pontotel" },
-                { role: "Líder do Projeto", name: project?.project_leader_name, org: project?.client_name },
-                { role: "Patrocinador", name: project?.sponsor_name, org: project?.client_name },
-              ].map((sig, i) => (
-                <div key={i} className="border border-slate-200 rounded-lg p-4 text-center">
-                  <div className="h-10 border-b border-slate-300 mb-3" />
-                  <p className="text-sm font-semibold text-slate-700">{sig.name || sig.role}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{sig.org} · {sig.role}</p>
-                </div>
-              ))}
+
+            <div className="grid grid-cols-3 gap-4">
+              {/* Coordenadora Pontotel */}
+              <div className="border border-slate-200 rounded-lg p-4 text-center">
+                <div className="h-10 border-b border-slate-300 mb-3" />
+                <p className="text-sm font-semibold text-slate-700">{coordenadora?.name || <span className="text-amber-500 italic">Não selecionada</span>}</p>
+                <p className="text-xs text-slate-400 mt-0.5">Pontotel · Coordenadora de implantação</p>
+                {coordenadora?.email && <p className="text-xs text-slate-300 mt-0.5">{coordenadora.email}</p>}
+              </div>
+              {/* Líder de implantação (testemunha) */}
+              <div className="border border-slate-200 rounded-lg p-4 text-center">
+                <div className="h-10 border-b border-slate-300 mb-3" />
+                <p className="text-sm font-semibold text-slate-700">{liderImpl?.name || <span className="text-amber-500 italic">Não selecionado</span>}</p>
+                <p className="text-xs text-slate-400 mt-0.5">Pontotel · Líder de implantação (testemunha)</p>
+                {liderImpl?.email && <p className="text-xs text-slate-300 mt-0.5">{liderImpl.email}</p>}
+              </div>
+              {/* Líder do Projeto - Cliente */}
+              <div className="border border-green-200 bg-green-50 rounded-lg p-4 text-center">
+                <div className="h-10 border-b border-green-300 mb-3" />
+                <p className="text-sm font-semibold text-slate-700">{project?.project_leader_name || <span className="text-slate-400 italic">Não cadastrado</span>}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{project?.client_name} · Líder do Projeto</p>
+                {project?.project_leader_contact && <p className="text-xs text-slate-300 mt-0.5">{project.project_leader_contact}</p>}
+              </div>
             </div>
           </Section>
         </div>

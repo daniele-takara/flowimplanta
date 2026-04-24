@@ -1,12 +1,22 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, FolderKanban, Plus, FileText, GitBranch } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Plus, Settings, GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: FolderKanban, label: "Projetos", path: "/projects" },
-  { icon: FileText, label: "Adendos", path: "/adendos" },
-  { icon: GitBranch, label: "Fluxo do Projeto", path: "/fluxo" },
+const navGroups = [
+  {
+    label: null,
+    items: [
+      { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+      { icon: FolderKanban, label: "Projetos", path: "/projects" },
+    ]
+  },
+  {
+    label: "Configurações",
+    items: [
+      { icon: Settings, label: "Parametrizações", path: "/parametrizacoes" },
+      { icon: GitBranch, label: "Fluxo do Projeto", path: "/fluxo" },
+    ]
+  },
 ];
 
 export default function Sidebar() {
@@ -26,25 +36,34 @@ export default function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1">
-        {navItems.map(({ icon: Icon, label, path }) => {
-          const active = location.pathname === path || (path !== "/" && location.pathname.startsWith(path));
-          return (
-            <Link
-              key={path}
-              to={path}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                active
-                  ? "bg-blue-600 text-white"
-                  : "text-slate-300 hover:bg-slate-800 hover:text-white"
-              )}
-            >
-              <Icon className="w-4 h-4" />
-              {label}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 p-4 space-y-4">
+        {navGroups.map((group, gi) => (
+          <div key={gi}>
+            {group.label && (
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest px-3 mb-1.5">{group.label}</p>
+            )}
+            <div className="space-y-1">
+              {group.items.map(({ icon: Icon, label, path }) => {
+                const active = location.pathname === path || (path !== "/" && location.pathname.startsWith(path));
+                return (
+                  <Link
+                    key={path}
+                    to={path}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                      active
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    )}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       <div className="p-4 border-t border-slate-700">
