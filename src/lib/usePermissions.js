@@ -12,7 +12,9 @@ import { useAuth } from "@/lib/AuthContext";
 
 export function usePermissions() {
   const { user } = useAuth();
-  const appRole = user?.app_role || "Viewer";
+  // Se o usuário tem role "admin" (role padrão do sistema) mas não tem app_role definido,
+  // trata automaticamente como Admin para não perder acesso.
+  const appRole = user?.app_role || (user?.role === "admin" ? "Admin" : "Viewer");
 
   const is = (role) => appRole === role;
   const isAdmin = is("Admin");
