@@ -88,20 +88,20 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:Arial,sans-serif; font-size:11px; color:#1e293b; padding:40px; line-height:1.6; }
-  .header { border-bottom:3px solid #059669; padding-bottom:16px; margin-bottom:24px; display:flex; justify-content:space-between; }
-  .header h1 { font-size:20px; color:#059669; font-weight:bold; }
+  .header { border-bottom:3px solid #7c3aed; padding-bottom:16px; margin-bottom:24px; display:flex; justify-content:space-between; }
+  .header h1 { font-size:20px; color:#7c3aed; font-weight:bold; }
   .header .meta { font-size:10px; color:#64748b; margin-top:4px; }
-  .version-badge { background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:4px 10px; border-radius:12px; font-size:10px; font-weight:bold; }
+  .version-badge { background:#f5f3ff; color:#7c3aed; border:1px solid #c4b5fd; padding:4px 10px; border-radius:12px; font-size:10px; font-weight:bold; }
   .section { margin-bottom:22px; page-break-inside:avoid; }
   .section-title { display:flex; align-items:center; gap:8px; font-size:10px; font-weight:bold; text-transform:uppercase; letter-spacing:2px; color:#64748b; border-bottom:2px solid #e2e8f0; padding-bottom:5px; margin-bottom:10px; }
-  .section-num { width:20px; height:20px; background:#059669; color:white; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-weight:bold; }
+  .section-num { width:20px; height:20px; background:#7c3aed; color:white; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-weight:bold; }
   table { width:100%; border-collapse:collapse; margin-bottom:8px; }
   td, th { padding:5px 8px; border-bottom:1px solid #f1f5f9; vertical-align:top; font-size:10px; }
   th { background:#f8fafc; font-weight:700; color:#64748b; text-align:left; }
   td.lbl { color:#64748b; width:40%; font-weight:600; }
   .card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px 12px; margin-bottom:8px; }
   .tag-ok { display:inline-block; padding:2px 8px; border-radius:12px; font-size:9px; font-weight:bold; background:#dcfce7; color:#166534; margin:2px; }
-  .text-block { background:#f0fdf4; border-left:3px solid #059669; padding:12px 14px; border-radius:0 6px 6px 0; font-size:11px; line-height:1.7; color:#334155; }
+  .text-block { background:#f5f3ff; border-left:3px solid #7c3aed; padding:12px 14px; border-radius:0 6px 6px 0; font-size:11px; line-height:1.7; color:#334155; }
   .sig { display:flex; gap:40px; margin-top:30px; }
   .sig-box { flex:1; text-align:center; border:1px solid #cbd5e1; border-radius:6px; padding:30px 12px 12px; }
   .sig-box .line { border-top:1px solid #334155; margin:0 auto 8px; width:80%; }
@@ -119,11 +119,10 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
 <div class="section">
   <div class="section-title"><span class="section-num">1</span>IDENTIFICAÇÃO DO PROJETO</div>
   <table>
-    <tr><td class="lbl">Cliente</td><td>${esc(project?.client_name)}</td><td class="lbl">ID Empresa</td><td>${esc(project?.empresa_id || "—")}</td></tr>
+    <tr><td class="lbl">Cliente</td><td>${esc(project?.client_name)}</td><td class="lbl">Tipo de Implantação</td><td>${esc(project?.implantation_type)}</td></tr>
     <tr><td class="lbl">Gerente Pontotel</td><td>${esc(project?.pontotel_manager_name)}</td><td class="lbl">Analista</td><td>${esc(project?.pontotel_analyst_name)}</td></tr>
     <tr><td class="lbl">Líder do Projeto (Cliente)</td><td>${esc(project?.project_leader_name)}</td><td class="lbl">Patrocinador</td><td>${esc(project?.sponsor_name)}</td></tr>
     <tr><td class="lbl">Data de Início</td><td>${fmtDate(project?.start_date)}</td><td class="lbl">Data de Encerramento</td><td>${fmtDate(project?.aligned_end_date || project?.planned_end_date)}</td></tr>
-    <tr><td class="lbl">Tipo de Implantação</td><td colspan="3">${esc(project?.implantation_type)}</td></tr>
   </table>
 </div>
 
@@ -403,7 +402,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
   const inputClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white";
 
   if (loadingTermos) {
-    return <div className="flex items-center justify-center h-48"><div className="w-7 h-7 border-4 border-slate-200 border-t-green-500 rounded-full animate-spin" /></div>;
+    return <div className="flex items-center justify-center h-48"><div className="w-7 h-7 border-4 border-slate-200 border-t-purple-500 rounded-full animate-spin" /></div>;
   }
 
   return (
@@ -515,10 +514,10 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
       {/* Documento */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
         {/* Header */}
-        <div className="bg-gradient-to-r from-green-700 to-green-800 px-8 py-6 text-white">
-          <p className="text-xs font-semibold uppercase tracking-widest text-green-200 mb-1">Pontotel · Implantação</p>
+        <div className="bg-gradient-to-br from-purple-700 to-purple-900 px-8 py-6 text-white">
+          <p className="text-xs font-semibold uppercase tracking-widest text-purple-300 mb-1">Pontotel · Implantação</p>
           <h1 className="text-xl font-bold">Termo de Encerramento do Projeto</h1>
-          <p className="text-sm text-green-200 mt-1">{project?.client_name} · {project?.implantation_type}</p>
+          <p className="text-sm text-purple-200 mt-1">{project?.client_name} · {project?.implantation_type}</p>
         </div>
 
         <div className="p-8 space-y-10">
@@ -528,14 +527,13 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
             <AutoBadge />
             <div className="bg-slate-50 rounded-lg p-4 mt-2 grid grid-cols-2 gap-x-8">
               <AutoRow label="Cliente" value={project?.client_name} />
-              <AutoRow label="ID da Empresa" value={project?.empresa_id} />
+              <AutoRow label="Tipo de Implantação" value={project?.implantation_type} />
               <AutoRow label="Gerente Pontotel" value={project?.pontotel_manager_name} />
               <AutoRow label="Analista" value={project?.pontotel_analyst_name} />
               <AutoRow label="Líder do Projeto (Cliente)" value={project?.project_leader_name} />
               <AutoRow label="Patrocinador" value={project?.sponsor_name} />
               <AutoRow label="Data de Início" value={formatDate(project?.start_date)} />
               <AutoRow label="Data de Encerramento" value={formatDate(project?.aligned_end_date || project?.planned_end_date)} />
-              <AutoRow label="Tipo de Implantação" value={project?.implantation_type} />
             </div>
           </Section>
 
@@ -821,7 +819,7 @@ function Section({ number, title, children }) {
   return (
     <section>
       <div className="flex items-center gap-3 mb-4">
-        <span className="w-7 h-7 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">{number}</span>
+        <span className="w-7 h-7 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">{number}</span>
         <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide">{title}</h2>
         <div className="h-px flex-1 bg-slate-200" />
       </div>

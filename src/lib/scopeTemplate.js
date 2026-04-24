@@ -215,9 +215,16 @@ export const SCOPE_MODULES = [
           },
           {
             order: 25, id: "q025",
-            prompt: "Existe alguma escala ''Diferente'' (que não seja: 5x2, 6x1 e 12x36)?",
+            prompt: "Existe alguma escala 'Diferente' (que não seja: 5x2, 6x1 e 12x36)?",
             description: "Essa informação é necessária para identificar a existência de escalas de trabalho fora dos modelos padrão (5x2, 6x1 e 12x36), que possam exigir parametrizações específicas no sistema.",
             type: "single_select", options: ["Sim", "Não"], placeholder: null, rules: []
+          },
+          {
+            order: 251, id: "q251",
+            prompt: "Descreva as escalas diferentes utilizadas",
+            description: "Informe quais são as escalas fora do padrão (5x2, 6x1, 12x36) utilizadas na empresa.",
+            type: "long_text", options: [], placeholder: "[descrever as escalas — texto livre]",
+            rules: [{ type: "conditional_visibility", dependsOn: "q025", condition: { operator: "equals", value: "Sim" } }]
           },
           {
             order: 26, id: "q026",
