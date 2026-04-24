@@ -114,7 +114,7 @@ export default function ProjectDetail() {
           {activeTab === "overview" && <OverviewTab project={project} phases={phases} />}
           {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} project={project} onRefresh={loadData} />}
           {activeTab === "tap" && <TAPTab project={project} scopeItems={scopeItems} documents={documents} projectId={id} onRefresh={loadData} />}
-          {activeTab === "schedule" && <ScheduleTab phases={phases} activities={activities} projectId={id} onRefresh={loadData} />}
+          {activeTab === "schedule" && <ScheduleTab scopeItems={scopeItems} project={project} projectId={id} onRefresh={loadData} />}
           {activeTab === "status" && <StatusReportTab reports={reports} projectId={id} projectClientName={project.client_name} activities={activities} onRefresh={loadData} />}
           {activeTab === "actions" && <ActionPlanTab actions={actions} projectId={id} onRefresh={loadData} />}
           {activeTab === "closure" && <ClosureTab project={project} documents={documents} activities={activities} projectId={id} onRefresh={loadData} />}
