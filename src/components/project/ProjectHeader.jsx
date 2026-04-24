@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Users, TrendingUp, Building2 } from "lucide-react";
+import { ArrowLeft, Calendar, Users, TrendingUp, Building2, Pencil } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ProgressBar from "@/components/ui/ProgressBar";
 import { formatDate, formatCurrency, calcDaysLeft, phaseColor } from "@/lib/utils";
 
-export default function ProjectHeader({ project }) {
+export default function ProjectHeader({ project, onEditDadosIniciais }) {
   const daysLeft = calcDaysLeft(project.planned_end_date);
 
   return (
@@ -33,11 +33,22 @@ export default function ProjectHeader({ project }) {
           )}
         </div>
 
-        <div className="shrink-0 text-right">
-          <div className="text-2xl font-bold text-slate-800">{project.progress_percent}%</div>
-          <div className="text-xs text-slate-400">concluído</div>
-          <div className="mt-2 w-32">
-            <ProgressBar value={project.progress_percent} showLabel={false} />
+        <div className="shrink-0 text-right flex flex-col items-end gap-2">
+          {onEditDadosIniciais && (
+            <button
+              onClick={onEditDadosIniciais}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Editar Dados Iniciais
+            </button>
+          )}
+          <div>
+            <div className="text-2xl font-bold text-slate-800">{project.progress_percent}%</div>
+            <div className="text-xs text-slate-400">concluído</div>
+            <div className="mt-2 w-32">
+              <ProgressBar value={project.progress_percent} showLabel={false} />
+            </div>
           </div>
         </div>
       </div>

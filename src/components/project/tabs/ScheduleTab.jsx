@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { ChevronDown, ChevronRight, Save, X, Anchor, Pencil, Lock, AlertCircle } from "lucide-react";
 import { SCHEDULE_TASKS, PHASE_ORDER, ANCHOR_IDS } from "@/lib/scheduleTasks.js";
@@ -48,12 +48,23 @@ function StatusBadge({ status }) {
 
 function TaskRow({ task, computedDates, manualOverrides, onSaveOverride, onSaveActivity, existingActivity }) {
   const [editing, setEditing] = useState(false);
+
+  // Datas executadas NUNCA são preenchidas automaticamente — apenas pelo usuário
+  // Status calculado com base nas datas executadas
+  const actualStart = existingActivity?.actual_start || "";
+  const actualEnd = existingActivity?.actual_end || "";
+  const derivedStatus = existingActivity?.status || (() => {
+    if (actualEnd) return "Concluído";
+    if (actualStart) return "Em andamento";
+    return "Não iniciado";
+  })();
+
   const [form, setForm] = useState({
     planned_start_manual: manualOverrides?.[task.id]?.plannedStart || "",
     planned_end_manual: manualOverrides?.[task.id]?.plannedEnd || "",
-    actual_start: existingActivity?.actual_start || "",
-    actual_end: existingActivity?.actual_end || "",
-    status: existingActivity?.status || "Não iniciado",
+    actual_start: actualStart,
+    actual_end: actualEnd,
+    status: derivedStatus,
     history_observations: existingActivity?.history_observations || "",
     responsible_leader: existingActivity?.responsible_leader || task.responsibleLeader || "",
     responsible_general: existingActivity?.responsible_general || task.responsibleGeneral || "",
@@ -67,16 +78,31 @@ function TaskRow({ task, computedDates, manualOverrides, onSaveOverride, onSaveA
 
   const inputClass = "px-1.5 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 w-full bg-white";
 
+  // Recalcular status sugerido ao alterar datas executadas
+  const handleActualChange = (field, value) => {
+    setForm(f => {
+      const next = { ...f, [field]: value };
+      // Sugerir status se não foi manualmente alterado para Bloqueado/Cancelado
+      const manualOnly = ["Bloqueado", "Cancelado"];
+      if (!manualOnly.includes(next.status)) {
+        if (next.actual_end) next.status = "Concluído";
+        else if (next.actual_start) next.status = "Em andamento";
+        else next.status = "Não iniciado";
+      }
+      return next;
+    });
+  };
+
   const handleSave = async () => {
     setSaving(true);
-    // Save manual overrides for anchor/manual_override dates
+    // Salvar override de datas âncora/manuais
     const overridePayload = {};
     if (isAnchor || startIsManual) overridePayload.plannedStart = form.planned_start_manual || dates.plannedStart;
     if (endIsManual) overridePayload.plannedEnd = form.planned_end_manual;
     if (Object.keys(overridePayload).length > 0) {
       await onSaveOverride(task.id, overridePayload);
     }
-    // Save activity data (actual dates, status, obs)
+    // Salvar atividade — datas executadas só se o usuário preencheu
     await onSaveActivity(task, {
       actual_start: form.actual_start,
       actual_end: form.actual_end,
@@ -146,18 +172,18 @@ function TaskRow({ task, computedDates, manualOverrides, onSaveOverride, onSaveA
       {/* Data executada início */}
       <td className="px-3 py-2.5 whitespace-nowrap">
         {editing ? (
-          <input type="date" value={form.actual_start} onChange={e => setForm(f => ({ ...f, actual_start: e.target.value }))} className={inputClass} />
+          <input type="date" value={form.actual_start} onChange={e => handleActualChange("actual_start", e.target.value)} className={inputClass} />
         ) : (
-          <span className="text-xs text-slate-500">{fmtDate(form.actual_start)}</span>
+          <span className="text-xs text-slate-500">{fmtDate(form.actual_start) !== "—" ? fmtDate(form.actual_start) : <span className="text-slate-300">—</span>}</span>
         )}
       </td>
 
       {/* Data executada fim */}
       <td className="px-3 py-2.5 whitespace-nowrap">
         {editing ? (
-          <input type="date" value={form.actual_end} onChange={e => setForm(f => ({ ...f, actual_end: e.target.value }))} className={inputClass} />
+          <input type="date" value={form.actual_end} onChange={e => handleActualChange("actual_end", e.target.value)} className={inputClass} />
         ) : (
-          <span className="text-xs text-slate-500">{fmtDate(form.actual_end)}</span>
+          <span className="text-xs text-slate-500">{fmtDate(form.actual_end) !== "—" ? fmtDate(form.actual_end) : <span className="text-slate-300">—</span>}</span>
         )}
       </td>
 
@@ -364,30 +390,27 @@ export default function ScheduleTab({ scopeItems, project, projectId, onRefresh 
   }, [manualOverrides, projectId]);
 
   // Salvar atividade (actual dates, status, obs) no banco
+  // Datas executadas nunca são preenchidas automaticamente — apenas o que o usuário digitou
   const handleSaveActivity = useCallback(async (task, data) => {
     const existing = activitiesByTask[task.id];
+    const payload = {
+      actual_start: data.actual_start || null,
+      actual_end: data.actual_end || null,
+      status: data.status || "Não iniciado",
+      history_observations: data.history_observations || "",
+      responsible_leader: data.responsible_leader || "",
+      responsible_general: data.responsible_general || "",
+    };
     if (existing) {
-      const updated = await base44.entities.ScheduleActivity.update(existing.id, {
-        actual_start: data.actual_start,
-        actual_end: data.actual_end,
-        status: data.status,
-        history_observations: data.history_observations,
-        responsible_leader: data.responsible_leader,
-        responsible_general: data.responsible_general,
-      });
-      setSavedActivities(prev => prev.map(a => a.id === existing.id ? { ...a, ...data } : a));
+      await base44.entities.ScheduleActivity.update(existing.id, payload);
+      setSavedActivities(prev => prev.map(a => a.id === existing.id ? { ...a, ...payload } : a));
     } else {
       const created = await base44.entities.ScheduleActivity.create({
         project_id: projectId,
         phase_name: task.phase,
         activity_name: task.activity,
-        actual_start: data.actual_start,
-        actual_end: data.actual_end,
-        status: data.status,
-        history_observations: data.history_observations,
-        responsible_leader: data.responsible_leader,
-        responsible_general: data.responsible_general,
         order: task.row,
+        ...payload,
       });
       setSavedActivities(prev => [...prev, created]);
     }

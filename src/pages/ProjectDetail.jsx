@@ -13,6 +13,7 @@ import StatusReportTab from "@/components/project/tabs/StatusReportTab";
 import ActionPlanTab from "@/components/project/tabs/ActionPlanTab";
 import TAPTab from "@/components/project/tabs/TAPTab.jsx";
 import ClosureTab from "@/components/project/tabs/ClosureTab.jsx";
+import EditProjectModal from "@/components/project/EditProjectModal";
 
 const TABS = [
   { id: "overview",  label: "Resumo" },
@@ -35,6 +36,7 @@ export default function ProjectDetail() {
   const [actions, setActions]     = useState([]);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading]     = useState(true);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const isMock = id && id.startsWith("proj-");
 
@@ -89,7 +91,14 @@ export default function ProjectDetail() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <ProjectHeader project={project} />
+      <ProjectHeader project={project} onEditDadosIniciais={!isMock ? () => setShowEditModal(true) : null} />
+      {showEditModal && (
+        <EditProjectModal
+          project={project}
+          onClose={() => setShowEditModal(false)}
+          onSaved={loadData}
+        />
+      )}
 
       <div className="bg-white border-b border-slate-200 px-8 overflow-x-auto">
         <div className="flex gap-0 min-w-max">

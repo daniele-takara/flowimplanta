@@ -9,6 +9,8 @@ import {
   buildParticipants, buildDatas, buildEntregas, FASES_MACRO, getAnswer
 } from "@/lib/tapTemplate";
 import { CONTRACTED_MODULES_OPTIONS } from "@/lib/scopeTemplate";
+import { SCHEDULE_TASKS, PHASE_ORDER } from "@/lib/scheduleTasks.js";
+import { computeSchedule, evaluateCondition } from "@/lib/scheduleEngine.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -21,6 +23,41 @@ function buildAnswersMap(scopeItems) {
     }
   });
   return map;
+}
+
+// Fases macro para a seção 5 — lê os overrides do cronograma do localStorage
+function buildScheduleSnapshotFromLocal(projectId, answersMap, project) {
+  const overrides = (() => {
+    try { return JSON.parse(localStorage.getItem(`schedule_overrides_${projectId}`) || "{}"); }
+    catch { return {}; }
+  })();
+
+  const { dates, visible } = computeSchedule(SCHEDULE_TASKS, overrides, answersMap, project);
+
+  // Fases macro relevantes para a TAP
+  const MACRO_PHASES = [
+    { key: "Abertura de projeto", label: "Abertura de projeto", tasks: ["alinhamento_inicial", "agenda_status_report_inicial"] },
+    { key: "Parametrização", label: "Parametrização", tasks: ["reuniao_parametrizacao_regras", "validar_cadastros_empregados_usuarios"] },
+    { key: "Operação Assistida", label: "Go Live / Início de Registro de Ponto", tasks: ["go_live_registro_ponto", "agenda_verificacao_pre_fechamento"] },
+    { key: "Fechamento de Folha", label: "Operação Assistida / Fechamento", tasks: ["agenda_fechamento_folha", "fechamento_folha"] },
+    { key: "Expansão", label: "Expansão", tasks: ["expansao_registro_ponto_real", "fechamento_folha_real"] },
+    { key: "Encerramento", label: "Encerramento", tasks: ["agenda_encerramento_projeto", "passagem_sucesso_cliente"] },
+  ];
+
+  return MACRO_PHASES.map(ph => {
+    const visibleTasks = ph.tasks.filter(tid => visible.has(tid));
+    const starts = visibleTasks.map(tid => dates[tid]?.plannedStart).filter(Boolean);
+    const ends = visibleTasks.map(tid => dates[tid]?.plannedEnd).filter(Boolean);
+    const start = starts.length ? starts.reduce((a,b) => a < b ? a : b) : null;
+    const end = ends.length ? ends.reduce((a,b) => a > b ? a : b) : null;
+    return { label: ph.label, plannedStart: start, plannedEnd: end };
+  }).filter(ph => ph.plannedStart || ph.plannedEnd);
+}
+
+function fmtTapDate(d) {
+  if (!d) return "—";
+  const [y,m,day] = d.substring(0,10).split("-");
+  return `${day}/${m}/${y}`;
 }
 
 const ALL_SERVICES = [
@@ -153,7 +190,7 @@ function esc(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
 }
 
-function generatePDF({ project, form, answersMap, participants, datas, modulosServicos, entregas, version }) {
+function generatePDF({ project, form, answersMap, participants, datas, modulosServicos, entregas, version, scheduleSnapshot }) {
   const nome = project?.name || "Projeto";
   const versionLabel = version ? `v${version.version_number} · ${version.status}` : "";
 
@@ -305,7 +342,19 @@ function generatePDF({ project, form, answersMap, participants, datas, modulosSe
 
 <div class="section">
   <div class="section-title"><span class="section-num">5</span> CRONOGRAMA</div>
-  ${FASES_MACRO.map(f => `
+  ${scheduleSnapshot && scheduleSnapshot.length > 0 ? `
+    <table>
+      <tr style="background:#f8fafc">
+        <td class="lbl" style="font-weight:bold">Fase</td>
+        <td class="lbl" style="font-weight:bold">Início Planejado</td>
+        <td class="lbl" style="font-weight:bold">Fim Planejado</td>
+      </tr>
+      ${scheduleSnapshot.map(f => {
+        const fmt = d => { if(!d) return "—"; const [y,m,day]=d.substring(0,10).split("-"); return `${day}/${m}/${y}`; };
+        return `<tr><td>${esc(f.label)}</td><td>${fmt(f.plannedStart)}</td><td>${fmt(f.plannedEnd)}</td></tr>`;
+      }).join("")}
+    </table>
+  ` : FASES_MACRO.map(f => `
     <div class="fase-row">
       <span class="fase-badge">${esc(f.fase)}</span>
       <span>${esc(f.descricao)}</span>
@@ -370,6 +419,9 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
     conclusao: "",
   });
 
+  // Snapshot do cronograma para seção 5 (somente leitura na TAP)
+  const [scheduleSnapshot, setScheduleSnapshot] = useState([]);
+
   // Dados automáticos (recalculados a partir das props)
   const answersMap = useMemo(() => buildAnswersMap(scopeItems), [scopeItems]);
   const participants = useMemo(() => buildParticipants(project || {}), [project]);
@@ -396,6 +448,10 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
           expectativa_inicio_expansao: current.expectativa_inicio_expansao || "",
           conclusao: current.conclusao || defaultConclusao,
         });
+        // Restaurar snapshot do cronograma salvo
+        if (current.schedule_snapshot) {
+          try { setScheduleSnapshot(JSON.parse(current.schedule_snapshot)); } catch {}
+        }
       } else {
         // Sem versões: inicializar com defaults
         setForm({ objetivo: defaultObjetivo, formato_expansao: "", expectativa_inicio_expansao: "", conclusao: defaultConclusao });
@@ -426,6 +482,7 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
       auto_data_snapshot: autoSnapshot,
       is_current: true,
       ...(opts.updateAutoTime ? { last_auto_update: new Date().toISOString() } : {}),
+      ...(opts.scheduleSnapshot ? { schedule_snapshot: JSON.stringify(opts.scheduleSnapshot) } : {}),
     };
 
     try {
@@ -501,7 +558,15 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
   const handleRefreshAuto = async () => {
     setRefreshing(true);
     await onRefresh(); // busca dados mais recentes do projeto/escopo
-    await saveVersion(form, { updateAutoTime: true });
+    // Somente atualiza o cronograma na TAP se for a v1 e ainda não enviada
+    const isFirstVersion = !currentVersion || currentVersion.version_number === 1;
+    const isSent = currentVersion?.status === "Enviada ao cliente";
+    let snap = scheduleSnapshot;
+    if (isFirstVersion && !isSent) {
+      snap = buildScheduleSnapshotFromLocal(projectId, answersMap, project);
+      setScheduleSnapshot(snap);
+    }
+    await saveVersion(form, { updateAutoTime: true, scheduleSnapshot: snap });
     setRefreshing(false);
   };
 
@@ -621,7 +686,7 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
 
             {/* PDF */}
             <button
-              onClick={() => generatePDF({ project, form, answersMap, participants, datas, modulosServicos, entregas, version: currentVersion })}
+              onClick={() => generatePDF({ project, form, answersMap, participants, datas, modulosServicos, entregas, version: currentVersion, scheduleSnapshot })}
               className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
             >
               <Download className="w-3.5 h-3.5" />Gerar TAP em PDF
@@ -859,16 +924,49 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
             <SectionTitle number="5">CRONOGRAMA</SectionTitle>
             <div className="flex items-center gap-2 mb-3">
               <AutoBadge source="cronograma" />
-              <span className="text-xs text-slate-400">Fases macro do projeto</span>
+              <span className="text-xs text-slate-400">
+                {scheduleSnapshot.length > 0
+                  ? "Gerado a partir do Cronograma Detalhado v1 — somente leitura"
+                  : "Clique em \"Atualizar dados automáticos\" para carregar o Cronograma Detalhado"}
+              </span>
             </div>
-            <div className="space-y-2 mb-5">
-              {FASES_MACRO.map((f, i) => (
-                <div key={i} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
-                  <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full whitespace-nowrap shrink-0">{f.fase}</span>
-                  <p className="text-sm text-slate-600">{f.descricao}</p>
-                </div>
-              ))}
-            </div>
+
+            {scheduleSnapshot.length > 0 ? (
+              <div className="overflow-hidden rounded-lg border border-slate-200 mb-5">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="text-left text-xs font-semibold text-slate-500 px-4 py-2.5">Fase</th>
+                      <th className="text-left text-xs font-semibold text-slate-500 px-4 py-2.5">Início Planejado</th>
+                      <th className="text-left text-xs font-semibold text-slate-500 px-4 py-2.5">Fim Planejado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scheduleSnapshot.map((fase, i) => (
+                      <tr key={i} className="border-b border-slate-50 last:border-0">
+                        <td className="px-4 py-2.5">
+                          <span className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
+                            <span className="text-sm font-medium text-slate-700">{fase.label}</span>
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-sm text-slate-500">{fmtTapDate(fase.plannedStart)}</td>
+                        <td className="px-4 py-2.5 text-sm text-slate-500">{fmtTapDate(fase.plannedEnd)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="space-y-2 mb-5">
+                {FASES_MACRO.map((f, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                    <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full whitespace-nowrap shrink-0">{f.fase}</span>
+                    <p className="text-sm text-slate-600">{f.descricao}</p>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* 5.1 Data esperada de conclusão */}
             {dataConc && (
