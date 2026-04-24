@@ -17,7 +17,6 @@ export default function Sidebar() {
 
   const configItems = [
     canAccessParametrizacoes && { icon: Settings, label: "Parametrizações", path: "/parametrizacoes" },
-    canAccessParametrizacoes && { icon: Users, label: "Usuários e Permissões", path: "/users-permissions" },
     canAccessFluxo && { icon: GitBranch, label: "Fluxo do Projeto", path: "/fluxo" },
   ].filter(Boolean);
 

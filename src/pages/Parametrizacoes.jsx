@@ -3,8 +3,9 @@ import { base44 } from "@/api/base44Client";
 import {
   FileText, Users, LayoutTemplate, Plus, Pencil, Trash2,
   CheckCircle, XCircle, Filter, Scale, Settings, DollarSign,
-  Mail, Briefcase, ChevronRight
+  Mail, ChevronRight, Shield, ChevronDown, UserPlus
 } from "lucide-react";
+
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -407,16 +408,194 @@ function TabTemplates() {
   );
 }
 
+// ─── ABA: USUÁRIOS ────────────────────────────────────────────────────────────
+
+const APP_ROLES = ["Admin", "Gestor de Projetos", "Implantação", "Viewer"];
+
+const ROLE_COLORS = {
+  "Admin": "bg-red-100 text-red-700 border-red-200",
+  "Gestor de Projetos": "bg-blue-100 text-blue-700 border-blue-200",
+  "Implantação": "bg-green-100 text-green-700 border-green-200",
+  "Viewer": "bg-slate-100 text-slate-600 border-slate-200",
+};
+
+const ROLE_DESC = {
+  "Admin": "Acesso total, incluindo parametrizações",
+  "Gestor de Projetos": "Cria/edita projetos, TAP, cronograma, relatórios",
+  "Implantação": "Edita escopo, cronograma e status report",
+  "Viewer": "Somente leitura em todos os projetos",
+};
+
+function InviteModal({ onClose, onDone }) {
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("Implantação");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleInvite = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      await base44.users.inviteUser(email.trim(), role === "Admin" ? "admin" : "user");
+      onDone();
+      onClose();
+    } catch (err) {
+      setError(err?.message || "Erro ao enviar convite.");
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="px-6 py-4 border-b border-slate-100">
+          <h2 className="text-base font-bold text-slate-800">Convidar Usuário</h2>
+          <p className="text-xs text-slate-400 mt-0.5">O usuário receberá um e-mail de convite para acessar o sistema.</p>
+        </div>
+        <form onSubmit={handleInvite} className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">E-mail *</label>
+            <input type="email" className={inputClass} value={email} onChange={e => setEmail(e.target.value)} required placeholder="usuario@empresa.com.br" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Perfil de acesso *</label>
+            <select className={inputClass} value={role} onChange={e => setRole(e.target.value)}>
+              {APP_ROLES.map(r => <option key={r}>{r}</option>)}
+            </select>
+            {role && <p className="text-xs text-slate-400 mt-1">{ROLE_DESC[role]}</p>}
+          </div>
+          {error && <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Cancelar</button>
+            <button type="submit" disabled={saving} className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
+              {saving ? "Enviando..." : "Enviar convite"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function TabUsuarios() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(null);
+  const [showInvite, setShowInvite] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    setUsers(await base44.entities.User.list());
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const handleRoleChange = async (userId, newRole) => {
+    setSaving(userId);
+    await base44.entities.User.update(userId, { app_role: newRole });
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, app_role: newRole } : u));
+    setSaving(null);
+  };
+
+  return (
+    <div>
+      {/* Legenda de perfis */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+        {APP_ROLES.map(role => (
+          <div key={role} className="bg-white rounded-lg border border-slate-200 p-3">
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${ROLE_COLORS[role]}`}>{role}</span>
+            <p className="text-xs text-slate-500 mt-2 leading-snug">{ROLE_DESC[role]}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-slate-500">Gerencie usuários e perfis de acesso do sistema.</p>
+        <button onClick={() => setShowInvite(true)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors">
+          <UserPlus className="w-4 h-4" /> Convidar Usuário
+        </button>
+      </div>
+
+      {/* Tabela */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+        <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100 bg-slate-50">
+          <Users className="w-4 h-4 text-slate-400" />
+          <span className="text-sm font-semibold text-slate-700">{users.length} usuário(s)</span>
+        </div>
+        {loading ? (
+          <div className="flex items-center justify-center h-32">
+            <div className="w-6 h-6 border-4 border-slate-200 border-t-blue-500 rounded-full animate-spin" />
+          </div>
+        ) : users.length === 0 ? (
+          <div className="text-center py-10 text-slate-400 text-sm">Nenhum usuário cadastrado.</div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-100">
+                <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3">Nome</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">E-mail</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Role sistema</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Perfil de acesso</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(u => {
+                const appRole = u.app_role || (u.role === "admin" ? "Admin" : "Viewer");
+                return (
+                  <tr key={u.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 shrink-0">
+                          {(u.full_name || u.email || "?")[0].toUpperCase()}
+                        </div>
+                        <span className="text-sm font-medium text-slate-800">{u.full_name || "—"}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 text-sm text-slate-500">{u.email}</td>
+                    <td className="px-4 py-3.5">
+                      <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded">{u.role || "user"}</span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="relative inline-flex items-center gap-2">
+                        <select
+                          value={appRole}
+                          onChange={e => handleRoleChange(u.id, e.target.value)}
+                          disabled={saving === u.id}
+                          className={`appearance-none pl-3 pr-8 py-1.5 text-xs font-semibold border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${ROLE_COLORS[appRole]}`}
+                        >
+                          {APP_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none" />
+                        {saving === u.id && <span className="text-xs text-slate-400 ml-1">salvando...</span>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {showInvite && <InviteModal onClose={() => setShowInvite(false)} onDone={load} />}
+    </div>
+  );
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 const TABS = [
+  { id: "usuarios", label: "Usuários", icon: Users, description: "Equipe e perfis de acesso" },
   { id: "adendos", label: "Adendos", icon: FileText, description: "Biblioteca global" },
-  { id: "assinaturas", label: "Assinaturas", icon: Users, description: "Equipe Pontotel" },
+  { id: "assinaturas", label: "Assinaturas", icon: Shield, description: "Equipe Pontotel" },
   { id: "templates", label: "Templates", icon: LayoutTemplate, description: "Estrutura dos documentos" },
 ];
 
 export default function Parametrizacoes() {
-  const [activeTab, setActiveTab] = useState("adendos");
+  const [activeTab, setActiveTab] = useState("usuarios");
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
@@ -426,7 +605,7 @@ export default function Parametrizacoes() {
       </div>
 
       {/* Tab nav */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-6 flex-wrap">
         {TABS.map(tab => {
           const Icon = tab.icon;
           return (
@@ -439,6 +618,7 @@ export default function Parametrizacoes() {
         })}
       </div>
 
+      {activeTab === "usuarios" && <TabUsuarios />}
       {activeTab === "adendos" && <TabAdendos />}
       {activeTab === "assinaturas" && <TabAssinaturas />}
       {activeTab === "templates" && <TabTemplates />}
