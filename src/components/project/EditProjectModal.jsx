@@ -63,6 +63,7 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
   const [form, setForm] = useState({
     name: project?.name || "",
     client_name: project?.client_name || "",
+    empresa_id: project?.empresa_id || "",
     origin: project?.origin || "",
     mrr: project?.mrr || "",
     start_date: project?.start_date || "",
@@ -121,6 +122,9 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
             </Field>
             <Field label="Cliente / Empresa">
               <input value={form.client_name} onChange={set("client_name")} className={inputClass} placeholder="Nome do cliente" />
+            </Field>
+            <Field label="ID da Empresa (empresa_id)">
+              <input value={form.empresa_id} onChange={set("empresa_id")} className={inputClass} placeholder="Ex: 12345 — chave de vínculo com planilha de usabilidade" />
             </Field>
             <Field label="Origem do cliente">
               <select value={form.origin} onChange={set("origin")} className={inputClass}>

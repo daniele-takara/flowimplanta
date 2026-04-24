@@ -10,6 +10,10 @@
       "type": "string",
       "description": "Nome do cliente/Empresa"
     },
+    "empresa_id": {
+      "type": "string",
+      "description": "ID da empresa na planilha de usabilidade (chave de v\u00ednculo)"
+    },
     "origin": {
       "type": "string",
       "description": "Origem do cliente",

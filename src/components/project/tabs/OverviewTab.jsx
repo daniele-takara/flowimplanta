@@ -1,6 +1,7 @@
 import { formatDate } from "@/lib/utils";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ProgressBar from "@/components/ui/ProgressBar";
+import { Pencil } from "lucide-react";
 
 function InfoRow({ label, value }) {
   return (
@@ -21,15 +22,26 @@ function ParticipantCard({ role, name, contact }) {
   );
 }
 
-export default function OverviewTab({ project, phases }) {
+export default function OverviewTab({ project, phases, onEditDadosIniciais }) {
   return (
     <div className="grid grid-cols-3 gap-6">
       {/* Left column */}
       <div className="col-span-2 space-y-6">
         {/* General Info */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">Dados do Projeto</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Dados do Projeto</h3>
+            {onEditDadosIniciais && (
+              <button
+                onClick={onEditDadosIniciais}
+                className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium"
+              >
+                <Pencil className="w-3.5 h-3.5" /> Editar
+              </button>
+            )}
+          </div>
           <InfoRow label="Cliente" value={project.client_name} />
+          <InfoRow label="ID da Empresa" value={project.empresa_id} />
           <InfoRow label="Origem" value={project.origin} />
           <InfoRow label="Tipo de Implantação" value={project.implantation_type} />
           <InfoRow label="Status" value={<StatusBadge status={project.status} />} />

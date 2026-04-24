@@ -16,7 +16,7 @@ import ClosureTab from "@/components/project/tabs/ClosureTab.jsx";
 import EditProjectModal from "@/components/project/EditProjectModal";
 
 const TABS = [
-  { id: "overview",  label: "Resumo" },
+  { id: "overview",  label: "Dados Iniciais" },
   { id: "scope",     label: "Escopo Técnico" },
   { id: "tap",       label: "TAP" },
   { id: "schedule",  label: "Cronograma" },
@@ -120,11 +120,11 @@ export default function ProjectDetail() {
 
       <div className="flex-1 p-8 bg-slate-50">
         <div className="max-w-6xl mx-auto">
-          {activeTab === "overview" && <OverviewTab project={project} phases={phases} />}
+          {activeTab === "overview" && <OverviewTab project={project} phases={phases} onEditDadosIniciais={!isMock ? () => setShowEditModal(true) : null} />}
           {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} project={project} onRefresh={loadData} />}
           {activeTab === "tap" && <TAPTab project={project} scopeItems={scopeItems} documents={documents} projectId={id} onRefresh={loadData} />}
           {activeTab === "schedule" && <ScheduleTab scopeItems={scopeItems} project={project} projectId={id} onRefresh={loadData} />}
-          {activeTab === "status" && <StatusReportTab reports={reports} projectId={id} projectClientName={project.client_name} activities={activities} onRefresh={loadData} />}
+          {activeTab === "status" && <StatusReportTab reports={reports} projectId={id} projectClientName={project.client_name} project={project} scopeItems={scopeItems} savedActivities={activities} onRefresh={loadData} />}
           {activeTab === "actions" && <ActionPlanTab actions={actions} projectId={id} onRefresh={loadData} />}
           {activeTab === "closure" && <ClosureTab project={project} documents={documents} activities={activities} projectId={id} onRefresh={loadData} />}
         </div>
