@@ -16,36 +16,30 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, re
   });
 
   // Local cache: { [questionId]: { answer, observations } }
-  // Initialized from scopeItems — never reset on save
-  const [localAnswers, setLocalAnswers] = useState(() => {
-    const map = {};
-    (scopeItems || []).forEach(item => {
-      if (item.order_number) {
-        const key = `q${String(item.order_number).padStart(3, "0")}`;
-        map[key] = { answer: item.answer || "", observations: item.observations || "" };
-      }
-    });
-    return map;
-  });
+  const [localAnswers, setLocalAnswers] = useState({});
 
   // Keep a ref of scopeItems for save lookups without needing re-renders
   const scopeItemsRef = useRef(scopeItems);
   useEffect(() => { scopeItemsRef.current = scopeItems; }, [scopeItems]);
 
-  // Sync on first mount only (avoid resetting on refresh calls)
-  const initialized = useRef(false);
+  // Track which keys have pending (unsaved) edits so we don't overwrite them on re-sync
+  const pendingKeys = useRef(new Set());
+
+  // Sync localAnswers from scopeItems whenever the prop changes (e.g. after loadData in parent)
+  // Only update keys that are NOT currently being edited
   useEffect(() => {
-    if (!initialized.current && scopeItems?.length > 0) {
-      const map = {};
+    if (!scopeItems?.length) return;
+    setLocalAnswers(prev => {
+      const next = { ...prev };
       scopeItems.forEach(item => {
-        if (item.order_number) {
-          const key = `q${String(item.order_number).padStart(3, "0")}`;
-          map[key] = { answer: item.answer || "", observations: item.observations || "" };
-        }
+        if (!item.order_number) return;
+        const key = `q${String(item.order_number).padStart(3, "0")}`;
+        // Don't overwrite a key the user is actively editing
+        if (pendingKeys.current.has(key)) return;
+        next[key] = { answer: item.answer || "", observations: item.observations || "" };
       });
-      setLocalAnswers(map);
-      initialized.current = true;
-    }
+      return next;
+    });
   }, [scopeItems]);
 
   const contractedModules = project?.contracted_modules || [];
@@ -77,11 +71,15 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, re
 
   // Save a single question answer — NO onRefresh, NO page reload
   const handleSave = async (questionId, { answer, observations }) => {
+    // Mark as pending to prevent parent re-sync from overwriting
+    pendingKeys.current.add(questionId);
+
     // Update local state immediately (optimistic)
     setLocalAnswers(prev => ({ ...prev, [questionId]: { answer, observations } }));
 
+    // Support both "q025" style (padded) and "q251" style (direct numeric)
     const orderNum = parseInt(questionId.replace("q", ""), 10);
-    const existing = scopeItemsRef.current.find(s => s.order_number === orderNum);
+    const existing = scopeItemsRef.current.find(s => Number(s.order_number) === orderNum);
 
     if (existing) {
       await base44.entities.ScopeItem.update(existing.id, { answer, observations });
@@ -113,6 +111,8 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, re
         ];
       }
     }
+    // Clear pending flag — data is now persisted
+    pendingKeys.current.delete(questionId);
     // No onRefresh — state is already updated optimistically
   };
 
