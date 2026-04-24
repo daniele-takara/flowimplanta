@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, FolderKanban, Plus, Settings, GitBranch, LogOut } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Plus, Settings, GitBranch, LogOut, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { usePermissions } from "@/lib/usePermissions";
@@ -17,6 +17,7 @@ export default function Sidebar() {
 
   const configItems = [
     canAccessParametrizacoes && { icon: Settings, label: "Parametrizações", path: "/parametrizacoes" },
+    canAccessParametrizacoes && { icon: Users, label: "Usuários e Permissões", path: "/users-permissions" },
     canAccessFluxo && { icon: GitBranch, label: "Fluxo do Projeto", path: "/fluxo" },
   ].filter(Boolean);
 
