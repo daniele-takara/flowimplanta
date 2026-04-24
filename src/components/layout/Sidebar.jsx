@@ -1,10 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, FolderKanban, Plus, ChevronRight } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Plus, FileText, GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: FolderKanban, label: "Projetos", path: "/projects" }
+  { icon: FolderKanban, label: "Projetos", path: "/projects" },
+  { icon: FileText, label: "Adendos", path: "/adendos" },
+  { icon: GitBranch, label: "Fluxo do Projeto", path: "/fluxo" },
 ];
 
 export default function Sidebar() {

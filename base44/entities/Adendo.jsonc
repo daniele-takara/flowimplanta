@@ -1,0 +1,37 @@
+{
+  "name": "Adendo",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "T\u00edtulo do adendo"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "Jur\u00eddico",
+        "T\u00e9cnico",
+        "Comercial"
+      ],
+      "description": "Tipo do adendo"
+    },
+    "description": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o resumida"
+    },
+    "content": {
+      "type": "string",
+      "description": "Texto completo do adendo"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Adendo ativo e dispon\u00edvel para uso"
+    }
+  },
+  "required": [
+    "title",
+    "type",
+    "content"
+  ]
+}

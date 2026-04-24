@@ -13,6 +13,7 @@ import StatusReportTab from "@/components/project/tabs/StatusReportTab";
 import ActionPlanTab from "@/components/project/tabs/ActionPlanTab";
 import TAPTab from "@/components/project/tabs/TAPTab.jsx";
 import ClosureTab from "@/components/project/tabs/ClosureTab.jsx";
+import TermoEncerramentoTab from "@/components/project/tabs/TermoEncerramentoTab";
 import EditProjectModal from "@/components/project/EditProjectModal";
 
 const TABS = [
@@ -22,7 +23,8 @@ const TABS = [
   { id: "schedule",  label: "Cronograma" },
   { id: "status",    label: "Status Report" },
   { id: "actions",   label: "Plano de Ação" },
-  { id: "closure",   label: "Encerramento" }
+  { id: "termo",     label: "Termo de Encerramento" },
+  { id: "closure",   label: "Encerramento (legacy)" },
 ];
 
 export default function ProjectDetail() {
@@ -126,6 +128,7 @@ export default function ProjectDetail() {
           {activeTab === "schedule" && <ScheduleTab scopeItems={scopeItems} project={project} projectId={id} onRefresh={loadData} />}
           {activeTab === "status" && <StatusReportTab reports={reports} projectId={id} projectClientName={project.client_name} project={project} scopeItems={scopeItems} savedActivities={activities} onRefresh={loadData} />}
           {activeTab === "actions" && <ActionPlanTab actions={actions} projectId={id} onRefresh={loadData} />}
+          {activeTab === "termo" && <TermoEncerramentoTab project={project} scopeItems={scopeItems} reports={reports} savedActivities={activities} projectId={id} />}
           {activeTab === "closure" && <ClosureTab project={project} documents={documents} activities={activities} projectId={id} onRefresh={loadData} />}
         </div>
       </div>
