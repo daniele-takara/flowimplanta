@@ -1,14 +1,16 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-// TAPTab — Termo de Abertura do Projeto (TAP)
 import { base44 } from "@/api/base44Client";
 import { formatDate } from "@/lib/utils";
-import { Download, FileText, Pencil, CheckCircle2, XCircle, Clock } from "lucide-react";
 import {
-  buildParticipants, buildDatas, buildModulosStatus,
-  buildEntregas, FASES_MACRO, getAnswer
+  Download, RefreshCw, CheckCircle2, XCircle, Clock, Lock,
+  History, Send, ChevronDown, ChevronUp, AlertCircle, Info
+} from "lucide-react";
+import {
+  buildParticipants, buildDatas, buildEntregas, FASES_MACRO, getAnswer
 } from "@/lib/tapTemplate";
+import { CONTRACTED_MODULES_OPTIONS } from "@/lib/scopeTemplate";
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildAnswersMap(scopeItems) {
   const map = {};
@@ -21,34 +23,119 @@ function buildAnswersMap(scopeItems) {
   return map;
 }
 
-function SectionTitle({ children }) {
+const ALL_SERVICES = [
+  "Parametrização e cálculo (1 vez na implantação)",
+  "Treinamentos das pessoas chave (Implantação)",
+  "Arquivo txt de exportação para FOPAG",
+  "Integração Sankhya",
+  "Integrações (disponibilização de API)",
+  "Importação de arquivo AFD em nuvem",
+  "Compliance e Cibersegurança",
+  "Parametrizações e Cálculos Mensal",
+  "Atendimento e Suporte dedicado"
+];
+
+function buildModulosServicos(project) {
+  const contractedMods = project?.contracted_modules || [];
+  const contractedSvcs = project?.contracted_services || [];
+  return {
+    modules: CONTRACTED_MODULES_OPTIONS.map(m => ({ nome: m, contratado: contractedMods.includes(m) })),
+    services: ALL_SERVICES.map(s => ({ nome: s, contratado: contractedSvcs.includes(s) })
+    )
+  };
+}
+
+// ── UI Helpers ────────────────────────────────────────────────────────────────
+
+function SectionTitle({ number, children }) {
   return (
-    <div className="flex items-center gap-3 mb-4">
-      <div className="h-px flex-1 bg-slate-200" />
-      <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">{children}</h2>
+    <div className="flex items-center gap-3 mb-5">
+      <span className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">{number}</span>
+      <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide">{children}</h2>
       <div className="h-px flex-1 bg-slate-200" />
     </div>
   );
 }
 
-function Row({ label, value }) {
+function SubSectionTitle({ children }) {
+  return <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">{children}</p>;
+}
+
+// Chip showing data origin — não editável
+function AutoBadge({ source }) {
+  const labels = {
+    "dados_iniciais": "Dados Iniciais",
+    "escopo": "Escopo Técnico",
+    "cronograma": "Cronograma",
+  };
   return (
-    <div className="grid grid-cols-5 gap-2 py-2 border-b border-slate-50 last:border-0">
-      <span className="col-span-2 text-xs font-medium text-slate-400">{label}</span>
-      <span className="col-span-3 text-sm text-slate-800">{value || "—"}</span>
+    <span className="inline-flex items-center gap-1 text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded px-1.5 py-0.5">
+      <Lock className="w-2.5 h-2.5" />
+      {labels[source] || source}
+    </span>
+  );
+}
+
+// Linha de dado automático (somente leitura)
+function AutoRow({ label, value, source }) {
+  const [showTip, setShowTip] = useState(false);
+  return (
+    <div className="grid grid-cols-5 gap-2 py-2 border-b border-slate-50 last:border-0 group">
+      <div className="col-span-2 flex items-center gap-1.5">
+        <span className="text-xs font-medium text-slate-400">{label}</span>
+        <button
+          className="opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={() => setShowTip(t => !t)}
+        >
+          <Info className="w-3 h-3 text-amber-400" />
+        </button>
+      </div>
+      <div className="col-span-3">
+        <span className="text-sm text-slate-800">{value || "—"}</span>
+        {showTip && (
+          <p className="text-xs text-amber-600 mt-1 bg-amber-50 px-2 py-1 rounded border border-amber-100">
+            Preenchido automaticamente. Para alterar, edite a fonte: <strong>{source === "dados_iniciais" ? "Dados Iniciais" : source === "escopo" ? "Escopo Técnico" : source}</strong>.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
 
-function EditableText({ value, onChange, rows = 3, editing }) {
-  if (!editing) return <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{value || "—"}</p>;
+// Campo de texto editável da TAP
+function EditableField({ label, value, onChange, onBlur, rows = 3, placeholder, locked }) {
+  const [showLockMsg, setShowLockMsg] = useState(false);
+  if (locked) {
+    return (
+      <div>
+        {label && <p className="text-xs font-medium text-slate-500 mb-1">{label}</p>}
+        <div
+          className="bg-slate-50 rounded-lg p-3 border border-slate-100 cursor-not-allowed"
+          onClick={() => setShowLockMsg(true)}
+        >
+          <p className="text-sm text-slate-500 whitespace-pre-wrap">{value || "—"}</p>
+        </div>
+        {showLockMsg && (
+          <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+            <Lock className="w-3 h-3" />
+            Versão enviada ao cliente está bloqueada para edição.
+          </p>
+        )}
+      </div>
+    );
+  }
   return (
-    <textarea
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      rows={rows}
-      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white resize-none"
-    />
+    <div>
+      {label && <p className="text-xs font-medium text-slate-500 mb-1">{label}</p>}
+      <textarea
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onBlur={onBlur}
+        rows={rows}
+        placeholder={placeholder}
+        className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white resize-none"
+      />
+    </div>
   );
 }
 
@@ -60,43 +147,80 @@ function SaveStatus({ status }) {
   return null;
 }
 
-// ── PDF ─────────────────────────────────────────────────────────────────────
+// ── PDF ───────────────────────────────────────────────────────────────────────
 
 function esc(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
 }
 
-function generatePDF(project, form, answersMap, participants, datas, modulos, entregas) {
+function generatePDF({ project, form, answersMap, participants, datas, modulosServicos, entregas, version }) {
   const nome = project?.name || "Projeto";
+  const versionLabel = version ? `v${version.version_number} · ${version.status}` : "";
+
+  // Group entregas
   const grouped = {};
   entregas.forEach(e => {
     if (!grouped[e.grupo]) grouped[e.grupo] = [];
     grouped[e.grupo].push(e.label);
   });
 
+  // Blocks from JSON
+  const BLOCKS_JSON = [
+    { id: "registro_ponto", title: "Registro de ponto", content: "Registro de ponto: realizar o registro de ponto conforme as definições mapeadas no escopo técnico.", show: (p, a) => (p.contracted_modules || []).includes("Registro de Ponto") },
+    { id: "importacao_afd", title: "Importação de AFD", content: "Importação de AFD: realizar a importação de arquivo AFD através da ferramenta de importação disponível para fechamento de ponto piloto.", show: (p, a) => getAnswer(a, "q015").includes("AFD importação") },
+    { id: "app_gestao", title: "APP Gestão", content: "APP Gestão: realizar acesso ao APP Gestão por funcionários para acompanhamento da folha de ponto, solicitações e/ou registro de ponto.", show: (p, a) => getAnswer(a, "q015").includes("App Gestão") },
+    { id: "notificacoes_ponto", title: "Notificações de ponto", content: "Notificações de ponto: funcionários ou gestores receberão notificações no App Gestão ou Gestão Web conforme as configurações disponíveis no sistema referentes ao registro de ponto.", show: (p, a) => getAnswer(a, "q019") === "Sim" },
+    { id: "calculos_tratamento", title: "Parametrização de regras de cálculo", content: "Parametrização de regra de cálculo: deverá calcular as horas conforme parâmetros mapeados e configurações disponíveis no sistema.", show: (p, a) => (p.contracted_modules || []).includes("Cálculos e Tratamento") },
+    { id: "banco_horas", title: "Parametrização de banco de horas", content: "Parametrização de banco de horas: deverá calcular as horas para banco de horas conforme parâmetros mapeados e configurações disponíveis no sistema.", show: (p, a) => getAnswer(a, "q037") === "Sim" },
+    { id: "arquivo_verbas", title: "Parametrização de arquivo de verbas", content: "Parametrização de arquivo de verbas: será possível importar para a folha de pagamento, através de arquivo de exportação, as verbas oriundas da folha de ponto.", show: (p, a) => (p.contracted_services || []).includes("Arquivo txt de exportação para FOPAG") || (p.contracted_services || []).includes("Integração Sankhya") || p.origin === "Sankhya" },
+    { id: "sobreaviso", title: "Parametrização de sobreaviso", content: "Parametrização de Sobreaviso: o sistema deve permitir o planejamento de jornadas de sobreaviso e calcular automaticamente os apontamentos correspondentes.", show: (p, a) => getAnswer(a, "q038") === "Sim" },
+    { id: "nr17", title: "Parametrização de NR17", content: "Parametrização de NR17: permitir a criação e gestão de jornadas aderentes à Norma Regulamentadora 17, incluindo pausas obrigatórias e configurações específicas.", show: (p, a) => getAnswer(a, "q039") === "Sim" },
+    { id: "gestao_participativa_regras_solicitacao", title: "Parametrização das regras de solicitação", content: "Parametrização das Regras de Solicitação: usuários com permissão poderão realizar solicitações como correção de ponto, lançamento de atestado e outros fluxos.", show: (p, a) => getAnswer(a, "q040") === "Descentralizada" },
+    { id: "assinatura_espelho", title: "Assinatura de espelho de ponto", content: "Assinatura de espelho de ponto dentro do sistema: colaborador e/ou outro perfil definido fará a confirmação do espelho de ponto.", show: (p, a) => getAnswer(a, "q049") === "Sim" },
+    { id: "permissao_usuario", title: "Configuração de permissão de usuário", content: "Configuração de permissão de usuário: permissões devem ser parametrizadas conforme alinhamento realizado com o cliente.", show: (p, a) => (p.contracted_modules || []).includes("Gestão de Ponto Participativa") },
+    { id: "notificacao_hora_extra", title: "Notificação de hora extra", content: "Notificação de hora extra: funcionários ou gestores receberão notificações no App Gestão ou Gestão Web.", show: (p, a) => getAnswer(a, "q062") === "Sim" },
+    { id: "gestao_horas_extras", title: "Solicitação, justificativa e aprovação de horas extras", content: "Solicitação, justificativa e aprovação de horas extras: usuários poderão solicitar ou justificar horas extras realizadas, com aprovação ou reprovação por perfis autorizados.", show: (p, a) => getAnswer(a, "q052") === "Sim" },
+    { id: "gestao_ferias", title: "Gestão de férias", content: "Gestão de férias: será possível realizar solicitação de férias por funcionário e/ou outro perfil cadastrado.", show: (p, a) => (p.contracted_modules || []).includes("Gestão de Férias e Ausências") },
+    { id: "timesheet_aloque", title: "Timesheet (Aloque)", content: "Timesheet: será possível realizar apontamento de atividades, permitindo que colaboradores registrem horas trabalhadas em projetos, tarefas ou centros de custo.", show: (p, a) => (p.contracted_modules || []).includes("Timesheet") },
+    { id: "integracao_sankhya", title: "Integração Sankhya", content: "Integração Sankhya: integração ativa entre Sankhya e Pontotel conforme critérios do documento inicial de integração.", show: (p, a) => (p.contracted_services || []).includes("Integração Sankhya") },
+    { id: "api_documentacao", title: "Usuário de API + Documentação", content: "Usuário de API + Documentação: cadastro de usuário de API e liberação da documentação correspondente.", show: (p, a) => (p.contracted_services || []).includes("Integrações (disponibilização de API)") },
+    { id: "sftp_afd", title: "Integração do arquivo AFD por meio da pasta sFTP", content: "Integração do arquivo AFD por meio da pasta sFTP: configuração para disponibilização e processamento dos arquivos AFD por meio de pasta sFTP/FTP.", show: (p, a) => (p.contracted_services || []).includes("Importação de arquivo AFD em nuvem") },
+  ];
+
+  const visibleBlocks = BLOCKS_JSON.filter(b => b.show(project, answersMap));
+
+  const dataConc = project?.aligned_end_date || project?.planned_end_date;
+
   const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
 <title>TAP – ${esc(nome)}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Arial', sans-serif; font-size: 11px; color: #1e293b; padding: 40px; line-height: 1.6; }
-  .header { border-bottom: 3px solid #1e40af; padding-bottom: 16px; margin-bottom: 24px; }
-  .header h1 { font-size: 22px; color: #1e40af; }
-  .header .meta { font-size: 11px; color: #64748b; margin-top: 4px; }
-  .section { margin-bottom: 24px; }
-  .section-title { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #94a3b8; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 12px; }
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #1e293b; padding: 40px; line-height: 1.6; }
+  .header { border-bottom: 3px solid #1e40af; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-start; }
+  .header h1 { font-size: 20px; color: #1e40af; font-weight: bold; }
+  .header .meta { font-size: 10px; color: #64748b; margin-top: 4px; }
+  .version-badge { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: bold; }
+  .section { margin-bottom: 22px; page-break-inside: avoid; }
+  .section-title { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #64748b; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 10px; }
+  .section-num { width: 20px; height: 20px; background: #1e40af; color: white; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; }
+  .sub-title { font-size: 10px; font-weight: bold; text-transform: uppercase; color: #94a3b8; letter-spacing: 1px; margin: 10px 0 6px; }
   table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-  td { padding: 5px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: top; font-size: 11px; }
-  td.lbl { color: #64748b; width: 38%; font-weight: 600; }
-  .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; margin-bottom: 8px; }
-  .card h3 { font-size: 11px; font-weight: bold; margin-bottom: 6px; color: #334155; }
-  .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; margin-right: 4px; }
+  td { padding: 4px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: top; font-size: 11px; }
+  td.lbl { color: #64748b; width: 40%; font-weight: 600; font-size: 10px; }
+  .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 9px; font-weight: bold; margin: 2px; }
   .tag-ok { background: #dcfce7; color: #166534; }
   .tag-no { background: #f1f5f9; color: #94a3b8; }
-  .entrega-grupo { font-size: 11px; font-weight: bold; color: #1e40af; margin: 10px 0 4px; }
-  ul.items { padding-left: 16px; }
-  ul.items li { margin-bottom: 3px; font-size: 11px; }
-  .fase-row { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid #f1f5f9; }
-  .fase-badge { background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .participant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .participant-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; }
+  .participant-role { font-size: 9px; font-weight: bold; text-transform: uppercase; color: #3b82f6; }
+  .participant-name { font-size: 11px; font-weight: 600; color: #1e293b; }
+  .participant-contact { font-size: 10px; color: #94a3b8; }
+  .entrega-item { padding: 5px 8px; background: white; border: 1px solid #e2e8f0; border-radius: 4px; margin-bottom: 4px; font-size: 11px; display: flex; align-items: flex-start; gap: 6px; }
+  .entrega-dot { width: 6px; height: 6px; background: #3b82f6; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+  .fase-row { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; border-bottom: 1px solid #f1f5f9; }
+  .fase-badge { background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: bold; white-space: nowrap; }
+  .text-block { background: #f8fafc; border-left: 3px solid #3b82f6; padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 11px; line-height: 1.7; color: #334155; }
   .conclusao { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 12px; font-size: 11px; color: #1e3a5f; border-radius: 0 6px 6px 0; }
   .sig { display: flex; gap: 40px; margin-top: 20px; }
   .sig-box { flex: 1; text-align: center; border: 1px solid #cbd5e1; border-radius: 6px; padding: 20px 12px; }
@@ -104,96 +228,100 @@ function generatePDF(project, form, answersMap, participants, datas, modulos, en
   @media print { body { padding: 20px; } }
 </style></head><body>
 <div class="header">
-  <h1>Termo de Abertura do Projeto (TAP)</h1>
-  <div class="meta">${esc(project?.client_name)} · ${esc(project?.implantation_type)} · Emitido em ${new Date().toLocaleDateString("pt-BR")}</div>
+  <div>
+    <h1>Termo de Abertura do Projeto (TAP)</h1>
+    <div class="meta">${esc(project?.client_name)} · ${esc(project?.implantation_type)} · Emitido em ${new Date().toLocaleDateString("pt-BR")}</div>
+  </div>
+  ${versionLabel ? `<div class="version-badge">${esc(versionLabel)}</div>` : ""}
 </div>
 
 <div class="section">
-  <div class="section-title">1. Identificação do Projeto</div>
+  <div class="section-title"><span class="section-num">1</span> OBJETIVO</div>
+  <div class="text-block">${esc(form.objetivo)}</div>
+</div>
+
+<div class="section">
+  <div class="section-title"><span class="section-num">2</span> PARTICIPANTES</div>
+  <div class="participant-grid">
+    ${participants.map(p => `
+      <div class="participant-card">
+        <div class="participant-role">${esc(p.role)}</div>
+        <div class="participant-name">${esc(p.name)}</div>
+        ${p.contact ? `<div class="participant-contact">${esc(p.contact)}</div>` : ""}
+      </div>
+    `).join("")}
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title"><span class="section-num">3</span> CONDIÇÕES GERAIS</div>
+
+  <div class="sub-title">3.1 Dimensão do Projeto</div>
   <table>
-    <tr><td class="lbl">Projeto</td><td>${esc(project?.name)}</td></tr>
-    <tr><td class="lbl">Cliente</td><td>${esc(project?.client_name)}</td></tr>
-    <tr><td class="lbl">Tipo de Implantação</td><td>${esc(project?.implantation_type)}</td></tr>
-    <tr><td class="lbl">Data de Início</td><td>${esc(formatDate(project?.start_date))}</td></tr>
-    <tr><td class="lbl">Prazo Previsto</td><td>${esc(formatDate(project?.planned_end_date))}</td></tr>
-    <tr><td class="lbl">MRR</td><td>${project?.mrr ? `R$ ${Number(project.mrr).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}</td></tr>
+    <tr><td class="lbl">Nº funcionários contratados</td><td>${esc(project?.contracted_employees || getAnswer(answersMap, "q001"))}</td></tr>
+    <tr><td class="lbl">Nº de operações existentes</td><td>${esc(getAnswer(answersMap, "q002"))}</td></tr>
+    <tr><td class="lbl">Tipo de tratativa de ponto</td><td>${esc(getAnswer(answersMap, "q040"))}</td></tr>
+    <tr><td class="lbl">Quantidade de sindicatos</td><td>${esc(getAnswer(answersMap, "q024"))}</td></tr>
+    <tr><td class="lbl">Sistema de folha de pagamento</td><td>${esc(getAnswer(answersMap, "q028"))}</td></tr>
   </table>
-</div>
 
-<div class="section">
-  <div class="section-title">2. Objetivo</div>
-  <p>${esc(form.objetivo)}</p>
-</div>
-
-<div class="section">
-  <div class="section-title">3. Participantes</div>
+  <div class="sub-title">3.2 Datas Importantes</div>
   <table>
-    ${participants.map(p => `<tr><td class="lbl">${esc(p.role)}</td><td>${esc(p.name)}${p.contact ? ` · ${esc(p.contact)}` : ""}</td></tr>`).join("")}
+    <tr><td class="lbl">Período de apuração do ponto</td><td>${esc(datas.periodo_apuracao)}</td></tr>
+    <tr><td class="lbl">Período de apuração da folha</td><td>${esc(datas.periodo_folha)}</td></tr>
+    <tr><td class="lbl">Período de fechamento da folha</td><td>${esc(datas.periodo_fechamento)}</td></tr>
+    <tr><td class="lbl">Prazo envio para contabilidade</td><td>${datas.prazo_contabilidade ? `Dia ${esc(datas.prazo_contabilidade)}` : "—"}</td></tr>
+    <tr><td class="lbl">Data de pagamento</td><td>${datas.data_pagamento ? `Dia ${esc(datas.data_pagamento)}` : "—"}</td></tr>
   </table>
-</div>
 
-<div class="section">
-  <div class="section-title">4. Condições Gerais</div>
-  <div class="card"><h3>Dimensão do Projeto</h3>
-    <table>
-      <tr><td class="lbl">Nº Funcionários Contratados</td><td>${esc(project?.contracted_employees || getAnswer(answersMap, "q001"))}</td></tr>
-      <tr><td class="lbl">Operações / Filiais</td><td>${esc(getAnswer(answersMap, "q002") || "—")}</td></tr>
-      <tr><td class="lbl">Tipo de Implantação</td><td>${esc(project?.implantation_type)}</td></tr>
-    </table>
-  </div>
-  <div class="card"><h3>Datas Importantes</h3>
-    <table>
-      <tr><td class="lbl">Início do Projeto</td><td>${esc(formatDate(datas.inicio))}</td></tr>
-      <tr><td class="lbl">Prazo Previsto</td><td>${esc(formatDate(datas.prazo))}</td></tr>
-      <tr><td class="lbl">Período de Apuração</td><td>${esc(datas.periodo_apuracao) || "—"}</td></tr>
-      <tr><td class="lbl">Período de Folha de Pagamento</td><td>${esc(datas.periodo_folha) || "—"}</td></tr>
-      <tr><td class="lbl">Período de Fechamento</td><td>${esc(datas.periodo_fechamento) || "—"}</td></tr>
-      <tr><td class="lbl">Prazo Envio Contabilidade</td><td>${datas.prazo_contabilidade ? `Dia ${esc(datas.prazo_contabilidade)}` : "—"}</td></tr>
-      <tr><td class="lbl">Data de Pagamento</td><td>${datas.data_pagamento ? `Dia ${esc(datas.data_pagamento)}` : "—"}</td></tr>
-      <tr><td class="lbl">Sistema de Folha</td><td>${esc(datas.sistema_folha) || "—"}</td></tr>
-    </table>
-  </div>
-  <div class="card"><h3>Módulos e Serviços</h3>
-    ${modulos.map(m => `<span class="tag ${m.contratado ? "tag-ok" : "tag-no"}">${esc(m.nome)}</span>`).join(" ")}
+  ${(form.formato_expansao || form.expectativa_inicio_expansao) ? `
+  <div class="sub-title">3.3 Expansão do Registro de Ponto</div>
+  <table>
+    ${form.formato_expansao ? `<tr><td class="lbl">Formato da expansão</td><td>${esc(form.formato_expansao)}</td></tr>` : ""}
+    ${form.expectativa_inicio_expansao ? `<tr><td class="lbl">Expectativa para iniciar a expansão</td><td>${esc(form.expectativa_inicio_expansao)}</td></tr>` : ""}
+  </table>
+  ` : ""}
+
+  <div class="sub-title">3.4 Módulos e Serviços</div>
+  <div class="card">
+    <div style="margin-bottom:6px"><strong style="font-size:10px">Módulos:</strong><br>
+      ${modulosServicos.modules.map(m => `<span class="tag ${m.contratado ? "tag-ok" : "tag-no"}">${esc(m.nome)}</span>`).join("")}
+    </div>
+    <div><strong style="font-size:10px">Serviços:</strong><br>
+      ${modulosServicos.services.filter(s => s.contratado).map(s => `<span class="tag tag-ok">${esc(s.nome)}</span>`).join("")}
+    </div>
   </div>
 </div>
 
 <div class="section">
-  <div class="section-title">5. Entregas Previstas</div>
-  ${Object.entries(grouped).map(([grupo, items]) => `
-    <div class="entrega-grupo">${esc(grupo)}</div>
-    <ul class="items">${items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>
+  <div class="section-title"><span class="section-num">4</span> ENTREGAS PREVISTAS</div>
+  ${visibleBlocks.map(b => `
+    <div class="entrega-item">
+      <div class="entrega-dot"></div>
+      <div><strong>${esc(b.title)}</strong><br><span style="color:#64748b">${esc(b.content)}</span></div>
+    </div>
   `).join("")}
 </div>
 
 <div class="section">
-  <div class="section-title">6. Cronograma Macro</div>
+  <div class="section-title"><span class="section-num">5</span> CRONOGRAMA</div>
   ${FASES_MACRO.map(f => `
     <div class="fase-row">
       <span class="fase-badge">${esc(f.fase)}</span>
       <span>${esc(f.descricao)}</span>
     </div>
   `).join("")}
-</div>
-
-<div class="section">
-  <div class="section-title">7. Premissas e Restrições</div>
-  <div class="card"><h3>Premissas</h3><p>${esc(form.premissas)}</p></div>
-  <div class="card"><h3>Restrições</h3><p>${esc(form.restricoes)}</p></div>
-</div>
-
-<div class="section">
-  <div class="section-title">8. Conclusão</div>
-  <div class="conclusao">${esc(form.conclusao)}</div>
-</div>
-
-<div class="section">
-  <div class="section-title">9. Assinaturas</div>
-  <p>Data de Assinatura: ${esc(formatDate(form.data_assinatura)) || "___/___/______"}</p>
-  <div class="sig">
-    <div class="sig-box"><div class="line"></div><strong>${esc(form.assinatura_cliente) || "Responsável Cliente"}</strong><br><small>Patrocinador / Responsável</small></div>
-    <div class="sig-box"><div class="line"></div><strong>${esc(form.assinatura_pontotel) || "Responsável Pontotel"}</strong><br><small>Gerente de Projeto Pontotel</small></div>
+  ${dataConc ? `
+  <div class="sub-title" style="margin-top:10px">5.1 Data esperada de conclusão</div>
+  <div class="text-block">
+    A data esperada para a conclusão deste projeto é: <strong>${esc(formatDate(dataConc))}</strong>, definida em comum acordo com o(a) líder do projeto da ${esc(project?.client_name)}. Essa data será considerada como referência para o encerramento formal das atividades de implantação.
   </div>
+  ` : ""}
+</div>
+
+<div class="section">
+  <div class="section-title"><span class="section-num">6</span> CONCLUSÃO</div>
+  <div class="conclusao">${esc(form.conclusao)}</div>
 </div>
 </body></html>`;
 
@@ -201,85 +329,120 @@ function generatePDF(project, form, answersMap, participants, datas, modulos, en
   w.document.write(html);
   w.document.close();
   w.focus();
-  setTimeout(() => { w.print(); }, 600);
+  setTimeout(() => { w.print(); }, 700);
 }
 
-// ── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
+// ── Status badge de versão ─────────────────────────────────────────────────
+
+const STATUS_COLORS = {
+  "Rascunho": "bg-slate-100 text-slate-600 border-slate-200",
+  "Finalizada": "bg-blue-50 text-blue-700 border-blue-200",
+  "Enviada ao cliente": "bg-green-50 text-green-700 border-green-200",
+};
+
+function VersionBadge({ status }) {
+  return (
+    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${STATUS_COLORS[status] || STATUS_COLORS["Rascunho"]}`}>
+      {status}
+    </span>
+  );
+}
+
+// ── Componente principal ──────────────────────────────────────────────────────
 
 const DEBOUNCE_MS = 1500;
 
 export default function TAPTab({ project, scopeItems, documents, projectId, onRefresh }) {
-  const tap = documents?.find(d => d.doc_type === "TAP") || null;
-  const [editing, setEditing] = useState(false);
+  const [versions, setVersions] = useState([]);
+  const [currentVersion, setCurrentVersion] = useState(null);
   const [saveStatus, setSaveStatus] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [loadingVersions, setLoadingVersions] = useState(true);
   const debounceRef = useRef(null);
   const savedTimerRef = useRef(null);
 
-  // Constrói mapa de respostas do escopo
-  const answersMap = useMemo(() => buildAnswersMap(scopeItems), [scopeItems]);
+  // Campos editáveis da TAP
+  const [form, setForm] = useState({
+    objetivo: "",
+    formato_expansao: "",
+    expectativa_inicio_expansao: "",
+    conclusao: "",
+  });
 
-  // Dados computados automaticamente
+  // Dados automáticos (recalculados a partir das props)
+  const answersMap = useMemo(() => buildAnswersMap(scopeItems), [scopeItems]);
   const participants = useMemo(() => buildParticipants(project || {}), [project]);
   const datas = useMemo(() => buildDatas(project || {}, answersMap), [project, answersMap]);
-  const modulos = useMemo(() => buildModulosStatus(project || {}), [project]);
+  const modulosServicos = useMemo(() => buildModulosServicos(project), [project]);
   const entregas = useMemo(() => buildEntregas(answersMap, project || {}), [answersMap, project]);
 
-  // Textos editáveis (com auto-geração inicial baseada no projeto + escopo)
-  const defaultForm = useMemo(() => ({
-    objetivo: `Implantar o sistema Pontotel de controle de ponto e jornada de trabalho na empresa ${project?.client_name || ""}, garantindo aderência às normas trabalhistas vigentes e proporcionando maior controle, eficiência e transparência nos processos de registro e tratamento de ponto.`,
-    premissas: `• O cliente disponibilizará equipe dedicada durante toda a implantação.\n• Acesso aos ambientes e sistemas necessários será fornecido nos prazos acordados.\n• Dados de cadastro de colaboradores serão fornecidos conforme template Pontotel.\n• Infraestrutura de rede estará disponível nos locais de registro de ponto.\n• Decisões de escopo não previstas em contrato serão tratadas como adendum.`,
-    restricoes: `• Prazo máximo de implantação definido: ${formatDate(project?.planned_end_date) || "a definir"}.\n• Escopo limitado aos módulos e serviços contratados.\n• Customizações não previstas em contrato estão fora do escopo deste projeto.\n• Integrações com sistemas além dos especificados não fazem parte da entrega.`,
-    conclusao: `O presente Termo de Abertura do Projeto formaliza o início da implantação do sistema Pontotel na empresa ${project?.client_name || ""}, estabelecendo os objetivos, participantes, entregas e condições acordadas entre as partes. A execução está condicionada ao cumprimento das premissas e responsabilidades definidas, visando garantir o sucesso da implantação dentro do prazo e escopo contratados.`,
-    data_assinatura: project?.start_date || "",
-    assinatura_cliente: project?.sponsor_name || "",
-    assinatura_pontotel: project?.pontotel_manager_name || "",
-  }), [project]);
+  // Default texts (gerados uma vez baseado no projeto)
+  const defaultObjetivo = `Este Termo de Abertura define as diretrizes e premissas para a configuração do sistema Pontotel no projeto da ${project?.client_name || ""}. Todas as definições aqui contidas serão consideradas como base para o processo de implantação. Caso haja necessidade de alterações, será realizado novo mapeamento e validação com as partes envolvidas.`;
+  const defaultConclusao = `Este Termo formaliza as diretrizes do projeto de implantação da Pontotel para ${project?.client_name || ""}.\n\nPara qualquer dúvida ou necessidade de ajuste no escopo, entre em contato com nosso time pelo e-mail implantacao@pontotel.com.br.\n\nA evolução e o sucesso do projeto dependem da colaboração contínua entre as partes envolvidas.`;
 
-  const [form, setForm] = useState(() => ({
-    objetivo: tap?.objective || defaultForm.objetivo,
-    premissas: tap?.assumptions || defaultForm.premissas,
-    restricoes: tap?.restrictions || defaultForm.restricoes,
-    conclusao: tap?.closure_summary || defaultForm.conclusao,
-    data_assinatura: tap?.sign_date || defaultForm.data_assinatura,
-    assinatura_cliente: tap?.signed_by_client || defaultForm.assinatura_cliente,
-    assinatura_pontotel: tap?.signed_by_pontotel || defaultForm.assinatura_pontotel,
-  }));
-
-  // Atualiza form quando documentos carregam
-  useEffect(() => {
-    if (tap) {
-      setForm({
-        objetivo: tap.objective || defaultForm.objetivo,
-        premissas: tap.assumptions || defaultForm.premissas,
-        restricoes: tap.restrictions || defaultForm.restricoes,
-        conclusao: tap.closure_summary || defaultForm.conclusao,
-        data_assinatura: tap.sign_date || defaultForm.data_assinatura,
-        assinatura_cliente: tap.signed_by_client || defaultForm.assinatura_cliente,
-        assinatura_pontotel: tap.signed_by_pontotel || defaultForm.assinatura_pontotel,
-      });
+  // Carrega versões
+  const loadVersions = useCallback(async () => {
+    setLoadingVersions(true);
+    try {
+      const vs = await base44.entities.TAPVersion.filter({ project_id: projectId }, "-version_number");
+      setVersions(vs);
+      const current = vs.find(v => v.is_current) || vs[0] || null;
+      if (current) {
+        setCurrentVersion(current);
+        setForm({
+          objetivo: current.objetivo || defaultObjetivo,
+          formato_expansao: current.formato_expansao || "",
+          expectativa_inicio_expansao: current.expectativa_inicio_expansao || "",
+          conclusao: current.conclusao || defaultConclusao,
+        });
+      } else {
+        // Sem versões: inicializar com defaults
+        setForm({ objetivo: defaultObjetivo, formato_expansao: "", expectativa_inicio_expansao: "", conclusao: defaultConclusao });
+      }
+    } catch {
+      setForm({ objetivo: defaultObjetivo, formato_expansao: "", expectativa_inicio_expansao: "", conclusao: defaultConclusao });
     }
-  }, [tap?.id]);
+    setLoadingVersions(false);
+  }, [projectId]);
 
-  const triggerSave = useCallback(async (currentForm) => {
+  useEffect(() => { loadVersions(); }, [loadVersions]);
+
+  const isLocked = currentVersion?.status === "Enviada ao cliente";
+  const lastUpdate = currentVersion?.last_auto_update
+    ? new Date(currentVersion.last_auto_update).toLocaleString("pt-BR")
+    : null;
+
+  // Cria ou atualiza versão atual
+  const saveVersion = useCallback(async (formData, opts = {}) => {
     setSaveStatus("saving");
+    const autoSnapshot = JSON.stringify({ answersMap, participants, datas });
     const payload = {
       project_id: projectId,
-      doc_type: "TAP",
-      objective: currentForm.objetivo,
-      assumptions: currentForm.premissas,
-      restrictions: currentForm.restricoes,
-      closure_summary: currentForm.conclusao,
-      sign_date: currentForm.data_assinatura,
-      signed_by_client: currentForm.assinatura_cliente,
-      signed_by_pontotel: currentForm.assinatura_pontotel,
-      deliverables: entregas.map(e => e.label),
+      objetivo: formData.objetivo,
+      formato_expansao: formData.formato_expansao,
+      expectativa_inicio_expansao: formData.expectativa_inicio_expansao,
+      conclusao: formData.conclusao,
+      auto_data_snapshot: autoSnapshot,
+      is_current: true,
+      ...(opts.updateAutoTime ? { last_auto_update: new Date().toISOString() } : {}),
     };
+
     try {
-      if (tap?.id) {
-        await base44.entities.ProjectDocument.update(tap.id, payload);
-      } else {
-        await base44.entities.ProjectDocument.create(payload);
-        onRefresh();
+      if (currentVersion && !isLocked) {
+        await base44.entities.TAPVersion.update(currentVersion.id, payload);
+        setCurrentVersion(cv => ({ ...cv, ...payload }));
+      } else if (!currentVersion) {
+        const user = await base44.auth.me();
+        const newV = await base44.entities.TAPVersion.create({
+          ...payload,
+          version_number: 1,
+          status: "Rascunho",
+          created_by_name: user?.full_name || user?.email || "",
+          last_auto_update: new Date().toISOString(),
+        });
+        setCurrentVersion(newV);
+        setVersions([newV]);
       }
       setSaveStatus("saved");
       clearTimeout(savedTimerRef.current);
@@ -287,105 +450,259 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
     } catch {
       setSaveStatus("error");
     }
-  }, [tap?.id, projectId, entregas, onRefresh]);
+  }, [currentVersion, isLocked, projectId, answersMap, participants, datas]);
+
+  // Ao editar após versão enviada: cria nova versão
+  const createNewVersionIfNeeded = useCallback(async (formData) => {
+    if (!isLocked) return false;
+    const user = await base44.auth.me();
+    const nextNum = (versions[0]?.version_number || 0) + 1;
+    // Marcar versão anterior como não-current
+    if (currentVersion) {
+      await base44.entities.TAPVersion.update(currentVersion.id, { is_current: false });
+    }
+    const newV = await base44.entities.TAPVersion.create({
+      project_id: projectId,
+      version_number: nextNum,
+      status: "Rascunho",
+      created_by_name: user?.full_name || user?.email || "",
+      objetivo: formData.objetivo,
+      formato_expansao: formData.formato_expansao,
+      expectativa_inicio_expansao: formData.expectativa_inicio_expansao,
+      conclusao: formData.conclusao,
+      auto_data_snapshot: JSON.stringify({ answersMap, participants, datas }),
+      last_auto_update: new Date().toISOString(),
+      is_current: true,
+    });
+    setCurrentVersion(newV);
+    setVersions(vs => [newV, ...vs]);
+    return true;
+  }, [isLocked, currentVersion, versions, projectId, answersMap, participants, datas]);
 
   const setField = (field, value) => {
     const next = { ...form, [field]: value };
     setForm(next);
     clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => triggerSave(next), DEBOUNCE_MS);
+    debounceRef.current = setTimeout(async () => {
+      if (isLocked) {
+        await createNewVersionIfNeeded(next);
+      } else {
+        saveVersion(next);
+      }
+    }, DEBOUNCE_MS);
   };
 
-  const handleBlurSave = () => {
+  const handleBlur = () => {
     clearTimeout(debounceRef.current);
-    triggerSave(form);
+    if (!isLocked) saveVersion(form);
   };
 
-  const inputClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white resize-none";
+  // Botão "Atualizar dados automáticos"
+  const handleRefreshAuto = async () => {
+    setRefreshing(true);
+    await onRefresh(); // busca dados mais recentes do projeto/escopo
+    await saveVersion(form, { updateAutoTime: true });
+    setRefreshing(false);
+  };
 
-  // Agrupa entregas por grupo para exibição
-  const entregasGrouped = useMemo(() => {
-    const g = {};
-    entregas.forEach(e => {
-      if (!g[e.grupo]) g[e.grupo] = [];
-      g[e.grupo].push(e.label);
-    });
-    return Object.entries(g);
-  }, [entregas]);
+  // Finalizar versão
+  const handleFinalize = async () => {
+    if (!currentVersion) return;
+    await base44.entities.TAPVersion.update(currentVersion.id, { status: "Finalizada" });
+    setCurrentVersion(cv => ({ ...cv, status: "Finalizada" }));
+    setVersions(vs => vs.map(v => v.id === currentVersion.id ? { ...v, status: "Finalizada" } : v));
+  };
+
+  // Marcar como enviada ao cliente
+  const handleMarkSent = async () => {
+    if (!currentVersion) return;
+    // Gera PDF e trava versão
+    generatePDF({ project, form, answersMap, participants, datas, modulosServicos, entregas, version: currentVersion });
+    await base44.entities.TAPVersion.update(currentVersion.id, { status: "Enviada ao cliente" });
+    setCurrentVersion(cv => ({ ...cv, status: "Enviada ao cliente" }));
+    setVersions(vs => vs.map(v => v.id === currentVersion.id ? { ...v, status: "Enviada ao cliente" } : v));
+  };
+
+  // Visualizar versão histórica
+  const viewHistoricVersion = (v) => {
+    window.alert(`Visualização de versão histórica v${v.version_number} (${v.status}) — em desenvolvimento. Para export, use o PDF da versão atual.`);
+  };
+
+  // Blocos de entregas conforme JSON
+  const ENTREGA_BLOCKS = [
+    { id: "registro_ponto", title: "Registro de ponto", content: "Registro de ponto: realizar o registro de ponto conforme as definições mapeadas no escopo técnico.", show: () => (project?.contracted_modules || []).includes("Registro de Ponto"), dynamicFields: [{ label: "Método de registro", qid: "q013" }, { label: "Formato de autenticação", qid: "q021" }, { label: "Aplicação de cerca virtual", qid: "q020" }, { label: "Pausa pré-assinalada", qid: "q018" }] },
+    { id: "importacao_afd", title: "Importação de AFD", content: "Importação de AFD: realizar a importação de arquivo AFD através da ferramenta de importação disponível para fechamento de ponto piloto.", show: () => getAnswer(answersMap, "q015").includes("AFD importação") },
+    { id: "app_gestao", title: "APP Gestão", content: "APP Gestão: realizar acesso ao APP Gestão por funcionários para acompanhamento da folha de ponto, solicitações e/ou registro de ponto.", show: () => getAnswer(answersMap, "q015").includes("App Gestão") },
+    { id: "notificacoes_ponto", title: "Notificações de ponto", content: "Notificações de ponto: funcionários ou gestores receberão notificações no App Gestão ou Gestão Web conforme as configurações disponíveis no sistema referentes ao registro de ponto.", show: () => getAnswer(answersMap, "q019") === "Sim" },
+    { id: "calculos_tratamento", title: "Parametrização de regras de cálculo", content: "Parametrização de regra de cálculo: deverá calcular as horas conforme parâmetros mapeados e configurações disponíveis no sistema.", show: () => (project?.contracted_modules || []).includes("Cálculos e Tratamento") },
+    { id: "banco_horas", title: "Parametrização de banco de horas", content: "Parametrização de banco de horas: deverá calcular as horas para banco de horas conforme parâmetros mapeados e configurações disponíveis no sistema.", show: () => getAnswer(answersMap, "q037") === "Sim" },
+    { id: "arquivo_verbas", title: "Parametrização de arquivo de verbas", content: "Parametrização de arquivo de verbas: será possível importar para a folha de pagamento, através de arquivo de exportação, as verbas oriundas da folha de ponto.", show: () => (project?.contracted_services || []).includes("Arquivo txt de exportação para FOPAG") || (project?.contracted_services || []).includes("Integração Sankhya") || project?.origin === "Sankhya" },
+    { id: "sobreaviso", title: "Parametrização de sobreaviso", content: "Parametrização de Sobreaviso: o sistema deve permitir o planejamento de jornadas de sobreaviso e calcular automaticamente os apontamentos correspondentes.", show: () => getAnswer(answersMap, "q038") === "Sim" },
+    { id: "nr17", title: "Parametrização de NR17", content: "Parametrização de NR17: permitir a criação e gestão de jornadas aderentes à Norma Regulamentadora 17, incluindo pausas obrigatórias e configurações específicas.", show: () => getAnswer(answersMap, "q039") === "Sim" },
+    { id: "gestao_participativa_regras_solicitacao", title: "Parametrização das regras de solicitação", content: "Parametrização das Regras de Solicitação: usuários com permissão poderão realizar solicitações como correção de ponto, lançamento de atestado e outros fluxos, com posterior aprovação conforme definição do escopo.", show: () => getAnswer(answersMap, "q040") === "Descentralizada" },
+    { id: "assinatura_espelho", title: "Assinatura de espelho de ponto", content: "Assinatura de espelho de ponto dentro do sistema: colaborador e/ou outro perfil definido fará a confirmação do espelho de ponto, formalizando o ciclo de travamento.", show: () => getAnswer(answersMap, "q049") === "Sim" },
+    { id: "permissao_usuario", title: "Configuração de permissão de usuário", content: "Configuração de permissão de usuário: permissões devem ser parametrizadas conforme alinhamento realizado com o cliente sobre acessos e configurações disponíveis no sistema.", show: () => (project?.contracted_modules || []).includes("Gestão de Ponto Participativa") },
+    { id: "notificacao_hora_extra", title: "Notificação de hora extra", content: "Notificação de hora extra: funcionários ou gestores receberão notificações no App Gestão ou Gestão Web conforme configurações disponíveis no sistema.", show: () => getAnswer(answersMap, "q062") === "Sim" },
+    { id: "gestao_horas_extras", title: "Solicitação, justificativa e aprovação de horas extras", content: "Solicitação, justificativa e aprovação de horas extras: usuários poderão solicitar ou justificar horas extras realizadas, com aprovação ou reprovação por perfis autorizados.", show: () => getAnswer(answersMap, "q052") === "Sim" },
+    { id: "gestao_ferias", title: "Gestão de férias", content: "Gestão de férias: será possível realizar solicitação de férias por funcionário e/ou outro perfil cadastrado, com posterior aprovação e lançamento em folha de ponto.", show: () => (project?.contracted_modules || []).includes("Gestão de Férias e Ausências") },
+    { id: "timesheet_aloque", title: "Timesheet (Aloque)", content: "Timesheet: será possível realizar apontamento de atividades, permitindo que colaboradores registrem horas trabalhadas em projetos, tarefas ou centros de custo.", show: () => (project?.contracted_modules || []).includes("Timesheet") },
+    { id: "integracao_sankhya", title: "Integração Sankhya", content: "Integração Sankhya: integração ativa entre Sankhya e Pontotel conforme critérios do documento inicial de integração.", show: () => (project?.contracted_services || []).includes("Integração Sankhya") },
+    { id: "api_documentacao", title: "Usuário de API + Documentação", content: "Usuário de API + Documentação: cadastro de usuário de API e liberação da documentação correspondente.", show: () => (project?.contracted_services || []).includes("Integrações (disponibilização de API)") },
+    { id: "sftp_afd", title: "Integração do arquivo AFD por meio da pasta sFTP", content: "Integração do arquivo AFD por meio da pasta sFTP: configuração para disponibilização e processamento dos arquivos AFD por meio de pasta sFTP/FTP.", show: () => (project?.contracted_services || []).includes("Importação de arquivo AFD em nuvem") },
+  ];
+
+  const visibleBlocks = ENTREGA_BLOCKS.filter(b => b.show());
+  const dataConc = project?.aligned_end_date || project?.planned_end_date;
+
+  if (loadingVersions) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <div className="w-6 h-6 border-4 border-slate-200 border-t-blue-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-base font-semibold text-slate-800">Termo de Abertura do Projeto (TAP)</h2>
-          <p className="text-sm text-slate-400">Gerado automaticamente com base nos dados e escopo do projeto</p>
+
+      {/* ── Toolbar ── */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div>
+              <h2 className="text-sm font-bold text-slate-800">Termo de Abertura do Projeto (TAP)</h2>
+              <div className="flex items-center gap-2 mt-0.5">
+                {currentVersion ? (
+                  <>
+                    <span className="text-xs text-slate-400">v{currentVersion.version_number}</span>
+                    <VersionBadge status={currentVersion.status} />
+                    {lastUpdate && <span className="text-xs text-slate-400">· Dados atualizados em {lastUpdate}</span>}
+                  </>
+                ) : (
+                  <span className="text-xs text-slate-400">Nenhuma versão salva</span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <SaveStatus status={saveStatus} />
+
+            {/* Atualizar dados automáticos */}
+            <button
+              onClick={handleRefreshAuto}
+              disabled={refreshing}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              Atualizar dados automáticos
+            </button>
+
+            {/* Finalizar */}
+            {currentVersion && currentVersion.status === "Rascunho" && (
+              <button onClick={handleFinalize} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
+                <CheckCircle2 className="w-3.5 h-3.5" />Finalizar versão
+              </button>
+            )}
+
+            {/* Marcar como enviada */}
+            {currentVersion && currentVersion.status === "Finalizada" && (
+              <button onClick={handleMarkSent} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-colors">
+                <Send className="w-3.5 h-3.5" />Marcar como enviada ao cliente
+              </button>
+            )}
+
+            {/* Histórico */}
+            {versions.length > 1 && (
+              <button onClick={() => setShowHistory(h => !h)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors">
+                <History className="w-3.5 h-3.5" />Histórico ({versions.length})
+                {showHistory ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
+            )}
+
+            {/* PDF */}
+            <button
+              onClick={() => generatePDF({ project, form, answersMap, participants, datas, modulosServicos, entregas, version: currentVersion })}
+              className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />Gerar TAP em PDF
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <SaveStatus status={saveStatus} />
-          <button
-            onClick={() => setEditing(e => !e)}
-            className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${editing ? "bg-blue-50 border-blue-200 text-blue-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
-          >
-            <Pencil className="w-4 h-4" />{editing ? "Editar ativo" : "Editar"}
-          </button>
-          <button
-            onClick={() => generatePDF(project, form, answersMap, participants, datas, modulos, entregas)}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-          >
-            <Download className="w-4 h-4" />Gerar TAP em PDF
-          </button>
-        </div>
+
+        {/* Alerta de versão enviada */}
+        {isLocked && (
+          <div className="mt-3 flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700">
+            <Lock className="w-3.5 h-3.5 shrink-0" />
+            Esta versão foi enviada ao cliente e está bloqueada. Ao editar, uma nova versão será criada automaticamente.
+          </div>
+        )}
       </div>
 
-      {/* Documento */}
+      {/* ── Histórico de versões ── */}
+      {showHistory && (
+        <div className="bg-white rounded-xl border border-slate-200 p-4 mb-5 shadow-sm">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Histórico de Versões</p>
+          <div className="space-y-2">
+            {versions.map(v => (
+              <div key={v.id} className={`flex items-center justify-between p-3 rounded-lg border ${v.is_current ? "border-blue-200 bg-blue-50" : "border-slate-100 bg-slate-50"}`}>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-bold text-slate-700">v{v.version_number}</span>
+                  <VersionBadge status={v.status} />
+                  <span className="text-xs text-slate-400">{v.created_by_name && `por ${v.created_by_name} · `}{v.created_date ? new Date(v.created_date).toLocaleDateString("pt-BR") : ""}</span>
+                  {v.is_current && <span className="text-xs bg-blue-600 text-white px-1.5 py-0.5 rounded">atual</span>}
+                </div>
+                {v.status === "Enviada ao cliente" && (
+                  <button onClick={() => viewHistoricVersion(v)} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                    <Download className="w-3 h-3" />PDF
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Documento TAP ── */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-        {/* Cabeçalho do documento */}
+
+        {/* Cabeçalho */}
         <div className="bg-gradient-to-r from-blue-700 to-blue-800 px-8 py-6 text-white">
           <p className="text-xs font-semibold uppercase tracking-widest text-blue-200 mb-1">Pontotel · Implantação</p>
           <h1 className="text-xl font-bold">Termo de Abertura do Projeto</h1>
           <p className="text-sm text-blue-200 mt-1">{project?.client_name} · {project?.implantation_type}</p>
         </div>
 
-        <div className="p-8 space-y-8">
+        <div className="p-8 space-y-10">
 
-          {/* 1. Identificação */}
+          {/* ── SEÇÃO 1: OBJETIVO ── */}
           <section>
-            <SectionTitle>1. Identificação do Projeto</SectionTitle>
-            <div className="bg-slate-50 rounded-lg p-4">
-              <Row label="Projeto" value={project?.name} />
-              <Row label="Cliente" value={project?.client_name} />
-              <Row label="Origem" value={project?.origin} />
-              <Row label="Tipo de Implantação" value={project?.implantation_type} />
-              <Row label="Data de Início" value={formatDate(project?.start_date)} />
-              <Row label="Prazo Previsto" value={formatDate(project?.planned_end_date)} />
-              {project?.mrr && <Row label="MRR" value={`R$ ${Number(project.mrr).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} />}
+            <SectionTitle number="1">OBJETIVO</SectionTitle>
+            <div className="mb-1 flex items-center gap-2">
+              <span className="text-xs text-emerald-600 font-medium bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">✎ Campo editável</span>
+              <span className="text-xs text-slate-400">Texto institucional do projeto — pode ser personalizado</span>
             </div>
+            <EditableField
+              value={form.objetivo}
+              onChange={v => setField("objetivo", v)}
+              onBlur={handleBlur}
+              rows={4}
+              locked={false}
+              placeholder="Descreva o objetivo da implantação..."
+            />
           </section>
 
-          {/* 2. Objetivo */}
+          {/* ── SEÇÃO 2: PARTICIPANTES ── */}
           <section>
-            <SectionTitle>2. Objetivo</SectionTitle>
-            <div className={editing ? "" : "bg-slate-50 rounded-lg p-4"}>
-              {editing ? (
-                <textarea
-                  value={form.objetivo}
-                  onChange={e => setField("objetivo", e.target.value)}
-                  onBlur={handleBlurSave}
-                  rows={4}
-                  className={inputClass}
-                />
-              ) : (
-                <p className="text-sm text-slate-700 leading-relaxed">{form.objetivo}</p>
-              )}
+            <SectionTitle number="2">PARTICIPANTES</SectionTitle>
+            <div className="flex items-center gap-2 mb-3">
+              <AutoBadge source="dados_iniciais" />
+              <span className="text-xs text-slate-400">Para alterar, edite os Dados Iniciais do projeto</span>
             </div>
-          </section>
-
-          {/* 3. Participantes */}
-          <section>
-            <SectionTitle>3. Participantes</SectionTitle>
             {participants.length === 0 ? (
-              <p className="text-sm text-slate-400 italic">Nenhum participante cadastrado nos Dados Iniciais do projeto.</p>
+              <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                Nenhum participante cadastrado. Acesse a aba Resumo e preencha os campos de contatos do projeto.
+              </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {participants.map((p, i) => (
@@ -399,81 +716,152 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
             )}
           </section>
 
-          {/* 4. Condições Gerais */}
+          {/* ── SEÇÃO 3: CONDIÇÕES GERAIS ── */}
           <section>
-            <SectionTitle>4. Condições Gerais</SectionTitle>
+            <SectionTitle number="3">CONDIÇÕES GERAIS</SectionTitle>
 
-            {/* Dimensão */}
-            <div className="mb-4">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Dimensão do Projeto</p>
+            {/* 3.1 Dimensão do Projeto */}
+            <div className="mb-6">
+              <SubSectionTitle>3.1 Dimensão do Projeto</SubSectionTitle>
+              <div className="flex items-center gap-2 mb-2">
+                <AutoBadge source="escopo" />
+                <span className="text-xs text-slate-400">Dados do Escopo Técnico</span>
+              </div>
               <div className="bg-slate-50 rounded-lg p-4">
-                <Row label="Nº de Funcionários Contratados" value={project?.contracted_employees || getAnswer(answersMap, "q001")} />
-                <Row label="Operações / Municípios / Estados" value={getAnswer(answersMap, "q002")} />
-                <Row label="Tipo de Implantação" value={project?.implantation_type} />
+                <AutoRow label="Nº de funcionários contratados" value={project?.contracted_employees || getAnswer(answersMap, "q001")} source="escopo" />
+                <AutoRow label="Nº de operações existentes" value={getAnswer(answersMap, "q002")} source="escopo" />
+                <AutoRow label="Tipo de tratativa de ponto" value={getAnswer(answersMap, "q040")} source="escopo" />
+                <AutoRow label="Quantidade de sindicatos" value={getAnswer(answersMap, "q024")} source="escopo" />
+                <AutoRow label="Sistema de folha de pagamento" value={getAnswer(answersMap, "q028")} source="escopo" />
               </div>
             </div>
 
-            {/* Datas */}
-            <div className="mb-4">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Datas Importantes</p>
+            {/* 3.2 Datas Importantes */}
+            <div className="mb-6">
+              <SubSectionTitle>3.2 Datas Importantes</SubSectionTitle>
+              <div className="flex items-center gap-2 mb-2">
+                <AutoBadge source="escopo" />
+              </div>
               <div className="bg-slate-50 rounded-lg p-4">
-                <Row label="Início do Projeto" value={formatDate(datas.inicio)} />
-                <Row label="Prazo Previsto" value={formatDate(datas.prazo)} />
-                <Row label="Período de Apuração do Ponto" value={datas.periodo_apuracao} />
-                <Row label="Período de Folha de Pagamento" value={datas.periodo_folha} />
-                <Row label="Período de Fechamento" value={datas.periodo_fechamento} />
-                <Row label="Prazo Envio Contabilidade" value={datas.prazo_contabilidade ? `Dia ${datas.prazo_contabilidade}` : null} />
-                <Row label="Data de Pagamento" value={datas.data_pagamento ? `Dia ${datas.data_pagamento}` : null} />
-                <Row label="Sistema de Folha de Pagamento" value={datas.sistema_folha} />
+                <AutoRow label="Período de apuração do ponto" value={datas.periodo_apuracao} source="escopo" />
+                <AutoRow label="Período de apuração da folha de pagamento" value={datas.periodo_folha} source="escopo" />
+                <AutoRow label="Período de fechamento da folha de ponto" value={datas.periodo_fechamento} source="escopo" />
+                <AutoRow label="Prazo para envio para contabilidade" value={datas.prazo_contabilidade ? `Dia ${datas.prazo_contabilidade}` : null} source="escopo" />
+                <AutoRow label="Data de pagamento dos funcionários" value={datas.data_pagamento ? `Dia ${datas.data_pagamento}` : null} source="escopo" />
               </div>
             </div>
 
-            {/* Módulos e Serviços */}
+            {/* 3.3 Expansão do Registro de Ponto */}
+            <div className="mb-6">
+              <SubSectionTitle>3.3 Expansão do Registro de Ponto</SubSectionTitle>
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-xs text-emerald-600 font-medium bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">✎ Campo editável</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <EditableField
+                  label="Formato da expansão"
+                  value={form.formato_expansao}
+                  onChange={v => setField("formato_expansao", v)}
+                  onBlur={handleBlur}
+                  rows={2}
+                  locked={false}
+                  placeholder="Ex: Expansão gradual por filial, rollout por departamento..."
+                />
+                <EditableField
+                  label="Expectativa para iniciar a expansão"
+                  value={form.expectativa_inicio_expansao}
+                  onChange={v => setField("expectativa_inicio_expansao", v)}
+                  onBlur={handleBlur}
+                  rows={2}
+                  locked={false}
+                  placeholder="Ex: 30 dias após go-live do piloto..."
+                />
+              </div>
+            </div>
+
+            {/* 3.4 Módulos e Serviços */}
             <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Módulos e Serviços</p>
-              <div className="flex flex-wrap gap-2">
-                {modulos.map((m, i) => (
-                  <div key={i} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border ${m.contratado ? "bg-green-50 border-green-200 text-green-700" : "bg-slate-50 border-slate-200 text-slate-400"}`}>
-                    {m.contratado ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                    {m.nome}
+              <SubSectionTitle>3.4 Módulos e Serviços</SubSectionTitle>
+              <div className="flex items-center gap-2 mb-3">
+                <AutoBadge source="dados_iniciais" />
+                <span className="text-xs text-slate-400">Para alterar, edite os Dados Iniciais do projeto</span>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 mb-2">Módulos</p>
+                  <div className="flex flex-wrap gap-2">
+                    {modulosServicos.modules.map((m, i) => (
+                      <div key={i} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border ${m.contratado ? "bg-green-50 border-green-200 text-green-700" : "bg-slate-50 border-slate-200 text-slate-400"}`}>
+                        {m.contratado ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                        {m.nome}
+                        <span className="text-xs opacity-70">· {m.contratado ? "Contratado" : "Não contratado"}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 mb-2">Serviços</p>
+                  <div className="flex flex-wrap gap-2">
+                    {modulosServicos.services.map((s, i) => (
+                      <div key={i} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border ${s.contratado ? "bg-green-50 border-green-200 text-green-700" : "bg-slate-50 border-slate-200 text-slate-400"}`}>
+                        {s.contratado ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                        {s.nome}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </section>
 
-          {/* 5. Entregas Previstas */}
+          {/* ── SEÇÃO 4: ENTREGAS PREVISTAS ── */}
           <section>
-            <SectionTitle>5. Entregas Previstas</SectionTitle>
-            <div className="border border-blue-100 rounded-lg overflow-hidden">
-              <div className="bg-blue-50 px-4 py-2 flex items-center justify-between">
-                <p className="text-xs font-semibold text-blue-700">
-                  {entregas.length} entrega{entregas.length !== 1 ? "s" : ""} gerada{entregas.length !== 1 ? "s" : ""} automaticamente com base no escopo
-                </p>
-                <FileText className="w-4 h-4 text-blue-400" />
+            <SectionTitle number="4">ENTREGAS PREVISTAS</SectionTitle>
+            <div className="flex items-center gap-2 mb-3">
+              <AutoBadge source="escopo" />
+              <span className="text-xs text-slate-400">{visibleBlocks.length} entrega(s) gerada(s) com base no escopo e módulos contratados</span>
+            </div>
+            {visibleBlocks.length === 0 ? (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                Nenhuma entrega gerada. Preencha o Escopo Técnico e certifique-se que os módulos contratados estão configurados.
               </div>
-              <div className="p-4 space-y-4">
-                {entregasGrouped.map(([grupo, items]) => (
-                  <div key={grupo}>
-                    <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-2 border-b border-blue-50 pb-1">{grupo}</p>
-                    <ul className="space-y-1.5">
-                      {items.map((item, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                          <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">{i + 1}</span>
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
+            ) : (
+              <div className="space-y-2">
+                {visibleBlocks.map((b, i) => (
+                  <div key={b.id} className="flex items-start gap-3 p-3 bg-slate-50 border border-slate-100 rounded-lg">
+                    <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">{i + 1}</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-slate-700">{b.title}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{b.content}</p>
+                      {b.dynamicFields && (
+                        <div className="mt-2 grid grid-cols-2 gap-1">
+                          {b.dynamicFields.map((df, di) => {
+                            const val = getAnswer(answersMap, df.qid);
+                            if (!val) return null;
+                            return (
+                              <div key={di} className="text-xs text-slate-500">
+                                <span className="font-medium text-slate-600">{df.label}:</span> {val}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
-            </div>
+            )}
           </section>
 
-          {/* 6. Cronograma Macro */}
+          {/* ── SEÇÃO 5: CRONOGRAMA ── */}
           <section>
-            <SectionTitle>6. Cronograma Macro</SectionTitle>
-            <div className="space-y-2">
+            <SectionTitle number="5">CRONOGRAMA</SectionTitle>
+            <div className="flex items-center gap-2 mb-3">
+              <AutoBadge source="cronograma" />
+              <span className="text-xs text-slate-400">Fases macro do projeto</span>
+            </div>
+            <div className="space-y-2 mb-5">
               {FASES_MACRO.map((f, i) => (
                 <div key={i} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
                   <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full whitespace-nowrap shrink-0">{f.fase}</span>
@@ -481,84 +869,37 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
                 </div>
               ))}
             </div>
-          </section>
 
-          {/* 7. Premissas e Restrições */}
-          <section>
-            <SectionTitle>7. Premissas e Restrições</SectionTitle>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 5.1 Data esperada de conclusão */}
+            {dataConc && (
               <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Premissas</p>
-                {editing ? (
-                  <textarea value={form.premissas} onChange={e => setField("premissas", e.target.value)} onBlur={handleBlurSave} rows={6} className={inputClass} />
-                ) : (
-                  <div className="bg-slate-50 rounded-lg p-4">
-                    <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{form.premissas}</p>
-                  </div>
-                )}
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Restrições</p>
-                {editing ? (
-                  <textarea value={form.restricoes} onChange={e => setField("restricoes", e.target.value)} onBlur={handleBlurSave} rows={6} className={inputClass} />
-                ) : (
-                  <div className="bg-slate-50 rounded-lg p-4">
-                    <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{form.restricoes}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-
-          {/* 8. Conclusão */}
-          <section>
-            <SectionTitle>8. Conclusão</SectionTitle>
-            <div className={editing ? "" : "border-l-4 border-blue-400 bg-blue-50 rounded-r-lg p-4"}>
-              {editing ? (
-                <textarea value={form.conclusao} onChange={e => setField("conclusao", e.target.value)} onBlur={handleBlurSave} rows={3} className={inputClass} />
-              ) : (
-                <p className="text-sm text-slate-700 leading-relaxed">{form.conclusao}</p>
-              )}
-            </div>
-          </section>
-
-          {/* 9. Assinaturas */}
-          <section>
-            <SectionTitle>9. Assinaturas</SectionTitle>
-            {editing && (
-              <div className="grid grid-cols-3 gap-4 mb-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Data de Assinatura</label>
-                  <input type="date" value={form.data_assinatura} onChange={e => setField("data_assinatura", e.target.value)} onBlur={handleBlurSave}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <SubSectionTitle>5.1 Data esperada de conclusão do projeto</SubSectionTitle>
+                <div className="flex items-center gap-2 mb-2">
+                  <AutoBadge source="dados_iniciais" />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Responsável Cliente</label>
-                  <input value={form.assinatura_cliente} onChange={e => setField("assinatura_cliente", e.target.value)} onBlur={handleBlurSave}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Responsável Pontotel</label>
-                  <input value={form.assinatura_pontotel} onChange={e => setField("assinatura_pontotel", e.target.value)} onBlur={handleBlurSave}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <div className="bg-blue-50 border-l-4 border-blue-400 rounded-r-lg p-4">
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    A data esperada para a conclusão deste projeto é: <strong>{formatDate(dataConc)}</strong>, definida em comum acordo com o(a) líder do projeto da {project?.client_name}. Essa data será considerada como referência para o encerramento formal das atividades de implantação.
+                  </p>
                 </div>
               </div>
             )}
-            {form.data_assinatura && (
-              <p className="text-sm text-slate-500 mb-4">Data de assinatura: <strong>{formatDate(form.data_assinatura)}</strong></p>
-            )}
-            <div className="grid grid-cols-2 gap-8">
-              <div className="text-center border border-slate-200 rounded-lg p-6">
-                <div className="h-12 border-b border-dashed border-slate-300 mb-3" />
-                <p className="text-sm font-semibold text-slate-700">{form.assinatura_cliente || "Responsável Cliente"}</p>
-                <p className="text-xs text-slate-400">Patrocinador / Responsável pelo Projeto</p>
-              </div>
-              <div className="text-center border border-slate-200 rounded-lg p-6">
-                <div className="h-12 border-b border-dashed border-slate-300 mb-3" />
-                <p className="text-sm font-semibold text-slate-700">{form.assinatura_pontotel || "Responsável Pontotel"}</p>
-                <p className="text-xs text-slate-400">Gerente de Projeto — Pontotel</p>
-              </div>
+          </section>
+
+          {/* ── SEÇÃO 6: CONCLUSÃO ── */}
+          <section>
+            <SectionTitle number="6">CONCLUSÃO</SectionTitle>
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-xs text-emerald-600 font-medium bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">✎ Campo editável</span>
             </div>
+            <EditableField
+              value={form.conclusao}
+              onChange={v => setField("conclusao", v)}
+              onBlur={handleBlur}
+              rows={4}
+              locked={false}
+              placeholder="Texto de conclusão do termo..."
+            />
           </section>
 
         </div>
