@@ -30,7 +30,13 @@ function ProfileForm({ profile, userCount, onSave, onClose }) {
 
   // Quando "Visualizar" é desmarcado, desmarca tudo do módulo
   // Quando "Editar" é marcado, marca "Visualizar" automaticamente
+  // projetos_excluir só é permitido para perfil "Admin"
+  const isAdminProfile = name.trim().toLowerCase() === "admin";
+
   const handleToggle = (modulePerms, key, value) => {
+    // Bloquear projetos_excluir em perfis não-Admin
+    if (key === "projetos_excluir" && !isAdminProfile) return;
+
     const isViewKey = key.endsWith("_ver") || key.endsWith("_acessar");
     const isEditKey = !isViewKey;
     const newPerms = { ...perms, [key]: value };
@@ -104,15 +110,19 @@ function ProfileForm({ profile, userCount, onSave, onClose }) {
                       <div className="px-4 py-3 flex flex-wrap gap-x-6 gap-y-2">
                         {mod.permissions
                           .filter(p => p.key !== viewPerm?.key)
-                          .map(p => (
-                            <PermissionCheckbox
-                              key={p.key}
-                              label={p.label}
-                              checked={!!perms[p.key]}
-                              onChange={v => handleToggle(mod.permissions, p.key, v)}
-                              disabled={!hasView}
-                            />
-                          ))}
+                          .map(p => {
+                            const isExcluirLocked = p.key === "projetos_excluir" && !isAdminProfile;
+                            return (
+                              <div key={p.key} className={isExcluirLocked ? "relative" : ""}>
+                                <PermissionCheckbox
+                                  label={isExcluirLocked ? `${p.label} (somente Admin)` : p.label}
+                                  checked={isExcluirLocked ? false : !!perms[p.key]}
+                                  onChange={v => handleToggle(mod.permissions, p.key, v)}
+                                  disabled={!hasView || isExcluirLocked}
+                                />
+                              </div>
+                            );
+                          })}
                         {mod.permissions.filter(p => p.key !== viewPerm?.key).length === 0 && (
                           <span className="text-xs text-slate-400 italic">Apenas acesso (sem sub-permissões)</span>
                         )}

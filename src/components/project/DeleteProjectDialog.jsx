@@ -1,16 +1,26 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { AlertTriangle, Trash2, X } from "lucide-react";
+import { AlertTriangle, Trash2, X, ShieldAlert } from "lucide-react";
 
 export default function DeleteProjectDialog({ project, onClose, onDeleted }) {
   const [deleting, setDeleting] = useState(false);
+  const [permError, setPermError] = useState(null);
 
   const handleDelete = async () => {
     setDeleting(true);
-    // Excluir apenas no Base44 — NÃO afeta o Pipedrive
-    await base44.entities.Project.delete(project.id);
-    onDeleted(project.id);
-    onClose();
+    setPermError(null);
+    try {
+      const res = await base44.functions.invoke("deleteProject", { project_id: project.id });
+      if (res.data?.success) {
+        onDeleted(project.id);
+        onClose();
+      } else {
+        setPermError(res.data?.error || "Erro ao excluir projeto");
+      }
+    } catch (e) {
+      setPermError(e.message || "Erro ao excluir projeto");
+    }
+    setDeleting(false);
   };
 
   return (
@@ -30,6 +40,12 @@ export default function DeleteProjectDialog({ project, onClose, onDeleted }) {
               <div className="mt-3 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
                 ⚠️ Este projeto foi importado do Pipedrive (deal #{project.pipedrive_deal_id}).
                 A exclusão remove apenas o registro local — o deal no Pipedrive não é afetado.
+              </div>
+            )}
+            {permError && (
+              <div className="mt-3 p-2.5 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                <ShieldAlert className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-red-700 font-medium">{permError}</p>
               </div>
             )}
             <p className="text-xs text-red-500 mt-2 font-medium">Esta ação não pode ser desfeita.</p>

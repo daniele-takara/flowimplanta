@@ -3,7 +3,7 @@ import { formatDate } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ProgressBar from "@/components/ui/ProgressBar";
-import { Pencil, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import { Pencil, RefreshCw, CheckCircle2, AlertCircle, Link2, ExternalLink } from "lucide-react";
 
 function InfoRow({ label, value }) {
   return (
@@ -51,6 +51,22 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
 
   return (
     <div className="grid grid-cols-3 gap-6">
+      {/* Banner de vínculo Pipedrive */}
+      {project?.pipedrive_deal_id && (
+        <div className="col-span-3 flex items-center gap-3 px-4 py-3 bg-orange-50 border border-orange-200 rounded-xl text-sm">
+          <Link2 className="w-4 h-4 text-orange-500 shrink-0" />
+          <div className="flex-1">
+            <span className="font-semibold text-orange-800">Projeto vinculado ao Pipedrive</span>
+            <span className="text-orange-600 ml-2">Deal #{project.pipedrive_deal_id} — os dados iniciais são alimentados pelo CRM e podem ser re-sincronizados a qualquer momento.</span>
+          </div>
+          {project?.pipedrive_pipeline_name && (
+            <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 border border-orange-200 rounded-full font-medium shrink-0">
+              {project.pipedrive_pipeline_name}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Left column */}
       <div className="col-span-2 space-y-6">
         {/* General Info */}
