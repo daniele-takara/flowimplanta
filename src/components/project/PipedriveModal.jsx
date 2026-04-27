@@ -63,13 +63,23 @@ export default function PipedriveModal({ onClose, onImported, existingDealIds = 
     setImporting(true);
     try {
       const project = await base44.entities.Project.create({
+        // Campos obrigatórios
         name: selected.title,
         client_name: selected.org_name || selected.title,
-        pontotel_manager_name: selected.owner_name || "",
         status: "Planejamento",
         current_phase: "Abertura de projeto",
+        // Vínculo Pipedrive
         pipedrive_deal_id: selected.id,
         pipedrive_pipeline_name: selected.pipeline_name || "",
+        // Mapeamento planilha DE→PARA
+        pontotel_manager_name: selected.gerente_name || "",
+        pontotel_analyst_name: selected.owner_name || "",
+        start_date: selected.add_time || "",
+        planned_end_date: selected.expected_close_date || "",
+        aligned_end_date: selected.aligned_end_date || "",
+        origin: selected.origin || "",
+        lar21: selected.lar21 || "",
+        contracted_modules: selected.contracted_modules || [],
       });
       setImportSuccess(project);
       onImported(project);

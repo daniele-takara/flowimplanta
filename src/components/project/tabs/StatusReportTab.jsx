@@ -460,6 +460,8 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
   const [saving, setSaving] = useState(false);
   const [savingImage, setSavingImage] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [updatingSheet, setUpdatingSheet] = useState(false);
+  const [sheetResult, setSheetResult] = useState(null); // { success, msg } | { error }
   const dashboardRef = useRef(null);
 
   // Construir answersMap a partir do scopeItems
@@ -553,6 +555,38 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
     }
   }, [project, projectId, form, report, savedActivities, answersMap]);
 
+  // Atualizar dados de usabilidade via planilha "Mais recente"
+  const handleUpdateFromSheet = async () => {
+    if (!project?.empresa_id) {
+      setSheetResult({ error: "Projeto sem empresa_id. Preencha o campo ID da Empresa nos Dados Iniciais." });
+      return;
+    }
+    setUpdatingSheet(true);
+    setSheetResult(null);
+    try {
+      const res = await base44.functions.invoke("updateReportFromSheet", {
+        project_id: projectId,
+        empresa_id: project.empresa_id,
+      });
+      const d = res.data;
+      if (d?.success) {
+        // Atualizar estado local com dados retornados
+        setReport(prev => ({ ...(prev || {}), ...d.report }));
+        setSheetResult({
+          success: true,
+          msg: `${d.registered_employees} funcionários · ${d.recording_employees} batendo ponto · ${d.adherence_percent}% aderência`,
+        });
+        setLastUpdate(d.report?.last_auto_update || new Date().toISOString());
+        setLastUpdatedBy(d.report?.updated_by_name || "");
+      } else {
+        setSheetResult({ error: d?.message || d?.error || "Empresa não encontrada na planilha" });
+      }
+    } catch (e) {
+      setSheetResult({ error: e.message });
+    }
+    setUpdatingSheet(false);
+  };
+
   // Salvar campos manuais manualmente
   const handleSaveManual = async () => {
     setSaving(true);
@@ -622,6 +656,16 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {!readOnly && project?.empresa_id && (
+            <button
+              onClick={handleUpdateFromSheet}
+              disabled={updatingSheet}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${updatingSheet ? "animate-spin" : ""}`} />
+              {updatingSheet ? "Atualizando..." : "Atualizar Report"}
+            </button>
+            )}
             {!readOnly && (
             <button
               onClick={() => setShowConfirm(true)}
@@ -654,6 +698,18 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
             </button>
           </div>
         </div>
+
+        {/* Feedback Atualizar Report */}
+        {sheetResult && (
+          <div className={`mt-3 p-3 rounded-xl flex items-start gap-2 text-xs ${
+            sheetResult.success ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"
+          }`}>
+            {sheetResult.success
+              ? <><CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" /> Planilha atualizada: {sheetResult.msg}</>
+              : <><AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {sheetResult.error}</>
+            }
+          </div>
+        )}
 
         {/* Confirmação */}
         {showConfirm && (

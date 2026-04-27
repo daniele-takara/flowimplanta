@@ -1,94 +1,163 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-// Pipeline IDs alvo — ajuste conforme IDs reais da conta Pipedrive
-// O sistema busca dinamicamente e filtra pelo nome.
-const TARGET_PIPELINE_NAMES = ["Impl M, G e GG", "Acomp - Morfeu"];
+// Pipelines alvo (IDs reais confirmados)
+const TARGET_PIPELINES = [
+  { id: 16, name: "Impl M, G e GG" },
+  { id: 10, name: "Acomp - Morfeu" },
+];
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+async function fetchWithRetry(url, retries = 3, delayMs = 3000) {
+  for (let i = 0; i < retries; i++) {
+    const res = await fetch(url);
+    if (res.status === 429) {
+      await sleep(delayMs);
+      continue;
+    }
+    const text = await res.text();
+    try { return JSON.parse(text); } catch { return {}; }
+  }
+  return {};
+}
+
+function extractDate(val) {
+  if (!val) return "";
+  return String(val).substring(0, 10);
+}
+
+function normalizeOrigin(val) {
+  const map = {
+    "pontotel": "Pontotel",
+    "parceiro": "Parceiro",
+    "indicação": "Indicação",
+    "indicacao": "Indicação",
+    "inbound": "Inbound",
+    "outbound": "Outbound",
+  };
+  return map[(val || "").toLowerCase().trim()] || "";
+}
+
+function normalizeField(val) {
+  if (!val) return "";
+  if (typeof val === "object" && val.name) return val.name;
+  return String(val).trim();
+}
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
-    if (!user) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const apiToken = Deno.env.get("API_PIpedrive");
-    if (!apiToken) {
-      return Response.json({ error: 'API_PIpedrive secret não configurado' }, { status: 500 });
+    if (!apiToken) return Response.json({ error: 'API_PIpedrive não configurado' }, { status: 500 });
+
+    const baseV1 = "https://api.pipedrive.com/v1";
+
+    // 1. Buscar deals abertos por pipeline via /v1/pipelines/{id}/deals?status=open
+    const rawDeals = [];
+    for (const pipeline of TARGET_PIPELINES) {
+      await sleep(600);
+      let start = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const data = await fetchWithRetry(
+          `${baseV1}/pipelines/${pipeline.id}/deals?status=open&limit=100&start=${start}&api_token=${apiToken}`
+        );
+        if (!data.success || !data.data?.length) break;
+        rawDeals.push(...data.data.map(d => ({ ...d, _pipelineName: pipeline.name })));
+        hasMore = data.additional_data?.pagination?.more_items_in_collection === true;
+        start += 100;
+        if (hasMore) await sleep(400);
+      }
     }
 
-    const base = "https://api.pipedrive.com/api/v2";
-
-    // 1. Buscar todos os pipelines para resolver IDs pelos nomes alvo
-    const pipelinesRes = await fetch(`${base}/pipelines?api_token=${apiToken}&limit=100`);
-    const pipelinesData = await pipelinesRes.json();
-
-    if (!pipelinesData.success) {
-      return Response.json({ error: 'Erro ao buscar pipelines', details: pipelinesData }, { status: 502 });
+    if (rawDeals.length === 0) {
+      return Response.json({ deals: [], pipelines: TARGET_PIPELINES, total: 0 });
     }
 
-    const allPipelines = pipelinesData.data || [];
-    const targetPipelines = allPipelines.filter(p =>
-      TARGET_PIPELINE_NAMES.some(name => p.name === name)
-    );
-
-    if (targetPipelines.length === 0) {
-      // Retorna lista dos pipelines disponíveis para facilitar diagnóstico
-      return Response.json({
-        deals: [],
-        pipelines_found: allPipelines.map(p => ({ id: p.id, name: p.name })),
-        message: `Nenhum pipeline com os nomes alvo foi encontrado. Pipelines disponíveis listados.`
-      });
+    // 2. Resolver organizações únicas
+    const orgIds = [...new Set(rawDeals.map(d => d.org_id?.value).filter(Boolean))];
+    const orgMap = {};
+    for (const orgId of orgIds) {
+      await sleep(200);
+      const d = await fetchWithRetry(`${baseV1}/organizations/${orgId}?api_token=${apiToken}`);
+      if (d.data) orgMap[orgId] = d.data;
     }
 
-    const pipelineIds = targetPipelines.map(p => p.id);
-
-    // 2. Buscar deals de cada pipeline
-    let allDeals = [];
-    for (const pipelineId of pipelineIds) {
-      let cursor = null;
-      let page = 0;
-      do {
-        const url = new URL(`${base}/deals`);
-        url.searchParams.set('api_token', apiToken);
-        url.searchParams.set('pipeline_id', pipelineId);
-        url.searchParams.set('limit', '100');
-        if (cursor) url.searchParams.set('cursor', cursor);
-
-        const res = await fetch(url.toString());
-        const data = await res.json();
-
-        if (!data.success) break;
-
-        const deals = data.data || [];
-        allDeals = allDeals.concat(deals);
-
-        cursor = data.additional_data?.next_cursor || null;
-        page++;
-        if (page > 20) break; // safety cap
-      } while (cursor);
+    // 3. Resolver usuários (gerentes) únicos
+    // Campo 30e71cbb54fad7e29fb71e3bcf9bfe59b4500743 = Gerente de Projeto (Deal)
+    // Pode vir como number ou string
+    const gerenteIds = [...new Set(
+      rawDeals.map(d => {
+        const v = d["30e71cbb54fad7e29fb71e3bcf9bfe59b4500743"];
+        return v ? String(v) : null;
+      }).filter(Boolean)
+    )];
+    const userMap = {};
+    for (const userId of gerenteIds) {
+      await sleep(200);
+      const d = await fetchWithRetry(`${baseV1}/users/${userId}?api_token=${apiToken}`);
+      if (d.data) userMap[String(userId)] = d.data.name || "";
     }
 
-    // 3. Normalizar campos para o frontend
-    const normalized = allDeals.map(d => ({
-      id: d.id,
-      title: d.title || "",
-      org_name: d.org_name || (d.organization?.name) || "",
-      owner_name: d.owner_name || (d.owner?.name) || "",
-      status: d.status || "open",
-      pipeline_id: d.pipeline_id,
-      pipeline_name: targetPipelines.find(p => p.id === d.pipeline_id)?.name || "",
-      stage_name: d.stage_name || "",
-      value: d.value || 0,
-      currency: d.currency || "BRL",
-      add_time: d.add_time || "",
-    }));
+    // 4. Normalizar campos conforme planilha DE→PARA
+    const deals = rawDeals.map(deal => {
+      const orgId = deal.org_id?.value;
+      const org = orgId ? orgMap[orgId] : null;
 
-    return Response.json({
-      deals: normalized,
-      pipelines: targetPipelines.map(p => ({ id: p.id, name: p.name })),
-      total: normalized.length,
+      // Gerente de Projeto (campo customizado do deal) — pode ser string ou number
+      const gerenteIdRaw = deal["30e71cbb54fad7e29fb71e3bcf9bfe59b4500743"];
+      const gerenteId = gerenteIdRaw ? String(gerenteIdRaw) : null;
+      const gerenteName = gerenteId ? (userMap[gerenteId] || "") : "";
+
+      // Analista de Implantação = owner/user_id do deal (objeto com .name)
+      const analystName = deal.user_id?.name || "";
+
+      // Canal → Origem (campo da organização)
+      const canal = normalizeField(org?.["64fcc82db764fdd7f6bbc3add7735d6751bb5935"]);
+      const origin = normalizeOrigin(canal);
+
+      // Lar21 (campo da organização)
+      const lar21 = normalizeField(org?.["a5301f920ae3f519007886f518d87832866e8c6a"]);
+
+      // Módulos contratados (campo da organização) — API key correta da planilha
+      let contractedModules = [];
+      const modRaw = org?.["a7cf0200e401a761fb5fff4f4122beb364de9adb"];
+      if (modRaw) {
+        if (Array.isArray(modRaw)) {
+          contractedModules = modRaw.map(m => normalizeField(m)).filter(Boolean);
+        } else {
+          contractedModules = String(modRaw).split(",").map(s => s.trim()).filter(Boolean);
+        }
+      }
+
+      return {
+        id: deal.id,
+        title: deal.title || "",
+        // org_id em /pipelines/{id}/deals vem como objeto com .name
+        org_name: org?.name || deal.org_id?.name || deal.organization_name || "",
+        owner_name: analystName,
+        gerente_name: gerenteName,
+        status: deal.status || "open",
+        pipeline_id: deal.pipeline_id,
+        pipeline_name: deal._pipelineName,
+        stage_name: deal.stage_name || "",
+        value: deal.value || 0,
+        currency: deal.currency || "BRL",
+        // Datas conforme planilha
+        add_time: extractDate(deal.add_time),
+        expected_close_date: extractDate(deal.expected_close_date),
+        aligned_end_date: extractDate(deal["88d64f1a3b63ae0b5f7df83305a918dbec8503dd"]),
+        // Campos adicionais
+        origin,
+        lar21,
+        contracted_modules: contractedModules,
+      };
     });
+
+    return Response.json({ deals, pipelines: TARGET_PIPELINES, total: deals.length });
 
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

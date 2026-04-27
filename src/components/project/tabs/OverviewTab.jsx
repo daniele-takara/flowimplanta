@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { formatDate } from "@/lib/utils";
+import { base44 } from "@/api/base44Client";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ProgressBar from "@/components/ui/ProgressBar";
-import { Pencil } from "lucide-react";
+import { Pencil, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 
 function InfoRow({ label, value }) {
   return (
@@ -22,7 +24,31 @@ function ParticipantCard({ role, name, contact }) {
   );
 }
 
-export default function OverviewTab({ project, phases, onEditDadosIniciais }) {
+export default function OverviewTab({ project, phases, onEditDadosIniciais, onProjectUpdated }) {
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState(null); // { success, fields } | { error }
+
+  const handleSyncPipedrive = async () => {
+    if (!project?.pipedrive_deal_id) return;
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await base44.functions.invoke("syncPipedriveData", {
+        project_id: project.id,
+        deal_id: project.pipedrive_deal_id,
+      });
+      if (res.data?.success) {
+        setSyncResult({ success: true, fields: res.data.updated_fields || [] });
+        if (onProjectUpdated) onProjectUpdated(res.data.project);
+      } else {
+        setSyncResult({ error: res.data?.error || "Erro ao sincronizar" });
+      }
+    } catch (e) {
+      setSyncResult({ error: e.message });
+    }
+    setSyncing(false);
+  };
+
   return (
     <div className="grid grid-cols-3 gap-6">
       {/* Left column */}
@@ -31,15 +57,40 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais }) {
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Dados do Projeto</h3>
-            {onEditDadosIniciais && (
-              <button
-                onClick={onEditDadosIniciais}
-                className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium"
-              >
-                <Pencil className="w-3.5 h-3.5" /> Editar
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {project?.pipedrive_deal_id && (
+                <button
+                  onClick={handleSyncPipedrive}
+                  disabled={syncing}
+                  title={`Sincronizar com deal #${project.pipedrive_deal_id}`}
+                  className="flex items-center gap-1.5 text-xs text-orange-600 hover:text-orange-700 font-medium disabled:opacity-50 border border-orange-200 bg-orange-50 hover:bg-orange-100 rounded-lg px-2.5 py-1 transition-colors"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
+                  {syncing ? "Sincronizando..." : "Atualizar dados do Pipedrive"}
+                </button>
+              )}
+              {onEditDadosIniciais && (
+                <button
+                  onClick={onEditDadosIniciais}
+                  className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  <Pencil className="w-3.5 h-3.5" /> Editar
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* Feedback de sincronização */}
+          {syncResult && (
+            <div className={`mb-3 p-2.5 rounded-lg flex items-start gap-2 text-xs ${
+              syncResult.success ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"
+            }`}>
+              {syncResult.success
+                ? <><CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" /> Dados sincronizados: {syncResult.fields.join(", ")}</>
+                : <><AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {syncResult.error}</>
+              }
+            </div>
+          )}
           <InfoRow label="Cliente" value={project.client_name} />
           <InfoRow label="ID da Empresa" value={project.empresa_id} />
           <InfoRow label="Origem" value={project.origin} />
@@ -49,6 +100,7 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais }) {
           <InfoRow label="Data de Início" value={formatDate(project.start_date)} />
           <InfoRow label="Previsão de Conclusão" value={formatDate(project.planned_end_date)} />
           <InfoRow label="Data Alinhada" value={formatDate(project.aligned_end_date)} />
+          <InfoRow label="Lar21" value={project.lar21} />
           <InfoRow label="Observações" value={project.observations} />
         </div>
 
