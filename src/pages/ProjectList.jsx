@@ -3,35 +3,45 @@ import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import ProjectCard from "@/components/dashboard/ProjectCard";
-import { FolderKanban, Plus, Search, LayoutGrid, List, X, User } from "lucide-react";
-import { formatDate, formatCurrency, phaseColor } from "@/lib/utils";
+import PipedriveModal from "@/components/project/PipedriveModal";
+import DeleteProjectDialog from "@/components/project/DeleteProjectDialog";
+import { FolderKanban, Plus, Search, LayoutGrid, List, X, User, TrendingUp, Trash2 } from "lucide-react";
+import { formatDate } from "@/lib/utils";
 import StatusBadge from "@/components/ui/StatusBadge";
-import ProgressBar from "@/components/ui/ProgressBar";
 import { usePermissions } from "@/lib/usePermissions";
 
 const STATUS_OPTIONS = ["Todos", "Planejamento", "Em andamento", "Em risco", "Atrasado", "Concluído", "Cancelado"];
 
 export default function ProjectList() {
   const { user } = useAuth();
-  const { canCreateProject } = usePermissions();
+  const { canCreateProject, canDeleteProject } = usePermissions();
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
-  const [filterManagers, setFilterManagers] = useState([]); // gerentes selecionados
-  const [filterAnalysts, setFilterAnalysts] = useState([]); // analistas selecionados
-  const [myProjects, setMyProjects] = useState(true); // filtro padrão "Meus projetos"
+  const [filterManagers, setFilterManagers] = useState([]);
+  const [filterAnalysts, setFilterAnalysts] = useState([]);
+  const [myProjects, setMyProjects] = useState(true);
   const [viewMode, setViewMode] = useState("grid");
   const [allProjects, setAllProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showPipedrive, setShowPipedrive] = useState(false);
+  const [deleteProject, setDeleteProject] = useState(null);
 
-  useEffect(() => {
+  const loadProjects = () => {
     base44.entities.Project.list("-created_date").then(p => {
       setAllProjects(p);
       setLoading(false);
     });
-  }, []);
+  };
 
-  // Listas únicas de gerentes e analistas
+  useEffect(() => { loadProjects(); }, []);
+
+  // IDs de deals já importados (para bloquear duplicidade)
+  const existingDealIds = useMemo(() =>
+    allProjects.map(p => p.pipedrive_deal_id).filter(Boolean),
+    [allProjects]
+  );
+
   const managerOptions = useMemo(() => {
     const names = allProjects.map(p => p.pontotel_manager_name).filter(Boolean);
     return [...new Set(names)].sort();
@@ -46,29 +56,17 @@ export default function ProjectList() {
 
   const filtered = useMemo(() => {
     return allProjects.filter(p => {
-      // Busca por nome ou id
       const searchLower = search.toLowerCase();
       const matchSearch = !search ||
         (p.name || "").toLowerCase().includes(searchLower) ||
         (p.id || "").toLowerCase().includes(searchLower);
-
-      // Status
       const matchStatus = filterStatus === "Todos" || p.status === filterStatus;
-
-      // Meus projetos: gerente OU analista é o usuário logado
       const matchMy = !myProjects || (
         (p.pontotel_manager_name && p.pontotel_manager_name === currentUserName) ||
         (p.pontotel_analyst_name && p.pontotel_analyst_name === currentUserName)
       );
-
-      // Filtro de gerente (multi)
-      const matchManager = filterManagers.length === 0 ||
-        filterManagers.includes(p.pontotel_manager_name);
-
-      // Filtro de analista (multi)
-      const matchAnalyst = filterAnalysts.length === 0 ||
-        filterAnalysts.includes(p.pontotel_analyst_name);
-
+      const matchManager = filterManagers.length === 0 || filterManagers.includes(p.pontotel_manager_name);
+      const matchAnalyst = filterAnalysts.length === 0 || filterAnalysts.includes(p.pontotel_analyst_name);
       return matchSearch && matchStatus && matchMy && matchManager && matchAnalyst;
     });
   }, [allProjects, search, filterStatus, myProjects, filterManagers, filterAnalysts, currentUserName]);
@@ -87,6 +85,14 @@ export default function ProjectList() {
     setMyProjects(false);
   };
 
+  const handleImported = (newProject) => {
+    setAllProjects(prev => [newProject, ...prev]);
+  };
+
+  const handleDeleted = (projectId) => {
+    setAllProjects(prev => prev.filter(p => p.id !== projectId));
+  };
+
   return (
     <div className="p-8 max-w-7xl mx-auto">
       {/* Header */}
@@ -99,20 +105,31 @@ export default function ProjectList() {
           <h1 className="text-2xl font-bold text-slate-800">Todos os Projetos</h1>
           <p className="text-slate-400 text-sm mt-1">{filtered.length} de {allProjects.length} projetos</p>
         </div>
-        {canCreateProject && (
-          <Link
-            to="/projects/new"
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Novo Projeto
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Botão Integrar com Pipedrive — visível para quem pode criar projetos */}
+          {canCreateProject && (
+            <button
+              onClick={() => setShowPipedrive(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              <TrendingUp className="w-4 h-4" />
+              Integrar com Pipedrive
+            </button>
+          )}
+          {canCreateProject && (
+            <Link
+              to="/projects/new"
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Novo Projeto
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Filters bar */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 mb-5 shadow-sm space-y-3">
-        {/* Row 1: busca + meus projetos + view toggle */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 min-w-[220px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -130,7 +147,6 @@ export default function ProjectList() {
             )}
           </div>
 
-          {/* Meus projetos toggle */}
           <button
             onClick={() => setMyProjects(m => !m)}
             className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border font-medium transition-colors ${
@@ -141,7 +157,6 @@ export default function ProjectList() {
             Meus projetos
           </button>
 
-          {/* Limpar filtros */}
           {hasActiveFilters && (
             <button
               onClick={clearAll}
@@ -151,18 +166,15 @@ export default function ProjectList() {
             </button>
           )}
 
-          {/* View toggle */}
           <div className="ml-auto flex items-center gap-1 border border-slate-200 rounded-lg p-1 bg-white">
             <button
               onClick={() => setViewMode("grid")}
-              title="Cards"
               className={`p-1.5 rounded ${viewMode === "grid" ? "bg-slate-100" : "hover:bg-slate-50"}`}
             >
               <LayoutGrid className="w-4 h-4 text-slate-600" />
             </button>
             <button
               onClick={() => setViewMode("list")}
-              title="Lista"
               className={`p-1.5 rounded ${viewMode === "list" ? "bg-slate-100" : "hover:bg-slate-50"}`}
             >
               <List className="w-4 h-4 text-slate-600" />
@@ -170,7 +182,6 @@ export default function ProjectList() {
           </div>
         </div>
 
-        {/* Row 2: filtro de status */}
         <div className="flex items-center gap-2 flex-wrap">
           {STATUS_OPTIONS.map(s => (
             <button
@@ -185,7 +196,6 @@ export default function ProjectList() {
           ))}
         </div>
 
-        {/* Row 3: filtros por gerente e analista */}
         <div className="flex items-start gap-6 flex-wrap">
           {managerOptions.length > 0 && (
             <div>
@@ -230,7 +240,6 @@ export default function ProjectList() {
           )}
         </div>
 
-        {/* Filtros ativos */}
         {(filterManagers.length > 0 || filterAnalysts.length > 0) && (
           <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-slate-100">
             <span className="text-xs text-slate-400">Filtros ativos:</span>
@@ -257,7 +266,7 @@ export default function ProjectList() {
         </div>
       )}
 
-      {/* Empty state */}
+      {/* Empty */}
       {!loading && filtered.length === 0 && (
         <div className="text-center py-16 text-slate-400">
           <FolderKanban className="w-10 h-10 mx-auto mb-3 opacity-30" />
@@ -269,7 +278,20 @@ export default function ProjectList() {
       {/* Grid */}
       {!loading && filtered.length > 0 && viewMode === "grid" && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map(p => <ProjectCard key={p.id} project={p} />)}
+          {filtered.map(p => (
+            <div key={p.id} className="relative group">
+              <ProjectCard project={p} />
+              {canDeleteProject && (
+                <button
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteProject(p); }}
+                  title="Excluir projeto"
+                  className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 rounded-lg text-slate-400 hover:text-red-500 shadow-sm"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
@@ -281,25 +303,30 @@ export default function ProjectList() {
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50">
                   <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3">Nome do Projeto</th>
-                  <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">ID</th>
                   <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Cliente</th>
                   <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Gerente do Projeto</th>
-                  <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Analista de Implantação</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Analista</th>
                   <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Status</th>
-                  <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Data de Início</th>
-                  <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Previsão de Conclusão</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Início</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Previsão</th>
+                  {canDeleteProject && <th className="px-4 py-3" />}
                 </tr>
               </thead>
               <tbody>
                 {filtered.map(p => (
-                  <tr key={p.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
+                  <tr key={p.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors group">
                     <td className="px-5 py-3.5">
-                      <Link to={`/projects/${p.id}`} className="text-sm font-medium text-slate-800 hover:text-blue-600 transition-colors">
-                        {p.name}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="text-xs font-mono text-slate-400">{p.id?.slice(0, 8)}…</span>
+                      <div className="flex items-center gap-2">
+                        <Link to={`/projects/${p.id}`} className="text-sm font-medium text-slate-800 hover:text-blue-600 transition-colors">
+                          {p.name}
+                        </Link>
+                        {p.pipedrive_deal_id && (
+                          <span title={`Deal Pipedrive #${p.pipedrive_deal_id}`}
+                            className="text-xs px-1.5 py-0.5 bg-orange-50 text-orange-600 border border-orange-200 rounded font-medium">
+                            PD
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3.5 text-sm text-slate-600">{p.client_name}</td>
                     <td className="px-4 py-3.5 text-sm text-slate-600">{p.pontotel_manager_name || "—"}</td>
@@ -307,12 +334,39 @@ export default function ProjectList() {
                     <td className="px-4 py-3.5"><StatusBadge status={p.status} /></td>
                     <td className="px-4 py-3.5 text-sm text-slate-500">{formatDate(p.start_date) || "—"}</td>
                     <td className="px-4 py-3.5 text-sm text-slate-500">{formatDate(p.aligned_end_date || p.planned_end_date) || "—"}</td>
+                    {canDeleteProject && (
+                      <td className="px-4 py-3.5">
+                        <button
+                          onClick={() => setDeleteProject(p)}
+                          title="Excluir projeto"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-red-50 border border-transparent hover:border-red-200 rounded-lg text-slate-300 hover:text-red-500"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
+      )}
+
+      {/* Modals */}
+      {showPipedrive && (
+        <PipedriveModal
+          onClose={() => setShowPipedrive(false)}
+          onImported={handleImported}
+          existingDealIds={existingDealIds}
+        />
+      )}
+      {deleteProject && (
+        <DeleteProjectDialog
+          project={deleteProject}
+          onClose={() => setDeleteProject(null)}
+          onDeleted={handleDeleted}
+        />
       )}
     </div>
   );
