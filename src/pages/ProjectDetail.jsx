@@ -25,7 +25,6 @@ const TABS = [
   { id: "status",    label: "Status Report" },
   { id: "actions",   label: "Plano de Ação" },
   { id: "termo",     label: "Termo de Encerramento" },
-  { id: "closure",   label: "Encerramento (legacy)" },
 ];
 
 export default function ProjectDetail() {

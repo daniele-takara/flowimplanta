@@ -77,42 +77,58 @@ Deno.serve(async (req) => {
       return Response.json({ deals: [], pipelines: TARGET_PIPELINES, total: 0 });
     }
 
-    // 2. Resolver organizações únicas
-    const orgIds = [...new Set(rawDeals.map(d => d.org_id?.value).filter(Boolean))];
-    const orgMap = {};
-    for (const orgId of orgIds) {
-      await sleep(200);
-      const d = await fetchWithRetry(`${baseV1}/organizations/${orgId}?api_token=${apiToken}`);
-      if (d.data) orgMap[orgId] = d.data;
+    // 2. Enriquecer deals com /deals/{id} completo (tem user_id.name, stage_name, etc.) — lotes de 5
+    const DEAL_BATCH = 5;
+    const enrichedDeals = [];
+    for (let i = 0; i < rawDeals.length; i += DEAL_BATCH) {
+      const batch = rawDeals.slice(i, i + DEAL_BATCH);
+      const results = await Promise.all(
+        batch.map(d => fetchWithRetry(`${baseV1}/deals/${d.id}?api_token=${apiToken}`))
+      );
+      results.forEach((r, idx) => {
+        enrichedDeals.push(r.data ? { ...batch[idx], ...r.data, _pipelineName: batch[idx]._pipelineName } : batch[idx]);
+      });
+      if (i + DEAL_BATCH < rawDeals.length) await sleep(300);
     }
 
-    // 3. Resolver usuários (gerentes) únicos
-    // Campo 30e71cbb54fad7e29fb71e3bcf9bfe59b4500743 = Gerente de Projeto (Deal)
-    // Pode vir como number ou string
+    // 3. Resolver organizações únicas — lotes de 5 em paralelo
+    const orgIds = [...new Set(enrichedDeals.map(d => d.org_id?.value).filter(Boolean))];
+    const orgMap = {};
+    const ORG_BATCH = 5;
+    for (let i = 0; i < orgIds.length; i += ORG_BATCH) {
+      const batch = orgIds.slice(i, i + ORG_BATCH);
+      const results = await Promise.all(
+        batch.map(orgId => fetchWithRetry(`${baseV1}/organizations/${orgId}?api_token=${apiToken}`))
+      );
+      results.forEach((d, idx) => { if (d.data) orgMap[String(batch[idx])] = d.data; });
+      if (i + ORG_BATCH < orgIds.length) await sleep(300);
+    }
+
+    // 4. Resolver usuários (gerentes) únicos — paralelo
     const gerenteIds = [...new Set(
-      rawDeals.map(d => {
+      enrichedDeals.map(d => {
         const v = d["30e71cbb54fad7e29fb71e3bcf9bfe59b4500743"];
         return v ? String(v) : null;
       }).filter(Boolean)
     )];
     const userMap = {};
-    for (const userId of gerenteIds) {
-      await sleep(200);
-      const d = await fetchWithRetry(`${baseV1}/users/${userId}?api_token=${apiToken}`);
-      if (d.data) userMap[String(userId)] = d.data.name || "";
+    if (gerenteIds.length > 0) {
+      const userResults = await Promise.all(
+        gerenteIds.map(userId => fetchWithRetry(`${baseV1}/users/${userId}?api_token=${apiToken}`))
+      );
+      userResults.forEach((d, idx) => { if (d.data) userMap[gerenteIds[idx]] = d.data.name || ""; });
     }
 
-    // 4. Normalizar campos conforme planilha DE→PARA
-    const deals = rawDeals.map(deal => {
+    // 5. Normalizar campos conforme planilha DE→PARA
+    const deals = enrichedDeals.map(deal => {
       const orgId = deal.org_id?.value;
-      const org = orgId ? orgMap[orgId] : null;
+      const org = orgId ? (orgMap[String(orgId)] || null) : null;
 
-      // Gerente de Projeto (campo customizado do deal) — pode ser string ou number
+      // Gerente de Projeto (campo customizado do deal)
       const gerenteIdRaw = deal["30e71cbb54fad7e29fb71e3bcf9bfe59b4500743"];
-      const gerenteId = gerenteIdRaw ? String(gerenteIdRaw) : null;
-      const gerenteName = gerenteId ? (userMap[gerenteId] || "") : "";
+      const gerenteName = gerenteIdRaw ? (userMap[String(gerenteIdRaw)] || "") : "";
 
-      // Analista de Implantação = owner/user_id do deal (objeto com .name)
+      // Analista de Implantação = owner do deal (agora com .name via /deals/{id})
       const analystName = deal.user_id?.name || "";
 
       // Canal → Origem (campo da organização)
@@ -122,38 +138,41 @@ Deno.serve(async (req) => {
       // Lar21 (campo da organização)
       const lar21 = normalizeField(org?.["a5301f920ae3f519007886f518d87832866e8c6a"]);
 
-      // Módulos contratados (campo da organização) — API key correta da planilha
-      let contractedModules = [];
-      const modRaw = org?.["a7cf0200e401a761fb5fff4f4122beb364de9adb"];
-      if (modRaw) {
-        if (Array.isArray(modRaw)) {
-          contractedModules = modRaw.map(m => normalizeField(m)).filter(Boolean);
-        } else {
-          contractedModules = String(modRaw).split(",").map(s => s.trim()).filter(Boolean);
-        }
-      }
+      // Módulos contratados
+      const parseList = (raw) => {
+        if (!raw) return [];
+        if (Array.isArray(raw)) return raw.map(m => normalizeField(m)).filter(Boolean);
+        return String(raw).split(",").map(s => s.trim()).filter(Boolean);
+      };
+      const contractedModules = parseList(org?.["a7cf0200e401a761fb5fff4f4122beb364de9adb"]);
+      // Serviços contratados
+      const contractedServices = parseList(org?.["63d9aaa839860ca131fd6c6d8804ea502326f39b"]);
+      // Funcionários contratados
+      const contractedEmployees = org?.["e7f28ae86be385212be4b97a442150ee45ebbb56"] ?? null;
+      // stage_name: /deals/{id} retorna como string em stage_name (via details endpoint)
+      const stageName = typeof deal.stage_name === "string" ? deal.stage_name : "";
 
       return {
         id: deal.id,
         title: deal.title || "",
-        // org_id em /pipelines/{id}/deals vem como objeto com .name
         org_name: org?.name || deal.org_id?.name || deal.organization_name || "",
         owner_name: analystName,
         gerente_name: gerenteName,
         status: deal.status || "open",
         pipeline_id: deal.pipeline_id,
         pipeline_name: deal._pipelineName,
-        stage_name: deal.stage_name || "",
+        stage_name: stageName,
         value: deal.value || 0,
         currency: deal.currency || "BRL",
-        // Datas conforme planilha
         add_time: extractDate(deal.add_time),
         expected_close_date: extractDate(deal.expected_close_date),
         aligned_end_date: extractDate(deal["88d64f1a3b63ae0b5f7df83305a918dbec8503dd"]),
-        // Campos adicionais
         origin,
         lar21,
         contracted_modules: contractedModules,
+        contracted_services: contractedServices,
+        contracted_employees: contractedEmployees,
+        mrr: deal.value || 0,
       };
     });
 
