@@ -77,6 +77,18 @@ Deno.serve(async (req) => {
       return Response.json({ deals: [], pipelines: TARGET_PIPELINES, total: 0 });
     }
 
+    // 1b. Buscar dealFields para resolver ENUMs (uma única chamada)
+    const fieldsRes = await fetchWithRetry(`${baseV1}/dealFields?api_token=${apiToken}&limit=500`);
+    const enumMaps = {}; // key -> { optionId -> label }
+    for (const f of (fieldsRes.data || [])) {
+      if (f.field_type === "enum" && f.options?.length > 0) {
+        enumMaps[f.key] = {};
+        for (const opt of f.options) {
+          enumMaps[f.key][String(opt.id)] = opt.label;
+        }
+      }
+    }
+
     // 2. Enriquecer deals com /deals/{id} completo (tem user_id.name, stage_name, etc.) — lotes de 5
     const DEAL_BATCH = 5;
     const enrichedDeals = [];
@@ -104,29 +116,17 @@ Deno.serve(async (req) => {
       if (i + ORG_BATCH < orgIds.length) await sleep(300);
     }
 
-    // 4. Resolver usuários (gerentes) únicos — paralelo
-    const gerenteIds = [...new Set(
-      enrichedDeals.map(d => {
-        const v = d["30e71cbb54fad7e29fb71e3bcf9bfe59b4500743"];
-        return v ? String(v) : null;
-      }).filter(Boolean)
-    )];
-    const userMap = {};
-    if (gerenteIds.length > 0) {
-      const userResults = await Promise.all(
-        gerenteIds.map(userId => fetchWithRetry(`${baseV1}/users/${userId}?api_token=${apiToken}`))
-      );
-      userResults.forEach((d, idx) => { if (d.data) userMap[gerenteIds[idx]] = d.data.name || ""; });
-    }
+    // 4. (ENUM resolvido via dealFields acima — não precisa buscar users separado)
 
     // 5. Normalizar campos conforme planilha DE→PARA
     const deals = enrichedDeals.map(deal => {
       const orgId = deal.org_id?.value;
       const org = orgId ? (orgMap[String(orgId)] || null) : null;
 
-      // Gerente de Projeto (campo customizado do deal)
-      const gerenteIdRaw = deal["30e71cbb54fad7e29fb71e3bcf9bfe59b4500743"];
-      const gerenteName = gerenteIdRaw ? (userMap[String(gerenteIdRaw)] || "") : "";
+      // Gerente de Projeto (campo ENUM — converte ID → label via dealFields)
+      const gerenteRaw = deal["30e71cbb54fad7e29fb71e3bcf9bfe59b4500743"];
+      const gerenteEnumMap = enumMaps["30e71cbb54fad7e29fb71e3bcf9bfe59b4500743"] || {};
+      const gerenteName = gerenteRaw ? (gerenteEnumMap[String(gerenteRaw)] || "") : "";
 
       // Analista de Implantação = owner do deal (agora com .name via /deals/{id})
       const analystName = deal.user_id?.name || "";

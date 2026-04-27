@@ -66,13 +66,17 @@ Deno.serve(async (req) => {
       if (orgData.data) org = orgData.data;
     }
 
-    // 3. Resolver gerente de projeto (campo customizado) — pode vir como string ou number
+    // 3. Resolver gerente de projeto — campo ENUM, converte ID → label via /dealFields
     const gerenteIdRaw = deal["30e71cbb54fad7e29fb71e3bcf9bfe59b4500743"];
     let gerenteName = "";
     if (gerenteIdRaw) {
       await sleep(200);
-      const uData = await fetchWithRetry(`${baseV1}/users/${gerenteIdRaw}?api_token=${apiToken}`);
-      if (uData.data) gerenteName = uData.data.name || "";
+      const fieldsData = await fetchWithRetry(`${baseV1}/dealFields?api_token=${apiToken}&limit=500`);
+      const gerenteField = (fieldsData.data || []).find(f => f.key === "30e71cbb54fad7e29fb71e3bcf9bfe59b4500743");
+      if (gerenteField?.options) {
+        const opt = gerenteField.options.find(o => String(o.id) === String(gerenteIdRaw));
+        gerenteName = opt?.label || "";
+      }
     }
 
     // 4. Analista = owner do deal
