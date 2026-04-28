@@ -36,3 +36,25 @@ export function resolveRoleToName(role, project) {
     default:                     return "";
   }
 }
+
+/**
+ * Resolve o responsável geral com base em responsible_general_type e dados do projeto.
+ * @param {string} type - "pontotel" | "cliente" | "compartilhado"
+ * @param {object} project
+ * @returns {string}
+ */
+export function resolveGeneralResponsible(type, project) {
+  if (!type) return "";
+  switch (type) {
+    case "pontotel":      return "Pontotel";
+    case "compartilhado": return `${project?.client_name || "Cliente"} + Pontotel`;
+    case "cliente":       return project?.client_name || "Cliente";
+    default:              return "";
+  }
+}
+
+export const RESPONSIBLE_GENERAL_TYPE_OPTIONS = [
+  { value: "pontotel",      label: "Pontotel" },
+  { value: "cliente",       label: "Cliente" },
+  { value: "compartilhado", label: "Compartilhado (Cliente + Pontotel)" },
+];

@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { ChevronDown, ChevronRight, Save, X, Anchor, Pencil, Lock, AlertCircle, CheckCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { SCHEDULE_TASKS, PHASE_ORDER, ANCHOR_IDS } from "@/lib/scheduleTasks.js";
 import { computeSchedule, evaluateCondition, workday } from "@/lib/scheduleEngine.js";
-import { resolveRoleToName, RESPONSIBLE_ROLE_LABELS } from "@/lib/resolveResponsibleRole.js";
+import { resolveRoleToName, RESPONSIBLE_ROLE_LABELS, resolveGeneralResponsible } from "@/lib/resolveResponsibleRole.js";
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -71,13 +71,16 @@ function TaskRow({ task, computedDates, manualOverrides, onSaveOverride, onSaveA
     responsible_general: existingActivity?.responsible_general || task.responsibleGeneral || "",
   });
 
-  // Resolver papel responsável via template + dados iniciais
+  // Resolver papel responsável e responsável geral via template + dados iniciais
   const taskConfig = templateConfig?.[task.id];
   const resolvedRoleName = taskConfig?.responsible_role
     ? resolveRoleToName(taskConfig.responsible_role, project)
     : null;
   const roleLabel = taskConfig?.responsible_role
     ? RESPONSIBLE_ROLE_LABELS[taskConfig.responsible_role] || taskConfig.responsible_role
+    : null;
+  const resolvedGeneralName = taskConfig?.responsible_general_type
+    ? resolveGeneralResponsible(taskConfig.responsible_general_type, project)
     : null;
   const [saving, setSaving] = useState(false);
 
@@ -198,11 +201,17 @@ function TaskRow({ task, computedDates, manualOverrides, onSaveOverride, onSaveA
       </td>
 
       {/* Responsável geral */}
-      <td className="px-3 py-2.5 max-w-[100px]">
+      <td className="px-3 py-2.5 max-w-[120px]">
         {editing ? (
           <input value={form.responsible_general} onChange={e => setForm(f => ({ ...f, responsible_general: e.target.value }))} className={inputClass} placeholder="Responsável" />
         ) : (
-          <span className="text-xs text-slate-500 truncate block">{form.responsible_general || "—"}</span>
+          <div>
+            {resolvedGeneralName ? (
+              <span className="text-xs font-medium text-slate-700 truncate block">{resolvedGeneralName}</span>
+            ) : (
+              <span className="text-xs text-slate-500 truncate block">{form.responsible_general || "—"}</span>
+            )}
+          </div>
         )}
       </td>
 
