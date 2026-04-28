@@ -1,8 +1,9 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { ChevronDown, ChevronRight, Save, X, Anchor, Pencil, Lock, AlertCircle } from "lucide-react";
 import { SCHEDULE_TASKS, PHASE_ORDER, ANCHOR_IDS } from "@/lib/scheduleTasks.js";
 import { computeSchedule, evaluateCondition, workday } from "@/lib/scheduleEngine.js";
+import { resolveRoleToName, RESPONSIBLE_ROLE_LABELS } from "@/lib/resolveResponsibleRole.js";
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -46,7 +47,7 @@ function StatusBadge({ status }) {
 
 // ── Row ───────────────────────────────────────────────────────
 
-function TaskRow({ task, computedDates, manualOverrides, onSaveOverride, onSaveActivity, existingActivity }) {
+function TaskRow({ task, computedDates, manualOverrides, onSaveOverride, onSaveActivity, existingActivity, project, templateConfig }) {
   const [editing, setEditing] = useState(false);
 
   // Datas executadas NUNCA são preenchidas automaticamente — apenas pelo usuário
@@ -69,6 +70,15 @@ function TaskRow({ task, computedDates, manualOverrides, onSaveOverride, onSaveA
     responsible_leader: existingActivity?.responsible_leader || task.responsibleLeader || "",
     responsible_general: existingActivity?.responsible_general || task.responsibleGeneral || "",
   });
+
+  // Resolver papel responsável via template + dados iniciais
+  const taskConfig = templateConfig?.[task.id];
+  const resolvedRoleName = taskConfig?.responsible_role
+    ? resolveRoleToName(taskConfig.responsible_role, project)
+    : null;
+  const roleLabel = taskConfig?.responsible_role
+    ? RESPONSIBLE_ROLE_LABELS[taskConfig.responsible_role] || taskConfig.responsible_role
+    : null;
   const [saving, setSaving] = useState(false);
 
   const dates = computedDates[task.id] || {};
@@ -197,11 +207,20 @@ function TaskRow({ task, computedDates, manualOverrides, onSaveOverride, onSaveA
       </td>
 
       {/* Responsável líder */}
-      <td className="px-3 py-2.5 max-w-[100px]">
+      <td className="px-3 py-2.5 max-w-[120px]">
         {editing ? (
           <input value={form.responsible_leader} onChange={e => setForm(f => ({ ...f, responsible_leader: e.target.value }))} className={inputClass} placeholder="Líder" />
         ) : (
-          <span className="text-xs text-slate-500 truncate block">{form.responsible_leader || "—"}</span>
+          <div>
+            {resolvedRoleName ? (
+              <div>
+                <span className="text-xs font-medium text-slate-700 block truncate">{resolvedRoleName}</span>
+                <span className="text-xs text-slate-400 block truncate" title={roleLabel}>{roleLabel}</span>
+              </div>
+            ) : (
+              <span className="text-xs text-slate-500 truncate block">{form.responsible_leader || "—"}</span>
+            )}
+          </div>
         )}
       </td>
 
@@ -261,7 +280,7 @@ function GroupRow({ task, computedDates }) {
 
 // ── Phase Section ─────────────────────────────────────────────
 
-function PhaseSection({ phaseName, tasks, computedDates, manualOverrides, activitiesByTask, onSaveOverride, onSaveActivity }) {
+function PhaseSection({ phaseName, tasks, computedDates, manualOverrides, activitiesByTask, onSaveOverride, onSaveActivity, project, templateConfig }) {
   const [open, setOpen] = useState(true);
 
   const visibleTasks = tasks.filter(t => t.type === "task");
@@ -310,6 +329,8 @@ function PhaseSection({ phaseName, tasks, computedDates, manualOverrides, activi
                       onSaveOverride={onSaveOverride}
                       onSaveActivity={onSaveActivity}
                       existingActivity={activitiesByTask[task.id]}
+                      project={project}
+                      templateConfig={templateConfig}
                     />
                   );
                 }
@@ -337,8 +358,11 @@ export default function ScheduleTab({ scopeItems, project, projectId, onRefresh,
   const [savedActivities, setSavedActivities] = useState([]);
   const [activitiesLoaded, setActivitiesLoaded] = useState(false);
 
-  // Carregar atividades salvas
-  useMemo(() => {
+  // Template padrão (para responsible_role)
+  const [templateConfig, setTemplateConfig] = useState({});
+
+  // Carregar atividades salvas + template padrão
+  useEffect(() => {
     if (!activitiesLoaded && projectId) {
       base44.entities.ScheduleActivity.filter({ project_id: projectId }).then(acts => {
         setSavedActivities(acts || []);
@@ -346,6 +370,16 @@ export default function ScheduleTab({ scopeItems, project, projectId, onRefresh,
       }).catch(() => setActivitiesLoaded(true));
     }
   }, [projectId, activitiesLoaded]);
+
+  useEffect(() => {
+    base44.entities.ScheduleTemplate.filter({ is_default: true }).then(list => {
+      if (list.length > 0) {
+        try {
+          setTemplateConfig(JSON.parse(list[0].tasks_config || "{}"));
+        } catch { setTemplateConfig({}); }
+      }
+    }).catch(() => {});
+  }, []);
 
   const answersMap = useMemo(() => buildAnswersMap(scopeItems), [scopeItems]);
 
@@ -498,6 +532,8 @@ export default function ScheduleTab({ scopeItems, project, projectId, onRefresh,
           onSaveOverride={readOnly ? () => {} : handleSaveOverride}
           onSaveActivity={readOnly ? () => {} : handleSaveActivity}
           readOnly={readOnly}
+          project={project}
+          templateConfig={templateConfig}
         />
       ))}
 

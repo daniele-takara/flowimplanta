@@ -1,0 +1,26 @@
+{
+  "name": "ScheduleTemplate",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome do template"
+    },
+    "is_default": {
+      "type": "boolean",
+      "default": false,
+      "description": "Template padr\u00e3o usado em todos os novos projetos"
+    },
+    "description": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o opcional do template"
+    },
+    "tasks_config": {
+      "type": "string",
+      "description": "JSON com overrides de configura\u00e7\u00e3o das tarefas (responsible_role, depends_on, etc.)"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

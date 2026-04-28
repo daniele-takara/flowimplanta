@@ -14,6 +14,26 @@
     "activity_name": {
       "type": "string"
     },
+    "template_id": {
+      "type": "string",
+      "description": "ID do ScheduleTemplate de origem (se aplic\u00e1vel)"
+    },
+    "depends_on_activity_id": {
+      "type": "string",
+      "description": "ID da atividade precedente (para depend\u00eancias)"
+    },
+    "responsible_role": {
+      "type": "string",
+      "enum": [
+        "gerente_projeto",
+        "analista_implantacao",
+        "patrocinador",
+        "lider_projeto",
+        "ti",
+        "operacao"
+      ],
+      "description": "Papel respons\u00e1vel \u2014 resolvido dinamicamente via Dados Iniciais do projeto"
+    },
     "planned_start": {
       "type": "string",
       "format": "date"

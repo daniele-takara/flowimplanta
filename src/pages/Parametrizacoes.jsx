@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import TabUsuarios from "@/components/parametrizacoes/TabUsuarios";
 import TabPerfis from "@/components/parametrizacoes/TabPerfis";
+import TabCronogramaTemplate from "@/components/parametrizacoes/TabCronogramaTemplate";
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -275,7 +276,7 @@ function TabAssinaturas() {
 
 // ─── ABA: TEMPLATES ───────────────────────────────────────────────────────────
 
-const TEMPLATES_CONFIG = [
+const DOCUMENT_TEMPLATES_CONFIG = [
   { id: "dados_iniciais", label: "Dados Iniciais", description: "Configuração base do projeto", sections: [
     { id: "identificacao", label: "Identificação do Projeto", required: true, description: "Cliente, datas, equipe, tipo de implantação" },
     { id: "empresa_id", label: "ID da Empresa (vínculo Sheets)", required: true, description: "Chave de busca na planilha de usabilidade" },
@@ -317,56 +318,79 @@ const TEMPLATES_CONFIG = [
 ];
 
 function TabTemplates() {
+  const [subTab, setSubTab] = useState("documentos");
   const [selected, setSelected] = useState("dados_iniciais");
-  const template = TEMPLATES_CONFIG.find(t => t.id === selected);
+  const template = DOCUMENT_TEMPLATES_CONFIG.find(t => t.id === selected);
   return (
-    <div className="grid grid-cols-3 gap-5">
-      <div className="col-span-1 space-y-2">
-        {TEMPLATES_CONFIG.map(t => (
-          <button key={t.id} onClick={() => setSelected(t.id)}
-            className={`w-full text-left p-3 rounded-xl border transition-all ${selected === t.id ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"}`}>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-700">{t.label}</span>
-              <ChevronRight className={`w-4 h-4 ${selected === t.id ? "text-blue-500" : "text-slate-300"}`} />
-            </div>
-            <p className="text-xs text-slate-400 mt-0.5">{t.description}</p>
+    <div>
+      {/* Sub-navegação */}
+      <div className="flex gap-2 mb-5">
+        {[
+          { id: "documentos", label: "Documentos" },
+          { id: "cronograma", label: "Cronograma" },
+        ].map(st => (
+          <button
+            key={st.id}
+            onClick={() => setSubTab(st.id)}
+            className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${subTab === st.id ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-600 border-slate-200 hover:border-blue-300"}`}
+          >
+            {st.label}
           </button>
         ))}
       </div>
-      {template && (
-        <div className="col-span-2 bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
-            <h3 className="text-sm font-bold text-slate-800">{template.label}</h3>
-            <p className="text-xs text-slate-500 mt-0.5">{template.description}</p>
-            <div className="mt-2 flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 w-fit">
-              <Settings className="w-3 h-3" />
-              Somente usuários com permissão avançada podem editar templates
-            </div>
-          </div>
-          <div className="p-5 space-y-2">
-            {template.sections.map((sec, i) => (
-              <div key={sec.id} className={`flex items-start gap-3 p-3 rounded-lg border ${sec.required ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-50"}`}>
-                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-sm font-semibold text-slate-700">{sec.label}</span>
-                    {sec.required && <span className="text-xs px-1.5 py-0.5 bg-red-50 text-red-600 border border-red-200 rounded font-medium">Obrigatório</span>}
-                    {sec.editable !== undefined && (
-                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium border ${sec.editable ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-amber-50 text-amber-600 border-amber-200"}`}>
-                        {sec.editable ? "✎ Editável" : "🔒 Automático"}
-                      </span>
-                    )}
-                  </div>
-                  {sec.description && <p className="text-xs text-slate-400">{sec.description}</p>}
-                  {sec.defaultText && (
-                    <div className="mt-1.5 px-2 py-1.5 bg-slate-50 border border-slate-100 rounded text-xs text-slate-500 italic">
-                      "{sec.defaultText}"
-                    </div>
-                  )}
+
+      {subTab === "cronograma" && <TabCronogramaTemplate />}
+
+      {subTab === "documentos" && (
+        <div className="grid grid-cols-3 gap-5">
+          <div className="col-span-1 space-y-2">
+            {DOCUMENT_TEMPLATES_CONFIG.map(t => (
+              <button key={t.id} onClick={() => setSelected(t.id)}
+                className={`w-full text-left p-3 rounded-xl border transition-all ${selected === t.id ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"}`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-slate-700">{t.label}</span>
+                  <ChevronRight className={`w-4 h-4 ${selected === t.id ? "text-blue-500" : "text-slate-300"}`} />
                 </div>
-              </div>
+                <p className="text-xs text-slate-400 mt-0.5">{t.description}</p>
+              </button>
             ))}
           </div>
+          {template && (
+            <div className="col-span-2 bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
+                <h3 className="text-sm font-bold text-slate-800">{template.label}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{template.description}</p>
+                <div className="mt-2 flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 w-fit">
+                  <Settings className="w-3 h-3" />
+                  Somente usuários com permissão avançada podem editar templates
+                </div>
+              </div>
+              <div className="p-5 space-y-2">
+                {template.sections.map((sec, i) => (
+                  <div key={sec.id} className={`flex items-start gap-3 p-3 rounded-lg border ${sec.required ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-50"}`}>
+                    <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-semibold text-slate-700">{sec.label}</span>
+                        {sec.required && <span className="text-xs px-1.5 py-0.5 bg-red-50 text-red-600 border border-red-200 rounded font-medium">Obrigatório</span>}
+                        {sec.editable !== undefined && (
+                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium border ${sec.editable ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-amber-50 text-amber-600 border-amber-200"}`}>
+                            {sec.editable ? "✎ Editável" : "🔒 Automático"}
+                          </span>
+                        )}
+                      </div>
+                      {sec.description && <p className="text-xs text-slate-400">{sec.description}</p>}
+                      {sec.defaultText && (
+                        <div className="mt-1.5 px-2 py-1.5 bg-slate-50 border border-slate-100 rounded text-xs text-slate-500 italic">
+                          "{sec.defaultText}"
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
