@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { ChevronDown, ChevronRight, Save, X, Anchor, Pencil, Lock, AlertCircle } from "lucide-react";
+import { ChevronDown, ChevronRight, Save, X, Anchor, Pencil, Lock, AlertCircle, CheckCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { SCHEDULE_TASKS, PHASE_ORDER, ANCHOR_IDS } from "@/lib/scheduleTasks.js";
 import { computeSchedule, evaluateCondition, workday } from "@/lib/scheduleEngine.js";
 import { resolveRoleToName, RESPONSIBLE_ROLE_LABELS } from "@/lib/resolveResponsibleRole.js";
@@ -256,7 +256,34 @@ function TaskRow({ task, computedDates, manualOverrides, onSaveOverride, onSaveA
             </button>
           </div>
         ) : (
-          <button onClick={() => setEditing(true)} className="text-xs text-blue-600 hover:underline px-1 whitespace-nowrap">Editar</button>
+          <div className="flex flex-col gap-1">
+            <button onClick={() => setEditing(true)} className="text-xs text-blue-600 hover:underline px-1 whitespace-nowrap">Editar</button>
+            {!form.actual_start && !form.actual_end && (
+              <button
+                onClick={async () => {
+                  const d = computedDates[task.id] || {};
+                  const plannedStart = manualOverrides?.[task.id]?.plannedStart || d.plannedStart || null;
+                  const plannedEnd = manualOverrides?.[task.id]?.plannedEnd || d.plannedEnd || null;
+                  setSaving(true);
+                  await onSaveActivity(task, {
+                    actual_start: plannedStart,
+                    actual_end: plannedEnd,
+                    status: "Concluído",
+                    history_observations: form.history_observations,
+                    responsible_leader: form.responsible_leader,
+                    responsible_general: form.responsible_general,
+                  });
+                  setForm(f => ({ ...f, actual_start: plannedStart || "", actual_end: plannedEnd || "", status: "Concluído" }));
+                  setSaving(false);
+                }}
+                disabled={saving}
+                className="text-xs text-green-600 hover:underline px-1 whitespace-nowrap"
+                title="Preencher datas executadas = planejadas e marcar como Concluído"
+              >
+                ✓ Conf. planejado
+              </button>
+            )}
+          </div>
         )}
       </td>
     </tr>
@@ -280,11 +307,19 @@ function GroupRow({ task, computedDates }) {
 
 // ── Phase Section ─────────────────────────────────────────────
 
-function PhaseSection({ phaseName, tasks, computedDates, manualOverrides, activitiesByTask, onSaveOverride, onSaveActivity, project, templateConfig }) {
+function PhaseSection({ phaseName, tasks, computedDates, manualOverrides, activitiesByTask, onSaveOverride, onSaveActivity, onCompletePhase, project, templateConfig, readOnly }) {
   const [open, setOpen] = useState(true);
+  const [completing, setCompleting] = useState(false);
 
   const visibleTasks = tasks.filter(t => t.type === "task");
   if (visibleTasks.length === 0) return null;
+
+  const handleCompletePhase = async (e) => {
+    e.stopPropagation();
+    setCompleting(true);
+    await onCompletePhase(visibleTasks);
+    setCompleting(false);
+  };
 
   return (
     <div className="mb-2 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
@@ -294,7 +329,17 @@ function PhaseSection({ phaseName, tasks, computedDates, manualOverrides, activi
       >
         {open ? <ChevronDown className="w-4 h-4 text-white" /> : <ChevronRight className="w-4 h-4 text-white" />}
         <h3 className="text-sm font-bold text-white">{phaseName}</h3>
-        <span className="text-xs text-blue-200 ml-auto">{visibleTasks.length} atividade(s)</span>
+        <span className="text-xs text-blue-200">{visibleTasks.length} atividade(s)</span>
+        {!readOnly && (
+          <button
+            onClick={handleCompletePhase}
+            disabled={completing}
+            className="ml-auto flex items-center gap-1.5 text-xs bg-white/20 hover:bg-white/30 text-white border border-white/30 rounded-lg px-2.5 py-1 transition-colors font-medium"
+          >
+            {completing ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
+            Concluir fase conforme planejado
+          </button>
+        )}
       </div>
 
       {open && (
@@ -341,6 +386,32 @@ function PhaseSection({ phaseName, tasks, computedDates, manualOverrides, activi
         </div>
       )}
     </div>
+  );
+}
+
+// ── Complete Project Button ───────────────────────────────────
+
+function CompleteProjectButton({ onComplete }) {
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const handleClick = async () => {
+    setLoading(true);
+    await onComplete();
+    setLoading(false);
+    setDone(true);
+    setTimeout(() => setDone(false), 3000);
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={loading}
+      className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border transition-colors bg-green-50 text-green-700 border-green-300 hover:bg-green-100 disabled:opacity-60"
+    >
+      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : done ? <CheckCircle2 className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+      {done ? "Cronograma atualizado!" : "Concluir projeto conforme planejado"}
+    </button>
   );
 }
 
@@ -450,6 +521,38 @@ export default function ScheduleTab({ scopeItems, project, projectId, onRefresh,
     }
   }, [activitiesByTask, projectId]);
 
+  // Concluir atividades conforme planejado (sem sobrescrever datas já preenchidas)
+  const handleCompleteAsTasks = useCallback(async (tasks) => {
+    const toUpdate = tasks.filter(task => {
+      const existing = activitiesByTask[task.id];
+      // Só atualizar se NÃO tiver datas reais já preenchidas
+      return !existing?.actual_start && !existing?.actual_end;
+    });
+
+    await Promise.all(toUpdate.map(task => {
+      const dates = computedDates[task.id] || {};
+      const plannedStart = manualOverrides[task.id]?.plannedStart || dates.plannedStart || null;
+      const plannedEnd = manualOverrides[task.id]?.plannedEnd || dates.plannedEnd || null;
+      return handleSaveActivity(task, {
+        actual_start: plannedStart,
+        actual_end: plannedEnd,
+        status: "Concluído",
+        history_observations: activitiesByTask[task.id]?.history_observations || "",
+        responsible_leader: activitiesByTask[task.id]?.responsible_leader || task.responsibleLeader || "",
+        responsible_general: activitiesByTask[task.id]?.responsible_general || task.responsibleGeneral || "",
+      });
+    }));
+  }, [activitiesByTask, computedDates, manualOverrides, handleSaveActivity]);
+
+  const handleCompletePhase = useCallback(async (tasks) => {
+    await handleCompleteAsTasks(tasks);
+  }, [handleCompleteAsTasks]);
+
+  const handleCompleteProject = useCallback(async () => {
+    const allTasks = SCHEDULE_TASKS.filter(t => t.type === "task" && visible.has(t.id));
+    await handleCompleteAsTasks(allTasks);
+  }, [handleCompleteAsTasks, visible]);
+
   const phases = PHASE_ORDER.filter(ph => tasksByPhase[ph] && tasksByPhase[ph].some(t => t.type === "task"));
 
   const anchors = SCHEDULE_TASKS.filter(t => t.plannedStart?.type === "anchor");
@@ -462,6 +565,9 @@ export default function ScheduleTab({ scopeItems, project, projectId, onRefresh,
           <h2 className="text-base font-semibold text-slate-800">Cronograma Detalhado</h2>
           <p className="text-sm text-slate-400">Gerado automaticamente com base em Dados Iniciais e Escopo Técnico</p>
         </div>
+        {!readOnly && (
+          <CompleteProjectButton onComplete={handleCompleteProject} />
+        )}
       </div>
 
       {/* Âncoras — painel de datas âncora no topo */}
@@ -531,6 +637,7 @@ export default function ScheduleTab({ scopeItems, project, projectId, onRefresh,
           activitiesByTask={activitiesByTask}
           onSaveOverride={readOnly ? () => {} : handleSaveOverride}
           onSaveActivity={readOnly ? () => {} : handleSaveActivity}
+          onCompletePhase={readOnly ? () => {} : handleCompletePhase}
           readOnly={readOnly}
           project={project}
           templateConfig={templateConfig}
