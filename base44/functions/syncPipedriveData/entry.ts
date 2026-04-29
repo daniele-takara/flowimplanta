@@ -103,6 +103,8 @@ Deno.serve(async (req) => {
     // 8. Montar payload com apenas campos sincronizáveis (conforme planilha DE→PARA, Atualiza=sim)
     // NÃO sobrescreve campos editados manualmente que não estão na planilha
     const syncPayload = {
+      // Garantir que o ID Deal Pipedrive está sempre salvo (chave de vínculo)
+      pipedrive_deal_id: Number(deal_id),
       // Deal.title → nome do projeto
       name: deal.title || undefined,
       // Org.name → client_name

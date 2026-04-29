@@ -116,6 +116,7 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
           <InfoRow label="Data de Início" value={formatDate(project.start_date)} />
           <InfoRow label="Previsão de Conclusão" value={formatDate(project.planned_end_date)} />
           <InfoRow label="Data Alinhada" value={formatDate(project.aligned_end_date)} />
+          <InfoRow label="ID Deal Pipedrive" value={project.pipedrive_deal_id ? `#${project.pipedrive_deal_id}` : null} />
           <InfoRow label="Lar21" value={project.lar21} />
           <InfoRow label="Observações" value={project.observations} />
         </div>
