@@ -457,7 +457,7 @@ function SyncPipedriveButton({ projectId, onSuccess }) {
               )}
               {result.available_phases?.length > 0 && (
                   <div className="mt-1">
-                    <p className="font-semibold text-green-800">Fases disponíveis no projeto:</p>
+                    <p className="font-semibold text-green-800">Fases carregadas do projeto ({result.schedule_activities_count} atividades):</p>
                     <ul className="list-disc pl-4 text-green-700 font-mono space-y-0.5">
                       {result.available_phases.map((f, i) => <li key={i}>{f}</li>)}
                     </ul>

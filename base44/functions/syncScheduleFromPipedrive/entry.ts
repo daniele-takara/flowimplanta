@@ -80,13 +80,36 @@ Deno.serve(async (req) => {
 
     console.log(`[syncSchedule] deal=${dealId} stage=${currentStageId} pipe_acts=${pipeActivities.length} done=${doneActivities.length} rules=${rules.length}`);
 
-    // 4. Carregar atividades do cronograma Base44
-    const scheduleActivities = await base44.asServiceRole.entities.ScheduleActivity.filter({ project_id });
+    // 4. Carregar EXCLUSIVAMENTE dados do projeto atual — sem templates, sem globals
+    const [scheduleActivities, schedulePhases] = await Promise.all([
+      base44.asServiceRole.entities.ScheduleActivity.filter({ project_id }),
+      base44.asServiceRole.entities.SchedulePhase.filter({ project_id }),
+    ]);
 
-    // Debug: listar fases disponíveis no projeto
     const normalize = s => (s || "").trim().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
-    const availablePhases = [...new Set(scheduleActivities.map(a => a.phase_name).filter(Boolean))];
-    console.log(`[syncSchedule] fases disponíveis: ${JSON.stringify(availablePhases)}`);
+
+    // Fases carregadas diretamente do cronograma do projeto (SchedulePhase + ScheduleActivity)
+    const phasesFromPhaseEntity = schedulePhases.map(p => p.phase_name).filter(Boolean);
+    const phasesFromActivities = [...new Set(scheduleActivities.map(a => a.phase_name).filter(Boolean))];
+    // União: usar SchedulePhase como fonte primária; complementar com fases das atividades
+    const allProjectPhases = [...new Set([...phasesFromPhaseEntity, ...phasesFromActivities])];
+
+    console.log(`[syncSchedule] SchedulePhase do projeto: ${JSON.stringify(phasesFromPhaseEntity)}`);
+    console.log(`[syncSchedule] Fases nas atividades: ${JSON.stringify(phasesFromActivities)}`);
+    console.log(`[syncSchedule] Fases carregadas do projeto (total): ${JSON.stringify(allProjectPhases)}`);
+
+    // Validação: cronograma deve conter "Abertura de projeto"
+    const hasAbertura = allProjectPhases.some(f => normalize(f) === normalize("Abertura de projeto"));
+    if (!hasAbertura) {
+      return Response.json({
+        ok: false,
+        error: "Cronograma do projeto não carregado corretamente",
+        detail: `Fase "Abertura de projeto" não encontrada. Fases carregadas: ${allProjectPhases.map(f => `"${f}"`).join(", ") || "(nenhuma)"}`,
+        available_phases: allProjectPhases,
+      }, { status: 400 });
+    }
+
+    const availablePhases = allProjectPhases;
 
     const updatedActivities = [];
     const matchErrors = [];
@@ -224,6 +247,9 @@ Deno.serve(async (req) => {
       activities: updatedActivities,
       match_errors: matchErrors,
       available_phases: availablePhases,
+      phases_from_phase_entity: phasesFromPhaseEntity,
+      phases_from_activities: phasesFromActivities,
+      schedule_activities_count: scheduleActivities.length,
     });
 
   } catch (error) {

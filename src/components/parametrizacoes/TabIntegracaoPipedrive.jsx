@@ -221,7 +221,7 @@ function TestScheduleSync({ rulesCount }) {
                 <div className="mt-2 space-y-2">
                   {result.data.available_phases?.length > 0 && (
                     <div>
-                      <p className="font-semibold">Fases disponíveis no projeto:</p>
+                      <p className="font-semibold">Fases carregadas do projeto ({result.data.schedule_activities_count} atividades):</p>
                       <ul className="list-disc pl-4 mt-1 space-y-0.5 font-mono">
                         {result.data.available_phases.map((f, i) => <li key={i}>{f}</li>)}
                       </ul>
