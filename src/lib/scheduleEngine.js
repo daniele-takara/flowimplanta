@@ -17,6 +17,7 @@ const BR_HOLIDAYS_2024_2026 = new Set([
 function toISODate(d) {
   if (!d) return null;
   if (typeof d === "string") return d.substring(0, 10);
+  if (isNaN(d.getTime())) return null;
   return d.toISOString().substring(0, 10);
 }
 
@@ -31,6 +32,7 @@ function isBusinessDay(dateStr) {
 export function workday(dateStr, offset) {
   if (!dateStr) return null;
   let d = new Date(dateStr + "T12:00:00");
+  if (isNaN(d.getTime())) return null;
   let remaining = Math.abs(offset);
   const dir = offset >= 0 ? 1 : -1;
 
