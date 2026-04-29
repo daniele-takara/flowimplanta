@@ -98,14 +98,13 @@ Deno.serve(async (req) => {
     console.log(`[syncSchedule] Fases nas atividades: ${JSON.stringify(phasesFromActivities)}`);
     console.log(`[syncSchedule] Fases carregadas do projeto (total): ${JSON.stringify(allProjectPhases)}`);
 
-    // Validação: cronograma deve conter "Abertura de projeto"
-    const hasAbertura = allProjectPhases.some(f => normalize(f) === normalize("Abertura de projeto"));
-    if (!hasAbertura) {
+    // Validação: cronograma deve ter pelo menos 1 fase/atividade carregada
+    if (allProjectPhases.length === 0) {
       return Response.json({
         ok: false,
         error: "Cronograma do projeto não carregado corretamente",
-        detail: `Fase "Abertura de projeto" não encontrada. Fases carregadas: ${allProjectPhases.map(f => `"${f}"`).join(", ") || "(nenhuma)"}`,
-        available_phases: allProjectPhases,
+        detail: "Nenhuma fase ou atividade encontrada para este projeto. Verifique se o cronograma foi criado.",
+        available_phases: [],
       }, { status: 400 });
     }
 

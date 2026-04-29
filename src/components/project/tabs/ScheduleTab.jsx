@@ -411,13 +411,18 @@ function SyncPipedriveButton({ projectId, onSuccess }) {
     setResult(null);
     setError(null);
     setShowDetails(false);
-    const res = await base44.functions.invoke("syncScheduleFromPipedrive", { project_id: projectId });
-    const data = res.data;
-    if (data.error) {
-      setError(data.error);
-    } else {
-      setResult(data);
-      if (onSuccess) onSuccess();
+    try {
+      const res = await base44.functions.invoke("syncScheduleFromPipedrive", { project_id: projectId });
+      const data = res.data;
+      if (data.error) {
+        setError(data.detail || data.error);
+      } else {
+        setResult(data);
+        if (onSuccess) onSuccess();
+      }
+    } catch (e) {
+      const msg = e.response?.data?.detail || e.response?.data?.error || e.message;
+      setError(msg);
     }
     setLoading(false);
   };

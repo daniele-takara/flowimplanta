@@ -166,7 +166,12 @@ function TestScheduleSync({ rulesCount }) {
       const res = await base44.functions.invoke("syncScheduleFromPipedrive", { project_id: projectId.trim() });
       setResult({ ok: true, data: res.data });
     } catch (e) {
-      setResult({ ok: false, error: e.message });
+      const errData = e.response?.data;
+      if (errData) {
+        setResult({ ok: true, data: { ...errData, ok: false } });
+      } else {
+        setResult({ ok: false, error: e.message });
+      }
     }
     setLoading(false);
   };
