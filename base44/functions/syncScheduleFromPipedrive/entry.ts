@@ -83,6 +83,11 @@ Deno.serve(async (req) => {
     // 4. Carregar atividades do cronograma Base44
     const scheduleActivities = await base44.asServiceRole.entities.ScheduleActivity.filter({ project_id });
 
+    // Debug: listar fases disponíveis no projeto
+    const normalize = s => (s || "").trim().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+    const availablePhases = [...new Set(scheduleActivities.map(a => a.phase_name).filter(Boolean))];
+    console.log(`[syncSchedule] fases disponíveis: ${JSON.stringify(availablePhases)}`);
+
     const updatedActivities = [];
     const matchErrors = [];
     let rulesApplied = 0;
@@ -100,18 +105,21 @@ Deno.serve(async (req) => {
       if (!base44Fase) continue;
       if (!fazInicio && !fazFim) continue;
 
-      // Validar fase existe no cronograma
-      const phaseActs = scheduleActivities.filter(a => a.phase_name === base44Fase);
+      // Match robusto de fase: case-insensitive + sem acentos + sem espaços extras
+      const phaseActs = scheduleActivities.filter(a => normalize(a.phase_name) === normalize(base44Fase));
       if (phaseActs.length === 0) {
-        matchErrors.push(`Fase "${base44Fase}" não encontrada no cronograma deste projeto`);
+        matchErrors.push(
+          `Fase esperada: "${base44Fase}" — não encontrada. Fases disponíveis: ${availablePhases.map(f => `"${f}"`).join(", ")}`
+        );
         continue;
       }
 
       // Validar atividade específica existe (se não for *)
       if (base44Atv && base44Atv !== "*") {
-        const actExists = phaseActs.some(a => a.activity_name === base44Atv);
+        const actExists = phaseActs.some(a => normalize(a.activity_name) === normalize(base44Atv));
         if (!actExists) {
-          matchErrors.push(`Atividade "${base44Atv}" não encontrada na fase "${base44Fase}"`);
+          const available = phaseActs.map(a => `"${a.activity_name}"`).join(", ");
+          matchErrors.push(`Atividade esperada: "${base44Atv}" não encontrada na fase "${base44Fase}". Atividades disponíveis: ${available}`);
           continue;
         }
       }
@@ -130,7 +138,7 @@ Deno.serve(async (req) => {
         }
 
         for (const act of phaseActs) {
-          if (base44Atv !== "*" && act.activity_name !== base44Atv) continue;
+          if (base44Atv !== "*" && normalize(act.activity_name) !== normalize(base44Atv)) continue;
 
           const patch = {};
           if (fazInicio && !act.actual_start) patch.actual_start = dateStr;
@@ -175,7 +183,7 @@ Deno.serve(async (req) => {
           }
 
           for (const act of phaseActs) {
-            if (base44Atv !== "*" && act.activity_name !== base44Atv) continue;
+            if (base44Atv !== "*" && normalize(act.activity_name) !== normalize(base44Atv)) continue;
 
             const patch = {};
             if (fazFim && !act.actual_end) {
@@ -215,6 +223,7 @@ Deno.serve(async (req) => {
       updated: updatedActivities.length,
       activities: updatedActivities,
       match_errors: matchErrors,
+      available_phases: availablePhases,
     });
 
   } catch (error) {

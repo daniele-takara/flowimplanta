@@ -455,14 +455,22 @@ function SyncPipedriveButton({ projectId, onSuccess }) {
                   ))}
                 </ul>
               )}
-              {result.match_errors?.length > 0 && (
-                <div className="mt-1 text-amber-700">
-                  <p className="font-bold">Inconsistências:</p>
-                  <ul className="list-disc pl-4">
-                    {result.match_errors.map((e, i) => <li key={i}>{e}</li>)}
-                  </ul>
-                </div>
-              )}
+              {result.available_phases?.length > 0 && (
+                  <div className="mt-1">
+                    <p className="font-semibold text-green-800">Fases disponíveis no projeto:</p>
+                    <ul className="list-disc pl-4 text-green-700 font-mono space-y-0.5">
+                      {result.available_phases.map((f, i) => <li key={i}>{f}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {result.match_errors?.length > 0 && (
+                  <div className="mt-1 text-amber-700">
+                    <p className="font-bold">Inconsistências:</p>
+                    <ul className="list-disc pl-4 space-y-0.5">
+                      {result.match_errors.map((e, i) => <li key={i}>{e}</li>)}
+                    </ul>
+                  </div>
+                )}
             </div>
           )}
         </div>
