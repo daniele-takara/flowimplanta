@@ -1,0 +1,100 @@
+{
+  "name": "PipedriveWebhookEvent",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "description": "ID \u00fanico do evento (do Pipedrive ou gerado por idempot\u00eancia)"
+    },
+    "event_action": {
+      "type": "string",
+      "description": "A\u00e7\u00e3o do evento: change, create, delete"
+    },
+    "event_object": {
+      "type": "string",
+      "description": "Objeto do evento: deal, activity"
+    },
+    "event_type": {
+      "type": "string",
+      "description": "Tipo completo: change.deal, change.activity, create.activity"
+    },
+    "deal_id": {
+      "type": "number",
+      "description": "ID do deal no Pipedrive"
+    },
+    "activity_id": {
+      "type": "number",
+      "description": "ID da activity no Pipedrive (se aplic\u00e1vel)"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "ID do projeto Base44 encontrado"
+    },
+    "project_name": {
+      "type": "string",
+      "description": "Nome do projeto Base44 encontrado"
+    },
+    "payload_snapshot": {
+      "type": "string",
+      "description": "JSON resumido do payload recebido"
+    },
+    "processed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se o evento foi processado com sucesso"
+    },
+    "processed_at": {
+      "type": "string",
+      "description": "ISO datetime do processamento"
+    },
+    "rules_loaded": {
+      "type": "number",
+      "description": "Quantidade de regras carregadas"
+    },
+    "rules_matched": {
+      "type": "number",
+      "description": "Quantidade de regras que bateram"
+    },
+    "activities_updated": {
+      "type": "number",
+      "default": 0
+    },
+    "activities_created": {
+      "type": "number",
+      "default": 0
+    },
+    "dates_ignored": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantidade de datas n\u00e3o sobrescritas pois j\u00e1 existiam"
+    },
+    "result": {
+      "type": "string",
+      "description": "JSON do resultado detalhado do processamento"
+    },
+    "error": {
+      "type": "string",
+      "description": "Mensagem de erro se falhou"
+    },
+    "match_errors": {
+      "type": "string",
+      "description": "JSON de inconsist\u00eancias de match de fases/atividades"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "webhook",
+        "manual_test"
+      ],
+      "default": "webhook",
+      "description": "Origem do evento"
+    },
+    "duplicate_of": {
+      "type": "string",
+      "description": "ID do evento original se este for duplicado"
+    }
+  },
+  "required": [
+    "event_type"
+  ]
+}

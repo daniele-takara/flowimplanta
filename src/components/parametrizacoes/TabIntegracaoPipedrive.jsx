@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
+import { Link } from "react-router-dom";
 import {
   Copy, CheckCircle2, Zap, ExternalLink, RefreshCw,
-  AlertCircle, Table2, Link2, Info, Database, Shield
+  AlertCircle, Table2, Link2, Info, Database, Shield, Settings
 } from "lucide-react";
 
 const SHEET_ID = "1_NAnD5FYHpnkLkIRIf6YYsOor0jBJzgKrCnxZZoIKm4";
@@ -415,18 +416,26 @@ export default function TabIntegracaoPipedrive() {
 
       {/* Webhook */}
       <div>
-        <p className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-3">Webhook Pipedrive (atualização automática)</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">Webhook Pipedrive (atualização automática)</p>
+          <Link
+            to="/webhook-config"
+            className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Configuração & Diagnóstico
+          </Link>
+        </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
           <CopyBox label="URL do Webhook" value={WEBHOOK_URL} />
-          <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
-            <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
+            <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
             <div>
-              <strong>Configurar no Pipedrive:</strong> Ferramentas → Webhooks → Adicionar Webhook. Método <code className="bg-amber-100 px-1 rounded">POST</code>,
-              eventos: <code className="bg-amber-100 px-1 rounded">updated.deal</code> e <code className="bg-amber-100 px-1 rounded">updated.activity</code>.
-              <a href="https://pipedrive.readme.io/docs/guide-for-webhooks" target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1 mt-1 text-amber-700 hover:underline">
-                <ExternalLink className="w-3 h-3" /> Documentação Pipedrive Webhooks
-              </a>
+              <strong>3 webhooks devem ser configurados no Pipedrive:</strong>{" "}
+              <code className="bg-blue-100 px-1 rounded">change.deal</code>,{" "}
+              <code className="bg-blue-100 px-1 rounded">change.activity</code> e{" "}
+              <code className="bg-blue-100 px-1 rounded">create.activity</code>.{" "}
+              <Link to="/webhook-config" className="text-blue-700 underline">Ver instruções completas →</Link>
             </div>
           </div>
         </div>

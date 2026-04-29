@@ -1,208 +1,466 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-const SHEET_ID = "1_NAnD5FYHpnkLkIRIf6YYsOor0jBJzgKrCnxZZoIKm4";
-const SHEET_NAME = "Cronograma - Integração";
+const PIPE_V1 = "https://api.pipedrive.com/v1";
+const WEBHOOK_SECRET = Deno.env.get("PIPEDRIVE_WEBHOOK_SECRET") || "";
 
-// Lê as regras da planilha "Cronograma - Integração"
-// Colunas: pipedrive_entidade, pipedrive_evento, pipedrive_campo_key, pipedrive_valor_disparo,
-//          pipedrive_campo_identificacao, pipedrive_valor_identificacao, pipedrive_campo_data,
-//          base44_fase, base44_atividade, base44_acao, inicio, fim
-async function loadRules(accessToken) {
-  const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(SHEET_NAME)}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  const data = await res.json();
-  const rows = data.values || [];
-  if (rows.length < 2) return [];
-
-  const headers = rows[0].map(h => h.trim().toLowerCase().replace(/\s+/g, "_"));
-  return rows.slice(1).map(row => {
-    const obj = {};
-    headers.forEach((h, i) => { obj[h] = (row[i] || "").trim(); });
-    return obj;
-  });
-}
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function extractDate(val) {
   if (!val) return null;
   return String(val).substring(0, 10);
 }
 
+const normalize = s => (s || "").trim().toLowerCase()
+  .normalize("NFD").replace(/\p{Diacritic}/gu, "")
+  .replace(/\s+/g, " ");
+
+async function fetchDeal(dealId) {
+  const apiToken = Deno.env.get("API_PIpedrive");
+  if (!apiToken) throw new Error("API_PIpedrive não configurado");
+  const res = await fetch(`${PIPE_V1}/deals/${dealId}?api_token=${apiToken}`);
+  if (res.status === 429) throw new Error("Rate limit Pipedrive (429)");
+  if (res.status === 401 || res.status === 403) throw new Error(`Acesso negado Pipedrive (${res.status})`);
+  const data = await res.json();
+  return data.data || null;
+}
+
+async function fetchActivity(activityId) {
+  const apiToken = Deno.env.get("API_PIpedrive");
+  const res = await fetch(`${PIPE_V1}/activities/${activityId}?api_token=${apiToken}`);
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.data || null;
+}
+
+// Gera chave de idempotência combinando campos relevantes
+function buildIdempotencyKey(eventAction, eventObject, dealId, activityId, currentUpdatedTime) {
+  const parts = [eventAction, eventObject, dealId || "0", activityId || "0", (currentUpdatedTime || "").substring(0, 16)];
+  return parts.join(":");
+}
+
+// ── Lógica central de cronograma ──────────────────────────────────────────────
+// IDÊNTICA à do syncScheduleFromPipedrive para garantir consistência
+
+async function applyRulesToSchedule({ base44, project, rules, dealCurrent, activityCurrent }) {
+  const projectId = project.id;
+  const currentStageId = String(dealCurrent?.stage_id ?? "");
+
+  const [scheduleActivities, schedulePhases] = await Promise.all([
+    base44.asServiceRole.entities.ScheduleActivity.filter({ project_id: projectId }),
+    base44.asServiceRole.entities.SchedulePhase.filter({ project_id: projectId }),
+  ]);
+
+  const phasesFromPhaseEntity = schedulePhases.map(p => p.phase_name).filter(Boolean);
+  const phasesFromActivities = [...new Set(scheduleActivities.map(a => a.phase_name).filter(Boolean))];
+  const allProjectPhases = [...new Set([...phasesFromPhaseEntity, ...phasesFromActivities])];
+
+  const activitiesCache = [...scheduleActivities];
+
+  function phaseExists(fase) {
+    return allProjectPhases.some(p => normalize(p) === normalize(fase));
+  }
+
+  function getPhaseActivities(fase) {
+    return activitiesCache.filter(a => normalize(a.phase_name) === normalize(fase));
+  }
+
+  const updatedActivities = [];
+  const createdActivities = [];
+  const datesIgnored = [];
+  const matchErrors = [];
+  let rulesMatched = 0;
+
+  for (const rule of rules) {
+    const entidade  = (rule.pipedrive_entidade || "").toLowerCase().trim();
+    const campoKey  = (rule.pipedrive_campo_key || "").trim();
+    const valorDisp = (rule.pipedrive_valor_disparo || "").trim();
+    const base44Fase = (rule.base44_fase || "").trim();
+    const base44Atv  = (rule.base44_atividade || "").trim();
+    const campoData  = (rule.pipedrive_campo_data || "").trim();
+    const fazInicio  = rule.faz_inicio === true;
+    const fazFim     = rule.faz_fim === true;
+
+    if (!base44Fase) continue;
+    if (!fazInicio && !fazFim) continue;
+
+    if (!phaseExists(base44Fase)) {
+      matchErrors.push(`Fase "${base44Fase}" não existe neste projeto`);
+      continue;
+    }
+
+    let phaseActs = getPhaseActivities(base44Fase);
+
+    // ── REGRA DEAL ────────────────────────────────────────────────────────────
+    if (entidade === "deal" && dealCurrent) {
+      if (campoKey !== "stage_id") continue;
+      if (String(dealCurrent.stage_id) !== String(valorDisp)) continue;
+
+      const dateStr = extractDate(dealCurrent[campoData]) || extractDate(dealCurrent.update_time);
+      if (!dateStr) { matchErrors.push(`Deal regra: sem data no campo "${campoData}"`); continue; }
+
+      rulesMatched++;
+
+      // Se fase sem atividades e regra específica → criar
+      if (phaseActs.length === 0 && base44Atv && base44Atv !== "*") {
+        const newAct = await base44.asServiceRole.entities.ScheduleActivity.create({
+          project_id: projectId,
+          phase_name: base44Fase,
+          activity_name: base44Atv,
+          status: fazFim ? "Concluído" : "Em andamento",
+          actual_start: fazInicio || fazFim ? dateStr : null,
+          actual_end: fazFim ? dateStr : null,
+          order: 1,
+        });
+        activitiesCache.push(newAct);
+        createdActivities.push({ id: newAct.id, name: base44Atv, phase: base44Fase });
+        continue;
+      }
+
+      for (const act of phaseActs) {
+        if (base44Atv && base44Atv !== "*" && normalize(act.activity_name) !== normalize(base44Atv)) continue;
+        const patch = {};
+        if (fazInicio) {
+          if (!act.actual_start) patch.actual_start = dateStr;
+          else datesIgnored.push({ field: "actual_start", activity: act.activity_name, reason: "já existia" });
+        }
+        if (fazFim) {
+          if (!act.actual_end) { patch.actual_end = dateStr; patch.status = "Concluído"; }
+          else datesIgnored.push({ field: "actual_end", activity: act.activity_name, reason: "já existia" });
+        }
+        if (Object.keys(patch).length > 0) {
+          await base44.asServiceRole.entities.ScheduleActivity.update(act.id, patch);
+          Object.assign(act, patch);
+          updatedActivities.push({ id: act.id, name: act.activity_name, phase: base44Fase, patch, trigger: `stage_id=${valorDisp}` });
+        }
+      }
+    }
+
+    // ── REGRA ACTIVITY ────────────────────────────────────────────────────────
+    if (entidade === "activity" && activityCurrent) {
+      const isDone = activityCurrent.done === true || activityCurrent.done === 1 || String(activityCurrent.done).toLowerCase() === "true";
+      if (!isDone) continue;
+
+      const campoIdent = (rule.pipedrive_campo_identificacao || "").trim();
+      const valorIdent = (rule.pipedrive_valor_identificacao || "").trim();
+
+      if (campoIdent && valorIdent) {
+        const actVal = String(activityCurrent[campoIdent] || "").trim();
+        if (actVal !== valorIdent) continue;
+      }
+
+      // Melhor data disponível
+      const dateStr = extractDate(activityCurrent.marked_as_done_time)
+        || extractDate(activityCurrent.update_time)
+        || extractDate(activityCurrent.due_date)
+        || new Date().toISOString().substring(0, 10);
+
+      rulesMatched++;
+
+      if (phaseActs.length === 0 && base44Atv && base44Atv !== "*") {
+        const newAct = await base44.asServiceRole.entities.ScheduleActivity.create({
+          project_id: projectId,
+          phase_name: base44Fase,
+          activity_name: base44Atv,
+          status: fazFim ? "Concluído" : "Em andamento",
+          actual_start: fazInicio || fazFim ? dateStr : null,
+          actual_end: fazFim ? dateStr : null,
+          order: 1,
+        });
+        activitiesCache.push(newAct);
+        createdActivities.push({ id: newAct.id, name: base44Atv, phase: base44Fase });
+        continue;
+      }
+
+      for (const act of phaseActs) {
+        if (base44Atv && base44Atv !== "*" && normalize(act.activity_name) !== normalize(base44Atv)) continue;
+        const patch = {};
+        if (fazFim) {
+          if (!act.actual_end) { patch.actual_end = dateStr; patch.status = "Concluído"; }
+          else datesIgnored.push({ field: "actual_end", activity: act.activity_name, reason: "já existia" });
+        }
+        if (fazInicio) {
+          if (!act.actual_start) patch.actual_start = dateStr;
+          else datesIgnored.push({ field: "actual_start", activity: act.activity_name, reason: "já existia" });
+        }
+        if (Object.keys(patch).length > 0) {
+          await base44.asServiceRole.entities.ScheduleActivity.update(act.id, patch);
+          Object.assign(act, patch);
+          updatedActivities.push({ id: act.id, name: act.activity_name, phase: base44Fase, patch, trigger: `activity done subject="${activityCurrent.subject}"` });
+        }
+      }
+    }
+  }
+
+  return { updatedActivities, createdActivities, datesIgnored, matchErrors, rulesMatched };
+}
+
+// ── Handler principal ─────────────────────────────────────────────────────────
+
 Deno.serve(async (req) => {
+  const receivedAt = new Date().toISOString();
+
+  // Validação de segredo opcional
+  if (WEBHOOK_SECRET) {
+    const headerSecret = req.headers.get("x-flowimplanta-webhook-secret") || "";
+    const urlSecret = new URL(req.url).searchParams.get("secret") || "";
+    if (headerSecret !== WEBHOOK_SECRET && urlSecret !== WEBHOOK_SECRET) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
+  // Limitar tamanho do payload
+  const contentLength = parseInt(req.headers.get("content-length") || "0");
+  if (contentLength > 500_000) {
+    return Response.json({ error: "Payload too large" }, { status: 400 });
+  }
+
+  let body;
   try {
-    const base44 = createClientFromRequest(req);
+    body = await req.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON payload" }, { status: 400 });
+  }
 
-    // Payload do webhook Pipedrive
-    const body = await req.json();
-    console.log("[pipedriveWebhook] event:", body.event, "meta:", JSON.stringify(body.meta || {}));
+  // Extrair campos do evento Pipedrive
+  // Pipedrive envia: { event: "change.deal", meta: { action, object, ... }, current: {}, previous: {} }
+  const rawEvent = body.event || "";
+  const meta = body.meta || {};
+  const current = body.current || {};
+  const previous = body.previous || {};
 
-    const event = body.event || ""; // ex: "updated.deal", "updated.activity"
-    const current = body.current || {};
-    const previous = body.previous || {};
+  // Suportar formatos: "change.deal" e "updated.deal" (legado)
+  let eventAction = meta.action || rawEvent.split(".")[0] || "";
+  let eventObject = meta.object || rawEvent.split(".")[1] || "";
 
-    // Carregar regras da planilha
-    const { accessToken } = await base44.asServiceRole.connectors.getConnection("googlesheets");
-    const rules = await loadRules(accessToken);
-    console.log("[pipedriveWebhook] regras carregadas:", rules.length);
+  // Normalizar legado updated.* → change.*
+  if (eventAction === "updated") eventAction = "change";
+  if (eventAction === "added") eventAction = "create";
 
-    // Identificar deal_id para localizar o projeto no Base44
-    let dealId = null;
-    if (event.includes("deal")) {
-      dealId = current.id || body.meta?.id;
-    } else if (event.includes("activity")) {
-      dealId = current.deal_id || body.meta?.deal_id;
+  const eventType = `${eventAction}.${eventObject}`;
+
+  // Validar evento mínimo
+  const supportedEvents = ["change.deal", "change.activity", "create.activity", "create.deal"];
+  if (eventObject !== "deal" && eventObject !== "activity") {
+    return Response.json({ ok: true, received: true, event_type: eventType, skipped: "unsupported object" });
+  }
+
+  // Extrair IDs
+  let dealId = null;
+  let activityId = null;
+
+  if (eventObject === "deal") {
+    dealId = current.id || meta.id || body.data?.id;
+  } else if (eventObject === "activity") {
+    activityId = current.id || meta.id;
+    dealId = current.deal_id || meta.deal_id;
+  }
+
+  // Gerar chave de idempotência
+  const idempotencyKey = meta.v_ts
+    ? `${eventAction}:${eventObject}:${dealId || 0}:${activityId || 0}:${meta.v_ts}`
+    : buildIdempotencyKey(eventAction, eventObject, dealId, activityId, current.update_time);
+
+  // Inicializar base44 service
+  const base44 = createClientFromRequest(req);
+
+  // Verificar duplicata
+  let duplicateLog = null;
+  try {
+    const existingLogs = await base44.asServiceRole.entities.PipedriveWebhookEvent.filter({ event_id: idempotencyKey });
+    if (existingLogs.length > 0) {
+      const prev = existingLogs[0];
+      // Registrar como duplicata e retornar 200
+      await base44.asServiceRole.entities.PipedriveWebhookEvent.create({
+        event_id: `dup:${idempotencyKey}:${Date.now()}`,
+        event_action: eventAction,
+        event_object: eventObject,
+        event_type: eventType,
+        deal_id: dealId ? Number(dealId) : null,
+        activity_id: activityId ? Number(activityId) : null,
+        processed: false,
+        processed_at: receivedAt,
+        result: JSON.stringify({ skipped: "duplicate", original_id: prev.id }),
+        source: "webhook",
+        duplicate_of: prev.id,
+      });
+      return Response.json({ ok: true, received: true, event_type: eventType, duplicate: true, deal_id: dealId });
+    }
+  } catch (e) {
+    console.warn("[pipedriveWebhook] Erro ao checar duplicata:", e.message);
+  }
+
+  // Criar log inicial (will update após processamento)
+  let logEntry;
+  try {
+    logEntry = await base44.asServiceRole.entities.PipedriveWebhookEvent.create({
+      event_id: idempotencyKey,
+      event_action: eventAction,
+      event_object: eventObject,
+      event_type: eventType,
+      deal_id: dealId ? Number(dealId) : null,
+      activity_id: activityId ? Number(activityId) : null,
+      payload_snapshot: JSON.stringify({ current: Object.fromEntries(Object.entries(current).slice(0, 20)), meta }).substring(0, 4000),
+      processed: false,
+      processed_at: receivedAt,
+      activities_updated: 0,
+      activities_created: 0,
+      dates_ignored: 0,
+      source: "webhook",
+    });
+  } catch (e) {
+    console.warn("[pipedriveWebhook] Erro ao criar log inicial:", e.message);
+  }
+
+  const responseBase = {
+    ok: false,
+    received: true,
+    event_action: eventAction,
+    event_object: eventObject,
+    event_type: eventType,
+    deal_id: dealId,
+    activity_id: activityId,
+    project_id: null,
+    rules_loaded: 0,
+    rules_matched: 0,
+    activities_updated: 0,
+    activities_created: 0,
+    dates_ignored: 0,
+    match_errors: [],
+    errors: [],
+    debug: {},
+  };
+
+  try {
+    // Carregar regras do banco (fonte única — PipedriveIntegrationRule)
+    const allRules = await base44.asServiceRole.entities.PipedriveIntegrationRule.list();
+    const rules = allRules
+      .filter(r => r.rule_type === "cronograma")
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    responseBase.rules_loaded = rules.length;
+
+    if (rules.length === 0) {
+      const msg = "Nenhuma regra de cronograma. Execute 'Atualizar regras da planilha' primeiro.";
+      responseBase.errors.push(msg);
+      if (logEntry) {
+        await base44.asServiceRole.entities.PipedriveWebhookEvent.update(logEntry.id, {
+          processed: false, error: msg, rules_loaded: 0,
+        });
+      }
+      return Response.json(responseBase);
     }
 
+    // Sem deal_id → não processa mas registra
     if (!dealId) {
-      console.log("[pipedriveWebhook] sem deal_id, ignorando");
-      return Response.json({ ok: true, skipped: "no deal_id" });
+      if (logEntry) {
+        await base44.asServiceRole.entities.PipedriveWebhookEvent.update(logEntry.id, {
+          processed: false, error: "Sem deal_id no payload", rules_loaded: rules.length,
+        });
+      }
+      return Response.json({ ...responseBase, ok: false, errors: ["Sem deal_id no payload"] });
     }
 
-    // Encontrar projeto no Base44 via pipedrive_deal_id
-    const projects = await base44.asServiceRole.entities.Project.filter({ pipedrive_deal_id: dealId });
+    // Localizar projeto
+    const projects = await base44.asServiceRole.entities.Project.filter({ pipedrive_deal_id: Number(dealId) });
     if (!projects.length) {
-      console.log("[pipedriveWebhook] nenhum projeto encontrado para deal_id:", dealId);
-      return Response.json({ ok: true, skipped: "no project found", deal_id: dealId });
+      const msg = `Nenhum projeto com pipedrive_deal_id=${dealId}`;
+      if (logEntry) {
+        await base44.asServiceRole.entities.PipedriveWebhookEvent.update(logEntry.id, {
+          processed: false, error: msg, rules_loaded: rules.length,
+        });
+      }
+      return Response.json({ ...responseBase, ok: false, errors: [msg] });
     }
     const project = projects[0];
-    console.log("[pipedriveWebhook] projeto encontrado:", project.id, project.name);
+    responseBase.project_id = project.id;
 
-    const updatedActivities = [];
+    if (logEntry) {
+      await base44.asServiceRole.entities.PipedriveWebhookEvent.update(logEntry.id, {
+        project_id: project.id,
+        project_name: project.name,
+      });
+    }
 
-    // Processar cada regra
-    for (const rule of rules) {
-      const entidade  = rule.pipedrive_entidade || "";
-      const campoKey  = rule.pipedrive_campo_key || "";
-      const valorDisp = rule.pipedrive_valor_disparo || "";
-      const base44Fase = rule.base44_fase || "";
-      const base44Atv  = rule.base44_atividade || "";
-      const campoData  = rule.pipedrive_campo_data || "";
-      // Colunas "início" e "fim" da planilha
-      const iniKey = Object.keys(rule).find(k => k.includes("in") && k.includes("cio")) || "início";
-      const fazInicio  = (rule[iniKey] || "").toLowerCase() === "sim";
-      const fazFim     = (rule["fim"] || "").toLowerCase() === "sim";
+    // Resolver dados para aplicar regras
+    let dealCurrent = null;
+    let activityCurrent = null;
 
-      // ── REGRA ACTIVITY (done) ──────────────────────────────────────────────
-      if (entidade === "activity" && event.includes("activity")) {
-        const currentDoneVal = String(current[campoKey] || "").toLowerCase();
-        const matchDone = (valorDisp.toLowerCase() === "true" && currentDoneVal === "true") ||
-                          (valorDisp.toLowerCase() === "1"    && currentDoneVal === "1");
-
-        if (!matchDone) continue;
-
-        // Verificar identificação (subject)
-        const campoIdent  = rule.pipedrive_campo_identificacao || "";
-        const valorIdent  = rule.pipedrive_valor_identificacao || "";
-        if (campoIdent && valorIdent) {
-          const actualVal = String(current[campoIdent] || "").trim();
-          if (actualVal !== valorIdent) {
-            console.log("[pipedriveWebhook] subject não bate:", actualVal, "!=", valorIdent);
-            continue;
-          }
-        }
-
-        // Data da ação
-        const dateStr = extractDate(current[campoData] || current.marked_as_done_time || current.update_time);
-        if (!dateStr) continue;
-
-        // Buscar atividade no cronograma
-        const activities = await base44.asServiceRole.entities.ScheduleActivity.filter({
-          project_id: project.id,
-          phase_name: base44Fase,
-        });
-
-        for (const act of activities) {
-          if (base44Atv !== "*" && act.activity_name !== base44Atv) continue;
-
-          const patch = {};
-          if (fazFim && !act.actual_end) {
-            patch.actual_end = dateStr;
-            if (!act.actual_start) patch.actual_start = dateStr;
-            patch.status = "Concluído";
-          }
-          if (fazInicio && !act.actual_start) {
-            patch.actual_start = dateStr;
-          }
-
-          if (Object.keys(patch).length > 0) {
-            await base44.asServiceRole.entities.ScheduleActivity.update(act.id, patch);
-            updatedActivities.push({ id: act.id, name: act.activity_name, patch });
-            console.log("[pipedriveWebhook] atualizado:", act.activity_name, patch);
-          }
-        }
+    if (eventObject === "deal") {
+      // Para deal, buscar no Pipedrive para ter stage_id atual confirmado
+      dealCurrent = await fetchDeal(dealId);
+      if (!dealCurrent) {
+        responseBase.errors.push(`Deal ${dealId} não encontrado no Pipedrive`);
       }
-
-      // ── REGRA DEAL (stage_change) ──────────────────────────────────────────
-      if (entidade === "deal" && event.includes("deal")) {
-        const currentStageId = String(current[campoKey] || "");
-        const prevStageId    = String(previous[campoKey] || "");
-
-        // Só processa se o stage realmente mudou
-        if (currentStageId === prevStageId) continue;
-
-        // valorDisp pode ser ID numérico ou texto descritivo como 'ID da etapa "Início de projeto"'
-        // Mapa fixo: nome da etapa → ID (pipelines 16 e 10)
-        const STAGE_NAME_TO_ID = {
-          "inicio de projeto": "142",
-          "início de projeto": "142",
-          "alocar responsável": "140",
-          "passagem de bastão": "141",
-          "parametrizações": "143",
-        };
-
-        let targetStageId = valorDisp.trim();
-        if (!/^\d+$/.test(targetStageId)) {
-          const normalized = targetStageId.toLowerCase().replace(/[""""\u201c\u201d]/g, "").trim();
-          // Extrai o nome da etapa de textos como: ID da etapa "Início de projeto"
-          const matched = normalized.match(/(?:etapa\s+)?"?([^"]+)"?\s*$/);
-          const key = matched ? matched[1].trim() : normalized;
-          targetStageId = STAGE_NAME_TO_ID[key] || targetStageId;
-        }
-
-        if (currentStageId !== targetStageId) continue;
-
-        // Data da ação
-        const dateStr = extractDate(current[campoData] || current.update_time);
-        if (!dateStr) continue;
-
-        // Buscar atividades da fase
-        const activities = await base44.asServiceRole.entities.ScheduleActivity.filter({
-          project_id: project.id,
-          phase_name: base44Fase,
-        });
-
-        for (const act of activities) {
-          if (base44Atv !== "*" && act.activity_name !== base44Atv) continue;
-
-          const patch = {};
-          if (fazInicio && !act.actual_start) {
-            patch.actual_start = dateStr;
-          }
-          if (fazFim && !act.actual_end) {
-            patch.actual_end = dateStr;
-          }
-
-          if (Object.keys(patch).length > 0) {
-            await base44.asServiceRole.entities.ScheduleActivity.update(act.id, patch);
-            updatedActivities.push({ id: act.id, name: act.activity_name, patch });
-            console.log("[pipedriveWebhook] atualizado:", act.activity_name, patch);
-          }
-        }
+    } else if (eventObject === "activity") {
+      // Usar dados do payload (mais rápido). Se não tiver deal_id, buscar activity
+      activityCurrent = current;
+      if (!activityCurrent.id) {
+        activityCurrent = await fetchActivity(activityId);
+      }
+      if (activityCurrent && !activityCurrent.deal_id && dealId) {
+        activityCurrent.deal_id = dealId;
+      }
+      // Para regras de deal que podem estar misturadas, buscar deal também
+      if (dealId) {
+        try { dealCurrent = await fetchDeal(dealId); } catch {}
       }
     }
 
-    return Response.json({
-      ok: true,
-      event,
-      deal_id: dealId,
-      project_id: project.id,
-      updated: updatedActivities.length,
-      activities: updatedActivities,
+    // Aplicar regras
+    const result = await applyRulesToSchedule({
+      base44,
+      project,
+      rules,
+      dealCurrent,
+      activityCurrent,
     });
 
+    responseBase.ok = true;
+    responseBase.rules_matched = result.rulesMatched;
+    responseBase.activities_updated = result.updatedActivities.length;
+    responseBase.activities_created = result.createdActivities.length;
+    responseBase.dates_ignored = result.datesIgnored.length;
+    responseBase.match_errors = result.matchErrors;
+    responseBase.debug = {
+      updated: result.updatedActivities,
+      created: result.createdActivities,
+      dates_ignored: result.datesIgnored,
+    };
+
+    // Atualizar log
+    if (logEntry) {
+      await base44.asServiceRole.entities.PipedriveWebhookEvent.update(logEntry.id, {
+        processed: true,
+        processed_at: new Date().toISOString(),
+        rules_loaded: rules.length,
+        rules_matched: result.rulesMatched,
+        activities_updated: result.updatedActivities.length,
+        activities_created: result.createdActivities.length,
+        dates_ignored: result.datesIgnored.length,
+        result: JSON.stringify({
+          updated: result.updatedActivities,
+          created: result.createdActivities,
+          dates_ignored: result.datesIgnored,
+        }).substring(0, 4000),
+        match_errors: JSON.stringify(result.matchErrors),
+        error: null,
+      });
+    }
+
+    console.log(`[pipedriveWebhook] OK event=${eventType} deal=${dealId} project=${project.id} updated=${result.updatedActivities.length} created=${result.createdActivities.length}`);
+    return Response.json(responseBase);
+
   } catch (error) {
-    console.error("[pipedriveWebhook] erro:", error.message);
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error("[pipedriveWebhook] erro inesperado:", error.message);
+    responseBase.errors.push(error.message);
+    if (logEntry) {
+      try {
+        await base44.asServiceRole.entities.PipedriveWebhookEvent.update(logEntry.id, {
+          processed: false,
+          error: error.message,
+        });
+      } catch {}
+    }
+    return Response.json({ ...responseBase, ok: false }, { status: 500 });
   }
 });
