@@ -16,6 +16,7 @@ import FluxoProjeto from './pages/FluxoProjeto';
 import UsersPermissions from './pages/UsersPermissions';
 import RBACReport from './pages/RBACReport';
 import DiagnosticoPipedrive from './pages/DiagnosticoPipedrive';
+import Documentacao from './pages/Documentacao';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import { usePermissions } from './lib/usePermissions';
@@ -63,6 +64,7 @@ const AuthenticatedApp = () => {
           </ProtectedRoute>
         } />
         <Route path="/diagnostico-pipedrive" element={<DiagnosticoPipedrive />} />
+        <Route path="/documentacao" element={<Documentacao />} />
         <Route path="/rbac-report" element={
           <ProtectedRoute allowed={perms.canAccessParametrizacoes}>
             <RBACReport />
