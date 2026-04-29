@@ -1,7 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 const PIPE_V1 = "https://api.pipedrive.com/v1";
-const WEBHOOK_SECRET = Deno.env.get("PIPEDRIVE_WEBHOOK_SECRET") || "";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -198,15 +197,6 @@ async function applyRulesToSchedule({ base44, project, rules, dealCurrent, activ
 
 Deno.serve(async (req) => {
   const receivedAt = new Date().toISOString();
-
-  // Validação de segredo opcional
-  if (WEBHOOK_SECRET) {
-    const headerSecret = req.headers.get("x-flowimplanta-webhook-secret") || "";
-    const urlSecret = new URL(req.url).searchParams.get("secret") || "";
-    if (headerSecret !== WEBHOOK_SECRET && urlSecret !== WEBHOOK_SECRET) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
 
   // Limitar tamanho do payload
   const contentLength = parseInt(req.headers.get("content-length") || "0");
