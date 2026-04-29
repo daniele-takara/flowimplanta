@@ -1,0 +1,66 @@
+{
+  "name": "PipedriveIntegrationRule",
+  "type": "object",
+  "properties": {
+    "rule_type": {
+      "type": "string",
+      "enum": [
+        "dados_iniciais",
+        "cronograma"
+      ],
+      "description": "Tipo da regra: mapeamento de dados iniciais ou de cronograma"
+    },
+    "sheet_tab": {
+      "type": "string",
+      "description": "Nome da aba da planilha de origem"
+    },
+    "order": {
+      "type": "number",
+      "description": "Ordem da regra na planilha"
+    },
+    "raw_data": {
+      "type": "string",
+      "description": "JSON com todos os campos da linha da planilha"
+    },
+    "pipedrive_entidade": {
+      "type": "string",
+      "description": "deal ou activity"
+    },
+    "pipedrive_campo_key": {
+      "type": "string"
+    },
+    "pipedrive_valor_disparo": {
+      "type": "string"
+    },
+    "pipedrive_campo_identificacao": {
+      "type": "string"
+    },
+    "pipedrive_valor_identificacao": {
+      "type": "string"
+    },
+    "pipedrive_campo_data": {
+      "type": "string"
+    },
+    "base44_fase": {
+      "type": "string"
+    },
+    "base44_atividade": {
+      "type": "string"
+    },
+    "faz_inicio": {
+      "type": "boolean",
+      "default": false
+    },
+    "faz_fim": {
+      "type": "boolean",
+      "default": false
+    },
+    "synced_at": {
+      "type": "string",
+      "description": "ISO datetime da \u00faltima sincroniza\u00e7\u00e3o"
+    }
+  },
+  "required": [
+    "rule_type"
+  ]
+}
