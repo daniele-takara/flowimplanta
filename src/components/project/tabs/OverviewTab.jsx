@@ -26,10 +26,13 @@ function ParticipantCard({ role, name, contact }) {
 
 export default function OverviewTab({ project, phases, onEditDadosIniciais, onProjectUpdated }) {
   const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState(null); // { success, fields } | { error }
+  const [syncResult, setSyncResult] = useState(null);
 
   const handleSyncPipedrive = async () => {
-    if (!project?.pipedrive_deal_id) return;
+    if (!project?.pipedrive_deal_id) {
+      setSyncResult({ error: "Informe o ID Deal Pipedrive para integrar os dados" });
+      return;
+    }
     setSyncing(true);
     setSyncResult(null);
     try {
@@ -38,13 +41,19 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
         deal_id: project.pipedrive_deal_id,
       });
       if (res.data?.success) {
-        setSyncResult({ success: true, fields: res.data.updated_fields || [] });
+        setSyncResult({
+          success: true,
+          deal_id: project.pipedrive_deal_id,
+          deal_name: res.data.project?.name,
+          fields: res.data.updated_fields || [],
+        });
         if (onProjectUpdated) onProjectUpdated(res.data.project);
       } else {
-        setSyncResult({ error: res.data?.error || "Erro ao sincronizar" });
+        setSyncResult({ error: res.data?.error || "Erro ao sincronizar", deal_id: project.pipedrive_deal_id });
       }
     } catch (e) {
-      setSyncResult({ error: e.message });
+      const msg = e.response?.data?.error || e.message;
+      setSyncResult({ error: msg, deal_id: project.pipedrive_deal_id });
     }
     setSyncing(false);
   };
@@ -74,17 +83,15 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Dados do Projeto</h3>
             <div className="flex items-center gap-2">
-              {project?.pipedrive_deal_id && (
-                <button
-                  onClick={handleSyncPipedrive}
-                  disabled={syncing}
-                  title={`Sincronizar com deal #${project.pipedrive_deal_id}`}
-                  className="flex items-center gap-1.5 text-xs text-orange-600 hover:text-orange-700 font-medium disabled:opacity-50 border border-orange-200 bg-orange-50 hover:bg-orange-100 rounded-lg px-2.5 py-1 transition-colors"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
-                  {syncing ? "Sincronizando..." : "Atualizar dados do Pipedrive"}
-                </button>
-              )}
+              <button
+                onClick={handleSyncPipedrive}
+                disabled={syncing}
+                title={project?.pipedrive_deal_id ? `Sincronizar com deal #${project.pipedrive_deal_id}` : "Informe o ID Deal Pipedrive"}
+                className="flex items-center gap-1.5 text-xs text-orange-600 hover:text-orange-700 font-medium disabled:opacity-50 border border-orange-200 bg-orange-50 hover:bg-orange-100 rounded-lg px-2.5 py-1 transition-colors"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
+                {syncing ? "Sincronizando..." : "Atualizar dados do Pipedrive"}
+              </button>
               {onEditDadosIniciais && (
                 <button
                   onClick={onEditDadosIniciais}
@@ -96,15 +103,28 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
             </div>
           </div>
 
-          {/* Feedback de sincronização */}
+          {/* Relatório de sincronização */}
           {syncResult && (
-            <div className={`mb-3 p-2.5 rounded-lg flex items-start gap-2 text-xs ${
-              syncResult.success ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"
+            <div className={`mb-3 rounded-lg text-xs border ${
+              syncResult.success ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-700"
             }`}>
-              {syncResult.success
-                ? <><CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" /> Dados sincronizados: {syncResult.fields.join(", ")}</>
-                : <><AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {syncResult.error}</>
-              }
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-inherit">
+                {syncResult.success
+                  ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  : <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                }
+                <span className="font-semibold">
+                  {syncResult.success ? "Sincronização concluída com sucesso" : "Erro na sincronização"}
+                </span>
+              </div>
+              <div className="px-3 py-2 space-y-0.5">
+                {syncResult.deal_id && <p>Deal Pipedrive: <strong>#{syncResult.deal_id}</strong></p>}
+                {syncResult.deal_name && <p>Nome encontrado: <strong>{syncResult.deal_name}</strong></p>}
+                {syncResult.success && syncResult.fields.length > 0 && (
+                  <p>Campos atualizados: <strong>{syncResult.fields.join(", ")}</strong></p>
+                )}
+                {syncResult.error && <p>{syncResult.error}</p>}
+              </div>
             </div>
           )}
           <InfoRow label="Cliente" value={project.client_name} />
