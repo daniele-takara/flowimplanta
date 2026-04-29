@@ -447,7 +447,7 @@ function SyncPipedriveButton({ projectId, onSuccess }) {
             </button>
           </div>
           <div className="text-green-700 mt-0.5">
-            {result.updated} atualizada(s) · {result.rules_applied} regra(s) · {result.activities_found} activities Pipedrive
+            {result.updated} atualizada(s) · {result.created > 0 ? `${result.created} criada(s) · ` : ""}{result.rules_applied} regra(s) · {result.activities_found} activities Pipedrive
           </div>
           {showDetails && (
             <div className="mt-2 text-left bg-white border border-green-100 rounded p-2 space-y-0.5 text-green-900">
@@ -459,6 +459,16 @@ function SyncPipedriveButton({ projectId, onSuccess }) {
                     <li key={i}><span className="font-semibold">{a.name}</span> ({a.phase}) — {JSON.stringify(a.patch)}</li>
                   ))}
                 </ul>
+              )}
+              {result.activities_created?.length > 0 && (
+                <div className="mt-1">
+                  <p className="font-bold text-blue-700">Atividades criadas automaticamente:</p>
+                  <ul className="list-disc pl-4 space-y-0.5 text-xs text-blue-800">
+                    {result.activities_created.map((a, i) => (
+                      <li key={i}><span className="font-semibold">{a.name}</span> ({a.phase})</li>
+                    ))}
+                  </ul>
+                </div>
               )}
               {result.available_phases?.length > 0 && (
                   <div className="mt-1">

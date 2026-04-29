@@ -7,9 +7,16 @@ function extractDate(val) {
   return String(val).substring(0, 10);
 }
 
+// Normaliza string: trim + lowercase + sem acentos
+const normalize = s => (s || "").trim().toLowerCase()
+  .normalize("NFD").replace(/\p{Diacritic}/gu, "");
+
 async function fetchDeal(dealId, apiToken) {
   const res = await fetch(`${PIPE_V1}/deals/${dealId}?api_token=${apiToken}`);
-  const data = JSON.parse(await res.text());
+  const text = await res.text();
+  if (res.status === 429) throw new Error("Rate limit Pipedrive (429). Aguarde alguns minutos.");
+  if (res.status === 401 || res.status === 403) throw new Error(`Acesso negado ao Pipedrive (${res.status}). Verifique o API token.`);
+  const data = JSON.parse(text);
   return data.data || null;
 }
 
@@ -20,6 +27,7 @@ async function fetchAllActivities(dealId, apiToken) {
     const res = await fetch(
       `${PIPE_V1}/deals/${dealId}/activities?limit=100&start=${start}&api_token=${apiToken}`
     );
+    if (res.status === 429) throw new Error("Rate limit Pipedrive (429). Aguarde alguns minutos.");
     const data = JSON.parse(await res.text());
     const items = data.data || [];
     all.push(...items);
@@ -53,7 +61,7 @@ Deno.serve(async (req) => {
     const apiToken = Deno.env.get("API_PIpedrive");
     if (!apiToken) return Response.json({ error: 'API_PIpedrive não configurado' }, { status: 500 });
 
-    // 2. Carregar regras do banco de dados (salvas via "Atualizar regras da planilha")
+    // 2. Carregar regras de cronograma
     const allRules = await base44.asServiceRole.entities.PipedriveIntegrationRule.list();
     const rules = allRules
       .filter(r => r.rule_type === "cronograma")
@@ -65,7 +73,7 @@ Deno.serve(async (req) => {
       }, { status: 400 });
     }
 
-    // 3. Buscar deal + activities em paralelo
+    // 3. Buscar deal + activities do Pipedrive em paralelo
     const [deal, pipeActivities] = await Promise.all([
       fetchDeal(dealId, apiToken),
       fetchAllActivities(dealId, apiToken),
@@ -80,37 +88,46 @@ Deno.serve(async (req) => {
 
     console.log(`[syncSchedule] deal=${dealId} stage=${currentStageId} pipe_acts=${pipeActivities.length} done=${doneActivities.length} rules=${rules.length}`);
 
-    // 4. Carregar EXCLUSIVAMENTE dados do projeto atual — sem templates, sem globals
+    // 4. Carregar dados do cronograma do projeto
     const [scheduleActivities, schedulePhases] = await Promise.all([
       base44.asServiceRole.entities.ScheduleActivity.filter({ project_id }),
       base44.asServiceRole.entities.SchedulePhase.filter({ project_id }),
     ]);
 
-    const normalize = s => (s || "").trim().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
-
-    // Fases carregadas diretamente do cronograma do projeto (SchedulePhase + ScheduleActivity)
+    // Fases disponíveis: SchedulePhase é fonte primária; complementa com fases das atividades
     const phasesFromPhaseEntity = schedulePhases.map(p => p.phase_name).filter(Boolean);
     const phasesFromActivities = [...new Set(scheduleActivities.map(a => a.phase_name).filter(Boolean))];
-    // União: usar SchedulePhase como fonte primária; complementar com fases das atividades
     const allProjectPhases = [...new Set([...phasesFromPhaseEntity, ...phasesFromActivities])];
 
-    console.log(`[syncSchedule] SchedulePhase do projeto: ${JSON.stringify(phasesFromPhaseEntity)}`);
+    console.log(`[syncSchedule] SchedulePhase: ${JSON.stringify(phasesFromPhaseEntity)}`);
     console.log(`[syncSchedule] Fases nas atividades: ${JSON.stringify(phasesFromActivities)}`);
-    console.log(`[syncSchedule] Fases carregadas do projeto (total): ${JSON.stringify(allProjectPhases)}`);
 
-    // Validação: cronograma deve ter pelo menos 1 fase/atividade carregada
     if (allProjectPhases.length === 0) {
       return Response.json({
         ok: false,
         error: "Cronograma do projeto não carregado corretamente",
-        detail: "Nenhuma fase ou atividade encontrada para este projeto. Verifique se o cronograma foi criado.",
+        detail: "Nenhuma fase encontrada para este projeto. Verifique se o cronograma foi criado.",
         available_phases: [],
       }, { status: 400 });
     }
 
-    const availablePhases = allProjectPhases;
+    // Cache mutável de atividades (para refletir criações durante o loop)
+    const activitiesCache = [...scheduleActivities];
+
+    // Helper: encontrar atividades de uma fase (busca no cache)
+    // Se a fase existe em SchedulePhase mas não tem atividades, retorna array vazio com flag de "fase válida"
+    function getPhaseActivities(base44Fase) {
+      const acts = activitiesCache.filter(a => normalize(a.phase_name) === normalize(base44Fase));
+      return acts;
+    }
+
+    // Helper: verificar se fase existe no projeto (SchedulePhase OU atividades)
+    function phaseExists(base44Fase) {
+      return allProjectPhases.some(p => normalize(p) === normalize(base44Fase));
+    }
 
     const updatedActivities = [];
+    const createdActivities = [];
     const matchErrors = [];
     let rulesApplied = 0;
 
@@ -127,21 +144,72 @@ Deno.serve(async (req) => {
       if (!base44Fase) continue;
       if (!fazInicio && !fazFim) continue;
 
-      // Match robusto de fase: case-insensitive + sem acentos + sem espaços extras
-      const phaseActs = scheduleActivities.filter(a => normalize(a.phase_name) === normalize(base44Fase));
-      if (phaseActs.length === 0) {
+      // Verificar se fase existe no projeto
+      if (!phaseExists(base44Fase)) {
         matchErrors.push(
-          `Fase esperada: "${base44Fase}" — não encontrada. Fases disponíveis: ${availablePhases.map(f => `"${f}"`).join(", ")}`
+          `Fase "${base44Fase}" não existe neste projeto. Fases disponíveis: ${allProjectPhases.map(f => `"${f}"`).join(", ")}`
         );
         continue;
       }
 
-      // Validar atividade específica existe (se não for *)
+      // Buscar atividades da fase
+      let phaseActs = getPhaseActivities(base44Fase);
+
+      // Se fase existe mas não tem atividades E a regra aponta para uma atividade específica,
+      // precisamos de uma atividade alvo. Se base44Atv = "*", não há o que atualizar sem atividades.
+      // Neste caso: reportamos como informativo (não erro), pois o cronograma detalhado ainda não foi gerado.
+      if (phaseActs.length === 0) {
+        console.log(`[syncSchedule] Fase "${base44Fase}" existe mas sem atividades no cronograma detalhado.`);
+        // Se a atividade alvo é específica (não "*"), criar registro automaticamente
+        if (base44Atv && base44Atv !== "*") {
+          // Tentar obter data para usar na criação
+          let autoDateStr = null;
+
+          if (entidade === "deal" && campoKey === "stage_id" && currentStageId === valorDisp) {
+            autoDateStr = extractDate(deal[campoData]) || extractDate(deal.update_time);
+          } else if (entidade === "activity") {
+            const campoIdent = (rule.pipedrive_campo_identificacao || "").trim();
+            const valorIdent = (rule.pipedrive_valor_identificacao || "").trim();
+            for (const pAct of doneActivities) {
+              if (campoIdent && valorIdent) {
+                if (String(pAct[campoIdent] || "").trim() !== valorIdent) continue;
+              }
+              autoDateStr = extractDate(pAct[campoData])
+                || extractDate(pAct.marked_as_done_time)
+                || extractDate(pAct.update_time);
+              if (autoDateStr) break;
+            }
+          }
+
+          if (autoDateStr) {
+            const newAct = await base44.asServiceRole.entities.ScheduleActivity.create({
+              project_id,
+              phase_name: base44Fase,
+              activity_name: base44Atv,
+              status: fazFim ? "Concluído" : "Em andamento",
+              actual_start: fazInicio || fazFim ? autoDateStr : null,
+              actual_end: fazFim ? autoDateStr : null,
+              order: 1,
+            });
+            activitiesCache.push(newAct);
+            createdActivities.push({ id: newAct.id, name: base44Atv, phase: base44Fase });
+            rulesApplied++;
+            console.log(`[syncSchedule] Atividade criada: "${base44Atv}" na fase "${base44Fase}"`);
+          } else {
+            console.log(`[syncSchedule] Fase "${base44Fase}" sem atividades e sem data disponível para criar.`);
+          }
+          continue;
+        }
+        // base44Atv = "*" sem atividades: nada a fazer
+        continue;
+      }
+
+      // Validar atividade específica existe nas atividades da fase
       if (base44Atv && base44Atv !== "*") {
         const actExists = phaseActs.some(a => normalize(a.activity_name) === normalize(base44Atv));
         if (!actExists) {
           const available = phaseActs.map(a => `"${a.activity_name}"`).join(", ");
-          matchErrors.push(`Atividade esperada: "${base44Atv}" não encontrada na fase "${base44Fase}". Atividades disponíveis: ${available}`);
+          matchErrors.push(`Atividade "${base44Atv}" não encontrada na fase "${base44Fase}". Disponíveis: ${available}`);
           continue;
         }
       }
@@ -155,7 +223,7 @@ Deno.serve(async (req) => {
 
         const dateStr = extractDate(deal[campoData]) || extractDate(deal.update_time);
         if (!dateStr) {
-          matchErrors.push(`Regra deal (stage=${valorDisp}): campo_data "${campoData}" sem valor`);
+          matchErrors.push(`Regra deal (stage=${valorDisp}): campo "${campoData}" sem valor`);
           continue;
         }
 
@@ -169,18 +237,14 @@ Deno.serve(async (req) => {
           if (Object.keys(patch).length > 0) {
             await base44.asServiceRole.entities.ScheduleActivity.update(act.id, patch);
             Object.assign(act, patch);
-            updatedActivities.push({ id: act.id, name: act.activity_name, phase: base44Fase, patch, rule_type: "deal", trigger: `stage_id=${valorDisp}` });
+            updatedActivities.push({ id: act.id, name: act.activity_name, phase: base44Fase, patch, trigger: `stage_id=${valorDisp}` });
             rulesApplied++;
           }
         }
       }
 
-      // ── REGRA ACTIVITY (done + subject) ──────────────────────────────────
-      const isActivityRule = entidade === "activity" && (
-        campoKey === "done" || valorDisp.toUpperCase() === "TRUE" || valorDisp === "1"
-      );
-
-      if (isActivityRule) {
+      // ── REGRA ACTIVITY (done) ─────────────────────────────────────────────
+      if (entidade === "activity") {
         const campoIdent = (rule.pipedrive_campo_identificacao || "").trim();
         const valorIdent = (rule.pipedrive_valor_identificacao || "").trim();
 
@@ -200,7 +264,7 @@ Deno.serve(async (req) => {
             || extractDate(pAct.update_time);
 
           if (!dateStr) {
-            matchErrors.push(`Regra activity (subject="${pAct.subject}"): nenhuma data disponível`);
+            matchErrors.push(`Activity "${pAct.subject}": nenhuma data disponível`);
             continue;
           }
 
@@ -212,15 +276,16 @@ Deno.serve(async (req) => {
               patch.actual_end = dateStr;
               if (!act.actual_start) patch.actual_start = dateStr;
               patch.status = "Concluído";
+            } else if (fazInicio && !act.actual_start) {
+              patch.actual_start = dateStr;
             }
-            if (fazInicio && !act.actual_start) patch.actual_start = dateStr;
 
             if (Object.keys(patch).length > 0) {
               await base44.asServiceRole.entities.ScheduleActivity.update(act.id, patch);
               Object.assign(act, patch);
               updatedActivities.push({
                 id: act.id, name: act.activity_name, phase: base44Fase, patch,
-                rule_type: "activity", trigger: `subject="${pAct.subject}"`,
+                trigger: `activity subject="${pAct.subject}"`,
               });
               rulesApplied++;
             }
@@ -228,7 +293,7 @@ Deno.serve(async (req) => {
         }
 
         if (!matchedAny && valorIdent) {
-          matchErrors.push(`Nenhuma activity concluída encontrada com ${campoIdent}="${valorIdent}"`);
+          matchErrors.push(`Nenhuma activity concluída com ${campoIdent}="${valorIdent}"`);
         }
       }
     }
@@ -243,9 +308,11 @@ Deno.serve(async (req) => {
       rules_total: rules.length,
       rules_applied: rulesApplied,
       updated: updatedActivities.length,
+      created: createdActivities.length,
       activities: updatedActivities,
+      activities_created: createdActivities,
       match_errors: matchErrors,
-      available_phases: availablePhases,
+      available_phases: allProjectPhases,
       phases_from_phase_entity: phasesFromPhaseEntity,
       phases_from_activities: phasesFromActivities,
       schedule_activities_count: scheduleActivities.length,
