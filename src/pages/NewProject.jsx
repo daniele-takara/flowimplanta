@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { SCHEDULE_TEMPLATE } from "@/lib/mockData";
+import { PHASE_ORDER } from "@/lib/scheduleTasks";
 import { CONTRACTED_MODULES_OPTIONS } from "@/lib/scopeTemplate";
 import { ArrowLeft, Save, ChevronRight, CheckCircle2 } from "lucide-react";
 
@@ -85,10 +86,10 @@ export default function NewProject() {
       // Scope items are created on-demand when user fills the ScopeTab
       // (no bulk creation needed — answers are saved per question as user fills)
 
-      // Create schedule phases from template
-      const phases = SCHEDULE_TEMPLATE.map((p, i) => ({
+      // Create schedule phases — one per phase in PHASE_ORDER (source of truth)
+      const phases = PHASE_ORDER.map((phaseName, i) => ({
         project_id: project.id,
-        phase_name: p.phase_name,
+        phase_name: phaseName,
         progress_percent: 0,
         status: "Não iniciado",
         order: i + 1
