@@ -3,11 +3,12 @@ import { base44 } from "@/api/base44Client";
 import {
   FileText, Users, LayoutTemplate, Plus, Pencil, Trash2,
   CheckCircle, XCircle, Filter, Scale, Settings, DollarSign,
-  Mail, ChevronRight, Shield
+  Mail, ChevronRight, Shield, Zap
 } from "lucide-react";
 import TabUsuarios from "@/components/parametrizacoes/TabUsuarios";
 import TabPerfis from "@/components/parametrizacoes/TabPerfis";
 import TabCronogramaTemplate from "@/components/parametrizacoes/TabCronogramaTemplate";
+import TabIntegracaoPipedrive from "@/components/parametrizacoes/TabIntegracaoPipedrive";
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -400,11 +401,12 @@ function TabTemplates() {
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: "usuarios",  label: "Usuários",             icon: Users,         description: "Pessoas do sistema" },
-  { id: "perfis",    label: "Perfis de Permissão",  icon: Shield,        description: "Controle de acesso RBAC" },
-  { id: "adendos",   label: "Adendos",              icon: FileText,      description: "Biblioteca global" },
-  { id: "assinaturas", label: "Assinaturas",        icon: Users,         description: "Equipe Pontotel" },
-  { id: "templates", label: "Templates",            icon: LayoutTemplate, description: "Estrutura dos documentos" },
+  { id: "usuarios",    label: "Usuários",             icon: Users,          description: "Pessoas do sistema" },
+  { id: "perfis",      label: "Perfis de Permissão",  icon: Shield,         description: "Controle de acesso RBAC" },
+  { id: "adendos",     label: "Adendos",              icon: FileText,       description: "Biblioteca global" },
+  { id: "assinaturas", label: "Assinaturas",          icon: Users,          description: "Equipe Pontotel" },
+  { id: "templates",   label: "Templates",            icon: LayoutTemplate, description: "Estrutura dos documentos" },
+  { id: "pipedrive",   label: "Integração Pipedrive", icon: Zap,            description: "Webhook e automações" },
 ];
 
 export default function Parametrizacoes() {
@@ -436,6 +438,7 @@ export default function Parametrizacoes() {
       {activeTab === "adendos"     && <TabAdendos />}
       {activeTab === "assinaturas" && <TabAssinaturas />}
       {activeTab === "templates"   && <TabTemplates />}
+      {activeTab === "pipedrive"   && <TabIntegracaoPipedrive />}
     </div>
   );
 }
