@@ -290,17 +290,12 @@ export const MOCK_MEETINGS = {
   ]
 };
 
-// SCHEDULE_TEMPLATE — fases devem corresponder exatamente ao PHASE_ORDER de scheduleTasks.js
 export const SCHEDULE_TEMPLATE = [
-  { phase_name: "Abertura de projeto", activities: ["Alinhamento inicial", "Agenda de escopo técnico", "Envio de Termo de Abertura do Projeto e cronograma", "Agenda de Status report recorrente"] },
-  { phase_name: "Integração", activities: ["[Sankhya] Envio do formulário de dados para integração", "Preenchimento do formulário de integração", "Inicio da ativação da integração", "Ativação da integração"] },
-  { phase_name: "Cadastros", activities: ["Envio da documentação I05", "Importação de cadastros pelo I05", "Preencher planilha de endereços", "Importar planilha de endereços e ativar cerca"] },
-  { phase_name: "Parametrização", activities: ["Reunião para parametrização de Regras", "Parametrização de regras", "Parametrizar permissões de usuários", "Validar parametrização de cadastros"] },
-  { phase_name: "Treinamento e Validações", activities: ["Curso EAD da Universidade", "Reunião para validar Regras de cálculo", "Treinamento do fluxo de gestão", "Reunião sobre Solicitações"] },
-  { phase_name: "Operação Assistida", activities: ["Agenda de inicio de registro de ponto", "Inicio de registro de ponto (Go Live)", "Agenda de verificação pré-fechamento"] },
-  { phase_name: "Fechamento de Folha", activities: ["Agenda fechamento de folha de ponto", "Fechamento de folha"] },
-  { phase_name: "Expansão", activities: ["Expansão de registro de ponto real", "Fechamento de folha de ponto real (100% da base)"] },
-  { phase_name: "Encerramento", activities: ["Agenda de encerramento de projeto", "Assinatura do termo de encerramento de projeto", "Passagem para sucesso do cliente"] }
+  { phase_name: "Abertura de projeto", activities: ["Alinhamento inicial", "Agenda de escopo técnico", "Envio de Termo de Abertura do Projeto e cronograma", "Agenda de Status Report recorrente"] },
+  { phase_name: "Parametrização", activities: ["Integração – Configuração", "Cadastro de funcionários", "Parametrização de cálculos e permissões", "Parametrização do módulo Controle de Custos", "Parametrização módulo Escala", "Parametrização módulo Banco de Horas", "Configuração de dispositivos"] },
+  { phase_name: "Homologação", activities: ["Validação de regras de cálculo", "Validação de integração", "Validação pelo cliente", "Ajustes pós-homologação"] },
+  { phase_name: "Rollout", activities: ["Treinamento de gestores", "Treinamento de usuários finais", "Go-live piloto (1 unidade)", "Expansão gradual"] },
+  { phase_name: "Go-live", activities: ["Go-live completo", "Suporte pós go-live (primeiros dias)", "Entrega formal do projeto"] }
 ];
 
 export const SCOPE_TEMPLATE = [

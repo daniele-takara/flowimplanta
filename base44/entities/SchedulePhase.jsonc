@@ -7,7 +7,15 @@
     },
     "phase_name": {
       "type": "string",
-      "description": "Nome da fase \u2014 deve corresponder exatamente \u00e0s fases de PHASE_ORDER em scheduleTasks.js"
+      "enum": [
+        "Planejamento",
+        "Abertura de projeto",
+        "Parametriza\u00e7\u00e3o",
+        "Homologa\u00e7\u00e3o",
+        "Rollout",
+        "Go-live",
+        "P\u00f3s Go-live"
+      ]
     },
     "planned_start": {
       "type": "string",
