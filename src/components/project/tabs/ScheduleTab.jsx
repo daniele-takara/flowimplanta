@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { ChevronDown, ChevronRight, Save, X, Anchor, Pencil, Lock, AlertCircle, CheckCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Save, X, Anchor, Pencil, Lock, AlertCircle, CheckCircle, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
 import { SCHEDULE_TASKS, PHASE_ORDER, ANCHOR_IDS } from "@/lib/scheduleTasks.js";
 import { computeSchedule, evaluateCondition, workday } from "@/lib/scheduleEngine.js";
 import { resolveRoleToName, RESPONSIBLE_ROLE_LABELS, resolveGeneralResponsible } from "@/lib/resolveResponsibleRole.js";
@@ -398,6 +398,52 @@ function PhaseSection({ phaseName, tasks, computedDates, manualOverrides, activi
   );
 }
 
+// ── Sync Pipedrive Button ─────────────────────────────────────
+
+function SyncPipedriveButton({ projectId, onSuccess }) {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+
+  const handleSync = async () => {
+    setLoading(true);
+    setResult(null);
+    setError(null);
+    const res = await base44.functions.invoke("syncScheduleFromPipedrive", { project_id: projectId });
+    const data = res.data;
+    if (data.error) {
+      setError(data.error);
+    } else {
+      setResult(data);
+      if (onSuccess) onSuccess();
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        onClick={handleSync}
+        disabled={loading}
+        className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border transition-colors bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100 disabled:opacity-60"
+      >
+        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+        Atualizar Cronograma (Pipedrive)
+      </button>
+      {result && (
+        <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 max-w-xs text-right">
+          ✓ {result.updated} atividade(s) atualizada(s) · {result.rules_applied} regra(s) aplicada(s)
+        </div>
+      )}
+      {error && (
+        <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5 max-w-xs text-right">
+          Erro: {error}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Complete Project Button ───────────────────────────────────
 
 function CompleteProjectButton({ onComplete }) {
@@ -426,7 +472,7 @@ function CompleteProjectButton({ onComplete }) {
 
 // ── COMPONENTE PRINCIPAL ──────────────────────────────────────
 
-export default function ScheduleTab({ scopeItems, project, projectId, onRefresh, readOnly = false }) {
+export default function ScheduleTab({ scopeItems, project, projectId, onRefresh, readOnly = false, onSyncSuccess }) {
   // manualOverrides: { [taskId]: { plannedStart, plannedEnd } }
   const [manualOverrides, setManualOverrides] = useState(() => {
     try {
@@ -575,7 +621,18 @@ export default function ScheduleTab({ scopeItems, project, projectId, onRefresh,
           <p className="text-sm text-slate-400">Gerado automaticamente com base em Dados Iniciais e Escopo Técnico</p>
         </div>
         {!readOnly && (
-          <CompleteProjectButton onComplete={handleCompleteProject} />
+          <div className="flex items-start gap-3">
+            {project?.pipedrive_deal_id && (
+              <SyncPipedriveButton
+                projectId={projectId}
+                onSuccess={() => {
+                  setActivitiesLoaded(false);
+                  if (onSyncSuccess) onSyncSuccess();
+                }}
+              />
+            )}
+            <CompleteProjectButton onComplete={handleCompleteProject} />
+          </div>
         )}
       </div>
 
