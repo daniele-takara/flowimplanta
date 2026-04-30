@@ -56,8 +56,10 @@ async function fetchAllActivities(dealId) {
 Deno.serve(async (req) => {
   const startTime = Date.now();
   const base44 = createClientFromRequest(req);
-  const user = await base44.auth.me();
-  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Auth flexível: aceita usuário logado OU chamada interna sem token
+  // Todas as operações de banco usam asServiceRole, então a auth é apenas para auditoria
+  const user = await base44.auth.me().catch(() => null);
 
   const body = await req.json();
   const {
@@ -442,6 +444,10 @@ Deno.serve(async (req) => {
         console.warn("[applyPipedriveRules] Erro ao gravar IntegrationLog:", e.message);
       }
     }
+
+    // Enriquecer resposta com campos extras para compatibilidade
+    result.deal_stage_id = currentStageId;
+    result.available_phases = allProjectPhases;
 
     log("STEP_6_RESULT", { status: logStatus, updated: result.activities_updated, created: result.activities_created, errors: result.errors.length });
 

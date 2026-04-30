@@ -290,12 +290,17 @@ export const MOCK_MEETINGS = {
   ]
 };
 
+// Fases usadas ao criar um projeto — DEVEM ser idênticas ao PHASE_ORDER em scheduleTasks.js
 export const SCHEDULE_TEMPLATE = [
-  { phase_name: "Abertura de projeto", activities: ["Alinhamento inicial", "Agenda de escopo técnico", "Envio de Termo de Abertura do Projeto e cronograma", "Agenda de Status Report recorrente"] },
-  { phase_name: "Parametrização", activities: ["Integração – Configuração", "Cadastro de funcionários", "Parametrização de cálculos e permissões", "Parametrização do módulo Controle de Custos", "Parametrização módulo Escala", "Parametrização módulo Banco de Horas", "Configuração de dispositivos"] },
-  { phase_name: "Homologação", activities: ["Validação de regras de cálculo", "Validação de integração", "Validação pelo cliente", "Ajustes pós-homologação"] },
-  { phase_name: "Rollout", activities: ["Treinamento de gestores", "Treinamento de usuários finais", "Go-live piloto (1 unidade)", "Expansão gradual"] },
-  { phase_name: "Go-live", activities: ["Go-live completo", "Suporte pós go-live (primeiros dias)", "Entrega formal do projeto"] }
+  { phase_name: "Abertura de projeto" },
+  { phase_name: "Integração" },
+  { phase_name: "Cadastros" },
+  { phase_name: "Parametrização" },
+  { phase_name: "Treinamento e Validações" },
+  { phase_name: "Operação Assistida" },
+  { phase_name: "Fechamento de Folha" },
+  { phase_name: "Expansão" },
+  { phase_name: "Encerramento" },
 ];
 
 export const SCOPE_TEMPLATE = [

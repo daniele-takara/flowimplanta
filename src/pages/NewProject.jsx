@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { SCHEDULE_TEMPLATE } from "@/lib/mockData";
+import { SCHEDULE_TEMPLATE } from "@/lib/mockData.js";
 import { ArrowLeft, Save, Hash, AlertCircle } from "lucide-react";
 
 export default function NewProject() {

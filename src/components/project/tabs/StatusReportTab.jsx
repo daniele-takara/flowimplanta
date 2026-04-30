@@ -494,11 +494,12 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         console.warn("Erro ao buscar usabilidade:", e);
       }
 
-      // 2. Calcular cronograma macro
-      const overrides = (() => {
-        try { return JSON.parse(localStorage.getItem(`schedule_overrides_${projectId}`) || "{}"); }
-        catch { return {}; }
-      })();
+      // 2. Calcular cronograma macro usando datas âncora do banco (schedule_anchor_dates)
+      const bankAnchors = project?.schedule_anchor_dates || {};
+      const overrides = {};
+      Object.entries(bankAnchors).forEach(([taskId, dateStr]) => {
+        if (dateStr) overrides[taskId] = { plannedStart: dateStr };
+      });
 
       const { macroPhases: phases, overallProgress: progress } = computeMacroSchedule(
         overrides, answersMap, project, savedActivities || []
