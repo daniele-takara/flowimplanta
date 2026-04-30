@@ -8,7 +8,7 @@ import {
 import ProjectHeader from "@/components/project/ProjectHeader";
 import OverviewTab from "@/components/project/tabs/OverviewTab";
 import ScopeTab from "@/components/project/tabs/ScopeTab.jsx";
-import ScheduleTab from "@/components/project/tabs/ScheduleTab";
+import ScheduleTab from "@/components/project/tabs/ScheduleTab.jsx";
 import StatusReportTab from "@/components/project/tabs/StatusReportTab";
 import ActionPlanTab from "@/components/project/tabs/ActionPlanTab";
 import TAPTab from "@/components/project/tabs/TAPTab.jsx";
