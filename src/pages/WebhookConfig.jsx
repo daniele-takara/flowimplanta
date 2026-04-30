@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import {
   ArrowLeft, Copy, CheckCircle2, AlertCircle, RefreshCw, Zap, Play,
-  Activity, Clock, Info, ChevronDown, ChevronRight, Shield, Globe, TestTube2
+  Activity, Clock, Info, ChevronDown, ChevronRight, Shield, Globe, TestTube2, BarChart2
 } from "lucide-react";
 
 const WEBHOOK_URL = `https://api.base44.app/api/apps/69e295c073bbccc7f63f6156/functions/pipedriveWebhook`;
@@ -371,6 +371,12 @@ export default function WebhookConfig() {
           </h1>
           <p className="text-slate-400 text-sm">Motor principal de integração em tempo real Pipedrive → Cronograma</p>
         </div>
+        <Link
+          to="/monitor-integracoes"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+        >
+          <BarChart2 className="w-3.5 h-3.5" /> Monitor de Integrações
+        </Link>
         <button
           onClick={loadLogs}
           disabled={loading}

@@ -298,6 +298,38 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Gravar IntegrationLog
+    const logStatus = matchErrors.length > 0 && updatedActivities.length === 0 ? "partial_success"
+      : updatedActivities.length === 0 && createdActivities.length === 0 ? "ignored"
+      : "success";
+    try {
+      await base44.asServiceRole.entities.IntegrationLog.create({
+        integration_type: "pipedrive_cronograma",
+        source: "manual_sync",
+        action: "apply_rules",
+        status: logStatus,
+        deal_id: Number(dealId),
+        project_id,
+        project_name: project.name,
+        event_type: "manual_sync",
+        rules_loaded: rules.length,
+        rules_matched: rulesApplied,
+        phases_found: allProjectPhases.length,
+        activities_found: scheduleActivities.length,
+        activities_created: createdActivities.length,
+        activities_updated: updatedActivities.length,
+        dates_filled: updatedActivities.length + createdActivities.length,
+        dates_ignored: 0,
+        match_errors: JSON.stringify(matchErrors),
+        errors: JSON.stringify([]),
+        request_payload: JSON.stringify({ project_id, deal_id: dealId }).substring(0, 1000),
+        response_payload: JSON.stringify({ updated: updatedActivities, created: createdActivities }).substring(0, 4000),
+        debug_steps: JSON.stringify({ available_phases: allProjectPhases, deal_stage_id: currentStageId }).substring(0, 4000),
+      });
+    } catch (logErr) {
+      console.warn("[syncScheduleFromPipedrive] Erro ao gravar IntegrationLog:", logErr.message);
+    }
+
     return Response.json({
       ok: true,
       deal_id: dealId,

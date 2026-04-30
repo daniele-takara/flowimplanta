@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import {
   Copy, CheckCircle2, Zap, ExternalLink, RefreshCw,
-  AlertCircle, Table2, Link2, Info, Database, Shield, Settings
+  AlertCircle, Table2, Link2, Info, Database, Shield, Settings, Activity
 } from "lucide-react";
 
 const SHEET_ID = "1_NAnD5FYHpnkLkIRIf6YYsOor0jBJzgKrCnxZZoIKm4";
@@ -418,13 +418,22 @@ export default function TabIntegracaoPipedrive() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">Webhook Pipedrive (atualização automática)</p>
-          <Link
-            to="/webhook-config"
-            className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg transition-colors"
-          >
-            <Settings className="w-3.5 h-3.5" />
-            Configuração & Diagnóstico
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              to="/monitor-integracoes"
+              className="flex items-center gap-1.5 text-xs font-medium text-green-600 hover:text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <Activity className="w-3.5 h-3.5" />
+              Monitor
+            </Link>
+            <Link
+              to="/webhook-config"
+              className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              Configuração & Diagnóstico
+            </Link>
+          </div>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
           <CopyBox label="URL do Webhook" value={WEBHOOK_URL} />
