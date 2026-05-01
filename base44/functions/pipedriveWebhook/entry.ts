@@ -77,6 +77,8 @@ Deno.serve(async (req) => {
     return Response.json({ ok: true, received: true, event_type: eventType, skipped: "unsupported object" });
   }
 
+  const previous = body.previous || {};
+
   let dealId = null;
   let activityId = null;
   if (eventObject === "deal") {
@@ -114,6 +116,8 @@ Deno.serve(async (req) => {
     return Response.json({ ok: false, event_type: eventType, errors: ["Sem deal_id no payload"] });
   }
 
+  console.log(`[pipedriveWebhook] Recebido: event=${eventType} deal_id=${dealId} activity_id=${activityId}`);
+
   // Localizar projeto
   let project = null;
   try {
@@ -145,12 +149,20 @@ Deno.serve(async (req) => {
       return Response.json({ ok: false, event_type: eventType, errors: ["Sem regras de cronograma"] });
     }
 
-    // Buscar deal atual
-    const deal = await fetchDeal(dealId, apiToken);
-    if (!deal) throw new Error(`Deal ${dealId} não encontrado`);
+    // Para regras de stage_id, usa o stage do payload (current) — não o deal ao vivo
+    // Para regras de activity, precisa buscar as activities do deal
+    const payloadCurrentStageId = String(current.stage_id ?? "");
+
+    // Busca deal ao vivo apenas para pegar campo de data (update_time etc.)
+    // Se o current já tiver update_time, evita chamada extra
+    let deal = current;
+    if (!deal.update_time && !deal.add_time) {
+      deal = await fetchDeal(dealId, apiToken) || current;
+    }
 
     const pipeActivities = await fetchAllActivities(dealId, apiToken);
-    const currentStageId = String(deal.stage_id ?? "");
+    const currentStageId = payloadCurrentStageId || String(deal.stage_id ?? "");
+    console.log(`[pipedriveWebhook] Projeto: ${project.name} | stage_id payload: ${payloadCurrentStageId} | previous: ${previous.stage_id ?? "N/A"} | activities: ${pipeActivities.length}`);
 
     // Carregar cronograma
     const [scheduleActivities, schedulePhases] = await Promise.all([
@@ -198,6 +210,12 @@ Deno.serve(async (req) => {
 
       // ── REGRA DEAL (stage_id) ─────────────────────────────────────────────
       if (entidade === "deal" && campoKey === "stage_id") {
+        // Só processa se o stage realmente mudou (evita re-execução desnecessária)
+        const previousStageId = String(previous.stage_id ?? "");
+        if (previousStageId && previousStageId === currentStageId) {
+          console.log(`[pipedriveWebhook] stage_id não mudou (${currentStageId}), ignorando regra deal`);
+          continue;
+        }
         if (currentStageId !== String(valorDisp)) continue;
         const dateStr = extractDate(deal[campoData]) || extractDate(deal.update_time);
         if (!dateStr) { matchErrors.push(`Deal stage=${valorDisp}: sem data em "${campoData}"`); continue; }
@@ -237,7 +255,17 @@ Deno.serve(async (req) => {
         for (const pAct of pipeActivities) {
           const isDone = pAct.done === true || pAct.done === 1 || String(pAct.done).toLowerCase() === "true";
           if (!isDone) continue;
-          if (campoIdent && valorIdent && String(pAct[campoIdent] || "").trim() !== valorIdent) continue;
+
+          if (campoIdent && valorIdent) {
+            const actVal = String(pAct[campoIdent] || "").trim();
+            // Tenta match exato primeiro, depois normalizado (sem acentos/case)
+            const exactMatch = actVal === valorIdent;
+            const normalizedMatch = normalize(actVal) === normalize(valorIdent);
+            if (!exactMatch && !normalizedMatch) {
+              console.log(`[pipedriveWebhook] activity skip: ${campoIdent}="${actVal}" ≠ "${valorIdent}"`);
+              continue;
+            }
+          }
 
           const dateStr = extractDate(pAct.marked_as_done_time) || extractDate(pAct.update_time)
             || extractDate(pAct.due_date) || new Date().toISOString().substring(0, 10);
@@ -301,7 +329,7 @@ Deno.serve(async (req) => {
       duration_ms: Date.now() - startTime,
     }).catch(() => {});
 
-    console.log(`[pipedriveWebhook] OK event=${eventType} deal=${dealId} project=${project.id} updated=${updatedActivities.length} created=${createdActivities.length}`);
+    console.log(`[pipedriveWebhook] RESULTADO: event=${eventType} deal=${dealId} project=${project.id} rules_matched=${rulesApplied} updated=${updatedActivities.length} created=${createdActivities.length} dates_ignored=${datesIgnored.length} match_errors=${matchErrors.length}`);
 
     return Response.json({
       ok: true,

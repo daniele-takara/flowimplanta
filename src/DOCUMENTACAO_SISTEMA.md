@@ -179,39 +179,64 @@ Mantida por compatibilidade. **Novos logs vão para IntegrationLog.**
 
 ## 4. FLUXO PIPEDRIVE → CRONOGRAMA
 
-### Início Executado (actual_start)
+### Trigger → Condition → Action
+
+| Trigger | Condição | Ação |
+|---------|----------|------|
+| `change.deal` (webhook) | `previous.stage_id != current.stage_id` **E** `current.stage_id == rule.pipedrive_valor_disparo` | Preenche `actual_start` de todas as atividades da fase (`base44_atividade="*"`) ou atividade específica |
+| `change.activity` / `create.activity` | `activity.done == true` **E** `activity[campo_identificacao] == valor_identificacao` (match exato ou normalizado) | Preenche `actual_end` da atividade correspondente na fase |
+
+### Fluxo: Início Executado (actual_start)
 ```
 Pipedrive: stage_id muda → webhook change.deal
     │
+    ├─ Extrai current.stage_id do PAYLOAD (não rebusca o deal)
+    ├─ Verifica mudança real: previous.stage_id != current.stage_id
     ├─ Localiza Project por pipedrive_deal_id
-    ├─ Carrega regras (tipo=cronograma, entidade=deal)
-    ├─ Compara: rule.pipedrive_campo_key="stage_id" && rule.pipedrive_valor_disparo == deal.stage_id
-    ├─ Se match → busca ScheduleActivity por (project_id, phase_name, activity_name)
+    ├─ Carrega regras cronograma (entidade=deal, campo_key=stage_id)
+    ├─ Compara: current.stage_id == rule.pipedrive_valor_disparo (ex: "16")
+    ├─ Se match → busca ScheduleActivity por (project_id, phase_name)
+    │   ├─ base44_atividade="*" → aplica em TODAS as atividades da fase
+    │   └─ base44_atividade="nome" → aplica apenas na atividade com nome correspondente
     ├─ Se actual_start já preenchido → IGNORA (nunca sobrescreve)
-    └─ Se vazio → atualiza actual_start = data do deal[campo_data] ou update_time
+    └─ Se vazio → actual_start = deal[campo_data] ou current.update_time
                    status = "Em andamento"
 ```
 
-### Fim Executado (actual_end)
+### Fluxo: Fim Executado (actual_end)
 ```
 Pipedrive: activity marcada como done → webhook change.activity
     │
+    ├─ Verifica activity.done == true
     ├─ Localiza Project por pipedrive_deal_id
-    ├─ Carrega regras (tipo=cronograma, entidade=activity)
-    ├─ Verifica: activity.done == true
-    ├─ Verifica identificação: activity[campo_identificacao] == valor_identificacao
-    ├─ Se match → busca ScheduleActivity
+    ├─ Carrega regras cronograma (entidade=activity)
+    ├─ Para cada activity done no deal:
+    │   ├─ Tenta match exato: activity[campo_ident] == valor_ident
+    │   └─ Se falhar, tenta match normalizado (sem acentos/case)
+    │   └─ Log de skip se não corresponder
+    ├─ Se match → busca ScheduleActivity pelo nome
     ├─ Se actual_end já preenchido → IGNORA
-    └─ Se vazio → atualiza actual_end = activity.marked_as_done_time ou update_time
+    └─ Se vazio → actual_end = activity.marked_as_done_time ou update_time
                    status = "Concluído"
 ```
 
 ### Criação Automática
 Se a fase existe (SchedulePhase) mas ainda não tem ScheduleActivity e a regra aponta para atividade específica (`base44_atividade != "*"`), a atividade é **criada automaticamente** com as datas executadas.
 
+### Curingas
+- `base44_atividade = "*"` → aplica em **todas** as atividades da fase
+- `base44_atividade = "nome exato"` → aplica apenas na atividade com esse nome (normalizado)
+
 ### Idempotência
 Chave: `${eventAction}:${eventObject}:${dealId}:${activityId}:${timestamp[:16]}`  
 Verificada em IntegrationLog.event_type antes de processar.
+
+### Logs Gerados (pipedriveWebhook)
+1. `Recebido: event=X deal_id=Y` — confirmação de recebimento
+2. `Projeto: nome | stage_id payload: X | previous: Y` — detecção de mudança de stage
+3. `stage_id não mudou, ignorando` — quando não há mudança real
+4. `activity skip: campo="valor" ≠ "esperado"` — falha de matching por subject
+5. `RESULTADO: rules_matched=X updated=Y created=Z dates_ignored=W` — relatório final
 
 ---
 
