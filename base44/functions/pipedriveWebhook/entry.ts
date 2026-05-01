@@ -4,12 +4,12 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
  * Webhook receptor do Pipedrive.
  * Eventos: change.deal, change.activity, create.activity
  *
- * Lógica idêntica a syncScheduleFromPipedrive:
- * - stage_id match → actual_start (faz_inicio)
- * - activity done → actual_end (faz_fim)
+ * Regras de stage_id:
+ * - stage_id lido de: body.current.stage_id  (PAYLOAD, nunca do deal ao vivo)
+ * - Comparação numérica: Number(current.stage_id) == Number(regra.pipedrive_valor_disparo)
+ * - Só dispara quando previous.stage_id != current.stage_id
+ * - Wildcard "*" em base44_atividade → aplica em TODAS as atividades da fase
  * - Datas existentes NUNCA sobrescritas
- * - Fase inexistente → match_error controlado
- * - Atividade inexistente → cria automaticamente
  */
 
 const PIPE_V1 = "https://api.pipedrive.com/v1";
@@ -66,6 +66,7 @@ Deno.serve(async (req) => {
   const rawEvent = body.event || "";
   const meta = body.meta || {};
   const current = body.current || {};
+  const previous = body.previous || {};
 
   let eventAction = meta.action || rawEvent.split(".")[0] || "";
   let eventObject = meta.object || rawEvent.split(".")[1] || "";
@@ -77,8 +78,6 @@ Deno.serve(async (req) => {
     return Response.json({ ok: true, received: true, event_type: eventType, skipped: "unsupported object" });
   }
 
-  const previous = body.previous || {};
-
   let dealId = null;
   let activityId = null;
   if (eventObject === "deal") {
@@ -87,6 +86,14 @@ Deno.serve(async (req) => {
     activityId = current.id || meta.id;
     dealId = current.deal_id || meta.deal_id;
   }
+
+  // ── Leitura do stage_id: SEMPRE do payload current (nunca do deal ao vivo) ──
+  const currentStageNum = current.stage_id != null ? Number(current.stage_id) : null;
+  const previousStageNum = previous.stage_id != null ? Number(previous.stage_id) : null;
+  const stageChanged = currentStageNum != null && currentStageNum !== previousStageNum;
+
+  console.log(`[pipedriveWebhook] Recebido: event=${eventType} deal_id=${dealId} activity_id=${activityId || "N/A"}`);
+  console.log(`[pipedriveWebhook] Stage: current=${currentStageNum} previous=${previousStageNum} changed=${stageChanged}`);
 
   const idempotencyKey = buildIdempotencyKey(eventAction, eventObject, dealId, activityId, meta.v_ts);
 
@@ -116,8 +123,6 @@ Deno.serve(async (req) => {
     return Response.json({ ok: false, event_type: eventType, errors: ["Sem deal_id no payload"] });
   }
 
-  console.log(`[pipedriveWebhook] Recebido: event=${eventType} deal_id=${dealId} activity_id=${activityId}`);
-
   // Localizar projeto
   let project = null;
   try {
@@ -140,29 +145,31 @@ Deno.serve(async (req) => {
     return Response.json({ ok: false, event_type: eventType, errors: [`Nenhum projeto com pipedrive_deal_id=${dealId}`] });
   }
 
+  console.log(`[pipedriveWebhook] Projeto encontrado: ${project.name} (id=${project.id})`);
+
   try {
     // Carregar regras
     const allRules = await base44.asServiceRole.entities.PipedriveIntegrationRule.list();
     const rules = allRules.filter(r => r.rule_type === "cronograma").sort((a, b) => (a.order || 0) - (b.order || 0));
+    console.log(`[pipedriveWebhook] Regras carregadas: ${rules.length}`);
 
     if (rules.length === 0) {
       return Response.json({ ok: false, event_type: eventType, errors: ["Sem regras de cronograma"] });
     }
 
-    // Para regras de stage_id, usa o stage do payload (current) — não o deal ao vivo
-    // Para regras de activity, precisa buscar as activities do deal
-    const payloadCurrentStageId = String(current.stage_id ?? "");
-
-    // Busca deal ao vivo apenas para pegar campo de data (update_time etc.)
-    // Se o current já tiver update_time, evita chamada extra
+    // Buscar deal ao vivo para campos de data (update_time, etc.)
+    // Mas stage_id = SEMPRE do payload current
     let deal = current;
     if (!deal.update_time && !deal.add_time) {
-      deal = await fetchDeal(dealId, apiToken) || current;
+      const liveDeal = await fetchDeal(dealId, apiToken);
+      if (liveDeal) {
+        // Usa dados do deal ao vivo EXCETO stage_id que vem do payload
+        deal = { ...liveDeal, stage_id: currentStageNum ?? liveDeal.stage_id };
+      }
     }
 
     const pipeActivities = await fetchAllActivities(dealId, apiToken);
-    const currentStageId = payloadCurrentStageId || String(deal.stage_id ?? "");
-    console.log(`[pipedriveWebhook] Projeto: ${project.name} | stage_id payload: ${payloadCurrentStageId} | previous: ${previous.stage_id ?? "N/A"} | activities: ${pipeActivities.length}`);
+    console.log(`[pipedriveWebhook] Activities do deal: ${pipeActivities.length} total, ${pipeActivities.filter(a => a.done).length} concluídas`);
 
     // Carregar cronograma
     const [scheduleActivities, schedulePhases] = await Promise.all([
@@ -173,6 +180,8 @@ Deno.serve(async (req) => {
     const phasesFromPhaseEntity = schedulePhases.map(p => p.phase_name).filter(Boolean);
     const phasesFromActivities = [...new Set(scheduleActivities.map(a => a.phase_name).filter(Boolean))];
     const allProjectPhases = [...new Set([...phasesFromPhaseEntity, ...phasesFromActivities])];
+    console.log(`[pipedriveWebhook] Fases do projeto: ${allProjectPhases.join(" | ")}`);
+    console.log(`[pipedriveWebhook] Atividades no cronograma: ${scheduleActivities.length}`);
 
     const activitiesCache = [...scheduleActivities];
 
@@ -187,6 +196,7 @@ Deno.serve(async (req) => {
     const createdActivities = [];
     const datesIgnored = [];
     const matchErrors = [];
+    const ruleReport = []; // relatório detalhado por regra
     let rulesApplied = 0;
 
     for (const rule of rules) {
@@ -199,28 +209,76 @@ Deno.serve(async (req) => {
       const fazInicio  = rule.faz_inicio === true;
       const fazFim     = rule.faz_fim === true;
 
-      if (!base44Fase || (!fazInicio && !fazFim)) continue;
+      const ruleEntry = {
+        rule_id: rule.id,
+        order: rule.order,
+        entidade,
+        campo_key: campoKey,
+        valor_disparo: valorDisp,
+        base44_fase: base44Fase,
+        base44_atividade: base44Atv,
+        faz_inicio: fazInicio,
+        faz_fim: fazFim,
+        evaluated: false,
+        matched: false,
+        skip_reason: null,
+        actions: [],
+      };
 
-      if (!phaseExists(base44Fase)) {
-        matchErrors.push(`Fase "${base44Fase}" não existe. Disponíveis: ${allProjectPhases.join(", ")}`);
+      if (!base44Fase || (!fazInicio && !fazFim)) {
+        ruleEntry.skip_reason = "base44_fase vazio ou faz_inicio/faz_fim ambos false";
+        ruleReport.push(ruleEntry);
         continue;
       }
 
+      if (!phaseExists(base44Fase)) {
+        const msg = `Fase "${base44Fase}" não existe. Disponíveis: ${allProjectPhases.join(", ")}`;
+        ruleEntry.skip_reason = msg;
+        matchErrors.push(msg);
+        ruleReport.push(ruleEntry);
+        continue;
+      }
+
+      ruleEntry.evaluated = true;
       let phaseActs = getPhaseActivities(base44Fase);
 
       // ── REGRA DEAL (stage_id) ─────────────────────────────────────────────
       if (entidade === "deal" && campoKey === "stage_id") {
-        // Só processa se o stage realmente mudou (evita re-execução desnecessária)
-        const previousStageId = String(previous.stage_id ?? "");
-        if (previousStageId && previousStageId === currentStageId) {
-          console.log(`[pipedriveWebhook] stage_id não mudou (${currentStageId}), ignorando regra deal`);
+        const ruleStageNum = Number(valorDisp);
+        const comparison = `Number(current.stage_id)=${currentStageNum} == Number(regra.valor_disparo)=${ruleStageNum}`;
+
+        console.log(`[pipedriveWebhook] [Regra #${rule.order}] deal/stage_id | ${comparison} | stageChanged=${stageChanged}`);
+        ruleEntry.comparison = comparison;
+        ruleEntry.stage_changed = stageChanged;
+        ruleEntry.current_stage = currentStageNum;
+        ruleEntry.rule_stage = ruleStageNum;
+
+        // Verificar mudança de stage
+        if (!stageChanged) {
+          ruleEntry.skip_reason = `stage_id não mudou (${previousStageNum} → ${currentStageNum})`;
+          console.log(`[pipedriveWebhook] [Regra #${rule.order}] SKIP: stage não mudou`);
+          ruleReport.push(ruleEntry);
           continue;
         }
-        if (currentStageId !== String(valorDisp)) continue;
-        const dateStr = extractDate(deal[campoData]) || extractDate(deal.update_time);
-        if (!dateStr) { matchErrors.push(`Deal stage=${valorDisp}: sem data em "${campoData}"`); continue; }
+
+        // Comparação NUMÉRICA
+        if (currentStageNum !== ruleStageNum) {
+          ruleEntry.skip_reason = `stage_id atual (${currentStageNum}) ≠ valor esperado (${ruleStageNum})`;
+          console.log(`[pipedriveWebhook] [Regra #${rule.order}] SKIP: ${ruleEntry.skip_reason}`);
+          ruleReport.push(ruleEntry);
+          continue;
+        }
+
+        // MATCH!
+        ruleEntry.matched = true;
+        console.log(`[pipedriveWebhook] [Regra #${rule.order}] ✓ MATCH stage=${currentStageNum} → fase="${base44Fase}" atividade="${base44Atv}"`);
+
+        const dateStr = extractDate(deal[campoData]) || extractDate(deal.update_time) || new Date().toISOString().substring(0, 10);
+        ruleEntry.date_used = dateStr;
+        ruleEntry.date_field = campoData;
 
         if (phaseActs.length === 0 && base44Atv && base44Atv !== "*") {
+          // Criar atividade nova
           const newAct = await base44.asServiceRole.entities.ScheduleActivity.create({
             project_id: project.id, phase_name: base44Fase, activity_name: base44Atv,
             status: fazFim ? "Concluído" : "Em andamento",
@@ -228,47 +286,72 @@ Deno.serve(async (req) => {
             actual_end: fazFim ? dateStr : null, order: 1,
           });
           activitiesCache.push(newAct);
-          createdActivities.push({ id: newAct.id, name: base44Atv, phase: base44Fase });
+          createdActivities.push({ id: newAct.id, name: base44Atv, phase: base44Fase, date: dateStr });
+          ruleEntry.actions.push(`CRIOU atividade "${base44Atv}" com actual_start=${dateStr}`);
           rulesApplied++;
+          ruleReport.push(ruleEntry);
           continue;
         }
 
+        // Aplicar em atividades existentes
+        let actsProcessed = 0;
         for (const act of phaseActs) {
-          if (base44Atv && base44Atv !== "*" && normalize(act.activity_name) !== normalize(base44Atv)) continue;
+          // Wildcard "*" = todas; senão filtra por nome
+          if (base44Atv && base44Atv !== "*" && normalize(act.activity_name) !== normalize(base44Atv)) {
+            ruleEntry.actions.push(`SKIP "${act.activity_name}" — nome não bate com "${base44Atv}"`);
+            continue;
+          }
           const patch = {};
-          if (fazInicio) { if (!act.actual_start) patch.actual_start = dateStr; else datesIgnored.push({ field: "actual_start", activity: act.activity_name }); }
-          if (fazFim) { if (!act.actual_end) { patch.actual_end = dateStr; patch.status = "Concluído"; } else datesIgnored.push({ field: "actual_end", activity: act.activity_name }); }
+          if (fazInicio) {
+            if (!act.actual_start) { patch.actual_start = dateStr; }
+            else { datesIgnored.push({ field: "actual_start", activity: act.activity_name, existing: act.actual_start }); ruleEntry.actions.push(`SKIP "${act.activity_name}": actual_start já preenchido (${act.actual_start})`); }
+          }
+          if (fazFim) {
+            if (!act.actual_end) { patch.actual_end = dateStr; patch.status = "Concluído"; }
+            else { datesIgnored.push({ field: "actual_end", activity: act.activity_name, existing: act.actual_end }); ruleEntry.actions.push(`SKIP "${act.activity_name}": actual_end já preenchido (${act.actual_end})`); }
+          }
           if (Object.keys(patch).length > 0) {
             await base44.asServiceRole.entities.ScheduleActivity.update(act.id, patch);
             Object.assign(act, patch);
-            updatedActivities.push({ id: act.id, name: act.activity_name, phase: base44Fase, patch, trigger: `stage_id=${valorDisp}` });
+            updatedActivities.push({ id: act.id, name: act.activity_name, phase: base44Fase, patch, trigger: `stage_id=${currentStageNum}` });
+            ruleEntry.actions.push(`ATUALIZOU "${act.activity_name}": ${JSON.stringify(patch)}`);
             rulesApplied++;
+            actsProcessed++;
           }
         }
+        console.log(`[pipedriveWebhook] [Regra #${rule.order}] processadas ${actsProcessed} atividades da fase "${base44Fase}"`);
       }
 
       // ── REGRA ACTIVITY (done) ─────────────────────────────────────────────
       if (entidade === "activity") {
         const campoIdent = (rule.pipedrive_campo_identificacao || "").trim();
         const valorIdent = (rule.pipedrive_valor_identificacao || "").trim();
+        ruleEntry.campo_identificacao = campoIdent;
+        ruleEntry.valor_identificacao = valorIdent;
 
+        let anyMatch = false;
         for (const pAct of pipeActivities) {
           const isDone = pAct.done === true || pAct.done === 1 || String(pAct.done).toLowerCase() === "true";
           if (!isDone) continue;
 
           if (campoIdent && valorIdent) {
             const actVal = String(pAct[campoIdent] || "").trim();
-            // Tenta match exato primeiro, depois normalizado (sem acentos/case)
             const exactMatch = actVal === valorIdent;
             const normalizedMatch = normalize(actVal) === normalize(valorIdent);
             if (!exactMatch && !normalizedMatch) {
-              console.log(`[pipedriveWebhook] activity skip: ${campoIdent}="${actVal}" ≠ "${valorIdent}"`);
+              console.log(`[pipedriveWebhook] [Regra #${rule.order}] activity skip: ${campoIdent}="${actVal}" ≠ "${valorIdent}"`);
+              ruleEntry.actions.push(`SKIP activity "${pAct.subject}": ${campoIdent}="${actVal}" ≠ "${valorIdent}"`);
               continue;
             }
           }
 
+          anyMatch = true;
+          ruleEntry.matched = true;
           const dateStr = extractDate(pAct.marked_as_done_time) || extractDate(pAct.update_time)
             || extractDate(pAct.due_date) || new Date().toISOString().substring(0, 10);
+          ruleEntry.date_used = dateStr;
+
+          console.log(`[pipedriveWebhook] [Regra #${rule.order}] ✓ MATCH activity "${pAct.subject}" done → fase="${base44Fase}"`);
 
           if (phaseActs.length === 0 && base44Atv && base44Atv !== "*") {
             const newAct = await base44.asServiceRole.entities.ScheduleActivity.create({
@@ -278,7 +361,8 @@ Deno.serve(async (req) => {
               actual_end: fazFim ? dateStr : null, order: 1,
             });
             activitiesCache.push(newAct);
-            createdActivities.push({ id: newAct.id, name: base44Atv, phase: base44Fase });
+            createdActivities.push({ id: newAct.id, name: base44Atv, phase: base44Fase, date: dateStr });
+            ruleEntry.actions.push(`CRIOU atividade "${base44Atv}" com actual_end=${dateStr}`);
             rulesApplied++;
             break;
           }
@@ -286,22 +370,44 @@ Deno.serve(async (req) => {
           for (const act of phaseActs) {
             if (base44Atv && base44Atv !== "*" && normalize(act.activity_name) !== normalize(base44Atv)) continue;
             const patch = {};
-            if (fazFim) { if (!act.actual_end) { patch.actual_end = dateStr; patch.status = "Concluído"; } else datesIgnored.push({ field: "actual_end", activity: act.activity_name }); }
-            if (fazInicio) { if (!act.actual_start) patch.actual_start = dateStr; else datesIgnored.push({ field: "actual_start", activity: act.activity_name }); }
+            if (fazFim) {
+              if (!act.actual_end) { patch.actual_end = dateStr; patch.status = "Concluído"; }
+              else { datesIgnored.push({ field: "actual_end", activity: act.activity_name, existing: act.actual_end }); }
+            }
+            if (fazInicio) {
+              if (!act.actual_start) { patch.actual_start = dateStr; }
+              else { datesIgnored.push({ field: "actual_start", activity: act.activity_name, existing: act.actual_start }); }
+            }
             if (Object.keys(patch).length > 0) {
               await base44.asServiceRole.entities.ScheduleActivity.update(act.id, patch);
               Object.assign(act, patch);
               updatedActivities.push({ id: act.id, name: act.activity_name, phase: base44Fase, patch, trigger: `activity done subject="${pAct.subject}"` });
+              ruleEntry.actions.push(`ATUALIZOU "${act.activity_name}": ${JSON.stringify(patch)}`);
               rulesApplied++;
             }
           }
         }
+
+        if (!anyMatch && valorIdent) {
+          ruleEntry.skip_reason = `Nenhuma activity concluída com ${campoIdent}="${valorIdent}"`;
+        }
       }
+
+      ruleReport.push(ruleEntry);
     }
 
-    // Gravar IntegrationLog
+    // Gravar IntegrationLog com relatório detalhado
     const logStatus = updatedActivities.length + createdActivities.length > 0 ? "success"
       : matchErrors.length > 0 ? "partial_success" : "ignored";
+
+    const debugSteps = {
+      stage_current: currentStageNum,
+      stage_previous: previousStageNum,
+      stage_changed: stageChanged,
+      available_phases: allProjectPhases,
+      activities_in_schedule: scheduleActivities.length,
+      rule_report: ruleReport,
+    };
 
     await base44.asServiceRole.entities.IntegrationLog.create({
       integration_type: "pipedrive_cronograma",
@@ -323,13 +429,16 @@ Deno.serve(async (req) => {
       dates_ignored: datesIgnored.length,
       match_errors: JSON.stringify(matchErrors),
       errors: JSON.stringify([]),
-      request_payload: JSON.stringify({ event_type: eventType, deal_id: dealId, stage_id: deal.stage_id }).substring(0, 1000),
+      request_payload: JSON.stringify({
+        event_type: eventType, deal_id: dealId,
+        stage_current: currentStageNum, stage_previous: previousStageNum
+      }).substring(0, 1000),
       response_payload: JSON.stringify({ updated: updatedActivities, created: createdActivities }).substring(0, 4000),
-      debug_steps: JSON.stringify({ available_phases: allProjectPhases, deal_stage_id: currentStageId }).substring(0, 2000),
+      debug_steps: JSON.stringify(debugSteps).substring(0, 8000),
       duration_ms: Date.now() - startTime,
     }).catch(() => {});
 
-    console.log(`[pipedriveWebhook] RESULTADO: event=${eventType} deal=${dealId} project=${project.id} rules_matched=${rulesApplied} updated=${updatedActivities.length} created=${createdActivities.length} dates_ignored=${datesIgnored.length} match_errors=${matchErrors.length}`);
+    console.log(`[pipedriveWebhook] RESULTADO: event=${eventType} deal=${dealId} project=${project.id} rules_matched=${rulesApplied} updated=${updatedActivities.length} created=${createdActivities.length} ignored=${datesIgnored.length} match_errors=${matchErrors.length} duration=${Date.now() - startTime}ms`);
 
     return Response.json({
       ok: true,
@@ -338,13 +447,16 @@ Deno.serve(async (req) => {
       deal_id: dealId,
       project_id: project.id,
       project_name: project.name,
-      deal_stage_id: currentStageId,
+      stage_current: currentStageNum,
+      stage_previous: previousStageNum,
+      stage_changed: stageChanged,
       rules_loaded: rules.length,
       rules_matched: rulesApplied,
       activities_updated: updatedActivities.length,
       activities_created: createdActivities.length,
       dates_ignored: datesIgnored.length,
       match_errors: matchErrors,
+      rule_report: ruleReport,
     });
 
   } catch (error) {

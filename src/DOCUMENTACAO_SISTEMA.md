@@ -179,6 +179,34 @@ Mantida por compatibilidade. **Novos logs vão para IntegrationLog.**
 
 ## 4. FLUXO PIPEDRIVE → CRONOGRAMA
 
+### Origem e Leitura dos Eventos
+
+| Campo | Origem | Detalhe |
+|-------|--------|---------|
+| `stage_id` atual | `body.current.stage_id` | **NUNCA** do deal ao vivo |
+| `stage_id` anterior | `body.previous.stage_id` | Para detectar mudança real |
+| Data de execução | `body.current.update_time` ou deal ao vivo | Fallback para `new Date()` |
+| `activity.done` | `deal/activities` via API Pipedrive | Buscado sempre ao vivo |
+
+### Comparação de Tipos (CRÍTICO)
+
+```js
+// ❌ ERRADO — comparação string vs string pode falhar com "142" vs 142
+currentStageId === valorDisp
+
+// ✅ CORRETO — comparação numérica explícita
+Number(current.stage_id) === Number(regra.pipedrive_valor_disparo)
+```
+
+### Detecção de Mudança
+
+```js
+const stageChanged = Number(current.stage_id) !== Number(previous.stage_id)
+// Só processa regra de deal quando stageChanged === true
+```
+
+
+
 ### Trigger → Condition → Action
 
 | Trigger | Condição | Ação |
