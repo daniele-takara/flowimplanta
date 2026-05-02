@@ -61,6 +61,22 @@ function TaskRow({ task, computedDates, manualOverrides, onSaveOverride, onSaveA
     responsible_general: existingActivity?.responsible_general || task.responsibleGeneral || "",
   });
 
+  // Re-sincroniza form quando existingActivity é atualizado externamente (ex: sync Pipedrive)
+  useEffect(() => {
+    const newActualStart = existingActivity?.actual_start || "";
+    const newActualEnd = existingActivity?.actual_end || "";
+    const newStatus = existingActivity?.status || (newActualEnd ? "Concluído" : newActualStart ? "Em andamento" : "Não iniciado");
+    setForm(f => ({
+      ...f,
+      actual_start: newActualStart,
+      actual_end: newActualEnd,
+      status: newStatus,
+      history_observations: existingActivity?.history_observations || f.history_observations,
+      responsible_leader: existingActivity?.responsible_leader || f.responsible_leader,
+      responsible_general: existingActivity?.responsible_general || f.responsible_general,
+    }));
+  }, [existingActivity?.actual_start, existingActivity?.actual_end, existingActivity?.status]);
+
   const taskConfig = templateConfig?.[task.id];
   const resolvedRoleName = taskConfig?.responsible_role ? resolveRoleToName(taskConfig.responsible_role, project) : null;
   const roleLabel = taskConfig?.responsible_role ? RESPONSIBLE_ROLE_LABELS[taskConfig.responsible_role] || taskConfig.responsible_role : null;
