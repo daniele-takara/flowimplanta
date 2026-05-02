@@ -268,7 +268,7 @@ function PhaseSection({ phaseName, tasks, computedDates, manualOverrides, activi
   );
 }
 
-function SyncPipedriveButton({ projectId, onSuccess }) {
+function SyncPipedriveButton({ projectId, onSuccess, onReload }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
@@ -280,7 +280,11 @@ function SyncPipedriveButton({ projectId, onSuccess }) {
       const res = await base44.functions.invoke("syncScheduleFromPipedrive", { project_id: projectId });
       const data = res.data;
       if (data.error) setError(data.detail || data.error);
-      else { setResult(data); if (onSuccess) onSuccess(); }
+      else {
+        setResult(data);
+        if (onReload) onReload();       // refetch imediato das atividades
+        if (onSuccess) onSuccess();
+      }
     } catch (e) {
       setError(e.response?.data?.detail || e.response?.data?.error || e.message);
     }
@@ -365,13 +369,20 @@ export default function ScheduleTab({ scopeItems, project, projectId, onRefresh,
   const [activitiesLoaded, setActivitiesLoaded] = useState(false);
   const [templateConfig, setTemplateConfig] = useState({});
 
+  const reloadActivities = useCallback(() => {
+    if (!projectId) return;
+    base44.entities.ScheduleActivity.filter({ project_id: projectId })
+      .then(acts => {
+        console.log("[ScheduleTab] atividades recarregadas:", acts?.length, acts);
+        setSavedActivities(acts || []);
+        setActivitiesLoaded(true);
+      })
+      .catch(() => setActivitiesLoaded(true));
+  }, [projectId]);
+
   useEffect(() => {
-    if (!activitiesLoaded && projectId) {
-      base44.entities.ScheduleActivity.filter({ project_id: projectId })
-        .then(acts => { setSavedActivities(acts || []); setActivitiesLoaded(true); })
-        .catch(() => setActivitiesLoaded(true));
-    }
-  }, [projectId, activitiesLoaded]);
+    if (!activitiesLoaded && projectId) reloadActivities();
+  }, [projectId, activitiesLoaded, reloadActivities]);
 
   useEffect(() => {
     base44.entities.ScheduleTemplate.filter({ is_default: true }).then(list => {
@@ -476,7 +487,7 @@ export default function ScheduleTab({ scopeItems, project, projectId, onRefresh,
         {!readOnly && (
           <div className="flex items-start gap-3">
             {project?.pipedrive_deal_id && (
-              <SyncPipedriveButton projectId={projectId} onSuccess={() => { setActivitiesLoaded(false); if (onSyncSuccess) onSyncSuccess(); }} />
+              <SyncPipedriveButton projectId={projectId} onReload={reloadActivities} onSuccess={() => { if (onSyncSuccess) onSyncSuccess(); }} />
             )}
             <CompleteProjectButton onComplete={async () => { const all = SCHEDULE_TASKS.filter(t => t.type === "task" && visible.has(t.id)); await handleCompleteAsTasks(all); }} />
           </div>
