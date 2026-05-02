@@ -394,11 +394,23 @@ export default function ScheduleTab({ scopeItems, project, projectId, onRefresh,
   }, [visible]);
 
   const activitiesByTask = useMemo(() => {
+    const norm = s => (s || "").toLowerCase().trim()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ");
+
     const map = {};
     savedActivities.forEach(a => {
-      if (a.activity_name) {
-        const found = SCHEDULE_TASKS.find(t => t.activity === a.activity_name);
-        if (found) map[found.id] = a;
+      if (!a.activity_name) return;
+      const normA = norm(a.activity_name);
+      // 1) match exato normalizado
+      let found = SCHEDULE_TASKS.find(t => norm(t.activity) === normA);
+      // 2) fallback: includes (um contém o outro)
+      if (!found) found = SCHEDULE_TASKS.find(t => norm(t.activity).includes(normA) || normA.includes(norm(t.activity)));
+      if (found) {
+        console.log(`[ScheduleTab] match: "${a.activity_name}" → task.id="${found.id}" actual_start="${a.actual_start}" actual_end="${a.actual_end}"`);
+        map[found.id] = a;
+      } else {
+        console.warn(`[ScheduleTab] SEM MATCH: "${a.activity_name}" (normalizado: "${normA}")`);
       }
     });
     return map;

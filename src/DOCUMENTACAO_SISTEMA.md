@@ -360,6 +360,14 @@ Expansão, Encerramento
 
 ## 8. DIAGNÓSTICO E PENDÊNCIAS TÉCNICAS
 
+### ✅ Resolvido em v5.1
+- **Matching de atividades com normalização Unicode**: `activitiesByTask` agora usa comparação NFD normalizada (lowercase, sem acentos, sem espaços duplos) com fallback por `includes`. Corrige inconsistência onde `actual_start`/`actual_end` existiam no banco mas apareciam como "—" na UI por falha de match entre strings com encoding diferente (NFD vs NFC).
+- **Causa raiz**: comparação `t.activity === a.activity_name` falhava silenciosamente quando ambas as strings tinham acento codificado diferentemente (ex: `é` NFC vs `é` NFD). O `found` retornava `undefined` e a atividade era excluída do map.
+- **Regra de matching** (em ordem de prioridade):
+  1. Match exato normalizado: `norm(task.activity) === norm(db.activity_name)`
+  2. Fallback includes: um contém o outro após normalização
+- Log de diagnóstico: `[ScheduleTab] match: "nome" → task.id="id"` e `[ScheduleTab] SEM MATCH: "nome"` para identificar casos sem correspondência.
+
 ### ✅ Resolvido em v5.0
 - **Pipedrive definido como fonte de verdade**: actual_start e actual_end sempre sobrescritos via integração
 - **Regra de unicidade**: duplicatas de pipedrive_deal_id tratadas — usa o mais recente, loga alerta
