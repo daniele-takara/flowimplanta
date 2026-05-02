@@ -82,10 +82,14 @@ Deno.serve(async (req) => {
     ]);
     if (!deal) return Response.json({ ok: false, error: `Deal ${dealId} não encontrado` }, { status: 404 });
 
-    const currentStageId = String(deal.stage_id ?? "");
+    // Comparação numérica — stage_id pode vir como número ou string
+    const currentStageNum = deal.stage_id != null ? Number(deal.stage_id) : null;
     const doneActivities = pipeActivities.filter(a =>
       a.done === true || a.done === 1 || String(a.done).toLowerCase() === "true"
     );
+
+    console.log(`[syncSchedule] Deal #${dealId} stage_id=${currentStageNum} | activities=${pipeActivities.length} done=${doneActivities.length}`);
+    console.log(`[syncSchedule] Regras carregadas: ${rules.length} | ${rules.map(r => `[${r.order}] ${r.pipedrive_entidade}/${r.pipedrive_campo_key}=${r.pipedrive_valor_disparo} → ${r.base44_fase}/${r.base44_atividade}`).join(" | ")}`);
 
     // 4. Carregar cronograma
     const [scheduleActivities, schedulePhases] = await Promise.all([
@@ -100,6 +104,7 @@ Deno.serve(async (req) => {
     if (allProjectPhases.length === 0) {
       return Response.json({ ok: false, error: "Nenhuma fase encontrada no projeto.", available_phases: [] }, { status: 400 });
     }
+    console.log(`[syncSchedule] Fases do projeto: ${allProjectPhases.join(" | ")} | Atividades: ${scheduleActivities.length}`);
 
     const activitiesCache = [...scheduleActivities];
 
@@ -136,7 +141,11 @@ Deno.serve(async (req) => {
 
       // ── REGRA DEAL (stage_id) ─────────────────────────────────────────────
       if (entidade === "deal" && campoKey === "stage_id") {
-        if (currentStageId !== String(valorDisp)) continue;
+        // Comparação numérica — evita falhas por tipo (string "142" vs number 142)
+        const ruleStageNum = Number(valorDisp);
+        const stageMatch = currentStageNum !== null && currentStageNum === ruleStageNum;
+        console.log(`[syncSchedule] [Regra #${rule.order}] deal/stage_id: recebido=${currentStageNum} esperado=${ruleStageNum} match=${stageMatch}`);
+        if (!stageMatch) continue;
 
         const dateStr = extractDate(deal[campoData]) || extractDate(deal.update_time);
         if (!dateStr) { matchErrors.push(`Deal stage=${valorDisp}: sem data no campo "${campoData}"`); continue; }
@@ -237,7 +246,7 @@ Deno.serve(async (req) => {
         errors: JSON.stringify([]),
         request_payload: JSON.stringify({ project_id, deal_id: dealId }).substring(0, 1000),
         response_payload: JSON.stringify({ updated: updatedActivities, created: createdActivities }).substring(0, 4000),
-        debug_steps: JSON.stringify({ available_phases: allProjectPhases, deal_stage_id: currentStageId }).substring(0, 4000),
+        debug_steps: JSON.stringify({ available_phases: allProjectPhases, deal_stage_id: currentStageNum }).substring(0, 4000),
         duration_ms: Date.now() - startTime,
       });
     } catch (logErr) {
@@ -248,7 +257,7 @@ Deno.serve(async (req) => {
       ok: true,
       deal_id: dealId,
       project_id,
-      deal_stage_id: currentStageId,
+      deal_stage_id: currentStageNum,
       activities_found: pipeActivities.length,
       activities_done: doneActivities.length,
       rules_total: rules.length,
