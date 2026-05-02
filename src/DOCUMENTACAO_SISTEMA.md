@@ -272,7 +272,9 @@ Pipedrive: activity marcada como done → webhook change.activity
 Se a fase existe (SchedulePhase) mas ainda não tem ScheduleActivity e a regra aponta para atividade específica (`base44_atividade != "*"`), a atividade é **criada automaticamente** com as datas executadas.
 
 ### Curingas
-- `base44_atividade = "*"` → aplica em **todas** as atividades da fase
+- `base44_atividade = "*"` → aplica em **todas** as atividades canônicas da fase.
+  - **Comportamento de criação automática em massa:** Se a fase tem atividades canônicas definidas em `CANONICAL_ACTIVITIES_BY_PHASE` (espelho do `scheduleTasks.js`) que **ainda não existem como `ScheduleActivity` no banco**, o sistema as **cria automaticamente** antes de aplicar o update. Isso garante que projetos novos (com poucas atividades criadas manualmente) tenham todas as atividades da fase atualizadas corretamente.
+  - Após garantir que todas as canônicas existem, aplica `actual_start`/`actual_end` em **todas** elas.
 - `base44_atividade = "nome exato"` → aplica apenas na atividade com esse nome (normalizado)
 
 ### Idempotência
