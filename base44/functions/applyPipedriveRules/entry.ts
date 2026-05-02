@@ -27,7 +27,11 @@ function extractDate(val) {
   return String(val).substring(0, 10);
 }
 
-/** Trata como vazio: null, undefined, "", " ", "—", "–" */
+/**
+ * Pipedrive é a FONTE DE VERDADE para datas de execução.
+ * applyPipedriveRules SEMPRE sobrescreve actual_start/actual_end.
+ * isDateEmpty mantida apenas para criação de novas atividades.
+ */
 function isDateEmpty(val) {
   if (val == null) return true;
   const s = String(val).trim();
@@ -303,22 +307,23 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Pipedrive é fonte de verdade: SEMPRE sobrescreve actual_start e actual_end
         for (const act of phaseActs) {
           if (base44Atv && base44Atv !== "*" && normalize(act.activity_name) !== normalize(base44Atv)) {
             ruleDebug.actions.push(`SKIP atividade "${act.activity_name}" — não bate com "${base44Atv}"`);
             continue;
           }
-          const startEmpty = isDateEmpty(act.actual_start);
-          const endEmpty   = isDateEmpty(act.actual_end);
-          ruleDebug.actions.push(`atividade="${act.activity_name}" actual_start="${act.actual_start}" startEmpty=${startEmpty} | actual_end="${act.actual_end}" endEmpty=${endEmpty}`);
           const patch = {};
           if (fazInicio) {
-            if (startEmpty) { patch.actual_start = dateStr; result.dates_filled++; ruleDebug.actions.push(`→ ATUALIZOU actual_start=${dateStr}`); }
-            else { result.ignored_dates.push({ field: "actual_start", activity: act.activity_name, existing: act.actual_start }); ruleDebug.actions.push(`→ IGNOROU actual_start (já preenchido: "${act.actual_start}")`); }
+            ruleDebug.actions.push(`atividade="${act.activity_name}" actual_start: "${act.actual_start}" → "${dateStr}" (sobrescrita Pipedrive)`);
+            patch.actual_start = dateStr;
+            result.dates_filled++;
           }
           if (fazFim) {
-            if (endEmpty) { patch.actual_end = dateStr; patch.status = "Concluído"; result.dates_filled++; ruleDebug.actions.push(`→ ATUALIZOU actual_end=${dateStr}`); }
-            else { result.ignored_dates.push({ field: "actual_end", activity: act.activity_name, existing: act.actual_end }); ruleDebug.actions.push(`→ IGNOROU actual_end (já preenchido: "${act.actual_end}")`); }
+            ruleDebug.actions.push(`atividade="${act.activity_name}" actual_end: "${act.actual_end}" → "${dateStr}" (sobrescrita Pipedrive)`);
+            patch.actual_end = dateStr;
+            patch.status = "Concluído";
+            result.dates_filled++;
           }
           if (Object.keys(patch).length > 0) {
             ruleDebug.actions.push(`UPDATE "${act.activity_name}" → ${JSON.stringify(patch)}`);
@@ -328,8 +333,6 @@ Deno.serve(async (req) => {
             }
             result.updated.push({ id: act.id, name: act.activity_name, phase: base44Fase, patch, trigger: `stage_id=${valorDisp}` });
             result.activities_updated++;
-          } else {
-            ruleDebug.actions.push(`SKIP "${act.activity_name}" — datas já preenchidas`);
           }
         }
       }
@@ -382,19 +385,20 @@ Deno.serve(async (req) => {
             break;
           }
 
+          // Pipedrive é fonte de verdade: SEMPRE sobrescreve actual_start e actual_end
           for (const act of phaseActs) {
             if (base44Atv && base44Atv !== "*" && normalize(act.activity_name) !== normalize(base44Atv)) continue;
-            const startEmpty = isDateEmpty(act.actual_start);
-            const endEmpty   = isDateEmpty(act.actual_end);
-            ruleDebug.actions.push(`atividade="${act.activity_name}" actual_start="${act.actual_start}" startEmpty=${startEmpty} | actual_end="${act.actual_end}" endEmpty=${endEmpty}`);
             const patch = {};
             if (fazFim) {
-              if (endEmpty) { patch.actual_end = dateStr; patch.status = "Concluído"; result.dates_filled++; ruleDebug.actions.push(`→ ATUALIZOU actual_end=${dateStr}`); }
-              else { result.ignored_dates.push({ field: "actual_end", activity: act.activity_name, existing: act.actual_end }); ruleDebug.actions.push(`→ IGNOROU actual_end (já preenchido: "${act.actual_end}")`); }
+              ruleDebug.actions.push(`atividade="${act.activity_name}" actual_end: "${act.actual_end}" → "${dateStr}" (sobrescrita Pipedrive)`);
+              patch.actual_end = dateStr;
+              patch.status = "Concluído";
+              result.dates_filled++;
             }
             if (fazInicio) {
-              if (startEmpty) { patch.actual_start = dateStr; result.dates_filled++; ruleDebug.actions.push(`→ ATUALIZOU actual_start=${dateStr}`); }
-              else { result.ignored_dates.push({ field: "actual_start", activity: act.activity_name, existing: act.actual_start }); ruleDebug.actions.push(`→ IGNOROU actual_start (já preenchido: "${act.actual_start}")`); }
+              ruleDebug.actions.push(`atividade="${act.activity_name}" actual_start: "${act.actual_start}" → "${dateStr}" (sobrescrita Pipedrive)`);
+              patch.actual_start = dateStr;
+              result.dates_filled++;
             }
             if (Object.keys(patch).length > 0) {
               ruleDebug.actions.push(`UPDATE "${act.activity_name}" → ${JSON.stringify(patch)}`);

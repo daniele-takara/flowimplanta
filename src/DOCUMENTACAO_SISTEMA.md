@@ -1,6 +1,6 @@
-# Flowimplanta — Documentação Técnica v4.0
-**Última atualização:** 2026-04-30  
-**Status:** Validado e corrigido (Staff Engineer Review)
+# Flowimplanta — Documentação Técnica v5.0
+**Última atualização:** 2026-05-02  
+**Status:** Validado (Pipedrive como Fonte de Verdade)
 
 ---
 
@@ -74,9 +74,19 @@ Atividades detalhadas do cronograma. Matching por `activity_name` ↔ `SCHEDULE_
 | `actual_end` | date | Quando activity é concluída no Pipedrive (faz_fim=true) |
 | `status` | enum | Auto-derivado das datas executadas |
 
-**Regra imutável:** Datas existentes NUNCA são sobrescritas automaticamente.
+**Pipedrive é a FONTE DE VERDADE para datas de execução.**
 
-**Definição de "campo vazio" (aplicada em actual_start e actual_end):**
+| Origem da atualização | Comportamento |
+|-----------------------|--------------|
+| Integração Pipedrive (webhook, sync, diagnóstico) | **SEMPRE sobrescreve** `actual_start` e `actual_end` |
+| Edição manual (usuário via UI) | Preserva valor existente — não sobrescreve |
+
+**Regra de unicidade de projeto:**
+- Cada `pipedrive_deal_id` deve estar associado a **no máximo 1 projeto**.
+- Se existirem duplicatas, o sistema usa o projeto mais recente (`created_date` mais alto) e loga um alerta `⚠️ DUPLICADO`.
+- Duplicatas devem ser resolvidas manualmente — remova projetos obsoletos ou corrija o `pipedrive_deal_id`.
+
+**Definição de "campo vazio" (usada apenas para criação de novas atividades):**
 ```js
 function isDateEmpty(val) {
   if (val == null) return true;          // null / undefined
@@ -84,7 +94,7 @@ function isDateEmpty(val) {
   return s === "" || s === "—" || s === "–"; // string vazia ou travessão
 }
 ```
-Campos que retornam `true` em `isDateEmpty()` são tratados como sem valor e **podem ser preenchidos** pela integração. Apenas valores com data real (`"YYYY-MM-DD"`) bloqueiam a sobrescrita.
+`isDateEmpty()` é usada somente ao decidir se uma nova `ScheduleActivity` precisa ser criada. Para atividades existentes, o Pipedrive sempre sobrescreve.
 
 ### PipedriveIntegrationRule
 Regras importadas da planilha Google Sheets. Dois tipos:
@@ -236,9 +246,9 @@ Pipedrive: stage_id muda → webhook change.deal
     ├─ Se match → busca ScheduleActivity por (project_id, phase_name)
     │   ├─ base44_atividade="*" → aplica em TODAS as atividades da fase
     │   └─ base44_atividade="nome" → aplica apenas na atividade com nome correspondente
-    ├─ Se actual_start já preenchido → IGNORA (nunca sobrescreve)
-    └─ Se vazio → actual_start = deal[campo_data] ou current.update_time
-                   status = "Em andamento"
+    ├─ SEMPRE sobrescreve actual_start = deal[campo_data] ou current.update_time
+    │   (Pipedrive é fonte de verdade — valor anterior logado para auditoria)
+    └─ status = "Em andamento"
 ```
 
 ### Fluxo: Fim Executado (actual_end)
@@ -246,16 +256,16 @@ Pipedrive: stage_id muda → webhook change.deal
 Pipedrive: activity marcada como done → webhook change.activity
     │
     ├─ Verifica activity.done == true
-    ├─ Localiza Project por pipedrive_deal_id
+    ├─ Localiza Project por pipedrive_deal_id (usa mais recente se duplicado)
     ├─ Carrega regras cronograma (entidade=activity)
     ├─ Para cada activity done no deal:
     │   ├─ Tenta match exato: activity[campo_ident] == valor_ident
     │   └─ Se falhar, tenta match normalizado (sem acentos/case)
     │   └─ Log de skip se não corresponder
     ├─ Se match → busca ScheduleActivity pelo nome
-    ├─ Se actual_end já preenchido → IGNORA
-    └─ Se vazio → actual_end = activity.marked_as_done_time ou update_time
-                   status = "Concluído"
+    ├─ SEMPRE sobrescreve actual_end = activity.marked_as_done_time ou update_time
+    │   (Pipedrive é fonte de verdade — valor anterior logado para auditoria)
+    └─ status = "Concluído"
 ```
 
 ### Criação Automática
@@ -349,6 +359,11 @@ Expansão, Encerramento
 ---
 
 ## 8. DIAGNÓSTICO E PENDÊNCIAS TÉCNICAS
+
+### ✅ Resolvido em v5.0
+- **Pipedrive definido como fonte de verdade**: actual_start e actual_end sempre sobrescritos via integração
+- **Regra de unicidade**: duplicatas de pipedrive_deal_id tratadas — usa o mais recente, loga alerta
+- Logs agora mostram valor anterior → valor novo (auditoria completa)
 
 ### ✅ Resolvido em v4.0
 - Datas âncoras persistidas no banco (era localStorage)
