@@ -17,6 +17,13 @@ function extractDate(val) {
   return String(val).substring(0, 10);
 }
 
+/** Trata como vazio: null, undefined, "", " ", "—", "–" */
+function isDateEmpty(val) {
+  if (val == null) return true;
+  const s = String(val).trim();
+  return s === "" || s === "—" || s === "–";
+}
+
 async function fetchDeal(dealId, apiToken) {
   const res = await fetch(`${PIPE_V1}/deals/${dealId}?api_token=${apiToken}`);
   if (res.status === 429) throw new Error("Rate limit Pipedrive (429). Aguarde alguns minutos.");
@@ -166,8 +173,17 @@ Deno.serve(async (req) => {
         for (const act of phaseActs) {
           if (base44Atv && base44Atv !== "*" && normalize(act.activity_name) !== normalize(base44Atv)) continue;
           const patch = {};
-          if (fazInicio && !act.actual_start) patch.actual_start = dateStr;
-          if (fazFim && !act.actual_end) { patch.actual_end = dateStr; patch.status = "Concluído"; }
+          const startEmpty = isDateEmpty(act.actual_start);
+          const endEmpty   = isDateEmpty(act.actual_end);
+          console.log(`[syncSchedule]   atividade="${act.activity_name}" actual_start="${act.actual_start}" isEmpty=${startEmpty} | actual_end="${act.actual_end}" isEmpty=${endEmpty}`);
+          if (fazInicio) {
+            if (startEmpty) { patch.actual_start = dateStr; console.log(`[syncSchedule]   → ATUALIZOU actual_start=${dateStr}`); }
+            else console.log(`[syncSchedule]   → IGNOROU actual_start (já preenchido: "${act.actual_start}")`);
+          }
+          if (fazFim) {
+            if (endEmpty) { patch.actual_end = dateStr; patch.status = "Concluído"; console.log(`[syncSchedule]   → ATUALIZOU actual_end=${dateStr}`); }
+            else console.log(`[syncSchedule]   → IGNOROU actual_end (já preenchido: "${act.actual_end}")`);
+          }
           if (Object.keys(patch).length > 0) {
             await base44.asServiceRole.entities.ScheduleActivity.update(act.id, patch);
             Object.assign(act, patch);
@@ -206,8 +222,17 @@ Deno.serve(async (req) => {
           for (const act of phaseActs) {
             if (base44Atv && base44Atv !== "*" && normalize(act.activity_name) !== normalize(base44Atv)) continue;
             const patch = {};
-            if (fazFim && !act.actual_end) { patch.actual_end = dateStr; patch.status = "Concluído"; }
-            if (fazInicio && !act.actual_start) patch.actual_start = dateStr;
+            const startEmpty = isDateEmpty(act.actual_start);
+            const endEmpty   = isDateEmpty(act.actual_end);
+            console.log(`[syncSchedule]   atividade="${act.activity_name}" actual_start="${act.actual_start}" isEmpty=${startEmpty} | actual_end="${act.actual_end}" isEmpty=${endEmpty}`);
+            if (fazFim) {
+              if (endEmpty) { patch.actual_end = dateStr; patch.status = "Concluído"; console.log(`[syncSchedule]   → ATUALIZOU actual_end=${dateStr}`); }
+              else console.log(`[syncSchedule]   → IGNOROU actual_end (já preenchido: "${act.actual_end}")`);
+            }
+            if (fazInicio) {
+              if (startEmpty) { patch.actual_start = dateStr; console.log(`[syncSchedule]   → ATUALIZOU actual_start=${dateStr}`); }
+              else console.log(`[syncSchedule]   → IGNOROU actual_start (já preenchido: "${act.actual_start}")`);
+            }
             if (Object.keys(patch).length > 0) {
               await base44.asServiceRole.entities.ScheduleActivity.update(act.id, patch);
               Object.assign(act, patch);

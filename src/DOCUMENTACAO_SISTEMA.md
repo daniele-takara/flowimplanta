@@ -76,6 +76,16 @@ Atividades detalhadas do cronograma. Matching por `activity_name` ↔ `SCHEDULE_
 
 **Regra imutável:** Datas existentes NUNCA são sobrescritas automaticamente.
 
+**Definição de "campo vazio" (aplicada em actual_start e actual_end):**
+```js
+function isDateEmpty(val) {
+  if (val == null) return true;          // null / undefined
+  const s = String(val).trim();
+  return s === "" || s === "—" || s === "–"; // string vazia ou travessão
+}
+```
+Campos que retornam `true` em `isDateEmpty()` são tratados como sem valor e **podem ser preenchidos** pela integração. Apenas valores com data real (`"YYYY-MM-DD"`) bloqueiam a sobrescrita.
+
 ### PipedriveIntegrationRule
 Regras importadas da planilha Google Sheets. Dois tipos:
 - `dados_iniciais`: mapeamento de campos do deal → Project

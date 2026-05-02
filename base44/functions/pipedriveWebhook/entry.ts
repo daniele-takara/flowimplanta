@@ -23,6 +23,13 @@ function extractDate(val) {
   return String(val).substring(0, 10);
 }
 
+/** Trata como vazio: null, undefined, "", " ", "—", "–" */
+function isDateEmpty(val) {
+  if (val == null) return true;
+  const s = String(val).trim();
+  return s === "" || s === "—" || s === "–";
+}
+
 function buildIdempotencyKey(eventAction, eventObject, dealId, activityId, vTs) {
   return `${eventAction}:${eventObject}:${dealId || 0}:${activityId || 0}:${(vTs || "").substring(0, 16)}`;
 }
@@ -301,13 +308,16 @@ Deno.serve(async (req) => {
             ruleEntry.actions.push(`SKIP "${act.activity_name}" — nome não bate com "${base44Atv}"`);
             continue;
           }
+          const startEmpty = isDateEmpty(act.actual_start);
+          const endEmpty   = isDateEmpty(act.actual_end);
+          console.log(`[pipedriveWebhook]   atividade="${act.activity_name}" actual_start="${act.actual_start}" isEmpty=${startEmpty} | actual_end="${act.actual_end}" isEmpty=${endEmpty}`);
           const patch = {};
           if (fazInicio) {
-            if (!act.actual_start) { patch.actual_start = dateStr; }
+            if (startEmpty) { patch.actual_start = dateStr; ruleEntry.actions.push(`ATUALIZOU actual_start="${dateStr}" (era vazio: "${act.actual_start}")`); }
             else { datesIgnored.push({ field: "actual_start", activity: act.activity_name, existing: act.actual_start }); ruleEntry.actions.push(`SKIP "${act.activity_name}": actual_start já preenchido (${act.actual_start})`); }
           }
           if (fazFim) {
-            if (!act.actual_end) { patch.actual_end = dateStr; patch.status = "Concluído"; }
+            if (endEmpty) { patch.actual_end = dateStr; patch.status = "Concluído"; ruleEntry.actions.push(`ATUALIZOU actual_end="${dateStr}" (era vazio: "${act.actual_end}")`); }
             else { datesIgnored.push({ field: "actual_end", activity: act.activity_name, existing: act.actual_end }); ruleEntry.actions.push(`SKIP "${act.activity_name}": actual_end já preenchido (${act.actual_end})`); }
           }
           if (Object.keys(patch).length > 0) {
@@ -369,13 +379,16 @@ Deno.serve(async (req) => {
 
           for (const act of phaseActs) {
             if (base44Atv && base44Atv !== "*" && normalize(act.activity_name) !== normalize(base44Atv)) continue;
+            const startEmpty = isDateEmpty(act.actual_start);
+            const endEmpty   = isDateEmpty(act.actual_end);
+            console.log(`[pipedriveWebhook]   atividade="${act.activity_name}" actual_start="${act.actual_start}" isEmpty=${startEmpty} | actual_end="${act.actual_end}" isEmpty=${endEmpty}`);
             const patch = {};
             if (fazFim) {
-              if (!act.actual_end) { patch.actual_end = dateStr; patch.status = "Concluído"; }
+              if (endEmpty) { patch.actual_end = dateStr; patch.status = "Concluído"; }
               else { datesIgnored.push({ field: "actual_end", activity: act.activity_name, existing: act.actual_end }); }
             }
             if (fazInicio) {
-              if (!act.actual_start) { patch.actual_start = dateStr; }
+              if (startEmpty) { patch.actual_start = dateStr; }
               else { datesIgnored.push({ field: "actual_start", activity: act.activity_name, existing: act.actual_start }); }
             }
             if (Object.keys(patch).length > 0) {

@@ -27,6 +27,13 @@ function extractDate(val) {
   return String(val).substring(0, 10);
 }
 
+/** Trata como vazio: null, undefined, "", " ", "—", "–" */
+function isDateEmpty(val) {
+  if (val == null) return true;
+  const s = String(val).trim();
+  return s === "" || s === "—" || s === "–";
+}
+
 async function fetchDeal(dealId) {
   const apiToken = Deno.env.get("API_PIpedrive");
   if (!apiToken) throw new Error("API_PIpedrive não configurado");
@@ -301,14 +308,17 @@ Deno.serve(async (req) => {
             ruleDebug.actions.push(`SKIP atividade "${act.activity_name}" — não bate com "${base44Atv}"`);
             continue;
           }
+          const startEmpty = isDateEmpty(act.actual_start);
+          const endEmpty   = isDateEmpty(act.actual_end);
+          ruleDebug.actions.push(`atividade="${act.activity_name}" actual_start="${act.actual_start}" startEmpty=${startEmpty} | actual_end="${act.actual_end}" endEmpty=${endEmpty}`);
           const patch = {};
           if (fazInicio) {
-            if (!act.actual_start) { patch.actual_start = dateStr; result.dates_filled++; }
-            else result.ignored_dates.push({ field: "actual_start", activity: act.activity_name, existing: act.actual_start });
+            if (startEmpty) { patch.actual_start = dateStr; result.dates_filled++; ruleDebug.actions.push(`→ ATUALIZOU actual_start=${dateStr}`); }
+            else { result.ignored_dates.push({ field: "actual_start", activity: act.activity_name, existing: act.actual_start }); ruleDebug.actions.push(`→ IGNOROU actual_start (já preenchido: "${act.actual_start}")`); }
           }
           if (fazFim) {
-            if (!act.actual_end) { patch.actual_end = dateStr; patch.status = "Concluído"; result.dates_filled++; }
-            else result.ignored_dates.push({ field: "actual_end", activity: act.activity_name, existing: act.actual_end });
+            if (endEmpty) { patch.actual_end = dateStr; patch.status = "Concluído"; result.dates_filled++; ruleDebug.actions.push(`→ ATUALIZOU actual_end=${dateStr}`); }
+            else { result.ignored_dates.push({ field: "actual_end", activity: act.activity_name, existing: act.actual_end }); ruleDebug.actions.push(`→ IGNOROU actual_end (já preenchido: "${act.actual_end}")`); }
           }
           if (Object.keys(patch).length > 0) {
             ruleDebug.actions.push(`UPDATE "${act.activity_name}" → ${JSON.stringify(patch)}`);
@@ -374,14 +384,17 @@ Deno.serve(async (req) => {
 
           for (const act of phaseActs) {
             if (base44Atv && base44Atv !== "*" && normalize(act.activity_name) !== normalize(base44Atv)) continue;
+            const startEmpty = isDateEmpty(act.actual_start);
+            const endEmpty   = isDateEmpty(act.actual_end);
+            ruleDebug.actions.push(`atividade="${act.activity_name}" actual_start="${act.actual_start}" startEmpty=${startEmpty} | actual_end="${act.actual_end}" endEmpty=${endEmpty}`);
             const patch = {};
             if (fazFim) {
-              if (!act.actual_end) { patch.actual_end = dateStr; patch.status = "Concluído"; result.dates_filled++; }
-              else result.ignored_dates.push({ field: "actual_end", activity: act.activity_name, existing: act.actual_end });
+              if (endEmpty) { patch.actual_end = dateStr; patch.status = "Concluído"; result.dates_filled++; ruleDebug.actions.push(`→ ATUALIZOU actual_end=${dateStr}`); }
+              else { result.ignored_dates.push({ field: "actual_end", activity: act.activity_name, existing: act.actual_end }); ruleDebug.actions.push(`→ IGNOROU actual_end (já preenchido: "${act.actual_end}")`); }
             }
             if (fazInicio) {
-              if (!act.actual_start) { patch.actual_start = dateStr; result.dates_filled++; }
-              else result.ignored_dates.push({ field: "actual_start", activity: act.activity_name, existing: act.actual_start });
+              if (startEmpty) { patch.actual_start = dateStr; result.dates_filled++; ruleDebug.actions.push(`→ ATUALIZOU actual_start=${dateStr}`); }
+              else { result.ignored_dates.push({ field: "actual_start", activity: act.activity_name, existing: act.actual_start }); ruleDebug.actions.push(`→ IGNOROU actual_start (já preenchido: "${act.actual_start}")`); }
             }
             if (Object.keys(patch).length > 0) {
               ruleDebug.actions.push(`UPDATE "${act.activity_name}" → ${JSON.stringify(patch)}`);
