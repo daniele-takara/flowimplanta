@@ -395,7 +395,74 @@ Expansão, Encerramento
 
 ---
 
-## 9. PAYLOADS PIPEDRIVE ESPERADOS
+## 9. REGRAS DE INTEGRAÇÃO — PLANILHA COMO FONTE OFICIAL
+
+A planilha Google Sheets (GID `1377224895`, aba "Cronograma - Integração") é a **fonte oficial** das regras de integração Pipedrive → Cronograma. As regras são importadas via `savePipedriveRules` e armazenadas na entidade `PipedriveIntegrationRule`.
+
+### Regras vigentes (sincronizadas da planilha)
+
+#### Regra 1 — Início Executado (deal.updated / stage_id)
+
+| Campo | Valor |
+|-------|-------|
+| `pipedrive_entidade` | `deal` |
+| `pipedrive_evento` | `deal.updated` |
+| `pipedrive_campo_key` | `stage_id` |
+| `pipedrive_valor_disparo` | `142` |
+| `base44_fase` | `Abertura de projeto` |
+| `base44_atividade` | `*` (todas as atividades da fase) |
+| `faz_inicio` | `true` |
+| `faz_fim` | `false` |
+| `pipedrive_campo_data` | `update_time` |
+
+**Comportamento:** Quando o deal muda para stage_id=142, **todas** as atividades da fase "Abertura de projeto" recebem `actual_start = deal.update_time` (início_executado). Não altera início_planejado.
+
+#### Regra 2 — Fim Executado (activity.updated / done)
+
+| Campo | Valor |
+|-------|-------|
+| `pipedrive_entidade` | `activity` |
+| `pipedrive_evento` | `activity.updated` |
+| `pipedrive_campo_key` | `done` |
+| `pipedrive_valor_disparo` | `true` |
+| `pipedrive_campo_identificacao` | `subject` |
+| `pipedrive_valor_identificacao` | `(Escopo técnico) Reunião de escopo técnico #Aut` |
+| `base44_fase` | `Abertura de projeto` |
+| `base44_atividade` | `Agenda de escopo técnico` |
+| `faz_inicio` | `false` |
+| `faz_fim` | `true` |
+| `pipedrive_campo_data` | `marked_as_done_time` |
+
+**Comportamento:** Quando a atividade com o subject especificado é marcada como done, a atividade "Agenda de escopo técnico" recebe `actual_end = activity.marked_as_done_time` (fim_executado) e `status = "Concluído"`. Não altera fim_planejado.
+
+### Campos de data: distinção obrigatória
+
+| Campo DB | Nome na UI | Origem |
+|----------|-----------|--------|
+| `actual_start` | Início Executado | Pipedrive (via integração) ou edição manual |
+| `actual_end` | Fim Executado | Pipedrive (via integração) ou edição manual |
+| `planned_start` | Início Planejado | Motor de cronograma (calculado) |
+| `planned_end` | Fim Planejado | Motor de cronograma (calculado) |
+
+### Resultado E2E validado (2026-05-02)
+
+```
+Projeto: Teste Dani (id=69f541bd21439fae5bc7b8b8)
+Deal Pipedrive: #12960 | stage_id=142
+
+Regras carregadas: 2
+Regras aplicadas: 2
+Atividades atualizadas: 2
+Erros: 0
+
+Atividade "Agenda de escopo técnico":
+  actual_start: "2026-05-01" ✓ (início_executado)
+  actual_end:   "2026-05-01" ✓ (fim_executado)
+  status:       "Concluído"  ✓
+  UI:           exibe "01/05/2026" ✓ (fix normalização Unicode v5.1)
+```
+
+## 10. PAYLOADS PIPEDRIVE ESPERADOS
 
 ### change.deal
 ```json
