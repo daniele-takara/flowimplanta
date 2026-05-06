@@ -630,6 +630,37 @@ Atividade "Agenda de escopo técnico":
   UI:           exibe "01/05/2026" ✓ (fix normalização Unicode v5.1)
 ```
 
+## 13. CRONOGRAMA — MOTOR DE CÁLCULO v5.7
+
+### Problema corrigido: datas planejadas não calculavam
+
+**Causa raiz:** O loop `if (!d.plannedStart || pass === 0)` da v5.x resetava a condição no passe 0, forçando re-tentativa mesmo em datas já calculadas. Mais crítico: o número de passes (4) era insuficiente para cadeias longas de dependência (ex: `expansao_registro_ponto_real` → `fechamento_folha_real` → que dependia de outra) e a ordem de declaração das tasks não é topológica — uma task B pode aparecer antes da task A que ela depende.
+
+**Correção:** Aumentado para **8 passes**. Lógica de resolução separada por tipo:
+- `anchor` / `manual_override`: aplica o override do banco **sempre** (idempotente)
+- `calculated` plannedStart: só calcula se ainda `null` (não re-calcula)
+- `calculated` plannedEnd: re-calcula em todo passe (permite que corrija quando dependência acabou de resolver)
+
+**Cobertura garantida:**
+| Cadeia | Profundidade | Passes necessários |
+|---|---|---|
+| alinhamento_inicial → agenda_escopo_tecnico → envio_tap → agenda_status_report | 4 | ≤ 4 |
+| go_live → agenda_verificacao_pre_fechamento → ... | 3 | ≤ 3 |
+| agenda_encerramento → assinatura_termo → passagem_sucesso | 3 | ≤ 3 |
+| expansao → fechamento_folha_real | 2 | ≤ 2 |
+| Pior caso total | ~7 | ≤ 8 ✓ |
+
+### Regras de resolução
+
+```
+anchor:          d.plannedStart = anchors[taskId].plannedStart  (sempre)
+manual_override: d.plannedStart = anchors[taskId].plannedStart  (se existir)
+calculated:      if (!d.plannedStart) d.plannedStart = resolve(formula)  (plannedStart)
+                 d.plannedEnd = resolve(formula)  (plannedEnd — sempre re-tenta)
+```
+
+---
+
 ## 12. STATUS REPORT — ARQUITETURA v5.6
 
 ### Source único de dados

@@ -176,8 +176,11 @@ export function computeSchedule(tasks, anchors, answersMap, project) {
     return null;
   }
 
-  // Processa tarefas em ordem (topological — passamos várias vezes)
-  const MAX_PASSES = 4;
+  // Processa tarefas em múltiplos passes para resolver dependências em qualquer ordem.
+  // 8 passes cobrem cadeias de dependência longas (ex: A→B→C→D→E→F→G→H).
+  // Em cada passe, tentamos resolver APENAS datas ainda não calculadas (evita sobrescrever).
+  // Âncoras e manual_override são aplicados sempre (pass 0 incluído) — não dependem de outras tarefas.
+  const MAX_PASSES = 8;
   for (let pass = 0; pass < MAX_PASSES; pass++) {
     for (const task of tasks) {
       if (!visible.has(task.id)) continue;
@@ -186,33 +189,38 @@ export function computeSchedule(tasks, anchors, answersMap, project) {
       const d = dates[task.id] || {};
 
       // plannedStart
-      if (!d.plannedStart || pass === 0) {
-        const startSpec = task.plannedStart;
-        if (!startSpec) {
-          // group/phase — computed from children, skip for now
-        } else if (startSpec.type === "anchor") {
-          // Use anchor override if set
-          d.plannedStart = anchorOverride?.plannedStart || d.plannedStart || null;
-        } else if (startSpec.type === "calculated" && startSpec.formula) {
-          const computed = resolve(startSpec.formula, task.id, "plannedStart");
-          if (computed) d.plannedStart = computed;
+      const startSpec = task.plannedStart;
+      if (startSpec) {
+        if (startSpec.type === "anchor") {
+          // Âncora: sempre aplica o override do banco/usuário
+          const val = anchorOverride?.plannedStart || null;
+          if (val) d.plannedStart = val;
         } else if (startSpec.type === "manual_override") {
-          d.plannedStart = anchorOverride?.plannedStart || d.plannedStart || null;
+          // Manual override: aplica se tiver valor, não sobrescreve cálculos dependentes
+          const val = anchorOverride?.plannedStart || null;
+          if (val) d.plannedStart = val;
+        } else if (startSpec.type === "calculated" && startSpec.formula) {
+          // Calculado: só tenta se ainda não resolvido (evita re-calcular desnecessariamente)
+          if (!d.plannedStart) {
+            const computed = resolve(startSpec.formula, task.id, "plannedStart");
+            if (computed) d.plannedStart = computed;
+          }
         }
       }
 
       // plannedEnd
-      if (!d.plannedEnd || pass === 0) {
-        const endSpec = task.plannedEnd;
-        if (!endSpec) {
-          // nada
+      const endSpec = task.plannedEnd;
+      if (endSpec) {
+        if (endSpec.type === "anchor") {
+          const val = anchorOverride?.plannedEnd || null;
+          if (val) d.plannedEnd = val;
+        } else if (endSpec.type === "manual_override") {
+          const val = anchorOverride?.plannedEnd || null;
+          if (val) d.plannedEnd = val;
         } else if (endSpec.type === "calculated" && endSpec.formula) {
+          // Re-calcula sempre em cada passe para pegar dependências que acabaram de resolver
           const computed = resolve(endSpec.formula, task.id, "plannedEnd");
           if (computed) d.plannedEnd = computed;
-        } else if (endSpec.type === "manual_override") {
-          d.plannedEnd = anchorOverride?.plannedEnd || d.plannedEnd || null;
-        } else if (endSpec.type === "anchor") {
-          d.plannedEnd = anchorOverride?.plannedEnd || d.plannedEnd || null;
         }
       }
 

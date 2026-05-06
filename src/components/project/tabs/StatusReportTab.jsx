@@ -38,12 +38,12 @@ function StatusPill({ status }) {
 
 // ─── KPI Card ────────────────────────────────────────────────────────────────
 
-function KpiCard({ label, value, sub, icon: IconComponent, colorClass = "text-purple-600", bgClass = "bg-purple-50" }) {
+function KpiCard({ label, value, sub, icon: KpiIcon, colorClass = "text-purple-600", bgClass = "bg-purple-50" }) {
   return (
     <div className={`${bgClass} rounded-2xl p-5 flex flex-col gap-2`}>
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{label}</span>
-        {IconComponent && <IconComponent className={`w-4 h-4 ${colorClass} opacity-70`} />}
+        {KpiIcon && <KpiIcon className={`w-4 h-4 ${colorClass} opacity-70`} />}
       </div>
       <p className={`text-3xl font-bold ${colorClass}`}>{value ?? "—"}</p>
       {sub && <p className="text-xs text-slate-400">{sub}</p>}
@@ -53,7 +53,7 @@ function KpiCard({ label, value, sub, icon: IconComponent, colorClass = "text-pu
 
 // ─── Seção de itens editáveis ─────────────────────────────────────────────────
 
-function ManualSection({ title, icon: Icon, items, onAdd, onRemove, onEdit, fields, color = "purple" }) {
+function ManualSection({ title, icon: SectionIcon, items, onAdd, onRemove, onEdit, fields, color = "purple" }) {
   const colorMap = {
     purple: "text-purple-600 border-purple-200 bg-purple-50",
     orange: "text-orange-600 border-orange-200 bg-orange-50",
@@ -67,7 +67,7 @@ function ManualSection({ title, icon: Icon, items, onAdd, onRemove, onEdit, fiel
     <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          {Icon && <Icon className={`w-4 h-4 ${cls.split(" ")[0]}`} />}
+          {SectionIcon && <SectionIcon className={`w-4 h-4 ${cls.split(" ")[0]}`} />}
           <h3 className="text-sm font-bold text-slate-700">{title}</h3>
         </div>
         <button
@@ -399,7 +399,9 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
     setUpdateResult(null);
 
     try {
-      // 1. Buscar dados de usabilidade da aba "Mais recente" (source oficial)
+      // 1. Buscar dados de usabilidade da aba "Mais recente" (source oficial).
+      //    updateReportFromSheet já persiste no banco; capturamos os valores para
+      //    usar no restante do fluxo (cronograma, aderência, payload final).
       let registeredEmployees = report?.registered_employees || 0;
       let recordingEmployees  = report?.recording_employees  || 0;
       let sheetFound = false;
@@ -415,6 +417,8 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
             registeredEmployees = d.registered_employees;
             recordingEmployees  = d.recording_employees;
             sheetFound = true;
+            // Atualiza o report local com o que veio do banco (inclui id correto)
+            if (d.report) setReport(prev => ({ ...(prev || {}), ...d.report }));
           }
         } catch (e) {
           console.warn("[StatusReportTab] Erro ao buscar planilha (não crítico):", e.message);
@@ -494,10 +498,12 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         integration_items: currentForm.integration_items,
       };
 
+      // Garante que usamos o report mais atualizado (pode ter sido atualizado pelo updateReportFromSheet acima)
+      const currentReport = report;
       let savedReport;
-      if (report?.id) {
-        await base44.entities.StatusReport.update(report.id, payload);
-        savedReport = { ...report, ...payload };
+      if (currentReport?.id) {
+        await base44.entities.StatusReport.update(currentReport.id, payload);
+        savedReport = { ...currentReport, ...payload };
       } else {
         savedReport = await base44.entities.StatusReport.create(payload);
       }
