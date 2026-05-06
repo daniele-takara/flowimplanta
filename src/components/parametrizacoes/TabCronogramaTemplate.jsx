@@ -8,7 +8,7 @@ import {
 } from "@/lib/resolveResponsibleRole.js";
 import {
   Save, Star, Info, ChevronDown, ChevronRight,
-  Pencil, X, Check, Anchor, Lock, Zap, AlertCircle
+  Pencil, Anchor, Lock, Zap
 } from "lucide-react";
 
 const inputClass = "px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white w-full";
@@ -146,64 +146,37 @@ function TypeBadge({ type }) {
 // ── Linha de atividade ────────────────────────────────────────────────────────
 
 function TaskRow({ task, config, onChange }) {
-  const [editing, setEditing] = useState(false);
-  const [local, setLocal] = useState({
-    responsible_role: config?.responsible_role || "",
-    responsible_general_type: config?.responsible_general_type || "",
-  });
-
-  // Sincroniza quando config muda externamente
-  useEffect(() => {
-    setLocal({
-      responsible_role: config?.responsible_role || "",
-      responsible_general_type: config?.responsible_general_type || "",
-    });
-  }, [config?.responsible_role, config?.responsible_general_type]);
-
-  const handleSave = () => {
-    onChange(task.id, local);
-    setEditing(false);
-  };
-
-  const handleCancel = () => {
-    setLocal({
-      responsible_role: config?.responsible_role || "",
-      responsible_general_type: config?.responsible_general_type || "",
-    });
-    setEditing(false);
-  };
-
   const startSpec = task.plannedStart || {};
   const endSpec   = task.plannedEnd   || {};
 
-  const startInfo = parseFormula(startSpec.formula, SCHEDULE_TASKS);
-  const endInfo   = parseFormula(endSpec.formula,   SCHEDULE_TASKS);
+  const startInfo    = parseFormula(startSpec.formula, SCHEDULE_TASKS);
+  const endInfo      = parseFormula(endSpec.formula,   SCHEDULE_TASKS);
   const fallbackInfo = startSpec.fallback ? parseFormula(startSpec.fallback, SCHEDULE_TASKS) : null;
 
-  const isAnchor    = startSpec.type === "anchor";
-  const startType   = startSpec.type || "calculated";
-  const endType     = endSpec.type   || "calculated";
+  const isAnchor  = startSpec.type === "anchor";
+  const startType = startSpec.type || "calculated";
+  const endType   = endSpec.type   || "calculated";
 
-  const visibility  = describeVisibility(task);
+  const visibility      = describeVisibility(task);
   const isAlwaysVisible = task.visibleWhen === "always" || (!task.visibleWhen && !task.visibleWhenAll && !task.visibleWhenAny);
 
-  const genLabel  = RESPONSIBLE_GENERAL_TYPE_OPTIONS.find(o => o.value === (local.responsible_general_type || config?.responsible_general_type))?.label;
-  const roleLabel = local.responsible_role || config?.responsible_role
-    ? (RESPONSIBLE_ROLE_LABELS[local.responsible_role || config?.responsible_role] || local.responsible_role || config?.responsible_role)
-    : null;
+  const handleChange = (field, value) => {
+    onChange(task.id, { [field]: value });
+  };
+
+  const genValue  = config?.responsible_general_type || "";
+  const roleValue = config?.responsible_role || "";
 
   return (
     <tr className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
       {/* Atividade */}
       <td className="px-4 py-3 text-xs text-slate-800 max-w-[220px] leading-snug font-medium">
         <div>{task.activity}</div>
-        <div className="mt-1">
-          {!isAlwaysVisible && (
-            <span className={`inline-block text-xs px-1.5 py-0.5 rounded border ${visibility.color} font-normal`}>
-              {visibility.label}
-            </span>
-          )}
-        </div>
+        {!isAlwaysVisible && (
+          <span className={`inline-block mt-1 text-xs px-1.5 py-0.5 rounded border ${visibility.color} font-normal`}>
+            {visibility.label}
+          </span>
+        )}
       </td>
 
       {/* Tipo */}
@@ -246,66 +219,32 @@ function TaskRow({ task, config, onChange }) {
         }
       </td>
 
-      {/* Resp. Geral */}
+      {/* Resp. Geral — inline editável */}
       <td className="px-3 py-3 min-w-[150px]">
-        {editing ? (
-          <select
-            value={local.responsible_general_type}
-            onChange={e => setLocal(l => ({ ...l, responsible_general_type: e.target.value }))}
-            className={inputClass}
-          >
-            <option value="">— Não definido —</option>
-            {RESPONSIBLE_GENERAL_TYPE_OPTIONS.map(o => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        ) : (
-          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
-            genLabel ? "bg-purple-50 text-purple-700 border-purple-200" : "bg-slate-50 text-slate-300 border-slate-200"
-          }`}>
-            {genLabel || (task.responsibleGeneral ? task.responsibleGeneral : "—")}
-          </span>
-        )}
+        <select
+          value={genValue}
+          onChange={e => handleChange("responsible_general_type", e.target.value)}
+          className={`${inputClass} ${genValue ? "text-purple-700 border-purple-200 bg-purple-50" : "text-slate-400"}`}
+        >
+          <option value="">— Não definido —</option>
+          {RESPONSIBLE_GENERAL_TYPE_OPTIONS.map(o => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
       </td>
 
-      {/* Papel Líder */}
+      {/* Papel Líder — inline editável */}
       <td className="px-3 py-3 min-w-[170px]">
-        {editing ? (
-          <select
-            value={local.responsible_role}
-            onChange={e => setLocal(l => ({ ...l, responsible_role: e.target.value }))}
-            className={inputClass}
-          >
-            <option value="">— Sem papel —</option>
-            {RESPONSIBLE_ROLE_OPTIONS.map(o => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        ) : (
-          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
-            roleLabel ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-slate-50 text-slate-300 border-slate-200"
-          }`}>
-            {roleLabel || "—"}
-          </span>
-        )}
-      </td>
-
-      {/* Ações */}
-      <td className="px-3 py-3 w-16">
-        {editing ? (
-          <div className="flex gap-1">
-            <button onClick={handleSave} className="p-1 text-green-600 hover:bg-green-50 rounded" title="Salvar">
-              <Check className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={handleCancel} className="p-1 text-slate-400 hover:bg-slate-100 rounded" title="Cancelar">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ) : (
-          <button onClick={() => setEditing(true)} className="text-xs text-blue-600 hover:underline px-1">
-            <Pencil className="w-3 h-3 inline" /> Editar
-          </button>
-        )}
+        <select
+          value={roleValue}
+          onChange={e => handleChange("responsible_role", e.target.value)}
+          className={`${inputClass} ${roleValue ? "text-blue-700 border-blue-200 bg-blue-50" : "text-slate-400"}`}
+        >
+          <option value="">— Sem papel —</option>
+          {RESPONSIBLE_ROLE_OPTIONS.map(o => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
       </td>
     </tr>
   );
@@ -338,7 +277,6 @@ function PhaseSection({ phaseName, tasks, tasksConfig, onChangeTask }) {
                 <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5 whitespace-nowrap text-center">Recalcula</th>
                 <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5 min-w-[140px]">Resp. Geral</th>
                 <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5 min-w-[160px]">Papel Líder</th>
-                <th className="px-3 py-2.5 w-16"></th>
               </tr>
             </thead>
             <tbody>
