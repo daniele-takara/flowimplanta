@@ -78,6 +78,18 @@ export default function ProjectDetail() {
     setLoading(false);
   };
 
+  // Recarrega apenas os ScopeItems — chamado silenciosamente após cada save no ScopeTab
+  // Isso garante que TAP, Cronograma e Termo de Encerramento recebam o answersMap atualizado
+  const reloadScopeItems = async () => {
+    if (isMock) return;
+    try {
+      const sc = await base44.entities.ScopeItem.filter({ project_id: id }, "order_number");
+      setScopeItems(sc);
+    } catch (e) {
+      console.error("[ProjectDetail] reloadScopeItems erro:", e);
+    }
+  };
+
   useEffect(() => { loadData(); }, [id]);
 
   if (loading) {
@@ -130,7 +142,7 @@ export default function ProjectDetail() {
       <div className="flex-1 p-8 bg-slate-50">
         <div className="max-w-6xl mx-auto">
           {activeTab === "overview" && <OverviewTab project={project} phases={phases} onEditDadosIniciais={(!isMock && perms.canEditProject) ? () => setShowEditModal(true) : null} onProjectUpdated={(updated) => { if (updated) setProject(prev => ({ ...prev, ...updated })); }} />}
-          {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} project={project} onRefresh={loadData} readOnly={!perms.canEditScope} />}
+          {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} project={project} onRefresh={loadData} onScopeSaved={reloadScopeItems} readOnly={!perms.canEditScope} />}
           {activeTab === "tap" && <TAPTab project={project} scopeItems={scopeItems} documents={documents} projectId={id} onRefresh={loadData} readOnly={!perms.canEditTAP} />}
           {activeTab === "schedule" && <ScheduleTab scopeItems={scopeItems} project={project} projectId={id} onRefresh={loadData} readOnly={!perms.canEditSchedule} />}
           {activeTab === "status" && <StatusReportTab reports={reports} projectId={id} projectClientName={project.client_name} project={project} scopeItems={scopeItems} savedActivities={activities} onRefresh={loadData} readOnly={!perms.canEditStatusReport} />}

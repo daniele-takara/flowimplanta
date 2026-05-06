@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, Plus, Minus, FileDown, Check, LayoutList } f
 
 const SANKHYA_KEY = "sankhya_manual_override";
 
-export default function ScopeTab({ scopeItems, projectId, project, onRefresh, readOnly = false }) {
+export default function ScopeTab({ scopeItems, projectId, project, onRefresh, onScopeSaved, readOnly = false }) {
   // manualOverrides: { sankhya_manual_override: true/false }
   const [manualOverrides, setManualOverrides] = useState(() => {
     try {
@@ -113,7 +113,9 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, re
     }
     // Clear pending flag — data is now persisted
     pendingKeys.current.delete(questionId);
-    // No onRefresh — state is already updated optimistically
+    // Notifica o pai para recarregar scopeItems silenciosamente (sem spinner),
+    // garantindo que TAP, Cronograma e Termo de Encerramento recebam o answersMap atualizado
+    if (onScopeSaved) onScopeSaved();
   };
 
   const isQuestionVisible = (question) => {
