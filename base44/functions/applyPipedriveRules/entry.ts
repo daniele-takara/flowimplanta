@@ -101,7 +101,14 @@ async function fetchDeal(dealId) {
 
 /**
  * Busca o histórico real de movimentação de etapas via GET /v1/deals/{id}/flow.
- * Retorna Map de stageId (number) → primeira data de entrada (YYYY-MM-DD).
+ * Estrutura real confirmada:
+ *   item.object === "dealChange"
+ *   item.data.field_key === "stage_id"
+ *   item.data.new_value → stage_id destino (string)
+ *   item.timestamp      → data/hora da mudança
+ *
+ * Flow vem decrescente → sobrescrever sempre garante que o mapa final contém
+ * a data MAIS ANTIGA de entrada em cada etapa.
  */
 async function fetchStageEntryDates(dealId) {
   const apiToken = Deno.env.get("API_PIpedrive");
@@ -112,20 +119,23 @@ async function fetchStageEntryDates(dealId) {
       const res = await fetch(`${PIPE_V1}/deals/${dealId}/flow?limit=100&start=${start}&api_token=${apiToken}`);
       if (res.status === 429) throw new Error("Rate limit Pipedrive (429)");
       if (!res.ok) { console.warn(`[fetchStageEntryDates] flow ${res.status}`); break; }
-      const data = await res.json();
-      const items = data.data || [];
+      const json = await res.json();
+      const items = json.data || [];
       for (const item of items) {
-        const d = item.data || item;
-        const newStage = d.stage_id_new != null ? Number(d.stage_id_new) : null;
-        const logTime  = item.log_time || d.log_time || item.add_time || d.add_time || null;
-        if (newStage != null && logTime && !stageMap.has(newStage)) {
+        if (item.object !== 'dealChange') continue;
+        const d = item.data || {};
+        if (d.field_key !== 'stage_id') continue;
+        const newStage = d.new_value != null ? Number(d.new_value) : null;
+        const logTime  = item.timestamp || d.log_time || null;
+        if (newStage != null && logTime) {
           stageMap.set(newStage, String(logTime).substring(0, 10));
           console.log(`[fetchStageEntryDates] stage ${newStage} → ${String(logTime).substring(0, 10)}`);
         }
       }
-      if (!data.additional_data?.pagination?.more_items_in_collection || items.length === 0) break;
+      if (!json.additional_data?.pagination?.more_items_in_collection || items.length === 0) break;
       start += 100;
     }
+    console.log(`[fetchStageEntryDates] Etapas mapeadas: ${stageMap.size} → ${JSON.stringify(Object.fromEntries(stageMap))}`);
   } catch (e) {
     console.warn(`[fetchStageEntryDates] Erro: ${e.message}`);
   }

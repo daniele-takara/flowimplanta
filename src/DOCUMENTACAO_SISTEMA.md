@@ -475,13 +475,51 @@ Se a chave já existe no banco → regra ignorada. Se não existe → regra cria
 
 **Solução: `GET /v1/deals/{id}/flow`**
 
-O endpoint `/flow` retorna o log completo de alterações do deal, incluindo eventos do tipo `stage_id_new` com seu `log_time`. A função `fetchStageEntryDates` constrói um `Map<stageId, dateStr>` com a **primeira data de entrada** em cada etapa.
+O endpoint `/flow` retorna o log completo de eventos do deal. A função `fetchStageEntryDates` constrói um `Map<stageId, dateStr>` com a **data mais antiga de entrada** em cada etapa (flow vem decrescente — sobrescrever sempre mantém a mais antiga).
 
+**Estrutura real confirmada por diagnóstico (2026-05-06):**
+
+```json
+{
+  "object": "dealChange",
+  "timestamp": "2026-04-28 14:30:00",
+  "data": {
+    "field_key": "stage_id",
+    "old_value": "141",
+    "new_value": "142",
+    "log_time": "2026-04-28 14:30:00",
+    "additional_data": {
+      "old_value_formatted": "Abertura",
+      "new_value_formatted": "Parametrização"
+    }
+  }
+}
 ```
-GET /v1/deals/{deal_id}/flow
-→ items[].data.stage_id_new  (etapa de destino)
-→ items[].log_time           (data/hora real da mudança)
+
+**Parser correto:**
+```js
+// Filtrar apenas eventos de mudança de deal com campo stage_id
+if (item.object !== 'dealChange') continue;
+const d = item.data || {};
+if (d.field_key !== 'stage_id') continue;
+const newStage = Number(d.new_value);  // new_value é STRING — converter para Number
+const logTime  = item.timestamp || d.log_time;  // timestamp no nível raiz do item
 ```
+
+**❌ Parser anterior (incorreto):**
+```js
+// d.stage_id_new NÃO EXISTE no payload real
+const newStage = d.stage_id_new != null ? Number(d.stage_id_new) : null;
+// item.log_time NÃO EXISTE no nível raiz — fica em item.timestamp
+const logTime = item.log_time || d.log_time;
+```
+
+**Tipos de objeto retornados pelo flow:**
+| `object` | Descrição |
+|----------|-----------|
+| `dealChange` | Mudança de campo do deal (inclui stage_id, expected_close_date, etc.) |
+| `activity` | Atividade criada/atualizada no deal |
+| `note` | Nota adicionada ao deal |
 
 **Regra de aplicação por tipo de data:**
 

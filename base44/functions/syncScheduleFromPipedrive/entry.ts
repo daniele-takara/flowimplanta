@@ -91,42 +91,51 @@ async function fetchDeal(dealId, apiToken) {
 
 /**
  * Busca o histórico real de movimentação de etapas do deal via /v1/deals/{id}/flow.
- * Retorna um Map de stageId (number) → dateStr (YYYY-MM-DD) com a data em que o deal
- * entrou naquela etapa pela PRIMEIRA vez.
+ * Estrutura real do Pipedrive (confirmada por diagnóstico):
+ *   item.object === "dealChange"
+ *   item.data.field_key === "stage_id"
+ *   item.data.new_value  → stage_id de destino (string, ex: "142")
+ *   item.timestamp       → data/hora da mudança (ex: "2026-02-18 14:30:00")
+ *
+ * Retorna Map<stageId (number) → dateStr YYYY-MM-DD> com a PRIMEIRA entrada em cada etapa.
+ * O flow vem em ordem decrescente (mais recente primeiro), portanto iteramos todos e
+ * sobrescrevemos — o último sobrescreve será o mais antigo, que é o que queremos guardar.
  */
 async function fetchStageEntryDates(dealId, apiToken) {
-  const stageMap = new Map(); // stageId (number) → first entry date string
+  const stageMap = new Map();
   try {
     let start = 0;
     while (true) {
       const res = await fetch(`${PIPE_V1}/deals/${dealId}/flow?limit=100&start=${start}&api_token=${apiToken}`);
       if (res.status === 429) throw new Error("Rate limit Pipedrive (429)");
       if (!res.ok) {
-        console.warn(`[fetchStageEntryDates] flow retornou ${res.status}, retornando mapa vazio`);
+        console.warn(`[fetchStageEntryDates] flow retornou ${res.status}`);
         break;
       }
-      const data = await res.json();
-      const items = data.data || [];
+      const json = await res.json();
+      const items = json.data || [];
       for (const item of items) {
-        // Eventos de mudança de etapa ficam em item.data ou item diretamente
-        // O payload do flow tem: object (deal), action (edit), data.stage_id_new, data.stage_id_old, log_time
-        const d = item.data || item;
-        const newStage = d.stage_id_new != null ? Number(d.stage_id_new) : null;
-        const logTime  = item.log_time || d.log_time || item.add_time || d.add_time || null;
+        // Apenas eventos de mudança de deal com field_key = stage_id
+        if (item.object !== 'dealChange') continue;
+        const d = item.data || {};
+        if (d.field_key !== 'stage_id') continue;
+        const newStage = d.new_value != null ? Number(d.new_value) : null;
+        // Timestamp: item.timestamp é o campo principal no flow
+        const logTime = item.timestamp || d.log_time || null;
         if (newStage != null && logTime) {
           const dateStr = String(logTime).substring(0, 10);
-          // Guarda apenas a PRIMEIRA vez que o deal entrou naquela etapa
-          if (!stageMap.has(newStage)) {
-            stageMap.set(newStage, dateStr);
-            console.log(`[fetchStageEntryDates] stage ${newStage} → primeira entrada: ${dateStr}`);
-          }
+          // Sobrescreve sempre — como o flow vem decrescente, o último a ser
+          // processado será o mais antigo (primeira entrada real na etapa)
+          stageMap.set(newStage, dateStr);
+          console.log(`[fetchStageEntryDates] stage ${newStage} → ${dateStr} (old=${d.old_value})`);
         }
       }
-      if (!data.additional_data?.pagination?.more_items_in_collection || items.length === 0) break;
+      if (!json.additional_data?.pagination?.more_items_in_collection || items.length === 0) break;
       start += 100;
     }
+    console.log(`[fetchStageEntryDates] Total etapas mapeadas: ${stageMap.size} → ${JSON.stringify(Object.fromEntries(stageMap))}`);
   } catch (e) {
-    console.warn(`[fetchStageEntryDates] Erro ao buscar flow: ${e.message}`);
+    console.warn(`[fetchStageEntryDates] Erro: ${e.message}`);
   }
   return stageMap;
 }
