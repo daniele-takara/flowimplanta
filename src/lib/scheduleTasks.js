@@ -323,6 +323,13 @@ export const SCHEDULE_TASKS = [
     visibleWhen: { source: "dados_iniciais.modulos_contratados", contains: "Cálculos e Tratamento" }
   },
   {
+    id: "validacao_arquivo_fechamento", row: 53.5, type: "task",
+    phase: "Treinamento e Validações", activity: "Validação do arquivo de fechamento (E02 ou R05)",
+    plannedStart: { type: "calculated", formula: "parametrizacao_regras.plannedEnd" },
+    plannedEnd: { type: "calculated", formula: "workday(plannedStart, 15)" },
+    visibleWhen: { source: "dados_iniciais.modulos_contratados", contains: "Cálculos e Tratamento" }
+  },
+  {
     id: "treinamento_solicitacoes", row: 54, type: "task",
     phase: "Treinamento e Validações", activity: "Reunião sobre o uso e validação do fluxo de Solicitações",
     plannedStart: { type: "calculated", formula: "parametrizacao_gestao_participativa.plannedEnd" },
