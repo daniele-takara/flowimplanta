@@ -630,6 +630,50 @@ Atividade "Agenda de escopo técnico":
   UI:           exibe "01/05/2026" ✓ (fix normalização Unicode v5.1)
 ```
 
+## 12. STATUS REPORT — ARQUITETURA v5.6
+
+### Source único de dados
+
+| Dado | Source | Função backend |
+|---|---|---|
+| `registered_employees` | Aba "Mais recente" da planilha | `updateReportFromSheet` |
+| `recording_employees` | Aba "Mais recente" da planilha | `updateReportFromSheet` |
+| `adherence_percent` | Calculado: `recording / contracted * 100` | StatusReportTab |
+| `contracted_employees` | Pipedrive → Project | `syncPipedriveData` |
+| `macroPhases` / cronograma | `computeMacroSchedule(savedActivities)` | Motor frontend |
+| Pendências / next_agenda | Pipedrive campo customizado | `applyStatusReportFromPipedrive` |
+
+### Botão único "Atualizar Status Report"
+
+O único botão de atualização executa esta sequência em ordem:
+1. `updateReportFromSheet` → registered/recording employees da aba "Mais recente"
+2. Calcular aderência = `recording / contracted * 100`
+3. `computeMacroSchedule(savedActivities)` → cronograma macro real
+4. `applyStatusReportFromPipedrive` → pendências e next_agenda (se deal_id vinculado)
+5. `StatusReport.update()` → persiste tudo
+6. `Project.update({ progress_percent })` → atualiza projeto
+7. `setKpiData()` → atualiza KPIs na UI
+
+### KPI na UI e no e-mail — source único
+
+`kpiData` é o estado central de KPIs no `StatusReportTab`:
+- Inicializado a partir do `report` persistido no banco
+- Atualizado após cada execução do botão
+- Passado ao `StatusReportDashboard` via prop `kpiData`
+- Passado ao `generateStatusReportEmail` via `usabilityData` (mesmo objeto)
+- **UI e e-mail SEMPRE usam o mesmo `kpiData`**
+
+### Por que havia divergência antes
+
+| Problema | Causa | Correção |
+|---|---|---|
+| Aderência sumia na UI | `usabilityData` era `null` na renderização inicial | KPIs agora vêm do `report` persistido via `computeKpiFromReport` |
+| Empregados incorretos | `getUsabilityData` usava aba "Dados" em vez de "Mais recente" | Botão usa apenas `updateReportFromSheet` (aba "Mais recente") |
+| Dois botões | "Atualizar Report" (verde) e "Atualizar Status Report" (roxo) separados | Unificados em um único botão roxo |
+| E-mail com dados diferentes | `usabilityData` passado ao template não era o mesmo da UI | Agora `handleGenerateEmail` monta `usabilityForEmail` a partir de `kpiData` |
+
+---
+
 ## 11. AUDITORIA DE PERSISTÊNCIA — v5.5
 
 ### Problemas corrigidos

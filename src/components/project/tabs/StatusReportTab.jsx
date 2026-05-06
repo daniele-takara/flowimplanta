@@ -1,9 +1,6 @@
 import { useState, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { formatDate } from "@/lib/utils";
-import { computeMacroSchedule, MACRO_PHASE_ORDER } from "@/lib/scheduleReportEngine.js";
-import { SCHEDULE_TASKS } from "@/lib/scheduleTasks.js";
-import { computeSchedule } from "@/lib/scheduleEngine.js";
+import { computeMacroSchedule } from "@/lib/scheduleReportEngine.js";
 import { generateStatusReportEmail } from "@/lib/statusReportEmailTemplate.js";
 import EmailPreviewModal from "@/components/project/EmailPreviewModal.jsx";
 import {
@@ -22,10 +19,10 @@ function fmtDate(d) {
 
 function getStatusColors(status) {
   switch (status) {
-    case "Concluído": return { bg: "bg-green-100", text: "text-green-700", border: "border-green-200", dot: "bg-green-500" };
+    case "Concluído":    return { bg: "bg-green-100",  text: "text-green-700",  border: "border-green-200",  dot: "bg-green-500"  };
     case "Em andamento": return { bg: "bg-purple-100", text: "text-purple-700", border: "border-purple-200", dot: "bg-purple-500" };
-    case "Atrasado": return { bg: "bg-red-100", text: "text-red-700", border: "border-red-200", dot: "bg-red-500" };
-    default: return { bg: "bg-slate-100", text: "text-slate-500", border: "border-slate-200", dot: "bg-slate-400" };
+    case "Atrasado":     return { bg: "bg-red-100",    text: "text-red-700",    border: "border-red-200",    dot: "bg-red-500"    };
+    default:             return { bg: "bg-slate-100",  text: "text-slate-500",  border: "border-slate-200",  dot: "bg-slate-400"  };
   }
 }
 
@@ -42,12 +39,11 @@ function StatusPill({ status }) {
 // ─── KPI Card ────────────────────────────────────────────────────────────────
 
 function KpiCard({ label, value, sub, icon: IconComponent, colorClass = "text-purple-600", bgClass = "bg-purple-50" }) {
-  const Icon = IconComponent;
   return (
     <div className={`${bgClass} rounded-2xl p-5 flex flex-col gap-2`}>
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{label}</span>
-        {Icon && <Icon className={`w-4 h-4 ${colorClass} opacity-70`} />}
+        {IconComponent && <IconComponent className={`w-4 h-4 ${colorClass} opacity-70`} />}
       </div>
       <p className={`text-3xl font-bold ${colorClass}`}>{value ?? "—"}</p>
       {sub && <p className="text-xs text-slate-400">{sub}</p>}
@@ -55,17 +51,17 @@ function KpiCard({ label, value, sub, icon: IconComponent, colorClass = "text-pu
   );
 }
 
-// ─── Campos manuais editáveis ─────────────────────────────────────────────────
+// ─── Seção de itens editáveis ─────────────────────────────────────────────────
 
-function ManualSection({ title, icon: Icon, items, onAdd, onRemove, onEdit, emptyObj, fields, color = "purple" }) {
+function ManualSection({ title, icon: Icon, items, onAdd, onRemove, onEdit, fields, color = "purple" }) {
   const colorMap = {
     purple: "text-purple-600 border-purple-200 bg-purple-50",
     orange: "text-orange-600 border-orange-200 bg-orange-50",
-    red: "text-red-600 border-red-200 bg-red-50",
-    blue: "text-blue-600 border-blue-200 bg-blue-50",
+    red:    "text-red-600    border-red-200    bg-red-50",
+    blue:   "text-blue-600   border-blue-200   bg-blue-50",
   };
   const cls = colorMap[color] || colorMap.purple;
-  const inputClass = "flex-1 px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white";
+  const inputBase = "flex-1 px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white";
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
@@ -81,16 +77,14 @@ function ManualSection({ title, icon: Icon, items, onAdd, onRemove, onEdit, empt
           <Plus className="w-3 h-3" /> Adicionar
         </button>
       </div>
-      {items.length === 0 && (
-        <p className="text-xs text-slate-400 italic">Nenhum item adicionado.</p>
-      )}
+      {items.length === 0 && <p className="text-xs text-slate-400 italic">Nenhum item adicionado.</p>}
       <div className="space-y-2">
         {items.map((item, i) => (
           <div key={i} className="flex gap-2 items-start">
             {fields.map(f => (
               <input
                 key={f.key}
-                className={`${inputClass} ${f.flex ? `flex-${f.flex}` : ""}`}
+                className={`${inputBase} ${f.flex ? `flex-${f.flex}` : ""}`}
                 value={item[f.key] || ""}
                 onChange={e => onEdit(i, f.key, e.target.value)}
                 placeholder={f.label}
@@ -107,7 +101,7 @@ function ManualSection({ title, icon: Icon, items, onAdd, onRemove, onEdit, empt
   );
 }
 
-// ─── Cronograma Macro Table ───────────────────────────────────────────────────
+// ─── Tabela de cronograma macro ───────────────────────────────────────────────
 
 function MacroScheduleTable({ macroPhases }) {
   if (!macroPhases || macroPhases.length === 0) {
@@ -141,7 +135,11 @@ function MacroScheduleTable({ macroPhases }) {
                   <div className="flex items-center gap-2">
                     <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full ${ph.status === "Concluído" ? "bg-green-500" : ph.status === "Em andamento" ? "bg-purple-500" : ph.status === "Atrasado" ? "bg-red-500" : "bg-slate-300"}`}
+                        className={`h-full rounded-full ${
+                          ph.status === "Concluído" ? "bg-green-500" :
+                          ph.status === "Em andamento" ? "bg-purple-500" :
+                          ph.status === "Atrasado" ? "bg-red-500" : "bg-slate-300"
+                        }`}
                         style={{ width: `${ph.progress}%` }}
                       />
                     </div>
@@ -158,36 +156,28 @@ function MacroScheduleTable({ macroPhases }) {
   );
 }
 
-// ─── Dashboard principal (ref para captura de imagem) ─────────────────────────
+// ─── Dashboard ────────────────────────────────────────────────────────────────
 
-const StatusReportDashboard = ({ report, project, macroPhases, overallProgress, usabilityData, form, setForm, locked, readOnly = false }) => {
+function StatusReportDashboard({ report, project, macroPhases, overallProgress, kpiData, form, setForm, readOnly }) {
   const today = new Date().toLocaleDateString("pt-BR");
-  const contracted = project?.contracted_employees || 0;
-  const cadastrados = usabilityData?.numero_funcionarios ?? report?.registered_employees ?? 0;
-  const batendoPonto = usabilityData?.empregados_batendo_ponto_ultimos_15_dias ?? report?.recording_employees ?? 0;
-  const aderencia = contracted > 0 ? Math.round((batendoPonto / contracted) * 100) : (report?.adherence_percent ?? 0);
   const periodStart = project?.start_date;
   const periodEnd = project?.aligned_end_date || project?.planned_end_date;
 
-  const inputClass = "w-full px-3 py-2 text-sm border border-purple-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white resize-none";
-  const labelClass = "block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5";
+  // Source único de KPIs: kpiData (calculado no momento da última atualização)
+  const contracted   = kpiData.contracted;
+  const cadastrados  = kpiData.cadastrados;
+  const batendoPonto = kpiData.batendoPonto;
+  const aderencia    = kpiData.aderencia;
 
-  const editItem = (field, i, key, val) => {
-    if (locked || readOnly) return;
-    setForm(f => ({ ...f, [field]: f[field].map((x, idx) => idx === i ? { ...x, [key]: val } : x) }));
-  };
-  const addItem = (field, empty) => {
-    if (locked || readOnly) return;
-    setForm(f => ({ ...f, [field]: [...(f[field] || []), empty] }));
-  };
-  const removeItem = (field, i) => {
-    if (locked || readOnly) return;
-    setForm(f => ({ ...f, [field]: f[field].filter((_, idx) => idx !== i) }));
-  };
+  const inputClass = "w-full px-3 py-2 text-sm border border-purple-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white resize-none";
+
+  const editItem   = (field, i, key, val) => { if (readOnly) return; setForm(f => ({ ...f, [field]: f[field].map((x, idx) => idx === i ? { ...x, [key]: val } : x) })); };
+  const addItem    = (field, empty)        => { if (readOnly) return; setForm(f => ({ ...f, [field]: [...(f[field] || []), empty] })); };
+  const removeItem = (field, i)            => { if (readOnly) return; setForm(f => ({ ...f, [field]: f[field].filter((_, idx) => idx !== i) })); };
 
   return (
     <div className="space-y-6">
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="bg-gradient-to-br from-purple-700 to-purple-900 rounded-2xl px-8 py-7 text-white">
         <div className="flex items-start justify-between">
           <div>
@@ -199,15 +189,13 @@ const StatusReportDashboard = ({ report, project, macroPhases, overallProgress, 
             <p className="text-xs text-purple-300">Data do relatório</p>
             <p className="text-sm font-semibold text-white">{today}</p>
             {(periodStart || periodEnd) && (
-              <p className="text-xs text-purple-300 mt-1">
-                {fmtDate(periodStart)} → {fmtDate(periodEnd)}
-              </p>
+              <p className="text-xs text-purple-300 mt-1">{fmtDate(periodStart)} → {fmtDate(periodEnd)}</p>
             )}
           </div>
         </div>
       </div>
 
-      {/* ── KPIs ── */}
+      {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard
           label="Empregados Cadastrados"
@@ -220,10 +208,18 @@ const StatusReportDashboard = ({ report, project, macroPhases, overallProgress, 
         <KpiCard
           label="Empregados no Ponto/mês"
           value={batendoPonto.toLocaleString("pt-BR")}
-          sub={`últimos 15 dias · aderência: ${aderencia}% do contratado`}
+          sub="últimos 15 dias"
           icon={Activity}
           colorClass="text-blue-700"
           bgClass="bg-blue-50"
+        />
+        <KpiCard
+          label="Aderência ao Ponto"
+          value={`${aderencia}%`}
+          sub="do total contratado"
+          icon={CheckCircle2}
+          colorClass={aderencia >= 80 ? "text-green-700" : aderencia >= 50 ? "text-orange-700" : "text-red-700"}
+          bgClass={aderencia >= 80 ? "bg-green-50" : aderencia >= 50 ? "bg-orange-50" : "bg-red-50"}
         />
         <KpiCard
           label="Progresso do Projeto"
@@ -235,92 +231,67 @@ const StatusReportDashboard = ({ report, project, macroPhases, overallProgress, 
         />
       </div>
 
-      {/* ── Cronograma Macro ── */}
+      {/* Cronograma Macro */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Cronograma do Projeto</h3>
         <MacroScheduleTable macroPhases={macroPhases} />
       </div>
 
-      {/* ── Status Operacional ── */}
+      {/* Status Operacional */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-        {/* Próxima agenda */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-3">
             <Calendar className="w-4 h-4 text-purple-500" />
             <h3 className="text-sm font-bold text-slate-700">Próxima Agenda</h3>
           </div>
-          {locked ? (
-            <div>
-              <p className="text-sm text-slate-700 font-medium">{form.next_agenda || "—"}</p>
-              {form.next_agenda_date && <p className="text-xs text-slate-400 mt-1">{fmtDate(form.next_agenda_date)}</p>}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <input
-                className="w-full px-3 py-2 text-sm border border-purple-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400"
-                value={form.next_agenda || ""}
-                onChange={e => setForm(f => ({ ...f, next_agenda: e.target.value }))}
-                placeholder="Assunto da próxima agenda..."
-              />
-              <input
-                type="date"
-                className="w-full px-3 py-2 text-sm border border-purple-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400"
-                value={form.next_agenda_date || ""}
-                onChange={e => setForm(f => ({ ...f, next_agenda_date: e.target.value }))}
-              />
-            </div>
-          )}
+          <div className="space-y-2">
+            <input
+              className="w-full px-3 py-2 text-sm border border-purple-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400"
+              value={form.next_agenda || ""}
+              onChange={e => !readOnly && setForm(f => ({ ...f, next_agenda: e.target.value }))}
+              placeholder="Assunto da próxima agenda..."
+              readOnly={readOnly}
+            />
+            <input
+              type="date"
+              className="w-full px-3 py-2 text-sm border border-purple-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400"
+              value={form.next_agenda_date || ""}
+              onChange={e => !readOnly && setForm(f => ({ ...f, next_agenda_date: e.target.value }))}
+              readOnly={readOnly}
+            />
+          </div>
         </div>
 
-        {/* Observações executivas */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-3">
             <Activity className="w-4 h-4 text-purple-500" />
             <h3 className="text-sm font-bold text-slate-700">Observações Executivas</h3>
           </div>
-          {locked ? (
-            <p className="text-sm text-slate-600 whitespace-pre-wrap">{form.executive_summary || "—"}</p>
-          ) : (
-            <textarea
-              className={inputClass}
-              rows={3}
-              value={form.executive_summary || ""}
-              onChange={e => setForm(f => ({ ...f, executive_summary: e.target.value }))}
-              placeholder="Situação executiva atual do projeto..."
-            />
-          )}
+          <textarea
+            className={inputClass}
+            rows={3}
+            value={form.executive_summary || ""}
+            onChange={e => !readOnly && setForm(f => ({ ...f, executive_summary: e.target.value }))}
+            placeholder="Situação executiva atual do projeto..."
+            readOnly={readOnly}
+          />
         </div>
       </div>
 
-      {/* ── Pendências e Riscos ── */}
+      {/* Pendências e Riscos */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ManualSection
-          title="Pendências do Cliente"
-          icon={Clock}
-          color="orange"
+          title="Pendências do Cliente" icon={Clock} color="orange"
           items={form.client_pending || []}
-          emptyObj={{ item: "", deadline: "", responsible: "" }}
-          fields={[
-            { key: "item", label: "Item pendente", flex: 2 },
-            { key: "deadline", label: "Prazo", type: "date" },
-            { key: "responsible", label: "Responsável" },
-          ]}
+          fields={[{ key: "item", label: "Item pendente", flex: 2 }, { key: "deadline", label: "Prazo", type: "date" }, { key: "responsible", label: "Responsável" }]}
           onAdd={() => addItem("client_pending", { item: "", deadline: "", responsible: "" })}
           onRemove={i => removeItem("client_pending", i)}
           onEdit={(i, k, v) => editItem("client_pending", i, k, v)}
         />
         <ManualSection
-          title="Pendências Pontotel"
-          icon={CheckCircle2}
-          color="blue"
+          title="Pendências Pontotel" icon={CheckCircle2} color="blue"
           items={form.internal_pending || []}
-          emptyObj={{ item: "", deadline: "", responsible: "" }}
-          fields={[
-            { key: "item", label: "Item pendente", flex: 2 },
-            { key: "deadline", label: "Prazo", type: "date" },
-            { key: "responsible", label: "Responsável" },
-          ]}
+          fields={[{ key: "item", label: "Item pendente", flex: 2 }, { key: "deadline", label: "Prazo", type: "date" }, { key: "responsible", label: "Responsável" }]}
           onAdd={() => addItem("internal_pending", { item: "", deadline: "", responsible: "" })}
           onRemove={i => removeItem("internal_pending", i)}
           onEdit={(i, k, v) => editItem("internal_pending", i, k, v)}
@@ -329,30 +300,17 @@ const StatusReportDashboard = ({ report, project, macroPhases, overallProgress, 
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ManualSection
-          title="Integração"
-          icon={Activity}
-          color="purple"
+          title="Integração" icon={Activity} color="purple"
           items={form.integration_items || []}
-          emptyObj={{ item: "", status: "" }}
-          fields={[
-            { key: "item", label: "Item de integração", flex: 2 },
-            { key: "status", label: "Status" },
-          ]}
+          fields={[{ key: "item", label: "Item de integração", flex: 2 }, { key: "status", label: "Status" }]}
           onAdd={() => addItem("integration_items", { item: "", status: "" })}
           onRemove={i => removeItem("integration_items", i)}
           onEdit={(i, k, v) => editItem("integration_items", i, k, v)}
         />
         <ManualSection
-          title="Riscos"
-          icon={AlertTriangle}
-          color="red"
+          title="Riscos" icon={AlertTriangle} color="red"
           items={form.risks || []}
-          emptyObj={{ description: "", impact: "Médio", mitigation: "" }}
-          fields={[
-            { key: "description", label: "Descrição do risco", flex: 2 },
-            { key: "impact", label: "Impacto" },
-            { key: "mitigation", label: "Mitigação" },
-          ]}
+          fields={[{ key: "description", label: "Descrição do risco", flex: 2 }, { key: "impact", label: "Impacto" }, { key: "mitigation", label: "Mitigação" }]}
           onAdd={() => addItem("risks", { description: "", impact: "Médio", mitigation: "" })}
           onRemove={i => removeItem("risks", i)}
           onEdit={(i, k, v) => editItem("risks", i, k, v)}
@@ -360,87 +318,116 @@ const StatusReportDashboard = ({ report, project, macroPhases, overallProgress, 
       </div>
     </div>
   );
-};
+}
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 const DEFAULT_FORM = {
-  next_agenda: "",
-  next_agenda_date: "",
-  executive_summary: "",
-  client_pending: [],
-  internal_pending: [],
-  risks: [],
-  integration_items: [],
+  next_agenda: "", next_agenda_date: "", executive_summary: "",
+  client_pending: [], internal_pending: [], risks: [], integration_items: [],
 };
 
+/**
+ * Calcula KPIs a partir do report persistido e do contracted_employees do projeto.
+ * Source único: report.registered_employees / recording_employees / contracted_employees.
+ */
+function computeKpiFromReport(report, project) {
+  const contracted   = project?.contracted_employees || 0;
+  const cadastrados  = report?.registered_employees  || 0;
+  const batendoPonto = report?.recording_employees   || 0;
+  const aderencia    = contracted > 0
+    ? Math.round((batendoPonto / contracted) * 100)
+    : (report?.adherence_percent ?? 0);
+  return { contracted, cadastrados, batendoPonto, aderencia };
+}
+
 export default function StatusReportTab({ reports, projectId, projectClientName, project, scopeItems, savedActivities, onRefresh, readOnly = false }) {
-  const [report, setReport] = useState(reports?.[0] || null);
-  const [form, setForm] = useState(() => {
+  const [report, setReport]             = useState(reports?.[0] || null);
+  const [form, setForm]                 = useState(() => {
     const r = reports?.[0];
     if (!r) return { ...DEFAULT_FORM };
     return {
-      next_agenda: r.next_agenda || "",
+      next_agenda:      r.next_agenda      || "",
       next_agenda_date: r.next_agenda_date || "",
       executive_summary: r.executive_summary || "",
-      client_pending: r.client_pending || [],
+      client_pending:   r.client_pending   || [],
       internal_pending: r.internal_pending || [],
-      risks: r.risks || [],
+      risks:            r.risks            || [],
       integration_items: r.integration_items || [],
     };
   });
 
-  const [macroPhases, setMacroPhases] = useState(() => {
+  // Cronograma macro: inicializa do snapshot persistido; atualizado via botão
+  const [macroPhases, setMacroPhases]       = useState(() => {
     const r = reports?.[0];
-    if (r?.macro_schedule) {
-      try { return JSON.parse(r.macro_schedule); } catch {}
-    }
+    if (r?.macro_schedule) { try { return JSON.parse(r.macro_schedule); } catch {} }
     return [];
   });
   const [overallProgress, setOverallProgress] = useState(reports?.[0]?.overall_progress || 0);
-  const [usabilityData, setUsabilityData] = useState(null);
-  const [lastUpdate, setLastUpdate] = useState(reports?.[0]?.last_auto_update || null);
+
+  // KPIs: source único = report persistido (atualizado via botão "Atualizar Status Report")
+  const [kpiData, setKpiData] = useState(() => computeKpiFromReport(reports?.[0], project));
+
+  const [lastUpdate, setLastUpdate]       = useState(reports?.[0]?.last_auto_update || null);
   const [lastUpdatedBy, setLastUpdatedBy] = useState(reports?.[0]?.updated_by_name || null);
 
-  const [updating, setUpdating] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [updating, setUpdating]           = useState(false);
+  const [saving, setSaving]               = useState(false);
   const [showEmailPreview, setShowEmailPreview] = useState(false);
-  const [emailHtml, setEmailHtml] = useState("");
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [updatingSheet, setUpdatingSheet] = useState(false);
-  const [sheetResult, setSheetResult] = useState(null); // { success, msg } | { error }
+  const [emailHtml, setEmailHtml]         = useState("");
+  const [showConfirm, setShowConfirm]     = useState(false);
+  const [updateResult, setUpdateResult]   = useState(null);
 
-  // Construir answersMap a partir do scopeItems
+  // answersMap para o motor de cronograma
   const answersMap = {};
   (scopeItems || []).forEach(item => {
-    if (item.order_number) {
-      const key = `q${String(item.order_number).padStart(3, "0")}`;
-      answersMap[key] = item.answer || "";
-    }
+    if (item.order_number) answersMap[`q${String(item.order_number).padStart(3, "0")}`] = item.answer || "";
   });
 
-  // Executar atualização automática
+  /**
+   * BOTÃO ÚNICO — executa em sequência:
+   * 1. Planilha "Mais recente" → registered_employees, recording_employees
+   * 2. Calcula aderência com contracted_employees do projeto
+   * 3. Calcula cronograma macro com savedActivities reais
+   * 4. Sincroniza campos Pipedrive (pendências, next_agenda) se tiver deal_id
+   * 5. Persiste tudo no StatusReport
+   * 6. Atualiza progress_percent no Project
+   */
   const handleUpdate = useCallback(async () => {
     setUpdating(true);
     setShowConfirm(false);
+    setUpdateResult(null);
 
     try {
-      // 1. Buscar dados de usabilidade
-      let usability = null;
-      try {
-        const res = await base44.functions.invoke("getUsabilityData", {
-          empresa_id: project?.empresa_id || "",
-          client_name: project?.client_name || "",
-        });
-        if (res.data?.found) {
-          usability = res.data;
-          setUsabilityData(res.data);
+      // 1. Buscar dados de usabilidade da aba "Mais recente" (source oficial)
+      let registeredEmployees = report?.registered_employees || 0;
+      let recordingEmployees  = report?.recording_employees  || 0;
+      let sheetFound = false;
+
+      if (project?.empresa_id) {
+        try {
+          const sheetRes = await base44.functions.invoke("updateReportFromSheet", {
+            project_id: projectId,
+            empresa_id: project.empresa_id,
+          });
+          const d = sheetRes.data;
+          if (d?.success) {
+            registeredEmployees = d.registered_employees;
+            recordingEmployees  = d.recording_employees;
+            sheetFound = true;
+          }
+        } catch (e) {
+          console.warn("[StatusReportTab] Erro ao buscar planilha (não crítico):", e.message);
         }
-      } catch (e) {
-        console.warn("Erro ao buscar usabilidade:", e);
       }
 
-      // 2. Calcular cronograma macro usando datas âncora do banco (schedule_anchor_dates)
+      // 2. Calcular aderência — source único
+      const contracted = project?.contracted_employees || 0;
+      const aderencia  = contracted > 0
+        ? Math.round((recordingEmployees / contracted) * 100)
+        : 0;
+
+      // 3. Calcular cronograma macro usando atividades reais do banco
       const bankAnchors = project?.schedule_anchor_dates || {};
       const overrides = {};
       Object.entries(bankAnchors).forEach(([taskId, dateStr]) => {
@@ -453,39 +440,63 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
       setMacroPhases(phases);
       setOverallProgress(progress);
 
-      // 3. Obter usuário atual
-      const user = await base44.auth.me().catch(() => null);
-      const userName = user?.full_name || user?.email || "Sistema";
-      const now = new Date().toISOString();
+      // 4. Sincronizar campos Pipedrive
+      let pipedriveFormPatch = {};
+      if (project?.pipedrive_deal_id) {
+        try {
+          const pipeRes = await base44.functions.invoke("applyStatusReportFromPipedrive", {
+            project_id: projectId,
+            deal_id: project.pipedrive_deal_id,
+          });
+          const pipeData = pipeRes.data;
+          if (pipeData?.ok && pipeData.fields_updated > 0) {
+            const patch = pipeData.patch || {};
+            pipedriveFormPatch = {
+              ...(patch.next_agenda    !== undefined ? { next_agenda:    patch.next_agenda    } : {}),
+              ...(patch.client_pending !== undefined ? { client_pending: patch.client_pending } : {}),
+              ...(patch.internal_pending !== undefined ? { internal_pending: patch.internal_pending } : {}),
+            };
+          }
+        } catch (e) {
+          console.warn("[StatusReportTab] Erro Pipedrive (não crítico):", e.message);
+        }
+      }
 
-      // 4. Salvar/atualizar report
+      // Aplicar patch do Pipedrive no form atual
+      const currentForm = Object.keys(pipedriveFormPatch).length > 0
+        ? { ...form, ...pipedriveFormPatch }
+        : form;
+      if (Object.keys(pipedriveFormPatch).length > 0) setForm(currentForm);
+
+      // 5. Persistir tudo
+      const user     = await base44.auth.me().catch(() => null);
+      const userName = user?.full_name || user?.email || "Sistema";
+      const now      = new Date().toISOString();
+
       const payload = {
         project_id: projectId,
-        report_date: new Date().toISOString().split("T")[0],
+        report_date: now.split("T")[0],
         overall_progress: progress,
-        macro_schedule: JSON.stringify(phases),
+        macro_schedule:   JSON.stringify(phases),
         last_auto_update: now,
-        updated_by_name: userName,
-        // usabilidade
-        registered_employees: usability?.numero_funcionarios || report?.registered_employees || 0,
-        recording_employees: usability?.empregados_batendo_ponto_ultimos_15_dias || report?.recording_employees || 0,
-        adherence_percent: project?.contracted_employees
-          ? Math.round(((usability?.empregados_batendo_ponto_ultimos_15_dias || 0) / project.contracted_employees) * 100)
-          : 0,
-        usability_snapshot: JSON.stringify(usability || {}),
-        // campos manuais — preservados
-        next_agenda: form.next_agenda,
-        next_agenda_date: form.next_agenda_date,
-        executive_summary: form.executive_summary,
-        client_pending: form.client_pending,
-        internal_pending: form.internal_pending,
-        risks: form.risks,
-        integration_items: form.integration_items,
+        updated_by_name:  userName,
+        registered_employees: registeredEmployees,
+        recording_employees:  recordingEmployees,
+        adherence_percent:    aderencia,
+        usability_snapshot: JSON.stringify({ registered_employees: registeredEmployees, recording_employees: recordingEmployees }),
+        // campos manuais preservados
+        next_agenda:       currentForm.next_agenda,
+        next_agenda_date:  currentForm.next_agenda_date,
+        executive_summary: currentForm.executive_summary,
+        client_pending:    currentForm.client_pending,
+        internal_pending:  currentForm.internal_pending,
+        risks:             currentForm.risks,
+        integration_items: currentForm.integration_items,
       };
 
       let savedReport;
       if (report?.id) {
-        savedReport = await base44.entities.StatusReport.update(report.id, payload);
+        await base44.entities.StatusReport.update(report.id, payload);
         savedReport = { ...report, ...payload };
       } else {
         savedReport = await base44.entities.StatusReport.create(payload);
@@ -494,113 +505,55 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
       setLastUpdate(now);
       setLastUpdatedBy(userName);
 
-      // Atualizar progresso no projeto principal
+      // Atualizar KPIs — source único vem do report recém salvo
+      setKpiData(computeKpiFromReport(savedReport, project));
+
+      // 6. Atualizar progresso no projeto
       await base44.entities.Project.update(projectId, { progress_percent: progress }).catch(() => {});
 
-      // 5. [NOVO] Sincronizar campos do Pipedrive (Status Report - Integração)
-      //    Executa apenas se o projeto tiver pipedrive_deal_id vinculado.
-      //    Não interrompe o fluxo principal em caso de erro.
-      if (project?.pipedrive_deal_id) {
-        try {
-          console.log(`[StatusReportTab] Sincronizando campos Pipedrive para deal ${project.pipedrive_deal_id}...`);
-          const pipeRes = await base44.functions.invoke("applyStatusReportFromPipedrive", {
-            project_id: projectId,
-            deal_id: project.pipedrive_deal_id,
-          });
-          const pipeData = pipeRes.data;
-          console.log(`[StatusReportTab] applyStatusReportFromPipedrive resultado:`, pipeData);
-
-          if (pipeData?.ok && pipeData.fields_updated > 0) {
-            const patch = pipeData.patch || {};
-            console.log(`[StatusReportTab] Campos atualizados do Pipedrive: ${Object.keys(patch).join(", ")}`);
-            // Atualizar form local com os valores vindos do Pipedrive
-            setForm(f => ({
-              ...f,
-              ...(patch.next_agenda !== undefined ? { next_agenda: patch.next_agenda } : {}),
-              ...(patch.client_pending !== undefined ? { client_pending: patch.client_pending } : {}),
-              ...(patch.internal_pending !== undefined ? { internal_pending: patch.internal_pending } : {}),
-            }));
-          } else if (pipeData?.message) {
-            console.log(`[StatusReportTab] Pipedrive sync: ${pipeData.message}`);
-          }
-        } catch (pipeErr) {
-          console.warn("[StatusReportTab] Erro na sincronização Pipedrive (não crítico):", pipeErr.message);
-        }
-      }
-
+      setUpdateResult({
+        success: true,
+        msg: `${registeredEmployees} cadastrados · ${recordingEmployees} no ponto · ${aderencia}% aderência · cronograma atualizado${sheetFound ? " · planilha sincronizada" : ""}`,
+      });
+    } catch (e) {
+      setUpdateResult({ error: e.message });
     } finally {
       setUpdating(false);
     }
   }, [project, projectId, form, report, savedActivities, answersMap]);
 
-  // Atualizar dados de usabilidade via planilha "Mais recente"
-  const handleUpdateFromSheet = async () => {
-    if (!project?.empresa_id) {
-      setSheetResult({ error: "Projeto sem empresa_id. Preencha o campo ID da Empresa nos Dados Iniciais." });
-      return;
-    }
-    setUpdatingSheet(true);
-    setSheetResult(null);
-    try {
-      const res = await base44.functions.invoke("updateReportFromSheet", {
-        project_id: projectId,
-        empresa_id: project.empresa_id,
-      });
-      const d = res.data;
-      if (d?.success) {
-        // Atualizar estado local com dados retornados
-        setReport(prev => ({ ...(prev || {}), ...d.report }));
-        setSheetResult({
-          success: true,
-          msg: `${d.registered_employees} funcionários · ${d.recording_employees} batendo ponto · ${d.adherence_percent}% aderência`,
-        });
-        setLastUpdate(d.report?.last_auto_update || new Date().toISOString());
-        setLastUpdatedBy(d.report?.updated_by_name || "");
-      } else {
-        setSheetResult({ error: d?.message || d?.error || "Empresa não encontrada na planilha" });
-      }
-    } catch (e) {
-      setSheetResult({ error: e.message });
-    }
-    setUpdatingSheet(false);
-  };
-
-  // Salvar campos manuais manualmente
+  // Salvar apenas campos manuais (sem recalcular indicadores)
   const handleSaveManual = async () => {
     setSaving(true);
     const payload = {
-      next_agenda: form.next_agenda,
-      next_agenda_date: form.next_agenda_date,
-      executive_summary: form.executive_summary,
-      client_pending: form.client_pending,
-      internal_pending: form.internal_pending,
-      risks: form.risks,
-      integration_items: form.integration_items || [],
+      next_agenda: form.next_agenda, next_agenda_date: form.next_agenda_date,
+      executive_summary: form.executive_summary, client_pending: form.client_pending,
+      internal_pending: form.internal_pending, risks: form.risks, integration_items: form.integration_items || [],
     };
     if (report?.id) {
       await base44.entities.StatusReport.update(report.id, payload);
       setReport(r => ({ ...r, ...payload }));
     } else {
       const created = await base44.entities.StatusReport.create({
-        project_id: projectId,
-        report_date: new Date().toISOString().split("T")[0],
-        overall_progress: overallProgress,
-        ...payload,
+        project_id: projectId, report_date: new Date().toISOString().split("T")[0],
+        overall_progress: overallProgress, ...payload,
       });
       setReport(created);
     }
     setSaving(false);
   };
 
-  // Gerar versão HTML para e-mail
+  // Gerar e-mail — usa exatamente os mesmos dados exibidos na UI
   const handleGenerateEmail = () => {
+    // Constrói usabilityData a partir do kpiData (source único)
+    const usabilityForEmail = {
+      numero_funcionarios: kpiData.cadastrados,
+      empregados_batendo_ponto_ultimos_15_dias: kpiData.batendoPonto,
+    };
     const html = generateStatusReportEmail({
-      project,
-      form,
-      macroPhases,
-      overallProgress,
-      usabilityData,
-      report,  // fallback para dados persistidos quando usabilityData não foi carregado
+      project, form, macroPhases, overallProgress,
+      usabilityData: usabilityForEmail,
+      report,
     });
     setEmailHtml(html);
     setShowEmailPreview(true);
@@ -608,71 +561,58 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
 
   return (
     <div>
-      {/* ── Toolbar ── */}
+      {/* Toolbar */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-bold text-slate-800">Status Report</h2>
             <div className="text-xs text-slate-400 mt-0.5">
-              {lastUpdate ? (
-                <>
-                  Última atualização: <strong className="text-slate-600">{new Date(lastUpdate).toLocaleString("pt-BR")}</strong>
-                  {lastUpdatedBy && <> · por {lastUpdatedBy}</>}
-                </>
-              ) : "Nenhuma atualização automática realizada"}
+              {lastUpdate
+                ? <>Última atualização: <strong className="text-slate-600">{new Date(lastUpdate).toLocaleString("pt-BR")}</strong>{lastUpdatedBy && <> · por {lastUpdatedBy}</>}</>
+                : "Nenhuma atualização realizada"}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {!readOnly && project?.empresa_id && (
-            <button
-              onClick={handleUpdateFromSheet}
-              disabled={updatingSheet}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${updatingSheet ? "animate-spin" : ""}`} />
-              {updatingSheet ? "Atualizando..." : "Atualizar Report"}
-            </button>
+            {!readOnly && (
+              <button
+                onClick={() => setShowConfirm(true)}
+                disabled={updating}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${updating ? "animate-spin" : ""}`} />
+                {updating ? "Atualizando..." : "Atualizar Status Report"}
+              </button>
             )}
             {!readOnly && (
-            <button
-              onClick={() => setShowConfirm(true)}
-              disabled={updating}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${updating ? "animate-spin" : ""}`} />
-              {updating ? "Atualizando..." : "Atualizar Status Report"}
-            </button>
+              <button
+                onClick={handleSaveManual}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-purple-200 bg-purple-50 text-purple-700 rounded-xl hover:bg-purple-100 transition-colors disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? "Salvando..." : "Salvar campos manuais"}
+              </button>
             )}
-
-            {!readOnly && (
-            <button
-              onClick={handleSaveManual}
-              disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-purple-200 bg-purple-50 text-purple-700 rounded-xl hover:bg-purple-100 transition-colors disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" />
-              {saving ? "Salvando..." : "Salvar campos manuais"}
-            </button>
-            )}
-
             <button
               onClick={handleGenerateEmail}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-slate-200 bg-white text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
             >
               <Mail className="w-4 h-4" />
-              Gerar versão para e-mail
+              Gerar e-mail
             </button>
           </div>
         </div>
 
-        {/* Feedback Atualizar Report */}
-        {sheetResult && (
+        {/* Feedback da atualização */}
+        {updateResult && (
           <div className={`mt-3 p-3 rounded-xl flex items-start gap-2 text-xs ${
-            sheetResult.success ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"
+            updateResult.success
+              ? "bg-green-50 border border-green-200 text-green-700"
+              : "bg-red-50 border border-red-200 text-red-700"
           }`}>
-            {sheetResult.success
-              ? <><CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" /> Planilha atualizada: {sheetResult.msg}</>
-              : <><AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {sheetResult.error}</>
+            {updateResult.success
+              ? <><CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {updateResult.msg}</>
+              : <><AlertCircle  className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {updateResult.error}</>
             }
           </div>
         )}
@@ -683,21 +623,15 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
             <div className="flex items-start gap-3">
               <AlertCircle className="w-4 h-4 text-purple-600 mt-0.5 shrink-0" />
               <div className="flex-1">
-                <p className="text-sm text-purple-800 font-medium mb-1">Confirmar atualização automática</p>
+                <p className="text-sm text-purple-800 font-medium mb-1">Confirmar atualização</p>
                 <p className="text-xs text-purple-600">
-                  Isso irá atualizar os dados automáticos do Status Report com base em Dados Iniciais, Cronograma Detalhado e planilha de usabilidade. Campos manuais serão preservados.
+                  Atualiza indicadores da planilha "Mais recente", recalcula cronograma com atividades reais, sincroniza Pipedrive e persiste tudo. Campos manuais são preservados.
                 </p>
                 <div className="flex gap-2 mt-3">
-                  <button
-                    onClick={handleUpdate}
-                    className="px-4 py-1.5 text-xs font-semibold bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                  >
+                  <button onClick={handleUpdate} className="px-4 py-1.5 text-xs font-semibold bg-purple-600 text-white rounded-lg hover:bg-purple-700">
                     Confirmar e atualizar
                   </button>
-                  <button
-                    onClick={() => setShowConfirm(false)}
-                    className="px-4 py-1.5 text-xs font-medium border border-purple-200 text-purple-600 rounded-lg hover:bg-purple-100"
-                  >
+                  <button onClick={() => setShowConfirm(false)} className="px-4 py-1.5 text-xs font-medium border border-purple-200 text-purple-600 rounded-lg hover:bg-purple-100">
                     Cancelar
                   </button>
                 </div>
@@ -707,25 +641,18 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         )}
       </div>
 
-      {/* ── Modal e-mail ── */}
-      {showEmailPreview && (
-        <EmailPreviewModal html={emailHtml} onClose={() => setShowEmailPreview(false)} />
-      )}
+      {showEmailPreview && <EmailPreviewModal html={emailHtml} onClose={() => setShowEmailPreview(false)} />}
 
-      {/* ── Dashboard ── */}
-      <div>
-        <StatusReportDashboard
-          report={report}
-          project={project}
-          macroPhases={macroPhases}
-          overallProgress={overallProgress}
-          usabilityData={usabilityData}
-          form={form}
-          setForm={setForm}
-          locked={false}
-          readOnly={readOnly}
-        />
-      </div>
+      <StatusReportDashboard
+        report={report}
+        project={project}
+        macroPhases={macroPhases}
+        overallProgress={overallProgress}
+        kpiData={kpiData}
+        form={form}
+        setForm={setForm}
+        readOnly={readOnly}
+      />
     </div>
   );
 }

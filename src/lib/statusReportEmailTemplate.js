@@ -51,7 +51,8 @@ function progressBar(pct) {
 export function generateStatusReportEmail({ project, form, macroPhases, overallProgress, usabilityData, report }) {
   const today = new Date().toLocaleDateString("pt-BR");
   const contracted = project?.contracted_employees || 0;
-  // Usa usabilityData se disponível, senão fallback para valores persistidos no report
+  // Source único: usabilityData (passado pelo StatusReportTab com kpiData exibido na UI)
+  // Fallback para report persistido apenas se usabilityData não tiver sido passado
   const cadastrados = usabilityData?.numero_funcionarios ?? report?.registered_employees ?? 0;
   const batendoPonto = usabilityData?.empregados_batendo_ponto_ultimos_15_dias ?? report?.recording_employees ?? 0;
   const aderencia = contracted > 0 ? Math.round((batendoPonto / contracted) * 100) : (report?.adherence_percent ?? 0);
