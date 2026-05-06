@@ -399,7 +399,17 @@ plannedStart              → self reference
 `scheduleTasks.js` continha 10 atividades com `plannedEnd: { type: "manual_override" }` indevido.
 Consequência em cascata: atividades que dependiam do fim dessas ficavam sem data planejada.
 
-### Atividades corrigidas (manual_override → calculated)
+### Atividades corrigidas na v5.9b (2026-05-06)
+
+| ID | Atividade | Correção |
+|---|---|---|
+| `integracao_sankhya_envio_formulario` | [Sankhya] Envio formulário | plannedEnd: `workday(plannedStart, 1)` |
+| `inicio_ativacao_integracao_sankhya` | Início ativação integração | plannedStart: `preenchimento_formulario_integracao_sankhya.plannedEnd` (era manual) |
+| `correcao_cadastros_sankhya` | [Sankhya] Correção cadastros | plannedEnd: `workday(plannedStart, 5)` |
+| `envio_planilha_importacao_escalas_sankhya` | Envio planilha escalas | plannedEnd: `workday(plannedStart, 1)` |
+| `fechamento_folha` | Fechamento de folha | plannedEnd: `workday(plannedStart, 5)` |
+
+### Atividades corrigidas na v5.9a (manual_override → calculated)
 
 | ID | Atividade | Correção aplicada |
 |---|---|---|

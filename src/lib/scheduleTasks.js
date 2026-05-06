@@ -50,7 +50,7 @@ export const SCHEDULE_TASKS = [
     id: "integracao_sankhya_envio_formulario", row: 14, type: "task",
     phase: "Integração", activity: "[Sankhya] Envio do formulário de dados para integração",
     plannedStart: { type: "calculated", formula: "alinhamento_inicial.plannedStart" },
-    plannedEnd: { type: "manual_override", propagates: false },
+    plannedEnd: { type: "calculated", formula: "workday(plannedStart, 1)" },
     visibleWhen: { source: "escopo.q006", equals: "Sim" }
   },
   {
@@ -63,7 +63,7 @@ export const SCHEDULE_TASKS = [
   {
     id: "inicio_ativacao_integracao_sankhya", row: 16, type: "task",
     phase: "Integração", activity: "Inicio da ativação da integração, análise de inconsistências, alinhamento com o cliente para ajustes",
-    plannedStart: { type: "manual_override", propagates: false },
+    plannedStart: { type: "calculated", formula: "preenchimento_formulario_integracao_sankhya.plannedEnd" },
     plannedEnd: { type: "calculated", formula: "workday(plannedStart, 5)" },
     visibleWhen: { source: "escopo.q006", equals: "Sim" }
   },
@@ -71,7 +71,7 @@ export const SCHEDULE_TASKS = [
     id: "correcao_cadastros_sankhya", row: 17, type: "task",
     phase: "Integração", activity: "[Sankhya] Correção de cadastros Sankhya",
     plannedStart: { type: "calculated", formula: "inicio_ativacao_integracao_sankhya.plannedStart" },
-    plannedEnd: { type: "manual_override", propagates: false },
+    plannedEnd: { type: "calculated", formula: "workday(plannedStart, 5)" },
     visibleWhen: { source: "escopo.q006", equals: "Sim" }
   },
   {
@@ -85,7 +85,7 @@ export const SCHEDULE_TASKS = [
     id: "envio_planilha_importacao_escalas_sankhya", row: 19, type: "task",
     phase: "Cadastros", activity: "Envio da planilha de importação de escalas [para clientes Sankhya]",
     plannedStart: { type: "calculated", formula: "integracao_sankhya_envio_formulario.plannedStart" },
-    plannedEnd: { type: "manual_override", propagates: false },
+    plannedEnd: { type: "calculated", formula: "workday(plannedStart, 1)" },
     visibleWhen: { source: "escopo.q006", equals: "Sim" }
   },
 
@@ -437,7 +437,7 @@ export const SCHEDULE_TASKS = [
     id: "fechamento_folha", row: 70, type: "task",
     phase: "Fechamento de Folha", activity: "Fechamento de folha",
     plannedStart: { type: "calculated", formula: "agenda_fechamento_folha.plannedStart" },
-    plannedEnd: { type: "manual_override", propagates: false },
+    plannedEnd: { type: "calculated", formula: "workday(plannedStart, 5)" },
     visibleWhen: "always"
   },
 
