@@ -1,13 +1,15 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { formatDate } from "@/lib/utils";
 import { computeMacroSchedule, MACRO_PHASE_ORDER } from "@/lib/scheduleReportEngine.js";
 import { SCHEDULE_TASKS } from "@/lib/scheduleTasks.js";
 import { computeSchedule } from "@/lib/scheduleEngine.js";
+import { generateStatusReportEmail } from "@/lib/statusReportEmailTemplate.js";
+import EmailPreviewModal from "@/components/project/EmailPreviewModal.jsx";
 import {
-  RefreshCw, Image, Clock, CheckCircle2, AlertTriangle,
+  RefreshCw, Mail, Clock, CheckCircle2, AlertTriangle,
   AlertCircle, Users, Activity, TrendingUp, Calendar,
-  ChevronDown, ChevronUp, Save, Plus, Trash2
+  Save, Plus, Trash2
 } from "lucide-react";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -458,11 +460,11 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
 
   const [updating, setUpdating] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [savingImage, setSavingImage] = useState(false);
+  const [showEmailPreview, setShowEmailPreview] = useState(false);
+  const [emailHtml, setEmailHtml] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [updatingSheet, setUpdatingSheet] = useState(false);
   const [sheetResult, setSheetResult] = useState(null); // { success, msg } | { error }
-  const dashboardRef = useRef(null);
 
   // Construir answersMap a partir do scopeItems
   const answersMap = {};
@@ -646,29 +648,17 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
     setSaving(false);
   };
 
-  // Gerar imagem PNG do dashboard
-  const handleGenerateImage = async () => {
-    setSavingImage(true);
-    try {
-      const html2canvas = (await import("html2canvas")).default;
-      const element = dashboardRef.current;
-      if (!element) return;
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#f8fafc",
-        windowWidth: 1200,
-      });
-      const link = document.createElement("a");
-      const clientSlug = (project?.client_name || "cliente").replace(/\s+/g, "_");
-      const dateSlug = new Date().toISOString().split("T")[0].replace(/-/g, "");
-      link.download = `Status_Report_${clientSlug}_${dateSlug}.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
-    } catch (e) {
-      alert("Erro ao gerar imagem: " + e.message);
-    }
-    setSavingImage(false);
+  // Gerar versão HTML para e-mail
+  const handleGenerateEmail = () => {
+    const html = generateStatusReportEmail({
+      project,
+      form,
+      macroPhases,
+      overallProgress,
+      usabilityData,
+    });
+    setEmailHtml(html);
+    setShowEmailPreview(true);
   };
 
   return (
@@ -721,12 +711,11 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
             )}
 
             <button
-              onClick={handleGenerateImage}
-              disabled={savingImage}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-slate-200 bg-white text-slate-600 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
+              onClick={handleGenerateEmail}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-slate-200 bg-white text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
             >
-              <Image className="w-4 h-4" />
-              {savingImage ? "Gerando..." : "Gerar imagem"}
+              <Mail className="w-4 h-4" />
+              Gerar versão para e-mail
             </button>
           </div>
         </div>
@@ -773,8 +762,13 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         )}
       </div>
 
-      {/* ── Dashboard capturável ── */}
-      <div ref={dashboardRef}>
+      {/* ── Modal e-mail ── */}
+      {showEmailPreview && (
+        <EmailPreviewModal html={emailHtml} onClose={() => setShowEmailPreview(false)} />
+      )}
+
+      {/* ── Dashboard ── */}
+      <div>
         <StatusReportDashboard
           report={report}
           project={project}
