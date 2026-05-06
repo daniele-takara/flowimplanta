@@ -392,6 +392,73 @@ plannedStart              → self reference
 
 ---
 
+## 14. PARAMETRIZAÇÕES — TEMPLATES > CRONOGRAMA (v5.8)
+
+### Fonte oficial do cronograma
+
+A aba **Parametrizações > Templates > Cronograma** é a visualização oficial da estrutura do cronograma.
+
+| Origem | Responsável |
+|--------|------------|
+| Fases e atividades | `lib/scheduleTasks.js` → `SCHEDULE_TASKS` |
+| Regras de data (âncora, cálculo, offset) | `lib/scheduleTasks.js` → campos `plannedStart`/`plannedEnd` de cada task |
+| Responsáveis padrão | `ScheduleTemplate.tasks_config` (banco) |
+| Motor de cálculo | `lib/scheduleEngine.js` → `computeSchedule()` |
+| Macrofases para Status Report | `lib/scheduleReportEngine.js` → `computeMacroSchedule()` |
+
+### Campos exibidos por atividade
+
+| Campo | Origem |
+|-------|--------|
+| Nome da atividade | `task.activity` |
+| Fase | `task.phase` |
+| Tipo | `task.plannedStart.type` (anchor / calculated / manual_override) |
+| Regra de Início | `task.plannedStart.formula` (parseada para texto legível) |
+| Regra de Fim | `task.plannedEnd.formula` (parseada para texto legível) |
+| Recalcula dependentes | `task.plannedStart.propagates` |
+| Visibilidade condicional | `task.visibleWhen` / `visibleWhenAll` / `visibleWhenAny` |
+| Resp. Geral | `ScheduleTemplate.tasks_config[taskId].responsible_general_type` |
+| Papel Líder | `ScheduleTemplate.tasks_config[taskId].responsible_role` |
+
+### Tipos de data
+
+| Tipo | Badge | Comportamento |
+|------|-------|--------------|
+| `anchor` | 🔶 Âncora | Data definida por projeto, editável no cronograma. Propaga para dependentes. |
+| `calculated` | ⚡ Calculada | Calculada automaticamente por fórmula (workday, sameDay, ref direta). Somente leitura. |
+| `manual_override` | ✏️ Manual | Preenchida manualmente no projeto. Não recalcula automaticamente. |
+
+### 5 Datas Âncora do sistema
+
+| ID | Atividade âncora |
+|----|-----------------|
+| `alinhamento_inicial` | Alinhamento inicial |
+| `go_live_registro_ponto` | Inicio de registro de ponto (Go Live) |
+| `agenda_fechamento_folha` | Agenda fechamento de folha de ponto |
+| `expansao_registro_ponto_real` | Expansão de registro de ponto real |
+| `agenda_encerramento_projeto` | Agenda de encerramento de projeto |
+
+### Configuração de responsáveis
+
+- **Resp. Geral** (`responsible_general_type`): `pontotel` / `cliente` / `compartilhado`
+  - Resolvido dinamicamente no projeto via `resolveGeneralResponsible(type, project)`
+- **Papel Líder** (`responsible_role`): `gerente_projeto` / `analista_implantacao` / `patrocinador` / `lider_projeto` / `ti` / `operacao`
+  - Resolvido dinamicamente no projeto via `resolveRoleToName(role, project)`
+
+Alterações são salvas em `ScheduleTemplate.tasks_config` (JSON) e lidas pelo `ScheduleTab` via `templateConfig[taskId]`.
+
+### Atividades condicionais
+
+Atividades com `visibleWhen ≠ "always"` só aparecem no cronograma do projeto se os módulos/escopo/serviços estiverem ativos. A condição é avaliada por `evaluateCondition()` em `scheduleEngine.js`.
+
+### O que NÃO é configurável aqui
+
+- As fórmulas de data (ex: `workday(alinhamento_inicial.plannedStart, 5)`) estão hardcoded em `scheduleTasks.js`
+- Adicionar/remover atividades requer edição de `scheduleTasks.js`
+- A ordem das fases é definida por `PHASE_ORDER` em `scheduleTasks.js`
+
+---
+
 ## 7. CONSISTÊNCIA DE NOMES DE FASES
 
 **Regra de ouro:** os nomes de fase DEVEM ser idênticos em todos estes lugares:
