@@ -97,6 +97,38 @@ async function fetchDeal(dealId, apiToken) {
   return data.data || null;
 }
 
+/**
+ * Busca o histórico real de movimentação de etapas via GET /v1/deals/{id}/flow.
+ * Retorna Map de stageId (number) → primeira data de entrada (YYYY-MM-DD).
+ */
+async function fetchStageEntryDates(dealId, apiToken) {
+  const stageMap = new Map();
+  try {
+    let start = 0;
+    while (true) {
+      const res = await fetch(`${PIPE_V1}/deals/${dealId}/flow?limit=100&start=${start}&api_token=${apiToken}`);
+      if (res.status === 429) throw new Error("Rate limit Pipedrive (429)");
+      if (!res.ok) { console.warn(`[fetchStageEntryDates] flow ${res.status}`); break; }
+      const data = await res.json();
+      const items = data.data || [];
+      for (const item of items) {
+        const d = item.data || item;
+        const newStage = d.stage_id_new != null ? Number(d.stage_id_new) : null;
+        const logTime  = item.log_time || d.log_time || item.add_time || d.add_time || null;
+        if (newStage != null && logTime && !stageMap.has(newStage)) {
+          stageMap.set(newStage, String(logTime).substring(0, 10));
+          console.log(`[pipedriveWebhook/flow] stage ${newStage} → ${String(logTime).substring(0, 10)}`);
+        }
+      }
+      if (!data.additional_data?.pagination?.more_items_in_collection || items.length === 0) break;
+      start += 100;
+    }
+  } catch (e) {
+    console.warn(`[pipedriveWebhook/flow] Erro: ${e.message}`);
+  }
+  return stageMap;
+}
+
 async function fetchAllActivities(dealId, apiToken) {
   const all = [];
   let start = 0;
@@ -234,8 +266,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    const pipeActivities = await fetchAllActivities(dealId, apiToken);
+    const [pipeActivities, stageEntryDates] = await Promise.all([
+      fetchAllActivities(dealId, apiToken),
+      fetchStageEntryDates(dealId, apiToken),
+    ]);
     console.log(`[pipedriveWebhook] Activities do deal: ${pipeActivities.length} total, ${pipeActivities.filter(a => a.done).length} concluídas`);
+    console.log(`[pipedriveWebhook] Flow histórico: ${stageEntryDates.size} etapas → ${JSON.stringify(Object.fromEntries(stageEntryDates))}`);
 
     // Carregar cronograma
     const [scheduleActivities, schedulePhases] = await Promise.all([
@@ -343,7 +379,17 @@ Deno.serve(async (req) => {
         ruleEntry.matched = true;
         console.log(`[pipedriveWebhook] [Regra #${rule.order}] ✓ MATCH stage=${currentStageNum} → fase="${base44Fase}" atividade="${base44Atv}"`);
 
-        const dateStr = extractDate(deal[campoData]) || extractDate(deal.update_time) || new Date().toISOString().substring(0, 10);
+        // actual_start: usa data histórica real do flow; actual_end: usa deal ao vivo
+        let dateStr;
+        if (fazInicio && stageEntryDates.has(ruleStageNum)) {
+          dateStr = stageEntryDates.get(ruleStageNum);
+          ruleEntry.date_source = "flow_history";
+          console.log(`[pipedriveWebhook] [Regra #${rule.order}] actual_start via FLOW HISTÓRICO: stage=${ruleStageNum} → ${dateStr}`);
+        } else {
+          dateStr = extractDate(deal[campoData]) || extractDate(deal.update_time) || new Date().toISOString().substring(0, 10);
+          ruleEntry.date_source = "deal_live";
+          console.log(`[pipedriveWebhook] [Regra #${rule.order}] actual_start/end via deal ao vivo: ${dateStr}`);
+        }
         ruleEntry.date_used = dateStr;
         ruleEntry.date_field = campoData;
 

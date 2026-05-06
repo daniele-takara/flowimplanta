@@ -89,6 +89,48 @@ async function fetchDeal(dealId, apiToken) {
   return data.data || null;
 }
 
+/**
+ * Busca o histórico real de movimentação de etapas do deal via /v1/deals/{id}/flow.
+ * Retorna um Map de stageId (number) → dateStr (YYYY-MM-DD) com a data em que o deal
+ * entrou naquela etapa pela PRIMEIRA vez.
+ */
+async function fetchStageEntryDates(dealId, apiToken) {
+  const stageMap = new Map(); // stageId (number) → first entry date string
+  try {
+    let start = 0;
+    while (true) {
+      const res = await fetch(`${PIPE_V1}/deals/${dealId}/flow?limit=100&start=${start}&api_token=${apiToken}`);
+      if (res.status === 429) throw new Error("Rate limit Pipedrive (429)");
+      if (!res.ok) {
+        console.warn(`[fetchStageEntryDates] flow retornou ${res.status}, retornando mapa vazio`);
+        break;
+      }
+      const data = await res.json();
+      const items = data.data || [];
+      for (const item of items) {
+        // Eventos de mudança de etapa ficam em item.data ou item diretamente
+        // O payload do flow tem: object (deal), action (edit), data.stage_id_new, data.stage_id_old, log_time
+        const d = item.data || item;
+        const newStage = d.stage_id_new != null ? Number(d.stage_id_new) : null;
+        const logTime  = item.log_time || d.log_time || item.add_time || d.add_time || null;
+        if (newStage != null && logTime) {
+          const dateStr = String(logTime).substring(0, 10);
+          // Guarda apenas a PRIMEIRA vez que o deal entrou naquela etapa
+          if (!stageMap.has(newStage)) {
+            stageMap.set(newStage, dateStr);
+            console.log(`[fetchStageEntryDates] stage ${newStage} → primeira entrada: ${dateStr}`);
+          }
+        }
+      }
+      if (!data.additional_data?.pagination?.more_items_in_collection || items.length === 0) break;
+      start += 100;
+    }
+  } catch (e) {
+    console.warn(`[fetchStageEntryDates] Erro ao buscar flow: ${e.message}`);
+  }
+  return stageMap;
+}
+
 async function fetchAllActivities(dealId, apiToken) {
   const all = [];
   let start = 0;
@@ -147,12 +189,15 @@ Deno.serve(async (req) => {
       return Response.json({ ok: false, error: 'Nenhuma regra de cronograma. Execute "Atualizar regras da planilha".' }, { status: 400 });
     }
 
-    // 3. Buscar Pipedrive
-    const [deal, pipeActivities] = await Promise.all([
+    // 3. Buscar Pipedrive (deal, activities e flow em paralelo)
+    const [deal, pipeActivities, stageEntryDates] = await Promise.all([
       fetchDeal(dealId, apiToken),
       fetchAllActivities(dealId, apiToken),
+      fetchStageEntryDates(dealId, apiToken),
     ]);
     if (!deal) return Response.json({ ok: false, error: `Deal ${dealId} não encontrado` }, { status: 404 });
+
+    console.log(`[syncSchedule] Flow histórico: ${stageEntryDates.size} etapas mapeadas → ${JSON.stringify(Object.fromEntries(stageEntryDates))}`);
 
     // Comparação numérica — stage_id pode vir como número ou string
     const currentStageNum = deal.stage_id != null ? Number(deal.stage_id) : null;
@@ -217,14 +262,28 @@ Deno.serve(async (req) => {
 
       // ── REGRA DEAL (stage_id) ─────────────────────────────────────────────
       if (entidade === "deal" && campoKey === "stage_id") {
-        // Comparação numérica — evita falhas por tipo (string "142" vs number 142)
         const ruleStageNum = Number(valorDisp);
-        const stageMatch = currentStageNum !== null && currentStageNum === ruleStageNum;
-        console.log(`[syncSchedule] [Regra #${rule.order}] deal/stage_id: recebido=${currentStageNum} esperado=${ruleStageNum} match=${stageMatch}`);
+
+        // Para regras de início: o deal precisa ter PASSADO pela etapa (histórico)
+        // Para regras de fim: o deal precisa estar na etapa ATUAL
+        const stageInHistory = stageEntryDates.has(ruleStageNum);
+        const stageIsCurrent = currentStageNum !== null && currentStageNum === ruleStageNum;
+        const stageMatch = fazInicio ? stageInHistory : stageIsCurrent;
+
+        console.log(`[syncSchedule] [Regra #${rule.order}] deal/stage_id: esperado=${ruleStageNum} | atual=${currentStageNum} | no_histórico=${stageInHistory} | faz_inicio=${fazInicio} | match=${stageMatch}`);
         if (!stageMatch) continue;
 
-        const dateStr = extractDate(deal[campoData]) || extractDate(deal.update_time);
-        if (!dateStr) { matchErrors.push(`Deal stage=${valorDisp}: sem data no campo "${campoData}"`); continue; }
+        // actual_start: usa data histórica real do flow (quando o deal entrou naquela etapa)
+        // actual_end: mantém comportamento anterior (deal ao vivo ou update_time)
+        let dateStr;
+        if (fazInicio && stageEntryDates.has(ruleStageNum)) {
+          dateStr = stageEntryDates.get(ruleStageNum);
+          console.log(`[syncSchedule] [Regra #${rule.order}] actual_start via FLOW HISTÓRICO: stage=${ruleStageNum} → ${dateStr}`);
+        } else {
+          dateStr = extractDate(deal[campoData]) || extractDate(deal.update_time);
+          console.log(`[syncSchedule] [Regra #${rule.order}] actual_start/end via deal ao vivo: campo="${campoData}" → ${dateStr}`);
+        }
+        if (!dateStr) { matchErrors.push(`Deal stage=${valorDisp}: sem data no histórico e no campo "${campoData}"`); continue; }
 
         // Wildcard "*": garantir que TODAS as atividades canônicas da fase existam no banco
         if (base44Atv === "*") {

@@ -464,10 +464,38 @@ Se a chave já existe no banco → regra ignorada. Se não existe → regra cria
 
 | Campo DB | Nome na UI | Origem |
 |----------|-----------|--------|
-| `actual_start` | Início Executado | Pipedrive (via integração) ou edição manual |
-| `actual_end` | Fim Executado | Pipedrive (via integração) ou edição manual |
+| `actual_start` | Início Executado | **Flow histórico do deal** (`GET /v1/deals/{id}/flow`) — data real de entrada na etapa |
+| `actual_end` | Fim Executado | Deal ao vivo ou `activity.marked_as_done_time` |
 | `planned_start` | Início Planejado | Motor de cronograma (calculado) |
 | `planned_end` | Fim Planejado | Motor de cronograma (calculado) |
+
+### Origem correta de actual_start: Deal Flow vs. Estado Atual
+
+**Problema resolvido em v5.3:** antes, `actual_start` usava `deal.update_time` ou `deal[campoData]` — ambos refletem o **estado atual** do deal, não o momento histórico em que ele entrou naquela etapa. Isso causava todas as fases receberem a mesma data (a da última sincronização).
+
+**Solução: `GET /v1/deals/{id}/flow`**
+
+O endpoint `/flow` retorna o log completo de alterações do deal, incluindo eventos do tipo `stage_id_new` com seu `log_time`. A função `fetchStageEntryDates` constrói um `Map<stageId, dateStr>` com a **primeira data de entrada** em cada etapa.
+
+```
+GET /v1/deals/{deal_id}/flow
+→ items[].data.stage_id_new  (etapa de destino)
+→ items[].log_time           (data/hora real da mudança)
+```
+
+**Regra de aplicação por tipo de data:**
+
+| Tipo de data | Fonte |
+|---|---|
+| `actual_start` (faz_inicio=true) | `stageEntryDates.get(stageId)` — data histórica do flow |
+| `actual_end` (faz_fim=true) | `deal[campoData]` ou `deal.update_time` — estado atual |
+| `actual_end` via activity | `activity.marked_as_done_time` — inalterado |
+
+**Condição de match para faz_inicio:**
+- Antes: `currentStageId === valorDisparo` (só etapa atual)
+- Agora: `stageEntryDates.has(ruleStageNum)` (qualquer etapa já visitada no histórico)
+
+Isso garante que uma sync manual em qualquer momento sempre recupera as datas históricas corretas de cada etapa, mesmo que o deal já tenha avançado para etapas posteriores.
 
 ### Resultado E2E validado (2026-05-02)
 

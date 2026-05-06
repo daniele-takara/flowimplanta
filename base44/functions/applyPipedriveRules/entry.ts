@@ -99,6 +99,39 @@ async function fetchDeal(dealId) {
   return data.data || null;
 }
 
+/**
+ * Busca o histórico real de movimentação de etapas via GET /v1/deals/{id}/flow.
+ * Retorna Map de stageId (number) → primeira data de entrada (YYYY-MM-DD).
+ */
+async function fetchStageEntryDates(dealId) {
+  const apiToken = Deno.env.get("API_PIpedrive");
+  const stageMap = new Map();
+  try {
+    let start = 0;
+    while (true) {
+      const res = await fetch(`${PIPE_V1}/deals/${dealId}/flow?limit=100&start=${start}&api_token=${apiToken}`);
+      if (res.status === 429) throw new Error("Rate limit Pipedrive (429)");
+      if (!res.ok) { console.warn(`[fetchStageEntryDates] flow ${res.status}`); break; }
+      const data = await res.json();
+      const items = data.data || [];
+      for (const item of items) {
+        const d = item.data || item;
+        const newStage = d.stage_id_new != null ? Number(d.stage_id_new) : null;
+        const logTime  = item.log_time || d.log_time || item.add_time || d.add_time || null;
+        if (newStage != null && logTime && !stageMap.has(newStage)) {
+          stageMap.set(newStage, String(logTime).substring(0, 10));
+          console.log(`[fetchStageEntryDates] stage ${newStage} → ${String(logTime).substring(0, 10)}`);
+        }
+      }
+      if (!data.additional_data?.pagination?.more_items_in_collection || items.length === 0) break;
+      start += 100;
+    }
+  } catch (e) {
+    console.warn(`[fetchStageEntryDates] Erro: ${e.message}`);
+  }
+  return stageMap;
+}
+
 async function fetchAllActivities(dealId) {
   const apiToken = Deno.env.get("API_PIpedrive");
   const all = [];
@@ -219,6 +252,7 @@ Deno.serve(async (req) => {
     }
 
     pipeActivities = await fetchAllActivities(actualDealId);
+    const stageEntryDates = await fetchStageEntryDates(actualDealId);
     const doneActivities = pipeActivities.filter(a =>
       a.done === true || a.done === 1 || String(a.done).toLowerCase() === "true"
     );
@@ -232,6 +266,8 @@ Deno.serve(async (req) => {
       total_activities: pipeActivities.length,
       done_activities: doneActivities.length,
       done_subjects: doneActivities.map(a => a.subject),
+      flow_stages_mapped: stageEntryDates.size,
+      flow_stage_dates: Object.fromEntries(stageEntryDates),
     });
 
     // ── STEP 4: Carregar cronograma do projeto ────────────────────────────
@@ -329,13 +365,23 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const stageIdMatch = currentStageId === String(valorDisp);
+        const ruleStageNum = Number(valorDisp);
+        // Para faz_inicio: aceita qualquer etapa já visitada no histórico do deal
+        // Para faz_fim: exige que o deal esteja na etapa atual
+        const stageInHistory = stageEntryDates.has(ruleStageNum);
+        const stageIsCurrent = currentStageId === String(valorDisp);
+        const stageIdMatch = fazInicio ? stageInHistory : stageIsCurrent;
+
         ruleDebug.valor_recebido = currentStageId;
         ruleDebug.valor_disparo_normalizado = String(valorDisp);
-        ruleDebug.comparacao = `"${currentStageId}" === "${String(valorDisp)}" → ${stageIdMatch}`;
+        ruleDebug.stage_in_history = stageInHistory;
+        ruleDebug.stage_is_current = stageIsCurrent;
+        ruleDebug.comparacao = `faz_inicio=${fazInicio} | histórico=${stageInHistory} | atual=${stageIsCurrent} → match=${stageIdMatch}`;
 
         if (!stageIdMatch) {
-          ruleDebug.skip_reason = `stage_id="${currentStageId}" ≠ valor_disparo="${valorDisp}"`;
+          ruleDebug.skip_reason = fazInicio
+            ? `stage_id=${valorDisp} não encontrado no histórico do deal`
+            : `stage_id atual "${currentStageId}" ≠ valor_disparo "${valorDisp}"`;
           result.rule_debug.push(ruleDebug);
           continue;
         }
@@ -343,14 +389,24 @@ Deno.serve(async (req) => {
         ruleDebug.match = true;
         result.rules_matched++;
 
-        const dateStr = extractDate(deal[campoData]) || extractDate(deal.update_time);
+        // actual_start: usa data histórica real do flow (quando o deal entrou naquela etapa)
+        // actual_end: usa deal ao vivo (campo configurado na regra)
+        let dateStr;
+        if (fazInicio && stageEntryDates.has(Number(valorDisp))) {
+          dateStr = stageEntryDates.get(Number(valorDisp));
+          ruleDebug.date_source = "flow_history";
+          log(`RULE_DATE_FLOW`, { rule_order: rule.order, stage: valorDisp, date: dateStr });
+        } else {
+          dateStr = extractDate(deal[campoData]) || extractDate(deal.update_time);
+          ruleDebug.date_source = "deal_live";
+        }
         ruleDebug.date_used = dateStr;
         ruleDebug.date_field = campoData;
         ruleDebug.date_raw = deal[campoData];
 
         if (!dateStr) {
-          ruleDebug.skip_reason = `Sem data no campo "${campoData}" e update_time`;
-          result.match_errors.push(`Deal stage=${valorDisp}: sem data no campo "${campoData}"`);
+          ruleDebug.skip_reason = `Sem data no histórico de flow e no campo "${campoData}"`;
+          result.match_errors.push(`Deal stage=${valorDisp}: sem data no flow e no campo "${campoData}"`);
           result.rule_debug.push(ruleDebug);
           continue;
         }
