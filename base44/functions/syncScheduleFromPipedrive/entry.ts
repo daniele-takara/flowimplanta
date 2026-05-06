@@ -178,11 +178,13 @@ Deno.serve(async (req) => {
     }
     console.log(`[syncSchedule] Fases do projeto: ${allProjectPhases.join(" | ")} | Atividades: ${scheduleActivities.length}`);
 
-    const activitiesCache = [...scheduleActivities];
+    // Cópia profunda para evitar mutação de referências compartilhadas entre regras
+    const activitiesCache = scheduleActivities.map(a => ({ ...a }));
 
     function phaseExists(fase) {
       return allProjectPhases.some(p => normalize(p) === normalize(fase));
     }
+    // Sempre retorna nova lista filtrada — garante isolamento entre regras com mesmo stage_id
     function getPhaseActivities(fase) {
       return activitiesCache.filter(a => normalize(a.phase_name) === normalize(fase));
     }
@@ -209,7 +211,9 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // ISOLAMENTO: cada regra obtém sua própria lista filtrada por phase_name
       let phaseActs = getPhaseActivities(base44Fase);
+      console.log(`[syncSchedule] [Regra #${rule.order}] LOOKUP fase="${base44Fase}" stage_id=${valorDisp} → ${phaseActs.length} atividades [${phaseActs.map(a => a.activity_name).join(" | ")}]`);
 
       // ── REGRA DEAL (stage_id) ─────────────────────────────────────────────
       if (entidade === "deal" && campoKey === "stage_id") {
@@ -269,7 +273,8 @@ Deno.serve(async (req) => {
           }
           if (Object.keys(patch).length > 0) {
             await base44.asServiceRole.entities.ScheduleActivity.update(act.id, patch);
-            Object.assign(act, patch);
+            const cacheIdx = activitiesCache.findIndex(c => c.id === act.id);
+            if (cacheIdx >= 0) Object.assign(activitiesCache[cacheIdx], patch);
             updatedActivities.push({ id: act.id, name: act.activity_name, phase: base44Fase, patch, trigger: `stage_id=${valorDisp}` });
             rulesApplied++;
           }
@@ -317,7 +322,8 @@ Deno.serve(async (req) => {
             }
             if (Object.keys(patch).length > 0) {
               await base44.asServiceRole.entities.ScheduleActivity.update(act.id, patch);
-              Object.assign(act, patch);
+              const cacheIdx = activitiesCache.findIndex(c => c.id === act.id);
+              if (cacheIdx >= 0) Object.assign(activitiesCache[cacheIdx], patch);
               updatedActivities.push({ id: act.id, name: act.activity_name, phase: base44Fase, patch, trigger: `activity done` });
               rulesApplied++;
             }

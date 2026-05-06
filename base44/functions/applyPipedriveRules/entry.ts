@@ -253,11 +253,14 @@ Deno.serve(async (req) => {
       activities_count: scheduleActivities.length,
     });
 
-    const activitiesCache = [...scheduleActivities];
+    // activitiesCache: cópia profunda para evitar mutação de referências compartilhadas
+    // Cada chamada a getPhaseActivities retorna objetos independentes por fase
+    const activitiesCache = scheduleActivities.map(a => ({ ...a }));
 
     function phaseExists(fase) {
       return allProjectPhases.some(p => normalize(p) === normalize(fase));
     }
+    // Retorna SEMPRE nova lista filtrada por phase_name — nunca reutiliza entre regras
     function getPhaseActivities(fase) {
       return activitiesCache.filter(a => normalize(a.phase_name) === normalize(fase));
     }
@@ -304,7 +307,19 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // ISOLAMENTO: cada regra obtém sua própria lista de atividades por fase
+      // getPhaseActivities sempre filtra do activitiesCache atualizado
       let phaseActs = getPhaseActivities(base44Fase);
+
+      log(`RULE_PHASE_LOOKUP`, {
+        rule_order: rule.order,
+        stage_id: valorDisp,
+        fase: base44Fase,
+        atividade_alvo: base44Atv,
+        atividades_encontradas: phaseActs.length,
+        ids: phaseActs.map(a => a.id),
+        nomes: phaseActs.map(a => a.activity_name),
+      });
 
       // ── REGRA DEAL ──────────────────────────────────────────────────────
       if (entidade === "deal") {
@@ -399,10 +414,12 @@ Deno.serve(async (req) => {
             result.dates_filled++;
           }
           if (Object.keys(patch).length > 0) {
-            ruleDebug.actions.push(`UPDATE "${act.activity_name}" → ${JSON.stringify(patch)}`);
+            ruleDebug.actions.push(`UPDATE fase="${base44Fase}" atividade="${act.activity_name}" → ${JSON.stringify(patch)}`);
             if (!dry_run) {
               await base44.asServiceRole.entities.ScheduleActivity.update(act.id, patch);
-              Object.assign(act, patch);
+              // Atualiza cache pelo id — não muta a referência direto para evitar side-effects cross-regra
+              const cacheIdx = activitiesCache.findIndex(c => c.id === act.id);
+              if (cacheIdx >= 0) Object.assign(activitiesCache[cacheIdx], patch);
             }
             result.updated.push({ id: act.id, name: act.activity_name, phase: base44Fase, patch, trigger: `stage_id=${valorDisp}` });
             result.activities_updated++;
@@ -474,10 +491,11 @@ Deno.serve(async (req) => {
               result.dates_filled++;
             }
             if (Object.keys(patch).length > 0) {
-              ruleDebug.actions.push(`UPDATE "${act.activity_name}" → ${JSON.stringify(patch)}`);
+              ruleDebug.actions.push(`UPDATE fase="${base44Fase}" atividade="${act.activity_name}" → ${JSON.stringify(patch)}`);
               if (!dry_run) {
                 await base44.asServiceRole.entities.ScheduleActivity.update(act.id, patch);
-                Object.assign(act, patch);
+                const cacheIdx = activitiesCache.findIndex(c => c.id === act.id);
+                if (cacheIdx >= 0) Object.assign(activitiesCache[cacheIdx], patch);
               }
               result.updated.push({ id: act.id, name: act.activity_name, phase: base44Fase, patch });
               result.activities_updated++;
