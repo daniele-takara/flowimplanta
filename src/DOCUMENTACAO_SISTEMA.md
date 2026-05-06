@@ -175,6 +175,20 @@ Mantida por compatibilidade. **Novos logs vão para IntegrationLog.**
 - **Lógica:** Lê planilha Google Sheets (2 abas: dados_iniciais, cronograma) → DELETE ALL PipedriveIntegrationRule → bulkCreate novo conjunto
 - ⚠️ **ATENÇÃO:** Operação destrutiva sem rollback. Use apenas quando precisar resetar completamente as regras.
 
+### syncPipedriveData *(atualizado — v5.5)*
+
+**Novos campos mapeados:**
+
+| Campo Pipedrive | Origem | Campo Base44 |
+|---|---|---|
+| `deal.value` | Deal | `project.mrr` |
+| `org["e7f28ae86be385212be4b97a442150ee45ebbb56"]` | Organização | `project.contracted_employees` |
+
+Hash `e7f28ae86be385212be4b97a442150ee45ebbb56` = "Funcionários contratados" na entidade Organização do Pipedrive.
+`deal.value` = valor mensal do contrato → MRR em R$.
+
+---
+
 ### applyStatusReportFromPipedrive *(NOVO — v5.4)*
 - **Arquivo:** functions/applyStatusReportFromPipedrive
 - **Chamada:** Frontend (OverviewTab via syncPipedriveData) e diagnóstico manual
@@ -615,6 +629,38 @@ Atividade "Agenda de escopo técnico":
   status:       "Concluído"  ✓
   UI:           exibe "01/05/2026" ✓ (fix normalização Unicode v5.1)
 ```
+
+## 11. AUDITORIA DE PERSISTÊNCIA — v5.5
+
+### Problemas corrigidos
+
+| # | Problema | Causa Raiz | Correção |
+|---|---|---|---|
+| 1 | `contracted_employees` sempre null | `syncPipedriveData` não mapeava o campo. Hash da org nunca lido | Adicionado mapeamento `org["e7f28ae..."] → contracted_employees` |
+| 2 | `mrr` sempre null | `syncPipedriveData` não mapeava `deal.value` | Adicionado `deal.value → mrr` |
+| 3 | Datas âncora sumindo | Race condition em `handleSaveOverride`: `savingAnchorRef` bloqueava saves concorrentes sem enfileirar | Substituído por `setManualOverrides(prev => ...)` com save inline do estado mais recente |
+| 4 | E-mail com dados zerados | `generateStatusReportEmail` recebia `usabilityData=null` e não tinha fallback para `report` | Adicionado parâmetro `report` com fallback `?? report?.registered_employees` |
+| 5 | Aderência ausente | Campo removido junto com bloco separado | Reintegrado como sub-texto do KPI "Empregados no Ponto/mês" |
+| 6 | `project` desatualizado em outros tabs após sync | `onProjectUpdated` fazia merge parcial sem recarregar do banco | Adicionado refetch completo do projeto após merge parcial |
+
+### Regras de persistência
+
+**Âncoras do cronograma:**
+- Salvas em `Project.schedule_anchor_dates` (banco)
+- Nunca mais no localStorage (apenas migração única)
+- Save usa `setManualOverrides(prev => ...)` para evitar race condition
+
+**Funcionários contratados / MRR:**
+- Originam do Pipedrive via `syncPipedriveData`
+- Editáveis manualmente pelo modal "Editar Dados Iniciais"
+- `syncPipedriveData` sobrescreve se houver valor no Pipedrive
+
+**Status Report — dados de usabilidade:**
+- Persistidos em `StatusReport.registered_employees` / `recording_employees` / `adherence_percent`
+- Template de e-mail usa `usabilityData` quando disponível, senão fallback para `report` persistido
+- Aderência = `batendoPonto / contracted_employees * 100` — calculada dinamicamente, persistida em `adherence_percent`
+
+---
 
 ## 10. PAYLOADS PIPEDRIVE ESPERADOS
 

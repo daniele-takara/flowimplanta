@@ -163,8 +163,9 @@ function MacroScheduleTable({ macroPhases }) {
 const StatusReportDashboard = ({ report, project, macroPhases, overallProgress, usabilityData, form, setForm, locked, readOnly = false }) => {
   const today = new Date().toLocaleDateString("pt-BR");
   const contracted = project?.contracted_employees || 0;
-  const cadastrados = usabilityData?.numero_funcionarios || report?.registered_employees || 0;
-  const batendoPonto = usabilityData?.empregados_batendo_ponto_ultimos_15_dias || report?.recording_employees || 0;
+  const cadastrados = usabilityData?.numero_funcionarios ?? report?.registered_employees ?? 0;
+  const batendoPonto = usabilityData?.empregados_batendo_ponto_ultimos_15_dias ?? report?.recording_employees ?? 0;
+  const aderencia = contracted > 0 ? Math.round((batendoPonto / contracted) * 100) : (report?.adherence_percent ?? 0);
   const periodStart = project?.start_date;
   const periodEnd = project?.aligned_end_date || project?.planned_end_date;
 
@@ -219,7 +220,7 @@ const StatusReportDashboard = ({ report, project, macroPhases, overallProgress, 
         <KpiCard
           label="Empregados no Ponto/mês"
           value={batendoPonto.toLocaleString("pt-BR")}
-          sub="últimos 15 dias"
+          sub={`últimos 15 dias · aderência: ${aderencia}% do contratado`}
           icon={Activity}
           colorClass="text-blue-700"
           bgClass="bg-blue-50"
@@ -599,6 +600,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
       macroPhases,
       overallProgress,
       usabilityData,
+      report,  // fallback para dados persistidos quando usabilityData não foi carregado
     });
     setEmailHtml(html);
     setShowEmailPreview(true);

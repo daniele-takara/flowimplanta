@@ -141,7 +141,16 @@ export default function ProjectDetail() {
 
       <div className="flex-1 p-8 bg-slate-50">
         <div className="max-w-6xl mx-auto">
-          {activeTab === "overview" && <OverviewTab project={project} phases={phases} onEditDadosIniciais={(!isMock && perms.canEditProject) ? () => setShowEditModal(true) : null} onProjectUpdated={(updated) => { if (updated) setProject(prev => ({ ...prev, ...updated })); }} />}
+          {activeTab === "overview" && <OverviewTab project={project} phases={phases} onEditDadosIniciais={(!isMock && perms.canEditProject) ? () => setShowEditModal(true) : null} onProjectUpdated={async (updated) => {
+            if (!updated) return;
+            // Merge parcial imediato para UI responsiva
+            setProject(prev => ({ ...prev, ...updated }));
+            // Recarrega projeto completo do banco para garantir consistência de todos os tabs
+            try {
+              const fresh = await base44.entities.Project.filter({ id });
+              if (fresh[0]) setProject(fresh[0]);
+            } catch {}
+          }} />}
           {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} project={project} onRefresh={loadData} onScopeSaved={reloadScopeItems} readOnly={!perms.canEditScope} />}
           {activeTab === "tap" && <TAPTab project={project} scopeItems={scopeItems} documents={documents} projectId={id} onRefresh={loadData} readOnly={!perms.canEditTAP} />}
           {activeTab === "schedule" && <ScheduleTab scopeItems={scopeItems} project={project} projectId={id} onRefresh={loadData} readOnly={!perms.canEditSchedule} />}

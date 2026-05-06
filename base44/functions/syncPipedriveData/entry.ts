@@ -100,7 +100,15 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 8. Montar payload com apenas campos sincronizáveis (conforme planilha DE→PARA, Atualiza=sim)
+    // 8a. Resolver campos numéricos: funcionários contratados (da org) e MRR (deal.value)
+    // deal.value → mrr (valor mensal do contrato em R$)
+    const mrrRaw = deal.value != null && deal.value > 0 ? Number(deal.value) : null;
+    // Org campo customizado: "Funcionários contratados" → hash e7f28ae86be385212be4b97a442150ee45ebbb56
+    const funcRaw = org?.["e7f28ae86be385212be4b97a442150ee45ebbb56"] ?? null;
+    const contractedEmployeesFromDeal = funcRaw != null && !isNaN(Number(funcRaw)) ? Number(funcRaw) : null;
+    console.log(`[syncPipedriveData] deal.value=${deal.value} → mrr=${mrrRaw} | org.funcionarios_contratados=${funcRaw} → contracted_employees=${contractedEmployeesFromDeal}`);
+
+    // 8b. Montar payload com apenas campos sincronizáveis (conforme planilha DE→PARA, Atualiza=sim)
     // NÃO sobrescreve campos editados manualmente que não estão na planilha
     const syncPayload = {
       // Garantir que o ID Deal Pipedrive está sempre salvo (chave de vínculo)
@@ -125,7 +133,13 @@ Deno.serve(async (req) => {
       lar21: lar21 || undefined,
       // Org.módulos → contracted_modules
       contracted_modules: contractedModules.length > 0 ? contractedModules : undefined,
+      // Deal.value → mrr (NOVO: antes não era mapeado)
+      mrr: mrrRaw != null && mrrRaw > 0 ? mrrRaw : undefined,
+      // Deal.people_count / campo customizado → contracted_employees (NOVO)
+      contracted_employees: contractedEmployeesFromDeal != null ? contractedEmployeesFromDeal : undefined,
     };
+
+
 
     // Remover undefined
     const cleanPayload = Object.fromEntries(

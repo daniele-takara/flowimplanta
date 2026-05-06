@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { ChevronDown, ChevronRight, Save, X, Anchor, Pencil, Lock, AlertCircle, CheckCircle, CheckCircle2, Loader2, RefreshCw, Database } from "lucide-react";
 import { SCHEDULE_TASKS, PHASE_ORDER, ANCHOR_IDS } from "@/lib/scheduleTasks.js";
@@ -348,7 +348,6 @@ function CompleteProjectButton({ onComplete }) {
 export default function ScheduleTab({ scopeItems, project, projectId, onRefresh, readOnly = false, onSyncSuccess }) {
   const [anchorsLoaded, setAnchorsLoaded] = useState(false);
   const [manualOverrides, setManualOverrides] = useState({});
-  const savingAnchorRef = useRef(false);
 
   // Carregar datas âncora: banco > localStorage (migração única)
   useEffect(() => {
@@ -444,17 +443,19 @@ export default function ScheduleTab({ scopeItems, project, projectId, onRefresh,
   }, [savedActivities]);
 
   // Salva override localmente e persiste âncoras no banco
+  // Sem race condition: sempre usa o estado mais recente via função de setState
   const handleSaveOverride = useCallback(async (taskId, payload) => {
-    const next = { ...manualOverrides, [taskId]: { ...(manualOverrides[taskId] || {}), ...payload } };
-    setManualOverrides(next);
-    const anchorDates = {};
-    ANCHOR_IDS.forEach(id => { const val = next[id]?.plannedStart; if (val) anchorDates[id] = val; });
-    if (!savingAnchorRef.current) {
-      savingAnchorRef.current = true;
-      base44.entities.Project.update(projectId, { schedule_anchor_dates: anchorDates })
-        .catch(() => {}).finally(() => { savingAnchorRef.current = false; });
-    }
-  }, [manualOverrides, projectId]);
+    setManualOverrides(prev => {
+      const next = { ...prev, [taskId]: { ...(prev[taskId] || {}), ...payload } };
+      // Persistir âncoras no banco de forma assíncrona com o estado mais recente
+      const anchorDates = {};
+      ANCHOR_IDS.forEach(aid => { const val = next[aid]?.plannedStart; if (val) anchorDates[aid] = val; });
+      if (Object.keys(anchorDates).length > 0) {
+        base44.entities.Project.update(projectId, { schedule_anchor_dates: anchorDates }).catch(() => {});
+      }
+      return next;
+    });
+  }, [projectId]);
 
   const handleSaveActivity = useCallback(async (task, data) => {
     const existing = activitiesByTask[task.id];

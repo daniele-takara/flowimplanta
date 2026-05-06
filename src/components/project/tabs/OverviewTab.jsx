@@ -136,6 +136,8 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
           <InfoRow label="Data de Início" value={formatDate(project.start_date)} />
           <InfoRow label="Previsão de Conclusão" value={formatDate(project.planned_end_date)} />
           <InfoRow label="Data Alinhada" value={formatDate(project.aligned_end_date)} />
+          <InfoRow label="Funcionários Contratados" value={project.contracted_employees ? project.contracted_employees.toLocaleString("pt-BR") : null} />
+          <InfoRow label="MRR" value={project.mrr ? `R$ ${Number(project.mrr).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : null} />
           <InfoRow label="ID Deal Pipedrive" value={project.pipedrive_deal_id ? `#${project.pipedrive_deal_id}` : null} />
           <InfoRow label="Lar21" value={project.lar21} />
           <InfoRow label="Observações" value={project.observations} />
