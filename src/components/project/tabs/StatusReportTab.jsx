@@ -8,7 +8,7 @@ import { generateStatusReportEmail } from "@/lib/statusReportEmailTemplate.js";
 import EmailPreviewModal from "@/components/project/EmailPreviewModal.jsx";
 import {
   RefreshCw, Mail, Clock, CheckCircle2, AlertTriangle,
-  AlertCircle, Users, Activity, TrendingUp, Calendar,
+  AlertCircle, Users, Activity, Calendar,
   Save, Plus, Trash2
 } from "lucide-react";
 
@@ -165,7 +165,6 @@ const StatusReportDashboard = ({ report, project, macroPhases, overallProgress, 
   const contracted = project?.contracted_employees || 0;
   const cadastrados = usabilityData?.numero_funcionarios || report?.registered_employees || 0;
   const batendoPonto = usabilityData?.empregados_batendo_ponto_ultimos_15_dias || report?.recording_employees || 0;
-  const aderencia = contracted > 0 ? Math.round((batendoPonto / contracted) * 100) : 0;
   const periodStart = project?.start_date;
   const periodEnd = project?.aligned_end_date || project?.planned_end_date;
 
@@ -226,14 +225,6 @@ const StatusReportDashboard = ({ report, project, macroPhases, overallProgress, 
           bgClass="bg-blue-50"
         />
         <KpiCard
-          label="Aderência ao Ponto"
-          value={`${aderencia}%`}
-          sub="do contratado"
-          icon={TrendingUp}
-          colorClass={aderencia >= 80 ? "text-green-700" : aderencia >= 50 ? "text-orange-600" : "text-red-600"}
-          bgClass={aderencia >= 80 ? "bg-green-50" : aderencia >= 50 ? "bg-orange-50" : "bg-red-50"}
-        />
-        <KpiCard
           label="Progresso do Projeto"
           value={`${overallProgress || 0}%`}
           sub="média das fases macro"
@@ -241,54 +232,6 @@ const StatusReportDashboard = ({ report, project, macroPhases, overallProgress, 
           colorClass="text-purple-700"
           bgClass="bg-purple-50"
         />
-      </div>
-
-      {/* ── Bloco de Aderência ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Aderência ao Registro de Ponto</h3>
-        <div className="flex items-center gap-4 mb-3">
-          <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${aderencia >= 80 ? "bg-green-500" : aderencia >= 50 ? "bg-orange-400" : "bg-red-500"}`}
-              style={{ width: `${Math.min(aderencia, 100)}%` }}
-            />
-          </div>
-          <span className="text-2xl font-bold text-purple-700 shrink-0">{aderencia}%</span>
-        </div>
-        <p className="text-sm text-slate-600">
-          Aderência ao registro de ponto: <strong>{aderencia}% do contratado</strong>
-          {contracted > 0 && (
-            <> — {batendoPonto.toLocaleString("pt-BR")} de {contracted.toLocaleString("pt-BR")} funcionários</>
-          )}
-        </p>
-        {usabilityData && (
-          <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
-            {usabilityData.numero_funcionarios_ativos > 0 && (
-              <div className="text-xs text-slate-500">
-                <span className="font-semibold text-slate-700">{usabilityData.numero_funcionarios_ativos.toLocaleString("pt-BR")}</span>
-                <br />Funcionários ativos
-              </div>
-            )}
-            {usabilityData.numero_regras_de_calculo > 0 && (
-              <div className="text-xs text-slate-500">
-                <span className="font-semibold text-slate-700">{usabilityData.numero_regras_de_calculo}</span>
-                <br />Regras de cálculo
-              </div>
-            )}
-            {usabilityData.data_ultimo_acesso && (
-              <div className="text-xs text-slate-500">
-                <span className="font-semibold text-slate-700">{usabilityData.data_ultimo_acesso}</span>
-                <br />Último acesso
-              </div>
-            )}
-            {usabilityData.email_ultimo_acesso && (
-              <div className="text-xs text-slate-500 truncate">
-                <span className="font-semibold text-slate-700 truncate block">{usabilityData.email_ultimo_acesso}</span>
-                E-mail último acesso
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* ── Cronograma Macro ── */}
