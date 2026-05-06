@@ -9,6 +9,7 @@ import {
 const SHEET_ID = "1_NAnD5FYHpnkLkIRIf6YYsOor0jBJzgKrCnxZZoIKm4";
 const DADOS_GID = "432071218";
 const CRONOGRAMA_GID = "1377224895";
+const STATUS_REPORT_GID = "1556112644";
 const WEBHOOK_URL = `https://api.base44.app/api/apps/69e295c073bbccc7f63f6156/functions/pipedriveWebhook`;
 
 // ── Componente CopyBox ────────────────────────────────────────────────────────
@@ -325,6 +326,7 @@ export default function TabIntegracaoPipedrive() {
 
   const dadosCount = rules.filter(r => r.rule_type === "dados_iniciais").length;
   const cronoCount = rules.filter(r => r.rule_type === "cronograma").length;
+  const srCount = rules.filter(r => r.rule_type === "status_report").length;
   const lastSync = rules.length > 0 ? rules[0]?.synced_at : null;
 
   return (
@@ -359,7 +361,7 @@ export default function TabIntegracaoPipedrive() {
             <p className="text-xs text-slate-500 mt-1">
               {rulesLoading ? "Carregando..." : rules.length === 0
                 ? "Nenhuma regra. Clique em Atualizar para sincronizar."
-                : `${dadosCount} regra(s) de dados iniciais · ${cronoCount} regra(s) de cronograma`}
+                : `${dadosCount} dados iniciais · ${cronoCount} cronograma · ${srCount} status report`}
               {lastSync && !rulesLoading && (
                 <span className="ml-2 text-slate-400">
                   · última sync: {new Date(lastSync).toLocaleString("pt-BR")}
@@ -396,15 +398,16 @@ export default function TabIntegracaoPipedrive() {
               : <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />}
             <div>
               {mergeResult.ok
-                ? <>
-                    <p className="font-bold">Sincronização incremental concluída</p>
-                    <p className="mt-0.5">
-                      {mergeResult.data.total_created} nova(s) regra(s) adicionada(s) ·{" "}
-                      {mergeResult.data.cronograma.ignored} cronograma ignorada(s) ·{" "}
-                      {mergeResult.data.dados_iniciais.ignored} dados_iniciais ignorada(s) ·{" "}
-                      Total: {mergeResult.data.total_after} regras
-                    </p>
-                  </>
+                  ? <>
+                      <p className="font-bold">Sincronização incremental concluída</p>
+                      <p className="mt-0.5">
+                        {mergeResult.data.total_created} nova(s) regra(s) adicionada(s) ·{" "}
+                        {mergeResult.data.cronograma?.ignored || 0} cronograma ignorada(s) ·{" "}
+                        {mergeResult.data.dados_iniciais?.ignored || 0} dados_iniciais ignorada(s) ·{" "}
+                        {mergeResult.data.status_report?.created || 0} status report criada(s) ·{" "}
+                        Total: {mergeResult.data.total_after} regras
+                      </p>
+                    </>
                 : <p>Erro: {mergeResult.error}</p>}
             </div>
           </div>
@@ -417,14 +420,15 @@ export default function TabIntegracaoPipedrive() {
               : <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />}
             <div>
               {syncResult.ok
-                ? <>
-                    <p className="font-bold">Todas as regras recriadas do zero</p>
-                    <p className="mt-0.5">
-                      {syncResult.data.dados_iniciais.count} regra(s) de dados iniciais ·{" "}
-                      {syncResult.data.cronograma.count} regra(s) de cronograma ·{" "}
-                      {syncResult.data.deleted} regra(s) anteriores removidas
-                    </p>
-                  </>
+                  ? <>
+                      <p className="font-bold">Todas as regras recriadas do zero</p>
+                      <p className="mt-0.5">
+                        {syncResult.data.dados_iniciais?.count || 0} dados iniciais ·{" "}
+                        {syncResult.data.cronograma?.count || 0} cronograma ·{" "}
+                        {syncResult.data.status_report?.count || 0} status report ·{" "}
+                        {syncResult.data.deleted} regra(s) anteriores removidas
+                      </p>
+                    </>
                 : <p>Erro: {syncResult.error}</p>}
             </div>
           </div>
@@ -464,6 +468,67 @@ export default function TabIntegracaoPipedrive() {
         </div>
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <SavedRulesTable ruleType="cronograma" rules={rules} loading={rulesLoading} />
+        </div>
+      </div>
+
+      {/* Aba 3 — Status Report */}
+      <div>
+        <div className="flex items-center gap-2 mb-2">
+          <Activity className="w-4 h-4 text-slate-500" />
+          <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">Aba 3 — Status Report (parser texto)</p>
+          <a href={`https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit#gid=${STATUS_REPORT_GID}`}
+            target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs text-blue-500 hover:underline ml-auto">
+            <ExternalLink className="w-3 h-3" /> Abrir planilha
+          </a>
+        </div>
+        <div className="flex items-start gap-2 mb-2 p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-800">
+          <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <span>
+            <strong>Campo Pipedrive:</strong>{" "}
+            <code className="bg-purple-100 px-1 rounded text-xs">77e52d...828f7</code>{" "}
+            — texto estruturado (<em>Próxima Agenda / Pendência cliente / Pendência Pontotel / Risco</em>) mapeado para os campos existentes do Status Report.
+          </span>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          {rulesLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-5 h-5 border-4 border-slate-200 border-t-purple-500 rounded-full animate-spin" />
+            </div>
+          ) : srCount === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-slate-400 text-sm gap-2">
+              <Database className="w-7 h-7 opacity-30" />
+              <p>Nenhuma regra de status report. Clique em "Adicionar novas regras".</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    {["#", "Campo Pipedrive", "Destino Base44", "Observação"].map(h => (
+                      <th key={h} className="text-left px-3 py-2 font-semibold text-slate-500 border border-slate-100 whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rules.filter(r => r.rule_type === "status_report").map((r) => {
+                    const raw = (() => { try { return JSON.parse(r.raw_data || "{}"); } catch { return {}; } })();
+                    return (
+                      <tr key={r.id} className="border-b border-slate-50 hover:bg-slate-50">
+                        <td className="px-3 py-2 text-slate-400 border border-slate-50">{r.order}</td>
+                        <td className="px-3 py-2 font-mono text-purple-700 border border-slate-50 whitespace-nowrap">{r.pipedrive_campo_key || raw.campo_pipe_key || raw.origem_pipe || "—"}</td>
+                        <td className="px-3 py-2 text-slate-700 border border-slate-50 font-mono">{r.base44_atividade || "—"}</td>
+                        <td className="px-3 py-2 text-slate-500 border border-slate-50">{raw.observacao || raw.label_pipe || "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 text-xs text-slate-400">
+                {srCount} regra(s) · última sync: {rules.find(r => r.rule_type === "status_report")?.synced_at ? new Date(rules.find(r => r.rule_type === "status_report").synced_at).toLocaleString("pt-BR") : "—"}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

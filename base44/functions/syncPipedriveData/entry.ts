@@ -135,10 +135,24 @@ Deno.serve(async (req) => {
     // 9. Atualizar projeto no Base44
     const updated = await base44.entities.Project.update(project_id, cleanPayload);
 
+    // 10. Aplicar dados do Pipedrive no Status Report (campo customizado → next_agenda / pendências)
+    let statusReportResult = null;
+    try {
+      const srRes = await base44.functions.invoke("applyStatusReportFromPipedrive", {
+        project_id,
+        deal_id: Number(deal_id),
+      });
+      statusReportResult = srRes;
+      console.log(`[syncPipedriveData] StatusReport sync: fields_updated=${srRes?.fields_updated}`);
+    } catch (e) {
+      console.warn(`[syncPipedriveData] StatusReport sync falhou (não crítico): ${e.message}`);
+    }
+
     return Response.json({
       success: true,
       updated_fields: Object.keys(cleanPayload),
       project: updated,
+      status_report: statusReportResult,
     });
 
   } catch (error) {

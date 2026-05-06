@@ -13,6 +13,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 const SHEET_ID = "1_NAnD5FYHpnkLkIRIf6YYsOor0jBJzgKrCnxZZoIKm4";
 const DADOS_GID = "432071218";
 const CRONOGRAMA_GID = "1377224895";
+const STATUS_REPORT_GID = "1556112644";
 
 function makeRuleKey(entidade, campoKey, valorDisparo, fase, atividade) {
   return [
@@ -61,9 +62,10 @@ Deno.serve(async (req) => {
     const syncedAt = new Date().toISOString();
 
     // 1. Ler planilha e regras existentes em paralelo
-    const [dadosResult, cronogramaResult, existingRules] = await Promise.all([
+    const [dadosResult, cronogramaResult, statusReportResult, existingRules] = await Promise.all([
       loadSheetByGid(accessToken, DADOS_GID),
       loadSheetByGid(accessToken, CRONOGRAMA_GID),
+      loadSheetByGid(accessToken, STATUS_REPORT_GID),
       base44.asServiceRole.entities.PipedriveIntegrationRule.list(),
     ]);
 
@@ -164,15 +166,48 @@ Deno.serve(async (req) => {
       console.log(`[mergePipedriveRules] NOVA dados_iniciais row=${i + 2} order=${order}`);
     });
 
-    // 6. Criar apenas as novas regras
-    const allToCreate = [...dadosToCreate, ...cronogramaToCreate];
+    // 6. Processar regras de STATUS_REPORT — apenas linhas novas por destino_base44
+    const existingStatusKeys = new Set(
+      existingRules
+        .filter(r => r.rule_type === "status_report")
+        .map(r => (r.base44_atividade || "").trim())
+    );
+
+    const statusReportIgnored = [];
+    const statusReportToCreate = [];
+
+    statusReportResult.rows.forEach((row, i) => {
+      const destino = (row.destino_base44 || "").trim();
+      if (!destino) return;
+
+      if (existingStatusKeys.has(destino)) {
+        statusReportIgnored.push({ row: i + 2, destino, reason: "já existe" });
+        console.log(`[mergePipedriveRules] IGNORADO status_report row=${i + 2} destino="${destino}"`);
+        return;
+      }
+
+      const rule = {
+        rule_type: "status_report",
+        sheet_tab: statusReportResult.sheetName,
+        order: nextOrder++,
+        raw_data: JSON.stringify(row),
+        pipedrive_campo_key: (row.campo_pipe_key || row.origem_pipe || "").trim(),
+        base44_atividade: destino,
+        synced_at: syncedAt,
+      };
+      statusReportToCreate.push(rule);
+      console.log(`[mergePipedriveRules] NOVA status_report row=${i + 2} destino="${destino}"`);
+    });
+
+    // 7. Criar apenas as novas regras
+    const allToCreate = [...dadosToCreate, ...cronogramaToCreate, ...statusReportToCreate];
     if (allToCreate.length > 0) {
       await base44.asServiceRole.entities.PipedriveIntegrationRule.bulkCreate(allToCreate);
     }
 
     const totalAfter = existingRules.length + allToCreate.length;
 
-    console.log(`[mergePipedriveRules] RESULTADO: criadas=${allToCreate.length} ignoradas=${cronogramaIgnored.length + dadosIgnored.length} total_após=${totalAfter}`);
+    console.log(`[mergePipedriveRules] RESULTADO: criadas=${allToCreate.length} ignoradas=${cronogramaIgnored.length + dadosIgnored.length + statusReportIgnored.length} total_após=${totalAfter}`);
 
     return Response.json({
       ok: true,
@@ -190,6 +225,12 @@ Deno.serve(async (req) => {
         sheet_rows: dadosResult.rows.length,
         created: dadosToCreate.length,
         ignored: dadosIgnored.length,
+      },
+      status_report: {
+        sheet_tab: statusReportResult.sheetName,
+        sheet_rows: statusReportResult.rows.length,
+        created: statusReportToCreate.length,
+        ignored: statusReportIgnored.length,
       },
       total_created: allToCreate.length,
       total_before: existingRules.length,

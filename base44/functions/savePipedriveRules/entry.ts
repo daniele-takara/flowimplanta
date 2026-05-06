@@ -3,6 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 const SHEET_ID = "1_NAnD5FYHpnkLkIRIf6YYsOor0jBJzgKrCnxZZoIKm4";
 const DADOS_GID = "432071218";
 const CRONOGRAMA_GID = "1377224895";
+const STATUS_REPORT_GID = "1556112644";
 
 async function loadSheetByGid(accessToken, gid) {
   const metaRes = await fetch(
@@ -40,10 +41,11 @@ Deno.serve(async (req) => {
     const { accessToken } = await base44.asServiceRole.connectors.getConnection("googlesheets");
     const syncedAt = new Date().toISOString();
 
-    // 1. Ler as duas abas em paralelo
-    const [dadosResult, cronogramaResult] = await Promise.all([
+    // 1. Ler as três abas em paralelo
+    const [dadosResult, cronogramaResult, statusReportResult] = await Promise.all([
       loadSheetByGid(accessToken, DADOS_GID),
       loadSheetByGid(accessToken, CRONOGRAMA_GID),
+      loadSheetByGid(accessToken, STATUS_REPORT_GID),
     ]);
 
     // 2. Apagar TODAS as regras existentes
@@ -88,8 +90,21 @@ Deno.serve(async (req) => {
       };
     });
 
-    // 5. Salvar todas as novas regras em bulk
-    const allRules = [...dadosRules, ...cronoRules];
+    // 5. Converter e salvar regras de status_report
+    const statusReportRules = statusReportResult.rows
+      .filter(row => (row.origem_pipe || row.campo_pipe_key || row.destino_base44))
+      .map((row, i) => ({
+        rule_type: "status_report",
+        sheet_tab: statusReportResult.sheetName,
+        order: i + 1,
+        raw_data: JSON.stringify(row),
+        pipedrive_campo_key: (row.campo_pipe_key || row.origem_pipe || "").trim(),
+        base44_atividade: (row.destino_base44 || "").trim(),
+        synced_at: syncedAt,
+      }));
+
+    // 6. Salvar todas as novas regras em bulk
+    const allRules = [...dadosRules, ...cronoRules, ...statusReportRules];
     if (allRules.length > 0) {
       await base44.asServiceRole.entities.PipedriveIntegrationRule.bulkCreate(allRules);
     }
@@ -104,6 +119,10 @@ Deno.serve(async (req) => {
       cronograma: {
         sheet_tab: cronogramaResult.sheetName,
         count: cronoRules.length,
+      },
+      status_report: {
+        sheet_tab: statusReportResult.sheetName,
+        count: statusReportRules.length,
       },
       total: allRules.length,
       deleted: existing.length,

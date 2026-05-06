@@ -175,6 +175,35 @@ Mantida por compatibilidade. **Novos logs vão para IntegrationLog.**
 - **Lógica:** Lê planilha Google Sheets (2 abas: dados_iniciais, cronograma) → DELETE ALL PipedriveIntegrationRule → bulkCreate novo conjunto
 - ⚠️ **ATENÇÃO:** Operação destrutiva sem rollback. Use apenas quando precisar resetar completamente as regras.
 
+### applyStatusReportFromPipedrive *(NOVO — v5.4)*
+- **Arquivo:** functions/applyStatusReportFromPipedrive
+- **Chamada:** Frontend (OverviewTab via syncPipedriveData) e diagnóstico manual
+- **Auth:** Aceita com ou sem usuário (todas ops via asServiceRole)
+- **Entrada:** `{ project_id, deal_id?, dry_run? }`
+- **Lógica:**
+  1. Lê campo customizado `77e52d481be474c3eb61ad1aea1784b9948828f7` do deal Pipedrive
+  2. Faz parser do texto estruturado (Próxima Agenda / Pendência cliente / Pendência Pontotel / Riscos)
+  3. Normaliza N/A, vazio, ponto-e-vírgula trailing
+  4. Preenche os campos **JÁ EXISTENTES** do StatusReport (`next_agenda`, `client_pending`, `internal_pending`)
+  5. Cria o StatusReport se não existir; atualiza o existente
+  6. **Risco/Riscos → IGNORADO** (não mapeado)
+- **Saída:** `{ ok, parsed, patch, fields_updated, report_id, dry_run, duration_ms }`
+- **Formato do campo Pipedrive:**
+  ```
+  Próxima agenda: 24/04 - status report;
+  Pendência cliente: Realizar a Expansão;
+  Pendência Pontotel: Resolução dos chamados;
+  Riscos: <ignorado>
+  ```
+- **Mapeamento:**
+
+| Label Pipedrive | Campo StatusReport | Tipo |
+|---|---|---|
+| Próxima Agenda | `next_agenda` | string |
+| Pendência cliente | `client_pending` | array `[{item, deadline, responsible}]` |
+| Pendência Pontotel | `internal_pending` | array `[{item, deadline, responsible}]` |
+| Risco / Riscos | **ignorado** | — |
+
 ### mergePipedriveRules *(NOVO — v5.2)*
 - **Arquivo:** functions/mergePipedriveRules
 - **Chamada:** TabIntegracaoPipedrive (botão "Adicionar novas regras")
@@ -411,12 +440,46 @@ Expansão, Encerramento
 
 A planilha Google Sheets (GID `1377224895`, aba "Cronograma - Integração") é a **fonte oficial** das regras de integração Pipedrive → Cronograma. As regras são importadas e armazenadas na entidade `PipedriveIntegrationRule`.
 
+### Três abas suportadas (v5.4)
+
+| Aba | GID | Tipo de regra | Descrição |
+|-----|-----|---------------|-----------|
+| Dados iniciais - integração | `432071218` | `dados_iniciais` | Mapeamento de campos do deal → Project |
+| Cronograma - Integração | `1377224895` | `cronograma` | stage_id / activity done → ScheduleActivity |
+| Status Report | `1556112644` | `status_report` | Campo customizado texto → campos existentes do StatusReport |
+
 ### Dois modos de sincronização
 
 | Modo | Função | Quando usar |
 |------|---------|-------------|
 | **Incremental** (padrão) | `mergePipedriveRules` | Novas linhas foram adicionadas à planilha — preserva tudo existente |
 | **Recriação total** | `savePipedriveRules` | Reset completo — apaga todas as regras e recria do zero |
+
+### Aba Status Report — Estrutura da Planilha
+
+Colunas esperadas:
+- `tipo_integracao` — tipo da regra
+- `origem_pipe` / `campo_pipe_key` — identificador do campo Pipedrive
+- `label_pipe` — label do bloco no texto estruturado (ex: "Próxima Agenda")
+- `destino_base44` — campo Base44 destino (ex: `next_agenda`)
+- `tipo_campo` — tipo do campo
+- `observacao` — observação livre
+
+### Fluxo Status Report: Pipedrive → StatusReport
+
+```
+OverviewTab "Atualizar dados do Pipedrive"
+    │
+    ├─ syncPipedriveData (Project fields)
+    │       └─ invoca applyStatusReportFromPipedrive
+    │
+    └─ applyStatusReportFromPipedrive
+           ├─ GET deal[77e52d...828f7] → texto estruturado
+           ├─ parseTextBlock() → { proxima_agenda, pendencia_cliente, pendencia_pontotel }
+           ├─ normalizeText() → remove N/A, trailing ';', espaços
+           ├─ textToPendingArray() → converte em [{item, deadline, responsible}]
+           └─ StatusReport.update() → next_agenda, client_pending, internal_pending
+```
 
 **Chave única de deduplicação (modo incremental):**
 ```
