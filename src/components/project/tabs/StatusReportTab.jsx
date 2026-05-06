@@ -551,6 +551,37 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
       // Atualizar progresso no projeto principal
       await base44.entities.Project.update(projectId, { progress_percent: progress }).catch(() => {});
 
+      // 5. [NOVO] Sincronizar campos do Pipedrive (Status Report - Integração)
+      //    Executa apenas se o projeto tiver pipedrive_deal_id vinculado.
+      //    Não interrompe o fluxo principal em caso de erro.
+      if (project?.pipedrive_deal_id) {
+        try {
+          console.log(`[StatusReportTab] Sincronizando campos Pipedrive para deal ${project.pipedrive_deal_id}...`);
+          const pipeRes = await base44.functions.invoke("applyStatusReportFromPipedrive", {
+            project_id: projectId,
+            deal_id: project.pipedrive_deal_id,
+          });
+          const pipeData = pipeRes.data;
+          console.log(`[StatusReportTab] applyStatusReportFromPipedrive resultado:`, pipeData);
+
+          if (pipeData?.ok && pipeData.fields_updated > 0) {
+            const patch = pipeData.patch || {};
+            console.log(`[StatusReportTab] Campos atualizados do Pipedrive: ${Object.keys(patch).join(", ")}`);
+            // Atualizar form local com os valores vindos do Pipedrive
+            setForm(f => ({
+              ...f,
+              ...(patch.next_agenda !== undefined ? { next_agenda: patch.next_agenda } : {}),
+              ...(patch.client_pending !== undefined ? { client_pending: patch.client_pending } : {}),
+              ...(patch.internal_pending !== undefined ? { internal_pending: patch.internal_pending } : {}),
+            }));
+          } else if (pipeData?.message) {
+            console.log(`[StatusReportTab] Pipedrive sync: ${pipeData.message}`);
+          }
+        } catch (pipeErr) {
+          console.warn("[StatusReportTab] Erro na sincronização Pipedrive (não crítico):", pipeErr.message);
+        }
+      }
+
     } finally {
       setUpdating(false);
     }
