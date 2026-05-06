@@ -7,12 +7,12 @@
  *   Cliente:  patrocinador, lider_projeto, ti, operacao
  */
 export const RESPONSIBLE_ROLE_LABELS = {
-  gerente_projeto:      "Gerente de Projeto (Pontotel)",
-  analista_implantacao: "Analista de Implantação (Pontotel)",
-  patrocinador:         "Patrocinador (Cliente)",
-  lider_projeto:        "Líder do Projeto (Cliente)",
-  ti:                   "TI (Cliente)",
-  operacao:             "Operação (Cliente)",
+  gerente_projeto:      "Gerente de Projetos",
+  analista_implantacao: "Analista de Implantação",
+  patrocinador:         "Patrocinador",
+  lider_projeto:        "Líder do Projeto",
+  ti:                   "TI",
+  operacao:             "Operação",
 };
 
 export const RESPONSIBLE_ROLE_OPTIONS = Object.entries(RESPONSIBLE_ROLE_LABELS).map(
@@ -47,7 +47,7 @@ export function resolveGeneralResponsible(type, project) {
   if (!type) return "";
   switch (type) {
     case "pontotel":      return "Pontotel";
-    case "compartilhado": return `${project?.client_name || "Cliente"} + Pontotel`;
+    case "compartilhado": return "Pontotel e Cliente";
     case "cliente":       return project?.client_name || "Cliente";
     default:              return "";
   }
@@ -55,6 +55,6 @@ export function resolveGeneralResponsible(type, project) {
 
 export const RESPONSIBLE_GENERAL_TYPE_OPTIONS = [
   { value: "pontotel",      label: "Pontotel" },
+  { value: "compartilhado", label: "Pontotel e Cliente" },
   { value: "cliente",       label: "Cliente" },
-  { value: "compartilhado", label: "Compartilhado (Cliente + Pontotel)" },
 ];
