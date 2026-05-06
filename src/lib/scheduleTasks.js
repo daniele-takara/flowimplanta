@@ -99,7 +99,7 @@ export const SCHEDULE_TASKS = [
     id: "envio_documentacao_i05", row: 21, type: "task",
     phase: "Cadastros", activity: "Envio da documentação com orientações para o uso do I05",
     plannedStart: { type: "calculated", formula: "alinhamento_inicial.plannedStart" },
-    plannedEnd: { type: "manual_override", propagates: false },
+    plannedEnd: { type: "calculated", formula: "workday(plannedStart, 1)" },
     visibleWhen: { source: "escopo.q006", equals: "Não" }
   },
   {
@@ -148,14 +148,14 @@ export const SCHEDULE_TASKS = [
     id: "parametrizacao_regras", row: 28, type: "task",
     phase: "Parametrização", activity: "Parametrização de regras",
     plannedStart: { type: "calculated", formula: "reuniao_parametrizacao_regras.plannedEnd" },
-    plannedEnd: { type: "manual_override", propagates: false },
+    plannedEnd: { type: "calculated", formula: "workday(plannedStart, 10)" },
     visibleWhen: { source: "dados_iniciais.modulos_contratados", contains: "Cálculos e Tratamento" }
   },
   {
     id: "parametrizar_permissoes_usuarios", row: 29, type: "task",
     phase: "Parametrização", activity: "Parametrizar permissões de usuários de acordo com o que foi definido no escopo",
     plannedStart: { type: "calculated", formula: "reuniao_parametrizacao_regras.plannedEnd" },
-    plannedEnd: { type: "manual_override", propagates: false },
+    plannedEnd: { type: "calculated", formula: "workday(plannedStart, 3)" },
     visibleWhen: "always"
   },
   {
@@ -312,14 +312,14 @@ export const SCHEDULE_TASKS = [
     id: "validar_regras_calculo_banco_horas", row: 52, type: "task",
     phase: "Treinamento e Validações", activity: "Reunião para validar Regras de cálculo de banco de horas",
     plannedStart: { type: "calculated", formula: "parametrizacao_regras.plannedEnd" },
-    plannedEnd: { type: "manual_override", propagates: false },
+    plannedEnd: { type: "calculated", formula: "workday(plannedStart, 1)" },
     visibleWhen: { source: "dados_iniciais.modulos_contratados", contains: "Cálculos e Tratamento" }
   },
   {
     id: "validar_arquivo_exportacao", row: 53, type: "task",
     phase: "Treinamento e Validações", activity: "Reunião para validar Arquivo de exportação",
     plannedStart: { type: "calculated", formula: "validar_regras_calculo_banco_horas.plannedStart" },
-    plannedEnd: { type: "manual_override", propagates: false },
+    plannedEnd: { type: "calculated", formula: "workday(plannedStart, 1)" },
     visibleWhen: { source: "dados_iniciais.modulos_contratados", contains: "Cálculos e Tratamento" }
   },
   {
@@ -333,28 +333,28 @@ export const SCHEDULE_TASKS = [
     id: "treinamento_gestao_horas_extras", row: 55, type: "task",
     phase: "Treinamento e Validações", activity: "Reunião sobre o uso e validação do fluxo de Gestão de horas extras",
     plannedStart: { type: "calculated", formula: "parametrizacao_controle_custos.plannedEnd" },
-    plannedEnd: { type: "manual_override", propagates: false },
+    plannedEnd: { type: "calculated", formula: "workday(plannedStart, 1)" },
     visibleWhen: { source: "dados_iniciais.modulos_contratados", contains: "Controle de Custos" }
   },
   {
     id: "treinamento_gestao_ferias", row: 56, type: "task",
     phase: "Treinamento e Validações", activity: "Reunião sobre o uso e validação do fluxo de gestão de férias",
     plannedStart: { type: "calculated", formula: "parametrizacao_gestao_ferias.plannedEnd" },
-    plannedEnd: { type: "manual_override", propagates: false },
+    plannedEnd: { type: "calculated", formula: "workday(plannedStart, 1)" },
     visibleWhen: { source: "dados_iniciais.modulos_contratados", contains: "Gestão de Férias e Ausências" }
   },
   {
     id: "treinamento_sobreaviso", row: 57, type: "task",
     phase: "Treinamento e Validações", activity: "Reunião para explicar o uso e validação do fluxo de Sobreaviso",
     plannedStart: { type: "calculated", formula: "parametrizar_permissoes_usuarios.plannedEnd" },
-    plannedEnd: { type: "manual_override", propagates: false },
+    plannedEnd: { type: "calculated", formula: "workday(plannedStart, 1)" },
     visibleWhen: { source: "escopo.q038", equals: "Sim" }
   },
   {
     id: "treinamento_timesheet", row: 58, type: "task",
     phase: "Treinamento e Validações", activity: "Reunião para explicar o uso e validação do fluxo de Timesheet",
     plannedStart: { type: "calculated", formula: "validar_cadastros_timesheet.plannedEnd" },
-    plannedEnd: { type: "manual_override", propagates: false },
+    plannedEnd: { type: "calculated", formula: "workday(plannedStart, 1)" },
     visibleWhen: { source: "dados_iniciais.modulos_contratados", contains: "Timesheet" }
   },
   {
@@ -479,7 +479,7 @@ export const SCHEDULE_TASKS = [
     id: "assinatura_termo_encerramento", row: 77, type: "task",
     phase: "Encerramento", activity: "Assinatura do termo de encerramento de projeto",
     plannedStart: { type: "calculated", formula: "agenda_encerramento_projeto.plannedStart" },
-    plannedEnd: { type: "manual_override", propagates: false },
+    plannedEnd: { type: "calculated", formula: "workday(plannedStart, 2)" },
     visibleWhen: "always"
   },
   {

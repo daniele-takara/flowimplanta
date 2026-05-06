@@ -392,6 +392,57 @@ plannedStart              → self reference
 
 ---
 
+## 15. AUDITORIA DE REGRAS DE DATA DO CRONOGRAMA (v5.9 — 2026-05-06)
+
+### Causa raiz dos problemas identificados
+
+`scheduleTasks.js` continha 10 atividades com `plannedEnd: { type: "manual_override" }` indevido.
+Consequência em cascata: atividades que dependiam do fim dessas ficavam sem data planejada.
+
+### Atividades corrigidas (manual_override → calculated)
+
+| ID | Atividade | Correção aplicada |
+|---|---|---|
+| `envio_documentacao_i05` | Envio documentação I05 | `workday(plannedStart, 1)` |
+| `parametrizacao_regras` | Parametrização de regras | `workday(plannedStart, 10)` |
+| `parametrizar_permissoes_usuarios` | Parametrizar permissões usuários | `workday(plannedStart, 3)` |
+| `validar_regras_calculo_banco_horas` | Reunião validar regras cálculo BH | `workday(plannedStart, 1)` |
+| `validar_arquivo_exportacao` | Reunião validar arquivo exportação | `workday(plannedStart, 1)` |
+| `treinamento_gestao_horas_extras` | Treinamento gestão horas extras | `workday(plannedStart, 1)` |
+| `treinamento_gestao_ferias` | Treinamento gestão férias | `workday(plannedStart, 1)` |
+| `treinamento_sobreaviso` | Treinamento sobreaviso | `workday(plannedStart, 1)` |
+| `treinamento_timesheet` | Treinamento timesheet | `workday(plannedStart, 1)` |
+| `assinatura_termo_encerramento` | Assinatura termo encerramento | `workday(plannedStart, 2)` |
+
+### Atividades com `manual_override` JUSTIFICADO (mantidas)
+
+Essas atividades têm fim manual por natureza — dependem de decisão ou entrega do cliente:
+
+| ID | Motivo |
+|---|---|
+| `integracao_sankhya_envio_formulario` | Cliente define quando envia |
+| `inicio_ativacao_integracao_sankhya` | Depende de liberação Sankhya |
+| `correcao_cadastros_sankhya` | Depende do cliente corrigir |
+| `envio_planilha_importacao_escalas_sankhya` | Cliente define quando envia |
+| `preencher_planilha_enderecos` | Depende do cliente |
+| `parametrizar_notificacoes` | Duração variável por complexidade |
+| `criar_usuario_api` | Processo interno variável |
+| `realizar_configuracao_sftp` | Depende do cliente configurar |
+| `adicionar_arquivos_afd_sftp` | Cliente envia quando quiser |
+| `fechamento_folha` | Data real depende do processo do cliente |
+
+### Cadeia de dependências corrigidas (impacto em cascata)
+
+```
+envio_documentacao_i05 (fim: +1d) → importacao_cadastros_i05 (início/fim calculados) ✓
+parametrizacao_regras (fim: +10d) → validar_regras_calculo_banco_horas (início calculado) ✓
+parametrizacao_regras (fim: +10d) → validar_arquivo_exportacao (início calculado) ✓
+parametrizar_permissoes_usuarios (fim: +3d) → treinamento_sobreaviso (início calculado) ✓
+assinatura_termo_encerramento (fim: +2d) → passagem_sucesso_cliente (início/fim calculados) ✓
+```
+
+---
+
 ## 14. PARAMETRIZAÇÕES — TEMPLATES > CRONOGRAMA (v5.8)
 
 ### Fonte oficial do cronograma
