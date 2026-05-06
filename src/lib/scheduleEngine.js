@@ -138,7 +138,7 @@ export function computeSchedule(tasks, anchors, answersMap, project) {
   }
 
   // Resolve fórmula de data
-  function resolve(formula, selfId, field) {
+  function resolve(formula, selfId, field, fallbackFormula) {
     if (!formula) return null;
 
     // workday(ref.field, offset)
@@ -147,19 +147,28 @@ export function computeSchedule(tasks, anchors, answersMap, project) {
       const refExpr = wdMatch[1].trim();
       const offset = parseInt(wdMatch[2]);
       const base = resolveRef(refExpr, selfId, field);
-      return base ? workday(base, offset) : null;
+      if (base) return workday(base, offset);
+      // fallback se predecessor não resolveu
+      if (fallbackFormula) return resolve(fallbackFormula, selfId, field);
+      return null;
     }
 
     // sameDay(ref)
     const sdMatch = formula.match(/^sameDay\(([^)]+)\)$/);
     if (sdMatch) {
       const refExpr = sdMatch[1].trim();
-      return resolveRef(refExpr, selfId, field);
+      const val = resolveRef(refExpr, selfId, field);
+      if (val) return val;
+      if (fallbackFormula) return resolve(fallbackFormula, selfId, field);
+      return null;
     }
 
     // Direct ref: taskId.field
     if (/^[\w]+\.[\w]+$/.test(formula)) {
-      return resolveRef(formula, selfId, field);
+      const val = resolveRef(formula, selfId, field);
+      if (val) return val;
+      if (fallbackFormula) return resolve(fallbackFormula, selfId, field);
+      return null;
     }
 
     return null;
@@ -202,7 +211,7 @@ export function computeSchedule(tasks, anchors, answersMap, project) {
         } else if (startSpec.type === "calculated" && startSpec.formula) {
           // Calculado: só tenta se ainda não resolvido (evita re-calcular desnecessariamente)
           if (!d.plannedStart) {
-            const computed = resolve(startSpec.formula, task.id, "plannedStart");
+            const computed = resolve(startSpec.formula, task.id, "plannedStart", startSpec.fallback);
             if (computed) d.plannedStart = computed;
           }
         }

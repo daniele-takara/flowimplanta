@@ -154,14 +154,14 @@ export const SCHEDULE_TASKS = [
   {
     id: "parametrizar_permissoes_usuarios", row: 29, type: "task",
     phase: "Parametrização", activity: "Parametrizar permissões de usuários de acordo com o que foi definido no escopo",
-    plannedStart: { type: "calculated", formula: "reuniao_parametrizacao_regras.plannedEnd" },
+    plannedStart: { type: "calculated", formula: "reuniao_parametrizacao_regras.plannedEnd", fallback: "agenda_escopo_tecnico.plannedEnd" },
     plannedEnd: { type: "calculated", formula: "workday(plannedStart, 3)" },
     visibleWhen: "always"
   },
   {
     id: "validar_cadastros_empregados_usuarios", row: 30, type: "task",
     phase: "Parametrização", activity: "Validar parametrização de cadastro de empregados e usuários para o registro de ponto de acordo com o escopo técnico",
-    plannedStart: { type: "calculated", formula: "reuniao_parametrizacao_regras.plannedEnd" },
+    plannedStart: { type: "calculated", formula: "reuniao_parametrizacao_regras.plannedEnd", fallback: "agenda_escopo_tecnico.plannedEnd" },
     plannedEnd: { type: "calculated", formula: "workday(plannedStart, 5)" },
     visibleWhen: "always"
   },

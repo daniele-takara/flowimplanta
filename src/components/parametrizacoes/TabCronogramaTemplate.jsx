@@ -178,6 +178,7 @@ function TaskRow({ task, config, onChange }) {
 
   const startInfo = parseFormula(startSpec.formula, SCHEDULE_TASKS);
   const endInfo   = parseFormula(endSpec.formula,   SCHEDULE_TASKS);
+  const fallbackInfo = startSpec.fallback ? parseFormula(startSpec.fallback, SCHEDULE_TASKS) : null;
 
   const isAnchor    = startSpec.type === "anchor";
   const startType   = startSpec.type || "calculated";
@@ -217,7 +218,12 @@ function TaskRow({ task, config, onChange }) {
         ) : startType === "manual_override" ? (
           <span className="flex items-center gap-1 text-slate-400"><Lock className="w-3 h-3" /> Entrada manual</span>
         ) : (
-          <span>{startInfo.text}</span>
+          <div>
+            <span>{startInfo.text}</span>
+            {fallbackInfo && (
+              <div className="text-xs text-slate-400 mt-0.5 italic">Fallback: {fallbackInfo.text}</div>
+            )}
+          </div>
         )}
       </td>
 
