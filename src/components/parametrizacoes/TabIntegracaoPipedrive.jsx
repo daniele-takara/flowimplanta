@@ -270,6 +270,8 @@ export default function TabIntegracaoPipedrive() {
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [mergeLoading, setMergeLoading] = useState(false);
+  const [mergeResult, setMergeResult] = useState(null);
 
   const loadRules = useCallback(async () => {
     setRulesLoading(true);
@@ -301,6 +303,24 @@ export default function TabIntegracaoPipedrive() {
       setSyncResult({ ok: false, error: e.message });
     }
     setSyncLoading(false);
+  };
+
+  const handleMergeRules = async () => {
+    setMergeLoading(true);
+    setMergeResult(null);
+    try {
+      const res = await base44.functions.invoke("mergePipedriveRules", {});
+      const data = res.data;
+      if (data.error) {
+        setMergeResult({ ok: false, error: data.error });
+      } else {
+        setMergeResult({ ok: true, data });
+        await loadRules();
+      }
+    } catch (e) {
+      setMergeResult({ ok: false, error: e.message });
+    }
+    setMergeLoading(false);
   };
 
   const dadosCount = rules.filter(r => r.rule_type === "dados_iniciais").length;
@@ -347,15 +367,48 @@ export default function TabIntegracaoPipedrive() {
               )}
             </p>
           </div>
-          <button
-            onClick={() => setShowConfirm(true)}
-            disabled={syncLoading}
-            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl disabled:opacity-50 transition-colors shrink-0"
-          >
-            {syncLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Atualizar regras da planilha
-          </button>
+          <div className="flex gap-2 shrink-0 flex-wrap justify-end">
+            <button
+              onClick={handleMergeRules}
+              disabled={mergeLoading || syncLoading}
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-green-700 bg-green-50 hover:bg-green-100 border border-green-300 rounded-xl disabled:opacity-50 transition-colors"
+              title="Adiciona apenas as novas linhas da planilha, sem apagar as existentes"
+            >
+              {mergeLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              Adicionar novas regras
+            </button>
+            <button
+              onClick={() => setShowConfirm(true)}
+              disabled={syncLoading || mergeLoading}
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl disabled:opacity-50 transition-colors"
+              title="Apaga todas as regras e recria do zero a partir da planilha"
+            >
+              {syncLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              Recriar todas as regras
+            </button>
+          </div>
         </div>
+
+        {mergeResult && (
+          <div className={`mt-4 rounded-lg p-3 text-xs flex items-start gap-2 ${mergeResult.ok ? "bg-green-50 border border-green-200 text-green-800" : "bg-red-50 border border-red-200 text-red-700"}`}>
+            {mergeResult.ok
+              ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+              : <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />}
+            <div>
+              {mergeResult.ok
+                ? <>
+                    <p className="font-bold">Sincronização incremental concluída</p>
+                    <p className="mt-0.5">
+                      {mergeResult.data.total_created} nova(s) regra(s) adicionada(s) ·{" "}
+                      {mergeResult.data.cronograma.ignored} cronograma ignorada(s) ·{" "}
+                      {mergeResult.data.dados_iniciais.ignored} dados_iniciais ignorada(s) ·{" "}
+                      Total: {mergeResult.data.total_after} regras
+                    </p>
+                  </>
+                : <p>Erro: {mergeResult.error}</p>}
+            </div>
+          </div>
+        )}
 
         {syncResult && (
           <div className={`mt-4 rounded-lg p-3 text-xs flex items-start gap-2 ${syncResult.ok ? "bg-green-50 border border-green-200 text-green-800" : "bg-red-50 border border-red-200 text-red-700"}`}>
@@ -365,7 +418,7 @@ export default function TabIntegracaoPipedrive() {
             <div>
               {syncResult.ok
                 ? <>
-                    <p className="font-bold">Regras de integração atualizadas com sucesso</p>
+                    <p className="font-bold">Todas as regras recriadas do zero</p>
                     <p className="mt-0.5">
                       {syncResult.data.dados_iniciais.count} regra(s) de dados iniciais ·{" "}
                       {syncResult.data.cronograma.count} regra(s) de cronograma ·{" "}
@@ -407,7 +460,7 @@ export default function TabIntegracaoPipedrive() {
         </div>
         <div className="flex items-start gap-2 mb-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
           <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-          <span><strong>Segurança:</strong> apenas campos vazios são preenchidos — datas existentes nunca são sobrescritas.</span>
+          <span><strong>Pipedrive é fonte de verdade:</strong> datas de execução são sempre sobrescritas com os valores do Pipedrive.</span>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <SavedRulesTable ruleType="cronograma" rules={rules} loading={rulesLoading} />

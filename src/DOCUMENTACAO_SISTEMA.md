@@ -169,11 +169,21 @@ Mantida por compatibilidade. **Novos logs vão para IntegrationLog.**
 
 ### savePipedriveRules
 - **Arquivo:** functions/savePipedriveRules
-- **Chamada:** TabIntegracaoPipedrive
+- **Chamada:** TabIntegracaoPipedrive (botão "Recriar todas as regras")
 - **Auth:** Usuário logado
 - **Entrada:** `{}`
 - **Lógica:** Lê planilha Google Sheets (2 abas: dados_iniciais, cronograma) → DELETE ALL PipedriveIntegrationRule → bulkCreate novo conjunto
-- ⚠️ **ATENÇÃO:** Operação destrutiva sem rollback. Criar antes de apagar é melhoria futura.
+- ⚠️ **ATENÇÃO:** Operação destrutiva sem rollback. Use apenas quando precisar resetar completamente as regras.
+
+### mergePipedriveRules *(NOVO — v5.2)*
+- **Arquivo:** functions/mergePipedriveRules
+- **Chamada:** TabIntegracaoPipedrive (botão "Adicionar novas regras")
+- **Auth:** Usuário logado
+- **Entrada:** `{}`
+- **Lógica:** Lê planilha → compara com banco por chave única → cria apenas as regras novas
+- **Chave de deduplicação:** `pipedrive_entidade|pipedrive_campo_key|pipedrive_valor_disparo|base44_fase|base44_atividade`
+- **Saída:** `{ total_created, total_before, total_after, cronograma: { created, ignored, created_keys, ignored_keys }, dados_iniciais: { created, ignored } }`
+- ✅ **Operação segura:** nunca apaga nem modifica regras existentes. Ideal para atualizações incrementais da planilha.
 
 ### syncPipedriveData
 - **Arquivo:** functions/syncPipedriveData
@@ -399,7 +409,20 @@ Expansão, Encerramento
 
 ## 9. REGRAS DE INTEGRAÇÃO — PLANILHA COMO FONTE OFICIAL
 
-A planilha Google Sheets (GID `1377224895`, aba "Cronograma - Integração") é a **fonte oficial** das regras de integração Pipedrive → Cronograma. As regras são importadas via `savePipedriveRules` e armazenadas na entidade `PipedriveIntegrationRule`.
+A planilha Google Sheets (GID `1377224895`, aba "Cronograma - Integração") é a **fonte oficial** das regras de integração Pipedrive → Cronograma. As regras são importadas e armazenadas na entidade `PipedriveIntegrationRule`.
+
+### Dois modos de sincronização
+
+| Modo | Função | Quando usar |
+|------|---------|-------------|
+| **Incremental** (padrão) | `mergePipedriveRules` | Novas linhas foram adicionadas à planilha — preserva tudo existente |
+| **Recriação total** | `savePipedriveRules` | Reset completo — apaga todas as regras e recria do zero |
+
+**Chave única de deduplicação (modo incremental):**
+```
+pipedrive_entidade|pipedrive_campo_key|pipedrive_valor_disparo|base44_fase|base44_atividade
+```
+Se a chave já existe no banco → regra ignorada. Se não existe → regra criada.
 
 ### Regras vigentes (sincronizadas da planilha)
 
