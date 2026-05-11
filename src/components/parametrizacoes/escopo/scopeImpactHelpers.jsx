@@ -87,10 +87,8 @@ export function runImpactAudit(originalQ, editedQ, impactMap, allQuestions) {
   const issues = [];
   const warnings = [];
   const infos = [];
-
   const qId = originalQ.id;
 
-  // 1. Mudança de tipo de resposta
   if (originalQ.type !== editedQ.type) {
     const schedTasks = impactMap[qId]?.tasks || [];
     if (schedTasks.length > 0) {
@@ -106,7 +104,6 @@ export function runImpactAudit(originalQ, editedQ, impactMap, allQuestions) {
     }
   }
 
-  // 2. Mudança de opções em perguntas com impacto no cronograma
   const origOpts = JSON.stringify(originalQ.options || []);
   const newOpts = JSON.stringify(editedQ.options || []);
   if (origOpts !== newOpts && impactMap[qId]?.tasks?.length > 0) {
@@ -122,12 +119,10 @@ export function runImpactAudit(originalQ, editedQ, impactMap, allQuestions) {
     }
   }
 
-  // 3. Mudança de texto da pergunta
   if (originalQ.prompt !== editedQ.prompt) {
     infos.push({ level: "info", msg: `Texto da pergunta alterado. Respostas já preenchidas em projetos existentes NÃO serão afetadas.` });
   }
 
-  // 4. Desativar pergunta com dependentes
   if (editedQ.active === false && originalQ.active !== false) {
     const dependents = allQuestions.filter(aq =>
       (aq.rules || []).some(r => r.type === "conditional_visibility" && r.dependsOn === qId)
@@ -148,7 +143,6 @@ export function runImpactAudit(originalQ, editedQ, impactMap, allQuestions) {
     }
   }
 
-  // 5. Mudança de regra condicional
   const origRules = JSON.stringify(originalQ.rules || []);
   const newRules = JSON.stringify(editedQ.rules || []);
   if (origRules !== newRules) {
@@ -157,7 +151,6 @@ export function runImpactAudit(originalQ, editedQ, impactMap, allQuestions) {
 
   const allIssues = [...issues, ...warnings, ...infos];
   const maxLevel = issues.length > 0 ? "critical" : warnings.length > 0 ? "warning" : "safe";
-
   return { issues: allIssues, maxLevel, canSaveDirectly: maxLevel !== "critical" };
 }
 
