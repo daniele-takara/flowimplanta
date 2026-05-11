@@ -5,21 +5,13 @@
     "project_id": {
       "type": "string"
     },
+    "question_id": {
+      "type": "string",
+      "description": "ID can\u00f4nico da pergunta no template (ex: q001, q066). Usado para sincroniza\u00e7\u00e3o incremental."
+    },
     "section": {
       "type": "string",
-      "description": "Se\u00e7\u00e3o do escopo",
-      "enum": [
-        "Informa\u00e7\u00f5es Gerais do Projeto",
-        "Integra\u00e7\u00e3o Folha Sankhya",
-        "Parametriza\u00e7\u00e3o C\u00e1lculos e Permiss\u00f5es",
-        "Controle de Custos",
-        "M\u00f3dulo de Escala",
-        "M\u00f3dulo Banco de Horas",
-        "M\u00f3dulo App",
-        "Dispositivos de Ponto",
-        "Integra\u00e7\u00f5es Externas",
-        "Outros"
-      ]
+      "description": "Se\u00e7\u00e3o do escopo"
     },
     "order_number": {
       "type": "number"
@@ -51,6 +43,10 @@
     "is_required": {
       "type": "boolean",
       "default": false
+    },
+    "_sync_meta": {
+      "type": "string",
+      "description": "JSON interno de sincroniza\u00e7\u00e3o: {config_hash, synced_at, synced_by, is_baseline}"
     }
   },
   "required": [

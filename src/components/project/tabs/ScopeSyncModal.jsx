@@ -61,21 +61,31 @@ function orderToQId(orderNumber) {
 // ── computeDiff ────────────────────────────────────────────────────────────────
 // LÓGICA CORRETA:
 //   - "nova pergunta"   = id canônico está no template mas NÃO existe no projeto
-//   - "pergunta alterada" = id existe em ambos, mas o config_hash do template
-//                          é DIFERENTE do hash salvo em observations_meta
-//                          (campo técnico que gravamos na sincronização)
+//   - "pergunta alterada" = id existe em ambos e o config_hash mudou
 //   - "legada"          = existe no projeto mas NÃO no template ativo
 //
-// NÃO comparamos texto vs texto — isso gera falsos positivos.
+// Chave de identificação: question_id (campo explícito) quando disponível,
+// fallback para orderToQId(order_number) para items legados sem question_id.
+// NÃO comparamos texto vs texto.
 const CHANGED_QUESTIONS_SAFETY_LIMIT = 10;
 
-function computeDiff(templateMap, scopeItems) {
-  // Monta index: qId → projectItem
-  const projectByQId = {};
+function buildProjectIndex(scopeItems) {
+  const byQId = {};
   scopeItems.forEach(item => {
+    // Prioridade 1: question_id explícito (confiável)
+    if (item.question_id) {
+      byQId[item.question_id] = item;
+      return;
+    }
+    // Fallback: derivar do order_number
     const qId = orderToQId(item.order_number);
-    if (qId) projectByQId[qId] = item;
+    if (qId && !byQId[qId]) byQId[qId] = item; // não sobrescreve se já tem question_id
   });
+  return byQId;
+}
+
+function computeDiff(templateMap, scopeItems) {
+  const projectByQId = buildProjectIndex(scopeItems);
 
   const newQuestions = [];
   const changedQuestions = [];
@@ -116,6 +126,13 @@ function computeDiff(templateMap, scopeItems) {
   // Safety gate
   const tooManyChanges = changedQuestions.length > CHANGED_QUESTIONS_SAFETY_LIMIT;
 
+  // Diagnóstico: logar resultado real do diff
+  console.log(`[computeDiff] Novas: ${newQuestions.length} — ${newQuestions.map(n => n.templateQ.id).join(", ") || "nenhuma"}`);
+  console.log(`[computeDiff] Alteradas: ${changedQuestions.length}`);
+  console.log(`[computeDiff] Legadas: ${legacyQuestions.length}`);
+  console.log(`[computeDiff] q066 → nova=${newQuestions.some(n => n.templateQ.id === "q066")}, alterada=${changedQuestions.some(c => c.templateQ.id === "q066")}`);
+  console.log(`[computeDiff] projectByQId keys:`, Object.keys(projectByQId).join(", "));
+
   return { newQuestions, changedQuestions, legacyQuestions, tooManyChanges };
 }
 
@@ -155,31 +172,49 @@ function DiffItem({ qId, label, detail }) {
 }
 
 // ── Bootstrap legacy ──────────────────────────────────────────────────────────
-// Para projetos sem hashes: grava _sync_meta com o hash ATUAL do template
-// em cada pergunta existente, SEM tocar em answer/observations/question.
-// Isso estabelece o baseline — futuras comparações serão corretas.
+// Para projetos sem hashes: grava _sync_meta + question_id em cada pergunta
+// existente, SEM tocar em answer/observations/question.
+// Também grava question_id explícito para que futuras buscas sejam precisas.
 async function bootstrapLegacyProject(templateMap, scopeItems) {
   const now = new Date().toISOString();
-  const itemsWithoutHash = scopeItems.filter(item => {
-    try {
-      const meta = item._sync_meta ? JSON.parse(item._sync_meta) : null;
-      return !meta?.config_hash;
-    } catch { return true; }
+
+  // Items que precisam de bootstrap: sem _sync_meta OU sem question_id
+  const itemsToBootstrap = scopeItems.filter(item => {
+    const needsMeta = (() => {
+      try {
+        const meta = item._sync_meta ? JSON.parse(item._sync_meta) : null;
+        return !meta?.config_hash;
+      } catch { return true; }
+    })();
+    return needsMeta || !item.question_id;
   });
 
-  if (itemsWithoutHash.length === 0) return 0; // nada a fazer
+  if (itemsToBootstrap.length === 0) return 0;
 
-  // Grava hashes em paralelo (lotes de 5 para não sobrecarregar)
+  // Constrói mapa reverso: order_number → question_id do template
+  const orderToTemplateQId = {};
+  Object.values(templateMap).forEach(tq => {
+    orderToTemplateQId[tq.order_number] = tq.id;
+  });
+
   let bootstrapped = 0;
-  for (let i = 0; i < itemsWithoutHash.length; i += 5) {
-    const batch = itemsWithoutHash.slice(i, i + 5);
+  for (let i = 0; i < itemsToBootstrap.length; i += 5) {
+    const batch = itemsToBootstrap.slice(i, i + 5);
     await Promise.all(batch.map(async item => {
-      const qId = orderToQId(item.order_number);
-      const tq = qId ? templateMap[qId] : null;
-      // Se não existe no template atual: marca como legacy sem hash de template
+      // Resolver question_id: usar explícito se existir, senão derivar do order_number
+      const resolvedQId = item.question_id
+        || orderToTemplateQId[item.order_number]
+        || orderToQId(item.order_number);
+
+      const tq = resolvedQId ? templateMap[resolvedQId] : null;
       const hashToSave = tq ? tq.hash : "legacy_no_template";
       const meta = JSON.stringify({ config_hash: hashToSave, bootstrapped_at: now, is_baseline: true });
-      await base44.entities.ScopeItem.update(item.id, { _sync_meta: meta });
+
+      const updatePayload = { _sync_meta: meta };
+      // Grava question_id explícito se não existia — chave de identidade para diff futuro
+      if (!item.question_id && resolvedQId) updatePayload.question_id = resolvedQId;
+
+      await base44.entities.ScopeItem.update(item.id, updatePayload);
       bootstrapped++;
     }));
   }
@@ -206,6 +241,15 @@ export default function ScopeSyncModal({ projectId, scopeItems, onClose, onSynce
     overridesList.forEach(o => { if (!overridesMap[o.question_id]) overridesMap[o.question_id] = o; });
 
     const templateMap = buildTemplateMap(overridesMap);
+
+    // Diagnóstico: logar estado real para auditoria
+    const templateIds = Object.keys(templateMap);
+    console.log(`[ScopeSync] Template: ${templateIds.length} perguntas — ${templateIds.join(", ")}`);
+    console.log(`[ScopeSync] q066 no template:`, !!templateMap["q066"], templateMap["q066"] ? `hash=${templateMap["q066"].hash}` : "AUSENTE");
+    console.log(`[ScopeSync] Projeto: ${scopeItems.length} perguntas`);
+    const projectQIds = scopeItems.map(i => i.question_id || orderToQId(i.order_number));
+    console.log(`[ScopeSync] IDs no projeto (question_id ou order):`, projectQIds.join(", "));
+    console.log(`[ScopeSync] q066 no projeto:`, projectQIds.includes("q066"));
 
     // Bootstrap: projeto legacy sem hashes → grava baseline silenciosamente
     const bootstrapped = await bootstrapLegacyProject(templateMap, scopeItems);
@@ -237,6 +281,7 @@ export default function ScopeSyncModal({ projectId, scopeItems, onClose, onSynce
           const meta = JSON.stringify({ config_hash: templateQ.hash, synced_at: new Date().toISOString(), synced_by: user?.email });
           await base44.entities.ScopeItem.create({
             project_id: projectId,
+            question_id: templateQ.id,
             order_number: templateQ.order_number,
             section: templateQ.section,
             question: templateQ.prompt,
