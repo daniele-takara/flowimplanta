@@ -8,6 +8,7 @@ import {
 import TabUsuarios from "@/components/parametrizacoes/TabUsuarios";
 import TabPerfis from "@/components/parametrizacoes/TabPerfis";
 import TabCronogramaTemplate from "@/components/parametrizacoes/TabCronogramaTemplate";
+import TabEscopoTemplate from "@/components/parametrizacoes/TabEscopoTemplate";
 import TabIntegracaoPipedrive from "@/components/parametrizacoes/TabIntegracaoPipedrive";
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -329,6 +330,7 @@ function TabTemplates() {
         {[
           { id: "documentos", label: "Documentos" },
           { id: "cronograma", label: "Cronograma" },
+          { id: "escopo", label: "Escopo Técnico" },
         ].map(st => (
           <button
             key={st.id}
@@ -341,6 +343,7 @@ function TabTemplates() {
       </div>
 
       {subTab === "cronograma" && <TabCronogramaTemplate />}
+      {subTab === "escopo" && <TabEscopoTemplate />}
 
       {subTab === "documentos" && (
         <div className="grid grid-cols-3 gap-5">
