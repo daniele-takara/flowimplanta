@@ -9,6 +9,8 @@ import { X, RefreshCw, Plus, AlertTriangle, CheckCircle2, Loader2, ChevronDown, 
 function configHash(tq) {
   const sig = JSON.stringify({
     id: tq.id,
+    prompt: tq.prompt || "",
+    description: tq.description || "",
     type: tq.type,
     options: tq.options || [],
     rules: tq.rules || [],
@@ -172,11 +174,19 @@ function DiffItem({ qId, label, detail }) {
 }
 
 // ── Bootstrap legacy ──────────────────────────────────────────────────────────
-// Para projetos sem hashes: grava _sync_meta + question_id em cada pergunta
-// existente, SEM tocar em answer/observations/question.
-// Também grava question_id explícito para que futuras buscas sejam precisas.
+// Para projetos sem hashes: grava _sync_meta + question_id em cada pergunta.
+// IMPORTANTE: o hash gravado é calculado com base nos dados que o ITEM DO PROJETO
+// possui atualmente (não o template atual), para que mudanças no template
+// posteriores ao bootstrap sejam detectadas corretamente.
+// NÃO toca em answer/observations.
 async function bootstrapLegacyProject(templateMap, scopeItems) {
   const now = new Date().toISOString();
+
+  // Constrói mapa reverso: order_number → question_id do template
+  const orderToTemplateQId = {};
+  Object.values(templateMap).forEach(tq => {
+    orderToTemplateQId[tq.order_number] = tq.id;
+  });
 
   // Items que precisam de bootstrap: sem _sync_meta OU sem question_id
   const itemsToBootstrap = scopeItems.filter(item => {
@@ -191,27 +201,39 @@ async function bootstrapLegacyProject(templateMap, scopeItems) {
 
   if (itemsToBootstrap.length === 0) return 0;
 
-  // Constrói mapa reverso: order_number → question_id do template
-  const orderToTemplateQId = {};
-  Object.values(templateMap).forEach(tq => {
-    orderToTemplateQId[tq.order_number] = tq.id;
-  });
-
   let bootstrapped = 0;
   for (let i = 0; i < itemsToBootstrap.length; i += 5) {
     const batch = itemsToBootstrap.slice(i, i + 5);
     await Promise.all(batch.map(async item => {
-      // Resolver question_id: usar explícito se existir, senão derivar do order_number
+      // Resolver question_id
       const resolvedQId = item.question_id
         || orderToTemplateQId[item.order_number]
         || orderToQId(item.order_number);
 
       const tq = resolvedQId ? templateMap[resolvedQId] : null;
-      const hashToSave = tq ? tq.hash : "legacy_no_template";
-      const meta = JSON.stringify({ config_hash: hashToSave, bootstrapped_at: now, is_baseline: true });
 
+      // Hash baseado no estado atual do ITEM DO PROJETO (não do template atual)
+      // Isso garante que uma mudança no template posterior seja detectada no diff.
+      let hashToSave;
+      if (tq) {
+        // Constrói um "estado virtual" baseado no que o item tem agora
+        const projectState = {
+          id: resolvedQId,
+          prompt: item.question || tq.prompt,
+          description: item.best_practice || tq.description || "",
+          type: item.field_type || tq.type,
+          options: tq.options, // opções não ficam no item → usa template
+          rules: tq.rules,     // regras não ficam no item → usa template
+          is_required: item.is_required ?? tq.is_required ?? false,
+          active: tq.active !== false,
+        };
+        hashToSave = configHash(projectState);
+      } else {
+        hashToSave = "legacy_no_template";
+      }
+
+      const meta = JSON.stringify({ config_hash: hashToSave, bootstrapped_at: now, is_baseline: true });
       const updatePayload = { _sync_meta: meta };
-      // Grava question_id explícito se não existia — chave de identidade para diff futuro
       if (!item.question_id && resolvedQId) updatePayload.question_id = resolvedQId;
 
       await base44.entities.ScopeItem.update(item.id, updatePayload);

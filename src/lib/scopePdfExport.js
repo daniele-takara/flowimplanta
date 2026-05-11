@@ -66,8 +66,11 @@ function buildModuleHTML(mod, questionsData) {
   `;
 }
 
-export function generateScopePDF(project, questionsData, contractedModules, origin, manualOverrides = {}) {
-  const visibleModules = SCOPE_MODULES.filter(mod =>
+// effectiveModules: módulos já com overrides aplicados (passados pelo ScopeTab).
+// Fallback para SCOPE_MODULES estático caso não seja passado (compatibilidade).
+export function generateScopePDF(project, questionsData, contractedModules, origin, manualOverrides = {}, effectiveModules = null) {
+  const modulesToUse = effectiveModules || SCOPE_MODULES;
+  const visibleModules = modulesToUse.filter(mod =>
     isModuleVisible(mod, contractedModules, origin, manualOverrides)
   );
 
@@ -77,6 +80,7 @@ export function generateScopePDF(project, questionsData, contractedModules, orig
   const answeredQuestions = visibleModules.reduce((acc, mod) => {
     return acc + getModuleQuestions(mod).filter(q => questionsData[q.id]?.answer).length;
   }, 0);
+  // (modulesToUse is used above — SCOPE_MODULES import kept as fallback only)
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">

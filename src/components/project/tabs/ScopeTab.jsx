@@ -6,6 +6,44 @@ import ScopeItemRow from "@/components/project/tabs/ScopeItemRow";
 import { ChevronLeft, ChevronRight, Plus, Minus, FileDown, Check, LayoutList, RefreshCw } from "lucide-react";
 import ScopeSyncModal from "@/components/project/tabs/ScopeSyncModal.jsx";
 
+// Aplica overrides do banco sobre uma lista de perguntas do template estático.
+// Retorna novas perguntas com prompt/description/type/options/etc. do override quando existir.
+function applyOverridesToQuestions(questions, overridesMap) {
+  return questions.map(q => {
+    const ov = overridesMap[q.id];
+    if (!ov) return q;
+    return {
+      ...q,
+      prompt: ov.prompt ?? q.prompt,
+      description: ov.description ?? q.description,
+      type: ov.type ?? q.type,
+      options: ov.options ? JSON.parse(ov.options) : q.options,
+      placeholder: ov.placeholder ?? q.placeholder,
+      is_required: ov.is_required ?? q.is_required ?? false,
+      rules: ov.rules ? JSON.parse(ov.rules) : q.rules,
+    };
+  });
+}
+
+// Constrói os módulos com overrides mesclados
+function buildEffectiveModules(overridesMap) {
+  return SCOPE_MODULES.map(mod => {
+    if (mod.questions) {
+      return { ...mod, questions: applyOverridesToQuestions(mod.questions, overridesMap) };
+    }
+    if (mod.subsections) {
+      return {
+        ...mod,
+        subsections: mod.subsections.map(sub => ({
+          ...sub,
+          questions: applyOverridesToQuestions(sub.questions, overridesMap),
+        })),
+      };
+    }
+    return mod;
+  });
+}
+
 const SANKHYA_KEY = "sankhya_manual_override";
 
 export default function ScopeTab({ scopeItems, projectId, project, onRefresh, onScopeSaved, readOnly = false }) {
@@ -15,6 +53,16 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
       return JSON.parse(localStorage.getItem(`scope_overrides_${projectId}`) || "{}");
     } catch { return {}; }
   });
+
+  // Overrides do template persistidos no banco (ScopeTemplateOverride)
+  const [overridesMap, setOverridesMap] = useState({});
+  useEffect(() => {
+    base44.entities.ScopeTemplateOverride.list("-version").then(list => {
+      const map = {};
+      list.forEach(o => { if (!map[o.question_id]) map[o.question_id] = o; });
+      setOverridesMap(map);
+    });
+  }, []);
 
   // Local cache: { [questionId]: { answer, observations } }
   const [localAnswers, setLocalAnswers] = useState({});
@@ -46,12 +94,15 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
   const contractedModules = project?.contracted_modules || [];
   const origin = project?.origin || "";
 
+  // Módulos com overrides mesclados (fonte de verdade para renderização)
+  const effectiveModules = useMemo(() => buildEffectiveModules(overridesMap), [overridesMap]);
+
   const visibleModules = useMemo(() =>
-    SCOPE_MODULES.filter(mod => isModuleVisible(mod, contractedModules, origin, manualOverrides)),
-    [contractedModules, origin, manualOverrides]
+    effectiveModules.filter(mod => isModuleVisible(mod, contractedModules, origin, manualOverrides)),
+    [effectiveModules, contractedModules, origin, manualOverrides]
   );
 
-  const sankhyaMod = SCOPE_MODULES.find(m => m.moduleKey === "integracao_folha_sankhya");
+  const sankhyaMod = effectiveModules.find(m => m.moduleKey === "integracao_folha_sankhya");
   const sankhyaAutoVisible = origin === sankhyaMod?.autoShowWhen?.value;
   const sankhyaManualEnabled = manualOverrides[SANKHYA_KEY] === true;
 
@@ -86,24 +137,25 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
     if (existing) {
       await base44.entities.ScopeItem.update(existing.id, { answer, observations });
     } else {
-      // Find question metadata from template
+      // Find question metadata from effective modules (overrides already applied)
       let foundQ = null;
       let foundSection = "";
-      for (const mod of SCOPE_MODULES) {
+      for (const mod of effectiveModules) {
         const qs = getModuleQuestions(mod);
         const q = qs.find(q => q.id === questionId);
         if (q) { foundQ = q; foundSection = mod.moduleLabel; break; }
       }
       const created = await base44.entities.ScopeItem.create({
         project_id: projectId,
+        question_id: questionId,
         order_number: orderNum,
         section: foundSection,
         question: foundQ?.prompt || "",
         best_practice: foundQ?.description || "",
         answer,
         observations,
-        field_type: "text",
-        is_required: false
+        field_type: foundQ?.type || "text",
+        is_required: foundQ?.is_required || false
       });
       // Add to ref so subsequent saves find the record
       if (created?.id) {
@@ -189,7 +241,7 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
             </button>
           )}
           <button
-            onClick={() => generateScopePDF(project, localAnswers, contractedModules, origin, manualOverrides)}
+            onClick={() => generateScopePDF(project, localAnswers, contractedModules, origin, manualOverrides, effectiveModules)}
             className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50 transition-colors"
           >
             <FileDown className="w-3.5 h-3.5" />

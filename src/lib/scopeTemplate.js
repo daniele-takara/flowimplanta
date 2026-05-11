@@ -528,7 +528,7 @@ export const SCOPE_MODULES = [
       },
       {
         order: 66, id: "q066",
-        prompt: "Será respeitado prazo mínimo para solicitação de férias?",
+        prompt: "Permitir férias dentro do período aquisitivo?",
         description: "Essa definição permite estabelecer um prazo mínimo entre a solicitação e o início das férias, garantindo conformidade com políticas internas e legislação aplicável. Padrão 30 dias mínimos",
         type: "long_text", options: [], placeholder: "[descrever - texto livre]", rules: []
       },
