@@ -3,7 +3,8 @@ import { base44 } from "@/api/base44Client";
 import { SCOPE_MODULES, getModuleQuestions, isModuleVisible } from "@/lib/scopeTemplate";
 import { generateScopePDF } from "@/lib/scopePdfExport";
 import ScopeItemRow from "@/components/project/tabs/ScopeItemRow";
-import { ChevronLeft, ChevronRight, Plus, Minus, FileDown, Check, LayoutList } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Minus, FileDown, Check, LayoutList, RefreshCw } from "lucide-react";
+import ScopeSyncModal from "@/components/project/tabs/ScopeSyncModal.jsx";
 
 const SANKHYA_KEY = "sankhya_manual_override";
 
@@ -56,6 +57,7 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
 
   // Current module index (stepper)
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [showSyncModal, setShowSyncModal] = useState(false);
   // Clamp index when visible modules change
   const safeIndex = Math.min(currentIndex, Math.max(0, visibleModules.length - 1));
 
@@ -177,6 +179,15 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
               {sankhyaManualEnabled ? "Remover Sankhya" : "Incluir Sankhya"}
             </button>
           )}
+          {!readOnly && (
+            <button
+              onClick={() => setShowSyncModal(true)}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Atualizar template
+            </button>
+          )}
           <button
             onClick={() => generateScopePDF(project, localAnswers, contractedModules, origin, manualOverrides)}
             className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50 transition-colors"
@@ -274,6 +285,16 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
           )}
         </div>
       </div>
+
+      {/* Sync modal */}
+      {showSyncModal && (
+        <ScopeSyncModal
+          projectId={projectId}
+          scopeItems={scopeItems}
+          onClose={() => setShowSyncModal(false)}
+          onSynced={() => { setShowSyncModal(false); if (onRefresh) onRefresh(); }}
+        />
+      )}
 
       {/* Prev / Next navigation */}
       <div className="flex items-center justify-between">
