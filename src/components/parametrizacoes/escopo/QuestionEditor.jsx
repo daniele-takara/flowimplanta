@@ -9,7 +9,7 @@ import {
   TYPE_LABELS, TYPE_COLORS, TYPE_OPTIONS,
   TAP_IMPACT, INTEGRATION_IMPACT, RISK_CONFIG, getRiskLevel,
   runImpactAudit, getAllQuestions
-} from "@/components/parametrizacoes/escopo/scopeImpactHelpers.js";
+} from "@/components/parametrizacoes/escopo/scopeImpactHelpers.jsx";
 import ImpactAuditModal from "@/components/parametrizacoes/escopo/ImpactAuditModal.jsx";
 
 const inputClass = "w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white";
