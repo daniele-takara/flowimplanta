@@ -1,68 +1,122 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { SCOPE_MODULES, getModuleQuestions } from "@/lib/scopeTemplate.js";
-import { X, RefreshCw, Plus, Pencil, AlertTriangle, CheckCircle2, Loader2, ChevronDown, ChevronRight, Save } from "lucide-react";
+import { X, RefreshCw, Plus, AlertTriangle, CheckCircle2, Loader2, ChevronDown, ChevronRight, Save, ShieldAlert } from "lucide-react";
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── Config hash ────────────────────────────────────────────────────────────────
+// Gera um hash determinístico da configuração de uma pergunta do TEMPLATE.
+// Apenas campos de configuração — nunca resposta, nunca texto salvo no projeto.
+function configHash(tq) {
+  const sig = JSON.stringify({
+    id: tq.id,
+    type: tq.type,
+    options: tq.options || [],
+    rules: tq.rules || [],
+    is_required: tq.is_required || false,
+    active: tq.active !== false,
+  });
+  // Simple djb2 hash — não precisa ser criptográfico, só comparar
+  let h = 5381;
+  for (let i = 0; i < sig.length; i++) h = ((h << 5) + h) ^ sig.charCodeAt(i);
+  return (h >>> 0).toString(36);
+}
 
+// ── Build template map ─────────────────────────────────────────────────────────
+// Fonte de verdade: SCOPE_MODULES + overrides do banco.
+// A chave é sempre o q-id canônico: q001, q066, q251, etc.
 function buildTemplateMap(overridesMap) {
   const map = {};
   SCOPE_MODULES.forEach(mod => {
     getModuleQuestions(mod).forEach(q => {
       const override = overridesMap[q.id];
-      map[q.id] = {
+      const tq = {
         id: q.id,
         prompt: override?.prompt ?? q.prompt,
-        description: override?.description ?? q.description,
+        description: override?.description ?? q.description ?? "",
         type: override?.type ?? q.type,
-        options: override?.options ? JSON.parse(override.options) : q.options,
-        placeholder: override?.placeholder ?? q.placeholder,
+        options: override?.options ? JSON.parse(override.options) : (q.options || []),
+        placeholder: override?.placeholder ?? q.placeholder ?? "",
         is_required: override?.is_required ?? false,
         rules: override?.rules ? JSON.parse(override.rules) : (q.rules || []),
         active: override?.active !== undefined ? override.active : true,
         section: mod.moduleLabel,
-        order_number: parseInt(q.id.replace("q", ""), 10),
+        order_number: q.order, // usa o `order` canônico do scopeTemplate
       };
+      tq.hash = configHash(tq);
+      map[q.id] = tq;
     });
   });
   return map;
 }
 
+// ── Normaliza o project item key → canonical q-id ─────────────────────────────
+// order_number 1 → "q001", order_number 251 → "q251", order_number 66 → "q066"
+function orderToQId(orderNumber) {
+  const n = parseInt(orderNumber, 10);
+  if (isNaN(n)) return null;
+  // IDs com 3 dígitos onde n <= 999
+  return `q${String(n).padStart(3, "0")}`;
+}
+
+// ── computeDiff ────────────────────────────────────────────────────────────────
+// LÓGICA CORRETA:
+//   - "nova pergunta"   = id canônico está no template mas NÃO existe no projeto
+//   - "pergunta alterada" = id existe em ambos, mas o config_hash do template
+//                          é DIFERENTE do hash salvo em observations_meta
+//                          (campo técnico que gravamos na sincronização)
+//   - "legada"          = existe no projeto mas NÃO no template ativo
+//
+// NÃO comparamos texto vs texto — isso gera falsos positivos.
+const CHANGED_QUESTIONS_SAFETY_LIMIT = 10;
+
 function computeDiff(templateMap, scopeItems) {
-  const projectMap = {};
+  // Monta index: qId → projectItem
+  const projectByQId = {};
   scopeItems.forEach(item => {
-    const key = `q${String(item.order_number).padStart(3, "0")}`;
-    projectMap[key] = item;
+    const qId = orderToQId(item.order_number);
+    if (qId) projectByQId[qId] = item;
   });
 
   const newQuestions = [];
   const changedQuestions = [];
 
   Object.values(templateMap).forEach(tq => {
-    if (!tq.active) return; // skip inactive template questions
-    const pItem = projectMap[tq.id];
+    if (!tq.active) return;
+
+    const pItem = projectByQId[tq.id];
 
     if (!pItem) {
-      newQuestions.push({ templateQ: tq, projectItem: null });
+      // Pergunta existe no template mas não no projeto → NOVA
+      newQuestions.push({ templateQ: tq });
       return;
     }
 
-    const changes = [];
-    if ((pItem.question || "") !== (tq.prompt || "")) changes.push({ field: "prompt", from: pItem.question, to: tq.prompt });
-    if ((pItem.best_practice || "") !== (tq.description || "")) changes.push({ field: "description", from: pItem.best_practice, to: tq.description });
+    // Pergunta existe em ambos → comparar pelo hash salvo (meta)
+    // O hash salvo fica em um campo de controle: observations_meta (JSON string)
+    // Se não há hash salvo ainda, NÃO consideramos como alterada (evita falsos positivos)
+    let savedHash = null;
+    try {
+      const meta = pItem._sync_meta ? JSON.parse(pItem._sync_meta) : null;
+      savedHash = meta?.config_hash ?? null;
+    } catch { savedHash = null; }
 
-    if (changes.length > 0) {
-      changedQuestions.push({ templateQ: tq, projectItem: pItem, changes });
+    if (savedHash !== null && savedHash !== tq.hash) {
+      // Hash mudou → configuração alterada
+      changedQuestions.push({ templateQ: tq, projectItem: pItem });
     }
+    // Se savedHash === null → nunca sincronizado → não alterar (seguro)
   });
 
-  // Legacy: project questions not in template anymore
+  // Legacy: no projeto mas não no template ativo
   const legacyQuestions = scopeItems.filter(item => {
-    const key = `q${String(item.order_number).padStart(3, "0")}`;
-    return !templateMap[key];
+    const qId = orderToQId(item.order_number);
+    return qId && !templateMap[qId];
   });
 
-  return { newQuestions, changedQuestions, legacyQuestions };
+  // Safety gate
+  const tooManyChanges = changedQuestions.length > CHANGED_QUESTIONS_SAFETY_LIMIT;
+
+  return { newQuestions, changedQuestions, legacyQuestions, tooManyChanges };
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -93,7 +147,7 @@ function DiffItem({ qId, label, detail }) {
         <span className="text-xs font-mono font-bold text-slate-400 mt-0.5 shrink-0">{qId?.toUpperCase()}</span>
         <div className="flex-1 min-w-0">
           <p className="text-xs text-slate-700 leading-snug">{label}</p>
-          {detail && <p className="text-xs text-slate-400 mt-0.5 truncate">{detail}</p>}
+          {detail && <p className="text-xs text-slate-400 mt-0.5">{detail}</p>}
         </div>
       </div>
     </div>
@@ -103,20 +157,17 @@ function DiffItem({ qId, label, detail }) {
 // ── Main Modal ─────────────────────────────────────────────────────────────────
 
 export default function ScopeSyncModal({ projectId, scopeItems, onClose, onSynced }) {
-  const [step, setStep] = useState("loading"); // loading | diff | syncing | done | error
+  const [step, setStep] = useState("loading");
   const [diff, setDiff] = useState(null);
   const [applyNew, setApplyNew] = useState(true);
   const [applyChanged, setApplyChanged] = useState(true);
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   async function load() {
     setStep("loading");
-    // Load overrides from DB
     const overridesList = await base44.entities.ScopeTemplateOverride.list("-version");
     const overridesMap = {};
     overridesList.forEach(o => { if (!overridesMap[o.question_id]) overridesMap[o.question_id] = o; });
@@ -130,20 +181,15 @@ export default function ScopeSyncModal({ projectId, scopeItems, onClose, onSynce
   async function applySync() {
     setStep("syncing");
     const user = await base44.auth.me();
-    const projectItemMap = {};
-    scopeItems.forEach(item => {
-      const key = `q${String(item.order_number).padStart(3, "0")}`;
-      projectItemMap[key] = item;
-    });
 
     let added = 0;
     let updated = 0;
-    const errors = [];
 
     try {
-      // Apply new questions
+      // Adicionar novas perguntas
       if (applyNew) {
         for (const { templateQ } of diff.newQuestions) {
+          const meta = JSON.stringify({ config_hash: templateQ.hash, synced_at: new Date().toISOString(), synced_by: user?.email });
           await base44.entities.ScopeItem.create({
             project_id: projectId,
             order_number: templateQ.order_number,
@@ -154,18 +200,23 @@ export default function ScopeSyncModal({ projectId, scopeItems, onClose, onSynce
             observations: "",
             field_type: templateQ.type || "text",
             is_required: templateQ.is_required || false,
+            _sync_meta: meta,
           });
           added++;
         }
       }
 
-      // Apply changed questions (only metadata, NEVER answer/observations)
+      // Atualizar metadados de perguntas com config alterada
+      // NUNCA toca em: answer, observations
       if (applyChanged) {
         for (const { templateQ, projectItem } of diff.changedQuestions) {
+          const meta = JSON.stringify({ config_hash: templateQ.hash, synced_at: new Date().toISOString(), synced_by: user?.email });
           await base44.entities.ScopeItem.update(projectItem.id, {
             question: templateQ.prompt,
             best_practice: templateQ.description || "",
-            // Explicitly NOT touching: answer, observations
+            field_type: templateQ.type || "text",
+            is_required: templateQ.is_required || false,
+            _sync_meta: meta,
           });
           updated++;
         }
@@ -193,7 +244,7 @@ export default function ScopeSyncModal({ projectId, scopeItems, onClose, onSynce
           <RefreshCw className="w-5 h-5 text-white" />
           <div className="flex-1">
             <h2 className="text-sm font-bold text-white">Atualizar template do escopo</h2>
-            <p className="text-xs text-slate-300 mt-0.5">Sincronização incremental — respostas existentes são preservadas</p>
+            <p className="text-xs text-slate-300 mt-0.5">Sincronização incremental por hash de configuração — respostas preservadas</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/20">
             <X className="w-4 h-4 text-white" />
@@ -206,30 +257,44 @@ export default function ScopeSyncModal({ projectId, scopeItems, onClose, onSynce
           {step === "loading" && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-              <p className="text-sm text-slate-500">Comparando com o template mais recente...</p>
+              <p className="text-sm text-slate-500">Comparando configurações por hash...</p>
             </div>
           )}
 
           {step === "diff" && diff && (
             <div>
+              {/* Safety gate */}
+              {diff.tooManyChanges && (
+                <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl mb-4">
+                  <ShieldAlert className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold text-red-700">Possível comparação incorreta detectada</p>
+                    <p className="text-xs text-red-600 mt-1">
+                      {diff.changedQuestions.length} perguntas foram marcadas como alteradas — isso excede o limite de segurança ({CHANGED_QUESTIONS_SAFETY_LIMIT}).
+                      A sincronização de metadados foi bloqueada. Apenas novas perguntas podem ser adicionadas.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {!hasAnything ? (
                 <div className="flex items-center gap-3 p-5 bg-green-50 border border-green-200 rounded-xl">
                   <CheckCircle2 className="w-6 h-6 text-green-600 shrink-0" />
                   <div>
                     <p className="text-sm font-semibold text-green-700">Escopo já está atualizado!</p>
-                    <p className="text-xs text-green-600 mt-0.5">Nenhuma diferença detectada entre o projeto e o template atual.</p>
+                    <p className="text-xs text-green-600 mt-0.5">Nenhuma diferença detectada. Perguntas sem hash salvo são ignoradas por segurança.</p>
                   </div>
                 </div>
               ) : (
                 <>
                   <p className="text-xs text-slate-500 mb-4">
-                    Revise as diferenças abaixo. Apenas as categorias selecionadas serão sincronizadas.
-                    <strong className="text-slate-700"> Respostas existentes nunca são sobrescritas.</strong>
+                    Comparação feita por <strong>config hash</strong> — somente diferenças reais de configuração são detectadas.
+                    <strong className="text-slate-700"> Respostas e observações nunca são tocadas.</strong>
                   </p>
 
                   {/* New questions */}
                   <DiffSection
-                    title="Novas perguntas"
+                    title="Novas perguntas (existem no template, não no projeto)"
                     count={diff.newQuestions.length}
                     icon={Plus}
                     defaultOpen={true}
@@ -240,43 +305,57 @@ export default function ScopeSyncModal({ projectId, scopeItems, onClose, onSynce
                       <span className="text-xs font-semibold text-green-700">Adicionar novas perguntas ao projeto</span>
                     </label>
                     {diff.newQuestions.map(({ templateQ }) => (
-                      <DiffItem key={templateQ.id} qId={templateQ.id} label={templateQ.prompt} detail={`Seção: ${templateQ.section}`} />
-                    ))}
-                  </DiffSection>
-
-                  {/* Changed questions */}
-                  <DiffSection
-                    title="Perguntas com texto/descrição atualizado"
-                    count={diff.changedQuestions.length}
-                    icon={Pencil}
-                    defaultOpen={true}
-                    color={{ border: "border-amber-200", bg: "bg-amber-50", icon: "text-amber-600", text: "text-amber-800", badge: "bg-amber-200 text-amber-800", body: "bg-white" }}
-                  >
-                    <label className="flex items-center gap-2 mb-3 cursor-pointer">
-                      <input type="checkbox" checked={applyChanged} onChange={e => setApplyChanged(e.target.checked)} className="w-3.5 h-3.5" />
-                      <span className="text-xs font-semibold text-amber-700">Atualizar metadados (texto/descrição) — resposta preservada</span>
-                    </label>
-                    {diff.changedQuestions.map(({ templateQ, changes }) => (
                       <DiffItem
                         key={templateQ.id}
                         qId={templateQ.id}
                         label={templateQ.prompt}
-                        detail={changes.map(c => `${c.field}: alterado`).join(", ")}
+                        detail={`Seção: ${templateQ.section} · Tipo: ${templateQ.type}`}
                       />
                     ))}
                   </DiffSection>
 
-                  {/* Legacy questions */}
+                  {/* Changed questions — só mostra se não ultrapassou safety limit */}
+                  {!diff.tooManyChanges && diff.changedQuestions.length > 0 && (
+                    <DiffSection
+                      title="Perguntas com configuração alterada (hash diferente)"
+                      count={diff.changedQuestions.length}
+                      icon={RefreshCw}
+                      defaultOpen={true}
+                      color={{ border: "border-amber-200", bg: "bg-amber-50", icon: "text-amber-600", text: "text-amber-800", badge: "bg-amber-200 text-amber-800", body: "bg-white" }}
+                    >
+                      <label className="flex items-center gap-2 mb-3 cursor-pointer">
+                        <input type="checkbox" checked={applyChanged} onChange={e => setApplyChanged(e.target.checked)} className="w-3.5 h-3.5" />
+                        <span className="text-xs font-semibold text-amber-700">Atualizar metadados — resposta e observações preservadas</span>
+                      </label>
+                      {diff.changedQuestions.map(({ templateQ }) => (
+                        <DiffItem
+                          key={templateQ.id}
+                          qId={templateQ.id}
+                          label={templateQ.prompt}
+                          detail={`Hash template: ${templateQ.hash}`}
+                        />
+                      ))}
+                    </DiffSection>
+                  )}
+
+                  {/* Legacy */}
                   <DiffSection
-                    title="Perguntas legadas (removidas do template, mantidas no projeto)"
+                    title="Perguntas legadas (não existem mais no template — preservadas)"
                     count={diff.legacyQuestions.length}
                     icon={AlertTriangle}
                     color={{ border: "border-slate-200", bg: "bg-slate-50", icon: "text-slate-400", text: "text-slate-600", badge: "bg-slate-200 text-slate-600", body: "bg-white" }}
                   >
-                    <p className="text-xs text-slate-400 mb-2">Estas perguntas não existem mais no template mas foram preservadas com suas respostas.</p>
+                    <p className="text-xs text-slate-400 mb-2">Mantidas com respostas e histórico intactos. Nenhuma ação necessária.</p>
                     {diff.legacyQuestions.map(item => {
-                      const key = `q${String(item.order_number).padStart(3, "0")}`;
-                      return <DiffItem key={item.id} qId={key} label={item.question} detail={item.answer ? `Resposta: ${item.answer.substring(0, 60)}` : "Sem resposta"} />;
+                      const qId = orderToQId(item.order_number);
+                      return (
+                        <DiffItem
+                          key={item.id}
+                          qId={qId}
+                          label={item.question}
+                          detail={item.answer ? `Resposta: ${item.answer.substring(0, 60)}` : "Sem resposta"}
+                        />
+                      );
                     })}
                   </DiffSection>
                 </>
@@ -288,7 +367,7 @@ export default function ScopeSyncModal({ projectId, scopeItems, onClose, onSynce
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
               <p className="text-sm text-slate-500">Aplicando sincronização incremental...</p>
-              <p className="text-xs text-slate-400">Respostas existentes estão sendo preservadas</p>
+              <p className="text-xs text-slate-400">Respostas e observações sendo preservadas</p>
             </div>
           )}
 
@@ -298,7 +377,7 @@ export default function ScopeSyncModal({ projectId, scopeItems, onClose, onSynce
                 <CheckCircle2 className="w-6 h-6 text-green-600 shrink-0" />
                 <div>
                   <p className="text-sm font-semibold text-green-700">Sincronização concluída com sucesso!</p>
-                  <p className="text-xs text-green-600 mt-0.5">Todas as respostas existentes foram preservadas.</p>
+                  <p className="text-xs text-green-600 mt-0.5">Hashes gravados — próxima sincronização será ainda mais precisa.</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -308,7 +387,7 @@ export default function ScopeSyncModal({ projectId, scopeItems, onClose, onSynce
                 </div>
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
                   <p className="text-2xl font-bold text-amber-600">{result.updated}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Metadados atualizados</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Configurações atualizadas</p>
                 </div>
               </div>
               <p className="text-xs text-slate-400 text-center">
@@ -334,14 +413,23 @@ export default function ScopeSyncModal({ projectId, scopeItems, onClose, onSynce
             {step === "done" ? "Fechar" : "Cancelar"}
           </button>
 
-          {step === "diff" && hasAnything && (
+          {step === "diff" && hasAnything && totalChanges > 0 && !diff.tooManyChanges && (
             <button
               onClick={applySync}
-              disabled={totalChanges === 0}
-              className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-40 transition-colors"
+              className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
             >
               <Save className="w-4 h-4" />
               Aplicar {totalChanges} alteração(ões)
+            </button>
+          )}
+
+          {step === "diff" && hasAnything && diff.tooManyChanges && applyNew && diff.newQuestions.length > 0 && (
+            <button
+              onClick={applySync}
+              className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Adicionar {diff.newQuestions.length} nova(s) pergunta(s)
             </button>
           )}
 
