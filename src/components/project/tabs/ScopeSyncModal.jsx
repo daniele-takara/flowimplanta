@@ -154,6 +154,38 @@ function DiffItem({ qId, label, detail }) {
   );
 }
 
+// ── Bootstrap legacy ──────────────────────────────────────────────────────────
+// Para projetos sem hashes: grava _sync_meta com o hash ATUAL do template
+// em cada pergunta existente, SEM tocar em answer/observations/question.
+// Isso estabelece o baseline — futuras comparações serão corretas.
+async function bootstrapLegacyProject(templateMap, scopeItems) {
+  const now = new Date().toISOString();
+  const itemsWithoutHash = scopeItems.filter(item => {
+    try {
+      const meta = item._sync_meta ? JSON.parse(item._sync_meta) : null;
+      return !meta?.config_hash;
+    } catch { return true; }
+  });
+
+  if (itemsWithoutHash.length === 0) return 0; // nada a fazer
+
+  // Grava hashes em paralelo (lotes de 5 para não sobrecarregar)
+  let bootstrapped = 0;
+  for (let i = 0; i < itemsWithoutHash.length; i += 5) {
+    const batch = itemsWithoutHash.slice(i, i + 5);
+    await Promise.all(batch.map(async item => {
+      const qId = orderToQId(item.order_number);
+      const tq = qId ? templateMap[qId] : null;
+      // Se não existe no template atual: marca como legacy sem hash de template
+      const hashToSave = tq ? tq.hash : "legacy_no_template";
+      const meta = JSON.stringify({ config_hash: hashToSave, bootstrapped_at: now, is_baseline: true });
+      await base44.entities.ScopeItem.update(item.id, { _sync_meta: meta });
+      bootstrapped++;
+    }));
+  }
+  return bootstrapped;
+}
+
 // ── Main Modal ─────────────────────────────────────────────────────────────────
 
 export default function ScopeSyncModal({ projectId, scopeItems, onClose, onSynced }) {
@@ -163,6 +195,7 @@ export default function ScopeSyncModal({ projectId, scopeItems, onClose, onSynce
   const [applyChanged, setApplyChanged] = useState(true);
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [bootstrapInfo, setBootstrapInfo] = useState(null); // { count }
 
   useEffect(() => { load(); }, []);
 
@@ -173,8 +206,20 @@ export default function ScopeSyncModal({ projectId, scopeItems, onClose, onSynce
     overridesList.forEach(o => { if (!overridesMap[o.question_id]) overridesMap[o.question_id] = o; });
 
     const templateMap = buildTemplateMap(overridesMap);
-    const computed = computeDiff(templateMap, scopeItems);
-    setDiff({ ...computed, templateMap });
+
+    // Bootstrap: projeto legacy sem hashes → grava baseline silenciosamente
+    const bootstrapped = await bootstrapLegacyProject(templateMap, scopeItems);
+    if (bootstrapped > 0) {
+      setBootstrapInfo({ count: bootstrapped });
+      // Recarrega scopeItems do banco após bootstrap para ter os _sync_meta atualizados
+      const freshItems = await base44.entities.ScopeItem.filter({ project_id: projectId });
+      const computed = computeDiff(templateMap, freshItems);
+      setDiff({ ...computed, templateMap });
+    } else {
+      const computed = computeDiff(templateMap, scopeItems);
+      setDiff({ ...computed, templateMap });
+    }
+
     setStep("diff");
   }
 
@@ -263,6 +308,17 @@ export default function ScopeSyncModal({ projectId, scopeItems, onClose, onSynce
 
           {step === "diff" && diff && (
             <div>
+              {/* Bootstrap notice */}
+              {bootstrapInfo && (
+                <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl mb-4 text-xs text-blue-700">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5 text-blue-500" />
+                  <span>
+                    <strong>Baseline gerado:</strong> {bootstrapInfo.count} pergunta(s) sem histórico de sincronização receberam hash inicial.
+                    Nenhum dado foi alterado — apenas metadados internos foram criados para comparação futura.
+                  </span>
+                </div>
+              )}
+
               {/* Safety gate */}
               {diff.tooManyChanges && (
                 <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl mb-4">
@@ -282,7 +338,7 @@ export default function ScopeSyncModal({ projectId, scopeItems, onClose, onSynce
                   <CheckCircle2 className="w-6 h-6 text-green-600 shrink-0" />
                   <div>
                     <p className="text-sm font-semibold text-green-700">Escopo já está atualizado!</p>
-                    <p className="text-xs text-green-600 mt-0.5">Nenhuma diferença detectada. Perguntas sem hash salvo são ignoradas por segurança.</p>
+                    <p className="text-xs text-green-600 mt-0.5">Nenhuma diferença de configuração detectada entre o projeto e o template atual.</p>
                   </div>
                 </div>
               ) : (
