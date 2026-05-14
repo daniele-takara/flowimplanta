@@ -16,9 +16,15 @@ function fmtDate(d) {
 function buildAnswersMap(scopeItems) {
   const map = {};
   (scopeItems || []).forEach(item => {
+    // Prioridade 1: question_id canônico (ex: "q006", "q251")
+    if (item.question_id) {
+      map[item.question_id] = item.answer || "";
+    }
+    // Prioridade 2: derivar do order_number como fallback para itens legados
     if (item.order_number) {
       const key = `q${String(item.order_number).padStart(3, "0")}`;
-      map[key] = item.answer || "";
+      // Só grava via order_number se ainda não foi preenchido via question_id
+      if (!map[key]) map[key] = item.answer || "";
     }
   });
   return map;
@@ -406,7 +412,17 @@ export default function ScheduleTab({ scopeItems, project, projectId, onRefresh,
   }, []);
 
   const answersMap = useMemo(() => buildAnswersMap(scopeItems), [scopeItems]);
-  const { dates: computedDates, visible } = useMemo(() => computeSchedule(SCHEDULE_TASKS, manualOverrides, answersMap, project), [manualOverrides, answersMap, project]);
+
+  // Log diagnóstico: rastrear módulos usados no cálculo do cronograma
+  const { dates: computedDates, visible } = useMemo(() => {
+    const mods = project?.contracted_modules || [];
+    const svcs = project?.contracted_services || [];
+    console.log("[ScheduleTab] computeSchedule → contracted_modules:", mods, "| contracted_services:", svcs, "| answersMap keys:", Object.keys(answersMap).length);
+    if (mods.length === 0) {
+      console.warn("[ScheduleTab] AVISO: contracted_modules vazio — fases condicionais serão ocultadas. project.id:", project?.id);
+    }
+    return computeSchedule(SCHEDULE_TASKS, manualOverrides, answersMap, project);
+  }, [manualOverrides, answersMap, project]);
 
   const tasksByPhase = useMemo(() => {
     const grouped = {};

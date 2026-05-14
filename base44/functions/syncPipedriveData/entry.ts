@@ -90,13 +90,64 @@ Deno.serve(async (req) => {
     const lar21 = normalizeField(org?.["a5301f920ae3f519007886f518d87832866e8c6a"]);
 
     // 7. Módulos contratados
+    // Mapa de normalização: nomes que podem vir do Pipedrive → nomes canônicos do sistema
+    const MODULE_CANONICAL = {
+      "registro de ponto": "Registro de Ponto",
+      "ponto eletronico": "Registro de Ponto",
+      "ponto eletrônico": "Registro de Ponto",
+      "reducao de riscos no registro": "Redução de Riscos no Registro",
+      "redução de riscos no registro": "Redução de Riscos no Registro",
+      "reducao de riscos": "Redução de Riscos no Registro",
+      "calculos e tratamento": "Cálculos e Tratamento",
+      "cálculos e tratamento": "Cálculos e Tratamento",
+      "calculos": "Cálculos e Tratamento",
+      "gestao de ponto participativa": "Gestão de Ponto Participativa",
+      "gestão de ponto participativa": "Gestão de Ponto Participativa",
+      "gestao participativa": "Gestão de Ponto Participativa",
+      "controle de custos": "Controle de Custos",
+      "gestao de ferias e ausencias": "Gestão de Férias e Ausências",
+      "gestão de férias e ausências": "Gestão de Férias e Ausências",
+      "gestao de ferias": "Gestão de Férias e Ausências",
+      "gestão de férias": "Gestão de Férias e Ausências",
+      "ferias": "Gestão de Férias e Ausências",
+      "férias": "Gestão de Férias e Ausências",
+      "timesheet": "Timesheet",
+      // Nomes legados / alternativos
+      "banco de horas": "Cálculos e Tratamento",
+      "escala": "Registro de Ponto",
+      "app mobile": "Registro de Ponto",
+    };
+    const VALID_MODULES = [
+      "Registro de Ponto", "Redução de Riscos no Registro", "Cálculos e Tratamento",
+      "Gestão de Ponto Participativa", "Controle de Custos", "Gestão de Férias e Ausências", "Timesheet",
+    ];
+    function normalizeModule(raw) {
+      const key = (raw || "").toLowerCase().trim()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      // Busca direta no mapa de normalização
+      for (const [k, v] of Object.entries(MODULE_CANONICAL)) {
+        const normKey = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (key === normKey) return v;
+      }
+      // Se já é um valor canônico válido, retorna diretamente
+      const directMatch = VALID_MODULES.find(v =>
+        v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === key
+      );
+      return directMatch || null;
+    }
+
     let contractedModules = [];
     const modRaw = org?.["a7cf0200e401a761fb5fff4f4122beb364de9adb"];
     if (modRaw) {
-      if (Array.isArray(modRaw)) {
-        contractedModules = modRaw.map(m => normalizeField(m)).filter(Boolean);
-      } else {
-        contractedModules = String(modRaw).split(",").map(s => s.trim()).filter(Boolean);
+      const rawList = Array.isArray(modRaw)
+        ? modRaw.map(m => normalizeField(m))
+        : String(modRaw).split(",").map(s => s.trim());
+      // Normaliza cada módulo para o nome canônico do sistema
+      const normalized = rawList.map(m => normalizeModule(m)).filter(Boolean);
+      // Remove duplicatas preservando ordem
+      contractedModules = [...new Set(normalized)];
+      if (rawList.length > 0) {
+        console.log(`[syncPipedriveData] contracted_modules: raw=${JSON.stringify(rawList)} → normalized=${JSON.stringify(contractedModules)}`);
       }
     }
 

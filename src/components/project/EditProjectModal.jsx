@@ -98,8 +98,10 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
       contracted_employees: form.contracted_employees ? Number(form.contracted_employees) : null,
     });
     setSaving(false);
-    onSaved();
+    // Fecha ANTES de chamar onSaved para evitar que o modal fique aberto
+    // durante o reload. onSaved (loadData) roda em background e atualiza o state.
     onClose();
+    onSaved();
   };
 
   return (

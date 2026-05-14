@@ -94,6 +94,11 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
   const contractedModules = project?.contracted_modules || [];
   const origin = project?.origin || "";
 
+  // Log diagnóstico: detectar quando módulos chegam vazios inesperadamente
+  if (contractedModules.length === 0 && project) {
+    console.warn("[ScopeTab] contracted_modules vazio para projeto:", project.id, "| project completo:", JSON.stringify({ id: project.id, contracted_modules: project.contracted_modules, origin: project.origin }));
+  }
+
   // Módulos com overrides mesclados (fonte de verdade para renderização)
   const effectiveModules = useMemo(() => buildEffectiveModules(overridesMap), [overridesMap]);
 
@@ -197,7 +202,11 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
     return (
       <div className="text-center py-12 text-slate-400">
         <p className="text-sm">Nenhum módulo visível para este projeto.</p>
-        <p className="text-xs mt-1">Verifique os módulos contratados nas informações do projeto.</p>
+        <p className="text-xs mt-1">
+          {contractedModules.length === 0
+            ? "Nenhum módulo contratado cadastrado nos Dados Iniciais. Clique em \"Editar\" na aba Dados Iniciais para adicionar."
+            : "Verifique os módulos contratados nas informações do projeto."}
+        </p>
       </div>
     );
   }

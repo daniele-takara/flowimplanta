@@ -64,7 +64,10 @@ export default function ProjectDetail() {
           base44.entities.ActionPlan.filter({ project_id: id }, "-created_date"),
           base44.entities.ProjectDocument.filter({ project_id: id })
         ]);
-        setProject(proj[0] || null);
+        const freshProject = proj[0] || null;
+        // Log para diagnóstico de módulos
+        console.log("[ProjectDetail] loadData → contracted_modules:", freshProject?.contracted_modules, "| contracted_services:", freshProject?.contracted_services);
+        setProject(freshProject);
         setPhases(ph);
         setActivities(ac);
         setScopeItems(sc);
@@ -87,6 +90,20 @@ export default function ProjectDetail() {
       setScopeItems(sc);
     } catch (e) {
       console.error("[ProjectDetail] reloadScopeItems erro:", e);
+    }
+  };
+
+  // Recarrega apenas o projeto (contracted_modules, etc.) sem spinner global
+  const reloadProject = async () => {
+    if (isMock) return;
+    try {
+      const fresh = await base44.entities.Project.filter({ id });
+      if (fresh[0]) {
+        console.log("[ProjectDetail] reloadProject → contracted_modules:", fresh[0]?.contracted_modules);
+        setProject(fresh[0]);
+      }
+    } catch (e) {
+      console.error("[ProjectDetail] reloadProject erro:", e);
     }
   };
 
@@ -143,13 +160,19 @@ export default function ProjectDetail() {
         <div className="max-w-6xl mx-auto">
           {activeTab === "overview" && <OverviewTab project={project} phases={phases} onEditDadosIniciais={(!isMock && perms.canEditProject) ? () => setShowEditModal(true) : null} onProjectUpdated={async (updated) => {
             if (!updated) return;
-            // Merge parcial imediato para UI responsiva
-            setProject(prev => ({ ...prev, ...updated }));
-            // Recarrega projeto completo do banco para garantir consistência de todos os tabs
+            // NUNCA fazer merge parcial — sempre recarregar do banco para garantir
+            // que contracted_modules e contracted_services sejam a versão oficial.
+            // Merge parcial com dados do Pipedrive pode sobrescrever módulos com undefined.
             try {
               const fresh = await base44.entities.Project.filter({ id });
-              if (fresh[0]) setProject(fresh[0]);
-            } catch {}
+              if (fresh[0]) {
+                console.log("[ProjectDetail] onProjectUpdated → contracted_modules:", fresh[0]?.contracted_modules);
+                setProject(fresh[0]);
+              }
+            } catch {
+              // Fallback seguro: só usa o updated se busca falhar
+              setProject(prev => ({ ...prev, ...updated }));
+            }
           }} />}
           {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} project={project} onRefresh={loadData} onScopeSaved={reloadScopeItems} readOnly={!perms.canEditScope} />}
           {activeTab === "tap" && <TAPTab project={project} scopeItems={scopeItems} documents={documents} projectId={id} onRefresh={loadData} readOnly={!perms.canEditTAP} />}
