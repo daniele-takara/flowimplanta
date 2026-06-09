@@ -175,14 +175,68 @@ Mantida por compatibilidade. **Novos logs vão para IntegrationLog.**
 - **Lógica:** Lê planilha Google Sheets (2 abas: dados_iniciais, cronograma) → DELETE ALL PipedriveIntegrationRule → bulkCreate novo conjunto
 - ⚠️ **ATENÇÃO:** Operação destrutiva sem rollback. Use apenas quando precisar resetar completamente as regras.
 
-### syncPipedriveData *(atualizado — v5.5)*
+### syncPipedriveData *(atualizado — v6.0)*
 
-**Novos campos mapeados:**
+**Campos mapeados (Pipedrive → Base44):**
 
-| Campo Pipedrive | Origem | Campo Base44 |
-|---|---|---|
-| `deal.value` | Deal | `project.mrr` |
-| `org["e7f28ae86be385212be4b97a442150ee45ebbb56"]` | Organização | `project.contracted_employees` |
+| Campo Pipedrive | Origem | Campo Base44 | Notas |
+|---|---|---|---|
+| `deal.title` | Deal | `project.name` | — |
+| `org.name` | Organização | `project.client_name` | — |
+| `deal.add_time` | Deal | `project.start_date` | — |
+| `deal.expected_close_date` | Deal | `project.planned_end_date` | — |
+| `deal["88d64f..."]` | Deal | `project.aligned_end_date` | Campo customizado |
+| `deal.user_id.name` | Deal | `project.pontotel_analyst_name` | Owner do deal |
+| `deal["30e71c..."]` | Deal | `project.pontotel_manager_name` | Campo enum → label |
+| `org["64fcc8..."]` (Canal) | Organização | `project.origin` | Normalizado via `normalizeOrigin()` |
+| `org["a5301f..."]` (Lar21) | Organização | `project.lar21` | — |
+| `org["a7cf02..."]` (Módulos) | Organização | `project.contracted_modules` | **Normalizado via `normalizeModule()`** |
+| `deal.value` | Deal | `project.mrr` | Valor mensal R$ |
+| `org["e7f28a..."]` | Organização | `project.contracted_employees` | Funcionários contratados |
+
+#### Normalização de Módulos (`normalizeModule`)
+
+O campo "Módulos" na Organização do Pipedrive é do tipo **varchar** (texto livre), não enum. Os valores variam por cliente (caixa, nomenclatura, sinônimos históricos). A função `normalizeModule()` converte qualquer variação para o nome canônico do sistema.
+
+**Mapa canônico (Pipedrive → Base44):**
+
+| Valor no Pipedrive | Nome canônico Base44 |
+|---|---|
+| "Registro de ponto", "Ponto Eletrônico" | `Registro de Ponto` |
+| "Cálculos e Fechamento", "Cálculos e Tratamento", "Banco de Horas" | `Cálculos e Tratamento` |
+| "Redução de riscos no registro" | `Redução de Riscos no Registro` |
+| "Gestão de ponto participativa" | `Gestão de Ponto Participativa` |
+| "Controle de custos" | `Controle de Custos` |
+| "Gestão de Férias", "Férias e Ausências" | `Gestão de Férias e Ausências` |
+| "Timesheet" | `Timesheet` |
+
+> ⚠️ **Causa raiz do bug no deal 10806:** O Pipedrive retornava `"Cálculos e Fechamento"` (nome histórico) e `"Registro de ponto"` (minúscula) que não batiam com os enums do sistema. O mapa de normalização foi expandido para cobrir todos os casos conhecidos.
+
+#### Normalização de Origem (`normalizeOrigin`)
+
+| Canal no Pipedrive | Origem Base44 |
+|---|---|
+| "Sankhya" | `Parceiro` |
+| "Pontotel" | `Pontotel` |
+| "Parceiro" | `Parceiro` |
+| "Indicação" | `Indicação` |
+| "Inbound" | `Inbound` |
+| "Outbound" | `Outbound` |
+
+> Sankhya é um parceiro — mapeado para "Parceiro". A visibilidade do módulo Sankhya no Escopo Técnico é controlada pelo campo `autoShowWhen: { field: "origin", value: "Sankhya" }` no template, que usa o valor bruto do Canal, não do campo `origin` normalizado.
+
+#### Proteção contra sobrescrita de módulos existentes
+
+`contracted_modules` só é enviado no payload se o Pipedrive retornar pelo menos 1 módulo (`contractedModules.length > 0`). Se o campo estiver vazio no Pipedrive, o campo existente no banco é preservado.
+
+#### Correção manual para projetos antigos
+
+Para corrigir módulos de um projeto já existente importado antes da normalização:
+1. Acesse o projeto → aba "Dados Iniciais"
+2. Clique "Editar" e ajuste os módulos manualmente, **ou**
+3. Clique "Atualizar dados do Pipedrive" (re-executa `syncPipedriveData` com a normalização corrigida)
+
+> ⚠️ Esta operação sobrescreve `contracted_modules`. Não afeta respostas do Escopo Técnico (ScopeItems), que são entidades separadas.
 
 Hash `e7f28ae86be385212be4b97a442150ee45ebbb56` = "Funcionários contratados" na entidade Organização do Pipedrive.
 `deal.value` = valor mensal do contrato → MRR em R$.
