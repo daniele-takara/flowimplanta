@@ -232,37 +232,42 @@ function generatePDF({ project, form, answersMap, participants, datas, modulosSe
 <title>TAP – ${esc(nome)}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, sans-serif; font-size: 11px; color: #1e293b; padding: 40px; line-height: 1.6; }
-  .header { border-bottom: 3px solid #1e40af; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-start; }
-  .header h1 { font-size: 20px; color: #1e40af; font-weight: bold; }
-  .header .meta { font-size: 10px; color: #64748b; margin-top: 4px; }
-  .version-badge { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: bold; }
-  .section { margin-bottom: 22px; page-break-inside: avoid; }
-  .section-title { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #64748b; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 10px; }
-  .section-num { width: 20px; height: 20px; background: #1e40af; color: white; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; }
-  .sub-title { font-size: 10px; font-weight: bold; text-transform: uppercase; color: #94a3b8; letter-spacing: 1px; margin: 10px 0 6px; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-  td { padding: 4px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: top; font-size: 11px; }
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #1e293b; padding: 28px 32px; line-height: 1.45; }
+  .header { border-bottom: 3px solid #1e40af; padding-bottom: 10px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: flex-start; }
+  .header h1 { font-size: 18px; color: #1e40af; font-weight: bold; }
+  .header .meta { font-size: 10px; color: #64748b; margin-top: 3px; }
+  .version-badge { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: bold; }
+  .section { margin-bottom: 14px; }
+  .section-title { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 8px; }
+  .section-num { width: 18px; height: 18px; background: #1e40af; color: white; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; flex-shrink: 0; }
+  .sub-title { font-size: 10px; font-weight: bold; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.3px; margin: 8px 0 4px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+  td { padding: 3px 6px; border-bottom: 1px solid #f1f5f9; vertical-align: top; font-size: 10.5px; }
   td.lbl { color: #64748b; width: 40%; font-weight: 600; font-size: 10px; }
-  .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; }
-  .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 9px; font-weight: bold; margin: 2px; }
+  .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px; padding: 7px 10px; margin-bottom: 6px; }
+  .tag { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 9px; font-weight: bold; margin: 1px 2px; }
   .tag-ok { background: #dcfce7; color: #166534; }
   .tag-no { background: #f1f5f9; color: #94a3b8; }
-  .participant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .participant-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; }
-  .participant-role { font-size: 9px; font-weight: bold; text-transform: uppercase; color: #3b82f6; }
-  .participant-name { font-size: 11px; font-weight: 600; color: #1e293b; }
-  .participant-contact { font-size: 10px; color: #94a3b8; }
-  .entrega-item { padding: 5px 8px; background: white; border: 1px solid #e2e8f0; border-radius: 4px; margin-bottom: 4px; font-size: 11px; display: flex; align-items: flex-start; gap: 6px; }
-  .entrega-dot { width: 6px; height: 6px; background: #3b82f6; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
-  .fase-row { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; border-bottom: 1px solid #f1f5f9; }
-  .fase-badge { background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: bold; white-space: nowrap; }
-  .text-block { background: #f8fafc; border-left: 3px solid #3b82f6; padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 11px; line-height: 1.7; color: #334155; }
-  .conclusao { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 12px; font-size: 11px; color: #1e3a5f; border-radius: 0 6px 6px 0; }
-  .sig { display: flex; gap: 40px; margin-top: 20px; }
-  .sig-box { flex: 1; text-align: center; border: 1px solid #cbd5e1; border-radius: 6px; padding: 20px 12px; }
-  .sig-box .line { border-top: 1px solid #334155; margin: 24px auto 6px; width: 80%; }
-  @media print { body { padding: 20px; } }
+  .participant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .participant-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px; padding: 6px 8px; }
+  .participant-role { font-size: 8.5px; font-weight: bold; text-transform: uppercase; color: #3b82f6; }
+  .participant-name { font-size: 10.5px; font-weight: 600; color: #1e293b; }
+  .participant-contact { font-size: 9.5px; color: #94a3b8; }
+  .entrega-item { padding: 4px 7px; background: white; border: 1px solid #e2e8f0; border-radius: 3px; margin-bottom: 3px; font-size: 10.5px; display: flex; align-items: flex-start; gap: 5px; }
+  .entrega-dot { width: 5px; height: 5px; background: #3b82f6; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+  .fase-row { display: flex; gap: 8px; align-items: center; padding: 3px 0; border-bottom: 1px solid #f1f5f9; }
+  .fase-badge { background: #dbeafe; color: #1e40af; padding: 1px 7px; border-radius: 8px; font-size: 9px; font-weight: bold; white-space: nowrap; }
+  .text-block { background: #f8fafc; border-left: 3px solid #3b82f6; padding: 7px 11px; border-radius: 0 5px 5px 0; font-size: 10.5px; line-height: 1.5; color: #334155; }
+  .conclusao { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 8px 11px; font-size: 10.5px; color: #1e3a5f; border-radius: 0 5px 5px 0; line-height: 1.5; }
+  .sig { display: flex; gap: 32px; margin-top: 14px; }
+  .sig-box { flex: 1; text-align: center; border: 1px solid #cbd5e1; border-radius: 5px; padding: 14px 10px; }
+  .sig-box .line { border-top: 1px solid #334155; margin: 18px auto 5px; width: 80%; }
+  @media print {
+    body { padding: 12px 18px; }
+    .section { page-break-inside: avoid; }
+    .entrega-item { page-break-inside: avoid; }
+    .participant-grid { page-break-inside: avoid; }
+  }
 </style></head><body>
 <div class="header">
   <div>
