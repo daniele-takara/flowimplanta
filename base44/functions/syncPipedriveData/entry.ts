@@ -19,9 +19,13 @@ function extractDate(val) {
 
 function normalizeOrigin(val) {
   const map = {
-    "pontotel": "Pontotel", "parceiro": "Parceiro",
+    "pontotel": "Pontotel",
+    "parceiro": "Parceiro",
     "indicação": "Indicação", "indicacao": "Indicação",
-    "inbound": "Inbound", "outbound": "Outbound",
+    "inbound": "Inbound",
+    "outbound": "Outbound",
+    // "Sankhya" no campo Canal indica origem via parceiro Sankhya → mapeado para "Parceiro"
+    "sankhya": "Parceiro",
   };
   return map[(val || "").toLowerCase().trim()] || "";
 }
@@ -91,31 +95,51 @@ Deno.serve(async (req) => {
 
     // 7. Módulos contratados
     // Mapa de normalização: nomes que podem vir do Pipedrive → nomes canônicos do sistema
+    // Mapa canônico: normaliza QUALQUER variação de nome de módulo que venha do Pipedrive
+    // para o nome exato esperado pelo sistema (contractedModules enum do Base44).
+    // Chaves: lowercase + sem acentos (NFD stripped). Valores: nome canônico exato.
     const MODULE_CANONICAL = {
+      // Registro de Ponto
       "registro de ponto": "Registro de Ponto",
       "ponto eletronico": "Registro de Ponto",
       "ponto eletrônico": "Registro de Ponto",
+      "registro ponto": "Registro de Ponto",
+      "ponto": "Registro de Ponto",
+
+      // Redução de Riscos no Registro
       "reducao de riscos no registro": "Redução de Riscos no Registro",
-      "redução de riscos no registro": "Redução de Riscos no Registro",
       "reducao de riscos": "Redução de Riscos no Registro",
+      "reducao riscos registro": "Redução de Riscos no Registro",
+
+      // Cálculos e Tratamento — inclui variações históricas do Pipedrive
       "calculos e tratamento": "Cálculos e Tratamento",
-      "cálculos e tratamento": "Cálculos e Tratamento",
+      "calculos e fechamento": "Cálculos e Tratamento",   // ← nome real do Pipedrive
+      "calculos fechamento": "Cálculos e Tratamento",
       "calculos": "Cálculos e Tratamento",
-      "gestao de ponto participativa": "Gestão de Ponto Participativa",
-      "gestão de ponto participativa": "Gestão de Ponto Participativa",
-      "gestao participativa": "Gestão de Ponto Participativa",
-      "controle de custos": "Controle de Custos",
-      "gestao de ferias e ausencias": "Gestão de Férias e Ausências",
-      "gestão de férias e ausências": "Gestão de Férias e Ausências",
-      "gestao de ferias": "Gestão de Férias e Ausências",
-      "gestão de férias": "Gestão de Férias e Ausências",
-      "ferias": "Gestão de Férias e Ausências",
-      "férias": "Gestão de Férias e Ausências",
-      "timesheet": "Timesheet",
-      // Nomes legados / alternativos
+      "calculo e tratamento": "Cálculos e Tratamento",
+      "calculo e fechamento": "Cálculos e Tratamento",
       "banco de horas": "Cálculos e Tratamento",
-      "escala": "Registro de Ponto",
-      "app mobile": "Registro de Ponto",
+      "tratamento de ponto": "Cálculos e Tratamento",
+
+      // Gestão de Ponto Participativa
+      "gestao de ponto participativa": "Gestão de Ponto Participativa",
+      "gestao participativa": "Gestão de Ponto Participativa",
+      "ponto participativo": "Gestão de Ponto Participativa",
+
+      // Controle de Custos
+      "controle de custos": "Controle de Custos",
+      "controle custos": "Controle de Custos",
+      "custos": "Controle de Custos",
+
+      // Gestão de Férias e Ausências
+      "gestao de ferias e ausencias": "Gestão de Férias e Ausências",
+      "gestao de ferias": "Gestão de Férias e Ausências",
+      "ferias e ausencias": "Gestão de Férias e Ausências",
+      "ferias": "Gestão de Férias e Ausências",
+      "gestao ferias": "Gestão de Férias e Ausências",
+
+      // Timesheet
+      "timesheet": "Timesheet",
     };
     const VALID_MODULES = [
       "Registro de Ponto", "Redução de Riscos no Registro", "Cálculos e Tratamento",

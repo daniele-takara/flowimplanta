@@ -23,5 +23,9 @@
       "default": true,
       "description": "Usu\u00e1rio ativo no sistema"
     }
-  }
+  },
+  "required": [
+    "permission_profile_id",
+    "app_role"
+  ]
 }
