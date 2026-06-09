@@ -406,23 +406,28 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
       let recordingEmployees  = report?.recording_employees  || 0;
       let sheetFound = false;
 
-      if (project?.empresa_id) {
+      if (project?.lar21) {
         try {
           const sheetRes = await base44.functions.invoke("updateReportFromSheet", {
             project_id: projectId,
-            empresa_id: project.empresa_id,
+            lar21: project.lar21,
           });
           const d = sheetRes.data;
           if (d?.success) {
             registeredEmployees = d.registered_employees;
             recordingEmployees  = d.recording_employees;
             sheetFound = true;
-            // Atualiza o report local com o que veio do banco (inclui id correto)
             if (d.report) setReport(prev => ({ ...(prev || {}), ...d.report }));
+          } else if (d?.lar21_not_found) {
+            setUpdateResult({ error: `Lar21 não encontrado na aba "Mais recente" da planilha. (Lar21: ${project.lar21})` });
+          } else if (d?.lar21_duplicate) {
+            setUpdateResult({ error: `Lar21 duplicado na planilha. Revise a base. (Lar21: ${project.lar21})` });
           }
         } catch (e) {
           console.warn("[StatusReportTab] Erro ao buscar planilha (não crítico):", e.message);
         }
+      } else {
+        console.warn("[StatusReportTab] Lar21 não preenchido — planilha de usabilidade não será consultada.");
       }
 
       // 2. Calcular aderência — source único
@@ -650,6 +655,16 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
       </div>
 
       {showEmailPreview && <EmailPreviewModal html={emailHtml} onClose={() => setShowEmailPreview(false)} />}
+
+      {/* Alerta de Lar21 ausente */}
+      {!project?.lar21 && (
+        <div className="flex items-center gap-2 mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+          <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
+          <span>
+            <strong>Lar21 não preenchido.</strong> Não será possível buscar dados da planilha de usabilidade até que o campo Lar21 seja preenchido nos Dados Iniciais (via Pipedrive).
+          </span>
+        </div>
+      )}
 
       <StatusReportDashboard
         report={report}
