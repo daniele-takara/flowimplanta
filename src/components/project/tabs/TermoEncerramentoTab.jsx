@@ -231,7 +231,7 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function TermoEncerramentoTab({ project, scopeItems, reports, savedActivities, projectId, readOnly = false }) {
+export default function TermoEncerramentoTab({ project, scopeItems, reports, savedActivities, projectId, readOnly = false, canGeneratePDF = true }) {
   const [termos, setTermos] = useState([]);
   const [current, setCurrent] = useState(null);
   const [loadingTermos, setLoadingTermos] = useState(true);
@@ -459,11 +459,13 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
               </button>
             )}
 
-            <button
-              onClick={() => generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems: form.pending_items, finalConsiderations: form.final_considerations, selectedAdendosData, scopeItems, version: current, coordenadora, liderImpl })}
-              className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors">
-              <Download className="w-3.5 h-3.5" /> Gerar PDF
-            </button>
+            {canGeneratePDF && (
+              <button
+                onClick={() => generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems: form.pending_items, finalConsiderations: form.final_considerations, selectedAdendosData, scopeItems, version: current, coordenadora, liderImpl })}
+                className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors">
+                <Download className="w-3.5 h-3.5" /> Gerar PDF
+              </button>
+            )}
 
             {/* Botão D4Sign - inativo */}
             <button

@@ -341,7 +341,7 @@ function computeKpiFromReport(report, project) {
   return { contracted, cadastrados, batendoPonto, aderencia };
 }
 
-export default function StatusReportTab({ reports, projectId, projectClientName, project, scopeItems, savedActivities, onRefresh, readOnly = false }) {
+export default function StatusReportTab({ reports, projectId, projectClientName, project, scopeItems, savedActivities, onRefresh, readOnly = false, canUpdate = true, canGenerateEmail = true, canSyncPipedrive = true }) {
   const [report, setReport]             = useState(reports?.[0] || null);
   const [form, setForm]                 = useState(() => {
     const r = reports?.[0];
@@ -579,7 +579,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {!readOnly && (
+            {!readOnly && canUpdate && (
               <button
                 onClick={() => setShowConfirm(true)}
                 disabled={updating}
@@ -599,13 +599,15 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
                 {saving ? "Salvando..." : "Salvar campos manuais"}
               </button>
             )}
-            <button
-              onClick={handleGenerateEmail}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-slate-200 bg-white text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
-            >
-              <Mail className="w-4 h-4" />
-              Gerar e-mail
-            </button>
+            {canGenerateEmail && (
+              <button
+                onClick={handleGenerateEmail}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-slate-200 bg-white text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
+              >
+                <Mail className="w-4 h-4" />
+                Gerar e-mail
+              </button>
+            )}
           </div>
         </div>
 

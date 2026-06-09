@@ -24,7 +24,7 @@ function ParticipantCard({ role, name, contact }) {
   );
 }
 
-export default function OverviewTab({ project, phases, onEditDadosIniciais, onProjectUpdated }) {
+export default function OverviewTab({ project, phases, onEditDadosIniciais, onProjectUpdated, canSyncPipedrive = true }) {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
 
@@ -84,7 +84,7 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Dados do Projeto</h3>
             <div className="flex items-center gap-2">
-              <button
+              {canSyncPipedrive && <button
                 onClick={handleSyncPipedrive}
                 disabled={syncing}
                 title={project?.pipedrive_deal_id ? `Sincronizar com deal #${project.pipedrive_deal_id}` : "Informe o ID Deal Pipedrive"}
@@ -92,7 +92,7 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
                 {syncing ? "Sincronizando..." : "Atualizar dados do Pipedrive"}
-              </button>
+              </button>}
               {onEditDadosIniciais && (
                 <button
                   onClick={onEditDadosIniciais}

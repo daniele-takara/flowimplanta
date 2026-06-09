@@ -46,7 +46,7 @@ function buildEffectiveModules(overridesMap) {
 
 const SANKHYA_KEY = "sankhya_manual_override";
 
-export default function ScopeTab({ scopeItems, projectId, project, onRefresh, onScopeSaved, readOnly = false }) {
+export default function ScopeTab({ scopeItems, projectId, project, onRefresh, onScopeSaved, readOnly = false, canUpdateTemplate = true }) {
   // manualOverrides: { sankhya_manual_override: true/false }
   const [manualOverrides, setManualOverrides] = useState(() => {
     try {
@@ -240,7 +240,7 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
               {sankhyaManualEnabled ? "Remover Sankhya" : "Incluir Sankhya"}
             </button>
           )}
-          {!readOnly && (
+          {!readOnly && canUpdateTemplate && (
             <button
               onClick={() => setShowSyncModal(true)}
               className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50 transition-colors"

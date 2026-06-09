@@ -51,11 +51,27 @@
           "type": "boolean",
           "default": false
         },
+        "escopo_atualizar_template": {
+          "type": "boolean",
+          "default": false
+        },
         "cronograma_ver": {
           "type": "boolean",
           "default": false
         },
         "cronograma_editar": {
+          "type": "boolean",
+          "default": false
+        },
+        "cronograma_editar_planejado": {
+          "type": "boolean",
+          "default": false
+        },
+        "cronograma_concluir_fase": {
+          "type": "boolean",
+          "default": false
+        },
+        "cronograma_recalcular": {
           "type": "boolean",
           "default": false
         },
@@ -67,6 +83,10 @@
           "type": "boolean",
           "default": false
         },
+        "tap_gerar_pdf": {
+          "type": "boolean",
+          "default": false
+        },
         "status_report_ver": {
           "type": "boolean",
           "default": false
@@ -75,11 +95,35 @@
           "type": "boolean",
           "default": false
         },
+        "status_report_atualizar": {
+          "type": "boolean",
+          "default": false
+        },
+        "status_report_email": {
+          "type": "boolean",
+          "default": false
+        },
         "termo_ver": {
           "type": "boolean",
           "default": false
         },
+        "termo_editar": {
+          "type": "boolean",
+          "default": false
+        },
         "termo_pdf": {
+          "type": "boolean",
+          "default": false
+        },
+        "integracao_sync_pipedrive_dados": {
+          "type": "boolean",
+          "default": false
+        },
+        "integracao_sync_pipedrive_cronograma": {
+          "type": "boolean",
+          "default": false
+        },
+        "integracao_sync_pipedrive_status": {
           "type": "boolean",
           "default": false
         },

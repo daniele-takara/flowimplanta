@@ -232,7 +232,7 @@ function GroupRow({ task, computedDates }) {
   );
 }
 
-function PhaseSection({ phaseName, tasks, computedDates, manualOverrides, activitiesByTask, onSaveOverride, onSaveActivity, onCompletePhase, project, templateConfig, readOnly }) {
+function PhaseSection({ phaseName, tasks, computedDates, manualOverrides, activitiesByTask, onSaveOverride, onSaveActivity, onCompletePhase, project, templateConfig, readOnly, canCompletePhase = true }) {
   const [open, setOpen] = useState(true);
   const [completing, setCompleting] = useState(false);
   const visibleTasks = tasks.filter(t => t.type === "task");
@@ -244,7 +244,7 @@ function PhaseSection({ phaseName, tasks, computedDates, manualOverrides, activi
         {open ? <ChevronDown className="w-4 h-4 text-white" /> : <ChevronRight className="w-4 h-4 text-white" />}
         <h3 className="text-sm font-bold text-white">{phaseName}</h3>
         <span className="text-xs text-blue-200">{visibleTasks.length} atividade(s)</span>
-        {!readOnly && (
+        {!readOnly && canCompletePhase && (
           <button
             onClick={async e => { e.stopPropagation(); setCompleting(true); await onCompletePhase(visibleTasks); setCompleting(false); }}
             disabled={completing}
@@ -351,7 +351,7 @@ function CompleteProjectButton({ onComplete }) {
   );
 }
 
-export default function ScheduleTab({ scopeItems, project, projectId, onRefresh, readOnly = false, onSyncSuccess }) {
+export default function ScheduleTab({ scopeItems, project, projectId, onRefresh, readOnly = false, onSyncSuccess, canEditPlanned = true, canCompletePhase = true, canRecalculate = true, canSyncPipedrive = true }) {
   const [anchorsLoaded, setAnchorsLoaded] = useState(false);
   const [manualOverrides, setManualOverrides] = useState({});
 
@@ -519,10 +519,12 @@ export default function ScheduleTab({ scopeItems, project, projectId, onRefresh,
         </div>
         {!readOnly && (
           <div className="flex items-start gap-3">
-            {project?.pipedrive_deal_id && (
+            {project?.pipedrive_deal_id && canSyncPipedrive && (
               <SyncPipedriveButton projectId={projectId} onReload={reloadActivities} onSuccess={() => { if (onSyncSuccess) onSyncSuccess(); }} />
             )}
-            <CompleteProjectButton onComplete={async () => { const all = SCHEDULE_TASKS.filter(t => t.type === "task" && visible.has(t.id)); await handleCompleteAsTasks(all); }} />
+            {canRecalculate && (
+              <CompleteProjectButton onComplete={async () => { const all = SCHEDULE_TASKS.filter(t => t.type === "task" && visible.has(t.id)); await handleCompleteAsTasks(all); }} />
+            )}
           </div>
         )}
       </div>
@@ -545,9 +547,9 @@ export default function ScheduleTab({ scopeItems, project, projectId, onRefresh,
               <div key={anchor.id} className="bg-white rounded-lg p-3 border border-amber-200">
                 <p className="text-xs font-semibold text-amber-700 mb-1 leading-tight">{anchor.activity}</p>
                 <input type="date" value={currentVal}
-                  onChange={e => { if (!readOnly) handleSaveOverride(anchor.id, { plannedStart: e.target.value }); }}
-                  readOnly={readOnly} disabled={readOnly}
-                  className={`w-full px-2 py-1 text-xs border border-amber-200 rounded focus:outline-none focus:ring-1 focus:ring-amber-400 ${readOnly ? "bg-slate-50 cursor-not-allowed opacity-70" : "bg-white"}`}
+                  onChange={e => { if (!readOnly && canEditPlanned) handleSaveOverride(anchor.id, { plannedStart: e.target.value }); }}
+                  readOnly={readOnly || !canEditPlanned} disabled={readOnly || !canEditPlanned}
+                  className={`w-full px-2 py-1 text-xs border border-amber-200 rounded focus:outline-none focus:ring-1 focus:ring-amber-400 ${(readOnly || !canEditPlanned) ? "bg-slate-50 cursor-not-allowed opacity-70" : "bg-white"}`}
                 />
               </div>
             );
@@ -574,8 +576,8 @@ export default function ScheduleTab({ scopeItems, project, projectId, onRefresh,
           manualOverrides={manualOverrides} activitiesByTask={activitiesByTask}
           onSaveOverride={readOnly ? () => {} : handleSaveOverride}
           onSaveActivity={readOnly ? () => {} : handleSaveActivity}
-          onCompletePhase={readOnly ? () => {} : handleCompleteAsTasks}
-          readOnly={readOnly} project={project} templateConfig={templateConfig} />
+          onCompletePhase={(readOnly || !canCompletePhase) ? () => {} : handleCompleteAsTasks}
+          readOnly={readOnly} canCompletePhase={canCompletePhase} project={project} templateConfig={templateConfig} />
       ))}
 
       {phases.length === 0 && (

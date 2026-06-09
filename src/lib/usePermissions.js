@@ -9,9 +9,6 @@ import { resolvePermissions } from "@/lib/permissions";
 export function usePermissions() {
   const { user } = useAuth();
 
-  // O perfil pode ter sido carregado e salvo em user.profile_data (objeto JSON)
-  // ou o usuário pode referenciar um perfil via user.permission_profile_id.
-  // Para evitar fetch adicional aqui, o AuthContext injeta o perfil resolvido em user.
   const profile = user?._resolvedProfile || null;
   const perms = resolvePermissions(user, profile);
 
@@ -43,29 +40,42 @@ export function usePermissions() {
     // Escopo
     canReadScope: can("escopo_ver") || isSystemAdmin,
     canEditScope: can("escopo_editar") || isSystemAdmin,
+    canUpdateScopeTemplate: can("escopo_atualizar_template") || isSystemAdmin,
 
     // Cronograma
     canReadSchedule: can("cronograma_ver") || isSystemAdmin,
     canEditSchedule: can("cronograma_editar") || isSystemAdmin,
+    canEditSchedulePlanned: can("cronograma_editar_planejado") || isSystemAdmin,
+    canCompletePhase: can("cronograma_concluir_fase") || isSystemAdmin,
+    canRecalculateSchedule: can("cronograma_recalcular") || isSystemAdmin,
 
     // TAP
     canReadTAP: can("tap_ver") || isSystemAdmin,
     canEditTAP: can("tap_editar") || isSystemAdmin,
+    canGenerateTAPPDF: can("tap_gerar_pdf") || isSystemAdmin,
 
     // Status Report
     canReadStatusReport: can("status_report_ver") || isSystemAdmin,
     canEditStatusReport: can("status_report_editar") || isSystemAdmin,
+    canUpdateStatusReport: can("status_report_atualizar") || isSystemAdmin,
+    canGenerateStatusReportEmail: can("status_report_email") || isSystemAdmin,
 
     // Plano de ação (agrupa com status report por enquanto)
     canEditActionPlan: can("status_report_editar") || isSystemAdmin,
 
     // Termo de Encerramento
     canReadTermo: can("termo_ver") || isSystemAdmin,
-    canEditTermo: can("termo_pdf") || isSystemAdmin,
+    canEditTermo: can("termo_editar") || isSystemAdmin,
+    canGenerateTermoPDF: can("termo_pdf") || isSystemAdmin,
 
     // Parametrizações
     canEditParametrizacoes: can("parametrizacoes_editar") || isSystemAdmin,
     canReadParametrizacoes: can("parametrizacoes_acessar") || isSystemAdmin,
+
+    // Integrações / Ações
+    canSyncPipedriveDados: can("integracao_sync_pipedrive_dados") || isSystemAdmin,
+    canSyncPipedriveCronograma: can("integracao_sync_pipedrive_cronograma") || isSystemAdmin,
+    canSyncPipedriveStatus: can("integracao_sync_pipedrive_status") || isSystemAdmin,
 
     // Helpers genéricos
     readOnly: !isSystemAdmin && !can("projetos_editar") && !can("escopo_editar"),

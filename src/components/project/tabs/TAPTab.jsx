@@ -401,7 +401,7 @@ function VersionBadge({ status }) {
 
 const DEBOUNCE_MS = 1500;
 
-export default function TAPTab({ project, scopeItems, documents, projectId, onRefresh, readOnly = false }) {
+export default function TAPTab({ project, scopeItems, documents, projectId, onRefresh, readOnly = false, canGeneratePDF = true }) {
   const [versions, setVersions] = useState([]);
   const [currentVersion, setCurrentVersion] = useState(null);
   const [saveStatus, setSaveStatus] = useState(null);
@@ -685,12 +685,14 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
             )}
 
             {/* PDF */}
-            <button
-              onClick={() => generatePDF({ project, form, answersMap, participants, datas, modulosServicos, entregas, version: currentVersion, scheduleSnapshot })}
-              className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />Gerar TAP em PDF
-            </button>
+            {canGeneratePDF && (
+              <button
+                onClick={() => generatePDF({ project, form, answersMap, participants, datas, modulosServicos, entregas, version: currentVersion, scheduleSnapshot })}
+                className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />Gerar TAP em PDF
+              </button>
+            )}
           </div>
         </div>
 
