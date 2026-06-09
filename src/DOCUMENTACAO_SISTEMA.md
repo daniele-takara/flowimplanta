@@ -194,23 +194,81 @@ Mantida por compatibilidade. **Novos logs vão para IntegrationLog.**
 | `deal.value` | Deal | `project.mrr` | Valor mensal R$ |
 | `org["e7f28a..."]` | Organização | `project.contracted_employees` | Funcionários contratados |
 
-#### Normalização de Módulos (`normalizeModule`)
+#### Normalização de Módulos — com Validação e Alertas de Divergência
 
-O campo "Módulos" na Organização do Pipedrive é do tipo **varchar** (texto livre), não enum. Os valores variam por cliente (caixa, nomenclatura, sinônimos históricos). A função `normalizeModule()` converte qualquer variação para o nome canônico do sistema.
+O campo "Módulos" na Organização do Pipedrive é **varchar (texto livre)**, não enum. Os valores variam por cliente. O sistema normaliza automaticamente, mas **sinaliza qualquer divergência** ao invés de mascarar silenciosamente.
 
-**Mapa canônico (Pipedrive → Base44):**
+##### Módulos Oficiais do Sistema
 
-| Valor no Pipedrive | Nome canônico Base44 |
+Estes são os únicos valores aceitos como `contracted_modules` no Base44:
+
+| # | Nome oficial (exato) |
 |---|---|
-| "Registro de ponto", "Ponto Eletrônico" | `Registro de Ponto` |
-| "Cálculos e Fechamento", "Cálculos e Tratamento", "Banco de Horas" | `Cálculos e Tratamento` |
-| "Redução de riscos no registro" | `Redução de Riscos no Registro` |
-| "Gestão de ponto participativa" | `Gestão de Ponto Participativa` |
-| "Controle de custos" | `Controle de Custos` |
-| "Gestão de Férias", "Férias e Ausências" | `Gestão de Férias e Ausências` |
-| "Timesheet" | `Timesheet` |
+| 1 | `Registro de Ponto` |
+| 2 | `Redução de Riscos no Registro` |
+| 3 | `Cálculos e Tratamento` |
+| 4 | `Gestão de Ponto Participativa` |
+| 5 | `Controle de Custos` |
+| 6 | `Gestão de Férias e Ausências` |
+| 7 | `Timesheet` |
 
-> ⚠️ **Causa raiz do bug no deal 10806:** O Pipedrive retornava `"Cálculos e Fechamento"` (nome histórico) e `"Registro de ponto"` (minúscula) que não batiam com os enums do sistema. O mapa de normalização foi expandido para cobrir todos os casos conhecidos.
+##### Comportamento de Normalização por Caso
+
+| Situação | Comportamento | Alerta gerado |
+|---|---|---|
+| Nome exato igual ao oficial | Importa normalmente | Nenhum |
+| Nome é alias conhecido (ex: "Cálculos e Fechamento") | Normaliza para o oficial + importa | ⚠️ `warning` — cadastro fora do padrão |
+| Nome desconhecido (não mapeado) | **NÃO importa** — preserva valor bruto no log | 🔴 `error` — requer revisão manual |
+
+##### Aliases Conhecidos (valores fora do padrão → canônico)
+
+| Valor no Pipedrive (fora do padrão) | Canônico Base44 |
+|---|---|
+| "Cálculos e Fechamento", "Banco de Horas", "Tratamento de Ponto" | `Cálculos e Tratamento` |
+| "Ponto Eletrônico", "Registro Ponto" | `Registro de Ponto` |
+| "Redução de Riscos", "Redução Riscos Registro" | `Redução de Riscos no Registro` |
+| "Gestão Participativa", "Ponto Participativo" | `Gestão de Ponto Participativa` |
+| "Controle Custos", "Custos" | `Controle de Custos` |
+| "Gestão de Férias", "Férias e Ausências", "Férias" | `Gestão de Férias e Ausências` |
+
+##### Retorno do `syncPipedriveData` — campos de diagnóstico
+
+```json
+{
+  "modules_raw": ["Registro de ponto", "Cálculos e Fechamento"],
+  "modules_normalized": ["Registro de Ponto", "Cálculos e Tratamento"],
+  "module_alerts": [
+    {
+      "type": "alias",
+      "severity": "warning",
+      "raw": "Cálculos e Fechamento",
+      "canonical": "Cálculos e Tratamento",
+      "message": "O módulo \"Cálculos e Fechamento\" não está no padrão oficial. Foi normalizado para \"Cálculos e Tratamento\". Recomendado corrigir o cadastro no Pipedrive."
+    }
+  ]
+}
+```
+
+**Campos:**
+- `modules_raw` — lista bruta como veio do Pipedrive
+- `modules_normalized` — lista final importada (canônicos)
+- `module_alerts` — array de alertas, cada um com `type` (alias/unknown), `severity` (warning/error), `raw`, `canonical`, `message`
+
+##### Exibição na UI
+
+O relatório de sincronização no OverviewTab exibe:
+- ✅ Confirmação de sucesso (campos atualizados)
+- ⚠️ Painel âmbar para cada alias normalizado (warning)
+- 🔴 Painel vermelho para módulos não reconhecidos (error) — informando que NÃO foram importados
+
+##### Como corrigir no Pipedrive
+
+1. Acesse o Pipedrive → Organização do cliente
+2. Edite o campo **Módulos** (campo `a7cf02...`)
+3. Use os nomes exatos da lista oficial acima
+4. Re-sincronize via "Atualizar dados do Pipedrive" — os alertas devem desaparecer
+
+> ⚠️ **Causa raiz do bug no deal 10806:** O Pipedrive retornava `"Cálculos e Fechamento"` (alias histórico), mas o sistema normalizou silenciosamente sem alertar. A partir da v6.1, aliases são normalizados mas geram `warning` visível na UI.
 
 #### Normalização de Origem (`normalizeOrigin`)
 

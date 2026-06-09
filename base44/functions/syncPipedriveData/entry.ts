@@ -98,81 +98,113 @@ Deno.serve(async (req) => {
     // Mapa canônico: normaliza QUALQUER variação de nome de módulo que venha do Pipedrive
     // para o nome exato esperado pelo sistema (contractedModules enum do Base44).
     // Chaves: lowercase + sem acentos (NFD stripped). Valores: nome canônico exato.
-    const MODULE_CANONICAL = {
+    // ── Módulos oficiais do sistema ─────────────────────────────────────────────
+    const OFFICIAL_MODULES = [
+      "Registro de Ponto",
+      "Redução de Riscos no Registro",
+      "Cálculos e Tratamento",
+      "Gestão de Ponto Participativa",
+      "Controle de Custos",
+      "Gestão de Férias e Ausências",
+      "Timesheet",
+    ];
+
+    // Aliases conhecidos: nome não-oficial → nome canônico oficial
+    // Qualquer entrada aqui representa um cadastro fora do padrão no Pipedrive.
+    const MODULE_ALIASES = {
       // Registro de Ponto
-      "registro de ponto": "Registro de Ponto",
       "ponto eletronico": "Registro de Ponto",
       "ponto eletrônico": "Registro de Ponto",
       "registro ponto": "Registro de Ponto",
       "ponto": "Registro de Ponto",
-
       // Redução de Riscos no Registro
-      "reducao de riscos no registro": "Redução de Riscos no Registro",
       "reducao de riscos": "Redução de Riscos no Registro",
       "reducao riscos registro": "Redução de Riscos no Registro",
-
-      // Cálculos e Tratamento — inclui variações históricas do Pipedrive
-      "calculos e tratamento": "Cálculos e Tratamento",
-      "calculos e fechamento": "Cálculos e Tratamento",   // ← nome real do Pipedrive
+      // Cálculos e Tratamento
+      "calculos e fechamento": "Cálculos e Tratamento",   // ← alias histórico principal
       "calculos fechamento": "Cálculos e Tratamento",
-      "calculos": "Cálculos e Tratamento",
       "calculo e tratamento": "Cálculos e Tratamento",
       "calculo e fechamento": "Cálculos e Tratamento",
       "banco de horas": "Cálculos e Tratamento",
       "tratamento de ponto": "Cálculos e Tratamento",
-
       // Gestão de Ponto Participativa
-      "gestao de ponto participativa": "Gestão de Ponto Participativa",
       "gestao participativa": "Gestão de Ponto Participativa",
       "ponto participativo": "Gestão de Ponto Participativa",
-
       // Controle de Custos
-      "controle de custos": "Controle de Custos",
       "controle custos": "Controle de Custos",
       "custos": "Controle de Custos",
-
       // Gestão de Férias e Ausências
-      "gestao de ferias e ausencias": "Gestão de Férias e Ausências",
       "gestao de ferias": "Gestão de Férias e Ausências",
       "ferias e ausencias": "Gestão de Férias e Ausências",
       "ferias": "Gestão de Férias e Ausências",
       "gestao ferias": "Gestão de Férias e Ausências",
-
-      // Timesheet
-      "timesheet": "Timesheet",
     };
-    const VALID_MODULES = [
-      "Registro de Ponto", "Redução de Riscos no Registro", "Cálculos e Tratamento",
-      "Gestão de Ponto Participativa", "Controle de Custos", "Gestão de Férias e Ausências", "Timesheet",
-    ];
-    function normalizeModule(raw) {
-      const key = (raw || "").toLowerCase().trim()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      // Busca direta no mapa de normalização
-      for (const [k, v] of Object.entries(MODULE_CANONICAL)) {
-        const normKey = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        if (key === normKey) return v;
-      }
-      // Se já é um valor canônico válido, retorna diretamente
-      const directMatch = VALID_MODULES.find(v =>
-        v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === key
-      );
-      return directMatch || null;
+
+    function norm(s) {
+      return (s || "").toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    }
+
+    // Pré-computar chaves normalizadas dos módulos oficiais para lookup rápido
+    const OFFICIAL_NORMS = OFFICIAL_MODULES.map(m => ({ original: m, normed: norm(m) }));
+
+    // Retorna { canonical, isAlias, isUnknown }
+    function resolveModule(raw) {
+      const key = norm(raw);
+      // 1. Match exato com nome oficial (caso correto)
+      const exactMatch = OFFICIAL_NORMS.find(o => o.normed === key);
+      if (exactMatch) return { canonical: exactMatch.original, isAlias: false, isUnknown: false };
+      // 2. Match com alias conhecido (cadastro fora do padrão, mas normalizável)
+      const aliasCanonical = MODULE_ALIASES[key];
+      if (aliasCanonical) return { canonical: aliasCanonical, isAlias: true, isUnknown: false };
+      // 3. Desconhecido — não normalizar silenciosamente
+      return { canonical: null, isAlias: false, isUnknown: true };
     }
 
     let contractedModules = [];
+    const moduleAlerts = [];   // alertas de divergência para retornar ao frontend
     const modRaw = org?.["a7cf0200e401a761fb5fff4f4122beb364de9adb"];
+
     if (modRaw) {
       const rawList = Array.isArray(modRaw)
-        ? modRaw.map(m => normalizeField(m))
-        : String(modRaw).split(",").map(s => s.trim());
-      // Normaliza cada módulo para o nome canônico do sistema
-      const normalized = rawList.map(m => normalizeModule(m)).filter(Boolean);
-      // Remove duplicatas preservando ordem
-      contractedModules = [...new Set(normalized)];
-      if (rawList.length > 0) {
-        console.log(`[syncPipedriveData] contracted_modules: raw=${JSON.stringify(rawList)} → normalized=${JSON.stringify(contractedModules)}`);
+        ? modRaw.map(m => normalizeField(m)).filter(Boolean)
+        : String(modRaw).split(",").map(s => s.trim()).filter(Boolean);
+
+      for (const rawName of rawList) {
+        const { canonical, isAlias, isUnknown } = resolveModule(rawName);
+
+        if (!isAlias && !isUnknown) {
+          // Nome correto — sem alerta
+          contractedModules.push(canonical);
+        } else if (isAlias) {
+          // Nome fora do padrão, mas normalizável
+          contractedModules.push(canonical);
+          const alert = {
+            type: "alias",
+            severity: "warning",
+            raw: rawName,
+            canonical,
+            message: `O módulo "${rawName}" não está no padrão oficial. Foi normalizado para "${canonical}". Recomendado corrigir o cadastro no Pipedrive.`,
+          };
+          moduleAlerts.push(alert);
+          console.warn(`[syncPipedriveData] MODULE_ALIAS: "${rawName}" → "${canonical}"`);
+        } else {
+          // Desconhecido — não adicionar ao projeto, mas registrar alerta crítico
+          const alert = {
+            type: "unknown",
+            severity: "error",
+            raw: rawName,
+            canonical: null,
+            message: `O módulo "${rawName}" não foi reconhecido e não foi importado. Verifique o cadastro no Pipedrive e corrija para um dos módulos oficiais.`,
+          };
+          moduleAlerts.push(alert);
+          console.error(`[syncPipedriveData] MODULE_UNKNOWN: "${rawName}" — não importado`);
+        }
       }
+
+      // Remove duplicatas preservando ordem
+      contractedModules = [...new Set(contractedModules)];
+
+      console.log(`[syncPipedriveData] contracted_modules: raw=${JSON.stringify(rawList)} → normalized=${JSON.stringify(contractedModules)} | alerts=${moduleAlerts.length}`);
     }
 
     // 8a. Resolver campos numéricos: funcionários contratados (da org) e MRR (deal.value)
@@ -242,6 +274,14 @@ Deno.serve(async (req) => {
       updated_fields: Object.keys(cleanPayload),
       project: updated,
       status_report: statusReportResult,
+      // Diagnóstico de módulos: expõe divergências ao frontend
+      modules_raw: modRaw
+        ? (Array.isArray(modRaw)
+            ? modRaw.map(m => normalizeField(m)).filter(Boolean)
+            : String(modRaw).split(",").map(s => s.trim()).filter(Boolean))
+        : [],
+      modules_normalized: contractedModules,
+      module_alerts: moduleAlerts,
     });
 
   } catch (error) {
