@@ -10,6 +10,8 @@ import { computeSchedule } from "@/lib/scheduleEngine.js";
 import { resolveRoleToName, RESPONSIBLE_ROLE_LABELS, resolveGeneralResponsible } from "@/lib/resolveResponsibleRole.js";
 import AddActivityModal from "./schedule/AddActivityModal.jsx";
 import LocalActivityRow from "./schedule/LocalActivityRow.jsx";
+import AddPhaseModal from "./schedule/AddPhaseModal.jsx";
+import LocalPhaseSection from "./schedule/LocalPhaseSection.jsx";
 
 function fmtDate(d) {
   if (!d) return "—";
@@ -448,6 +450,7 @@ export default function ScheduleTab({
   scopeItems, project, projectId, onRefresh, readOnly = false, onSyncSuccess,
   canEditPlanned = true, canCompletePhase = true, canRecalculate = true, canSyncPipedrive = true,
   canEditExecuted = true, canAddActivity = true,
+  canCreatePhase = true, canEditPhase = true, canExcluirPhase = true,
 }) {
   const [anchorsLoaded, setAnchorsLoaded] = useState(false);
   const [manualOverrides, setManualOverrides] = useState({});
@@ -456,6 +459,12 @@ export default function ScheduleTab({
   const [templateConfig, setTemplateConfig] = useState({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [addModalPhase, setAddModalPhase] = useState(null);
+
+  // Fases locais
+  const [localPhases, setLocalPhases] = useState([]);
+  const [localPhasesLoaded, setLocalPhasesLoaded] = useState(false);
+  const [showAddPhaseModal, setShowAddPhaseModal] = useState(false);
+  const [editingPhase, setEditingPhase] = useState(null);
 
   // Carregar âncoras do banco
   useEffect(() => {
@@ -497,6 +506,17 @@ export default function ScheduleTab({
   useEffect(() => {
     if (!activitiesLoaded && projectId) reloadActivities();
   }, [projectId, activitiesLoaded, reloadActivities]);
+
+  // Carregar fases locais
+  useEffect(() => {
+    if (!projectId || localPhasesLoaded) return;
+    base44.entities.LocalSchedulePhase.filter({ project_id: projectId })
+      .then(list => {
+        setLocalPhases((list || []).filter(p => p.is_active !== false));
+        setLocalPhasesLoaded(true);
+      })
+      .catch(() => setLocalPhasesLoaded(true));
+  }, [projectId, localPhasesLoaded]);
 
   useEffect(() => {
     base44.entities.ScheduleTemplate.filter({ is_default: true }).then(list => {
@@ -643,6 +663,14 @@ export default function ScheduleTab({
             {canRecalculate && (
               <CompleteProjectButton onComplete={async () => { const all = SCHEDULE_TASKS.filter(t => t.type === "task" && visible.has(t.id)); await handleCompleteAsTasks(all); }} />
             )}
+            {!readOnly && canCreatePhase && (
+              <button
+                onClick={() => { setEditingPhase(null); setShowAddPhaseModal(true); }}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100"
+              >
+                <Plus className="w-4 h-4" /> Adicionar marco/fase
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -725,11 +753,29 @@ export default function ScheduleTab({
         />
       ))}
 
-      {phases.length === 0 && (
+      {phases.length === 0 && localPhases.length === 0 && (
         <div className="text-center py-12 text-slate-400 text-sm">
           Nenhuma fase visível. Verifique os módulos contratados e o Escopo Técnico.
         </div>
       )}
+
+      {/* Fases/marcos locais (abaixo das fases do template) */}
+      {localPhases.sort((a, b) => (a.order ?? 99) - (b.order ?? 99)).map(phase => (
+        <LocalPhaseSection
+          key={phase.id}
+          phase={phase}
+          localActivities={localActivities}
+          onEditPhase={(ph) => { setEditingPhase(ph); setShowAddPhaseModal(true); }}
+          onPhaseRemoved={(id) => setLocalPhases(prev => prev.filter(p => p.id !== id))}
+          onAddActivity={(phaseName) => { setAddModalPhase(phaseName); setShowAddModal(true); }}
+          onActivityUpdated={(act) => setSavedActivities(prev => prev.map(a => a.id === act.id ? act : a))}
+          onActivityRemoved={(id) => setSavedActivities(prev => prev.filter(a => a.id !== id))}
+          readOnly={readOnly}
+          canEditPhase={canEditPhase}
+          canExcluirPhase={canExcluirPhase}
+          canAddActivity={canAddActivity && !readOnly}
+        />
+      ))}
 
       {showAddModal && (
         <AddActivityModal
@@ -737,6 +783,22 @@ export default function ScheduleTab({
           defaultPhase={addModalPhase}
           onSave={handleAddLocalActivity}
           onClose={() => { setShowAddModal(false); setAddModalPhase(null); }}
+        />
+      )}
+
+      {showAddPhaseModal && (
+        <AddPhaseModal
+          projectId={projectId}
+          phase={editingPhase}
+          onSave={(saved) => {
+            setLocalPhases(prev => {
+              const exists = prev.find(p => p.id === saved.id);
+              return exists ? prev.map(p => p.id === saved.id ? saved : p) : [...prev, saved];
+            });
+            setShowAddPhaseModal(false);
+            setEditingPhase(null);
+          }}
+          onClose={() => { setShowAddPhaseModal(false); setEditingPhase(null); }}
         />
       )}
     </div>
