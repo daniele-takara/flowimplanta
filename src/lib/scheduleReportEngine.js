@@ -39,9 +39,10 @@ export const MACRO_PHASE_ORDER = [
  * @param {Object} answersMap - respostas do escopo técnico
  * @param {Object} project - dados do projeto
  * @param {Array} savedActivities - atividades salvas no banco (com actual_start/actual_end)
+ * @param {Object} phaseOverridesMap - mapa { phaseName: SchedulePhaseOverride } para respeitar inativações locais
  * @returns {Array} fases macro com datas e progresso
  */
-export function computeMacroSchedule(overrides, answersMap, project, savedActivities = []) {
+export function computeMacroSchedule(overrides, answersMap, project, savedActivities = [], phaseOverridesMap = {}) {
   const { dates, visible } = computeSchedule(SCHEDULE_TASKS, overrides, answersMap, project);
 
   // Indexar atividades salvas por activity_name para buscar datas realizadas
@@ -59,6 +60,10 @@ export function computeMacroSchedule(overrides, answersMap, project, savedActivi
 
     const macroPhase = MACRO_PHASE_MAP[task.phase];
     if (!macroPhase) return;
+
+    // Respeitar inativação local da fase neste projeto
+    const phaseOverride = phaseOverridesMap[task.phase];
+    if (phaseOverride?.is_active === false) return;
 
     if (!groups[macroPhase]) groups[macroPhase] = [];
 

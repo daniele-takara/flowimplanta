@@ -1,0 +1,61 @@
+{
+  "name": "SchedulePhaseOverride",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "ID do projeto"
+    },
+    "phase_name": {
+      "type": "string",
+      "description": "Nome can\u00f4nico da fase do template (ex: 'Expans\u00e3o')"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "false = fase inativada neste projeto (oculta por padr\u00e3o)"
+    },
+    "custom_name": {
+      "type": "string",
+      "description": "Nome customizado para este projeto (se diferente do template)"
+    },
+    "planned_start_override": {
+      "type": "string",
+      "format": "date"
+    },
+    "planned_end_override": {
+      "type": "string",
+      "format": "date"
+    },
+    "status_override": {
+      "type": "string",
+      "enum": [
+        "N\u00e3o iniciado",
+        "Em andamento",
+        "Conclu\u00eddo",
+        "Atrasado",
+        "Bloqueado",
+        "Cancelado"
+      ]
+    },
+    "observations": {
+      "type": "string"
+    },
+    "responsible_general": {
+      "type": "string"
+    },
+    "responsible_leader": {
+      "type": "string"
+    },
+    "updated_by": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "phase_name"
+  ]
+}

@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import {
   ChevronDown, ChevronRight, Save, X, Anchor, Pencil, Lock,
   AlertCircle, CheckCircle, CheckCircle2, Loader2, RefreshCw,
-  Database, Plus, RotateCcw, Zap, Eye
+  Database, Plus, RotateCcw, Zap, Eye, MoreHorizontal, EyeOff
 } from "lucide-react";
 import { SCHEDULE_TASKS, PHASE_ORDER, ANCHOR_IDS } from "@/lib/scheduleTasks.js";
 import { computeSchedule } from "@/lib/scheduleEngine.js";
@@ -12,6 +12,7 @@ import AddActivityModal from "./schedule/AddActivityModal.jsx";
 import LocalActivityRow from "./schedule/LocalActivityRow.jsx";
 import AddPhaseModal from "./schedule/AddPhaseModal.jsx";
 import LocalPhaseSection from "./schedule/LocalPhaseSection.jsx";
+import PhaseOverrideModal from "./schedule/PhaseOverrideModal.jsx";
 
 function fmtDate(d) {
   if (!d) return "—";
@@ -332,9 +333,15 @@ function PhaseSection({
   onActivityUpdated, onActivityRemoved,
   project, templateConfig, readOnly,
   canCompletePhase, canEditPlanned, canEditExecuted, canAddActivity, canEditActivity = true, canExcluirActivity = true, showInactive,
+  phaseOverride, onEditOverride, onInactivate, onReactivate,
+  canEditPhase, canExcluirPhase,
 }) {
   const [open, setOpen] = useState(true);
   const [completing, setCompleting] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const isInactive = phaseOverride?.is_active === false;
+  const displayName = phaseOverride?.custom_name || phaseName;
 
   const visibleTasks = tasks.filter(t => t.type === "task");
   const phaseLocalActivities = localActivities.filter(a => a.phase_name === phaseName);
@@ -346,17 +353,23 @@ function PhaseSection({
   if (visibleTasks.length === 0 && phaseLocalActivities.length === 0) return null;
 
   return (
-    <div className="mb-2 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+    <div className={`mb-2 rounded-xl border overflow-hidden shadow-sm ${isInactive ? "border-slate-200 opacity-60" : "border-slate-200"}`}>
       <div
-        className="flex items-center gap-3 px-5 py-3.5 bg-blue-600 cursor-pointer select-none flex-wrap"
+        className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none flex-wrap ${isInactive ? "bg-slate-400" : "bg-blue-600"}`}
         onClick={() => setOpen(o => !o)}
       >
         {open ? <ChevronDown className="w-4 h-4 text-white shrink-0" /> : <ChevronRight className="w-4 h-4 text-white shrink-0" />}
-        <h3 className="text-sm font-bold text-white flex-1 min-w-0">{phaseName}</h3>
-        <span className="text-xs text-blue-200 shrink-0">{total} atividade(s)</span>
+        <h3 className="text-sm font-bold text-white flex-1 min-w-0">{displayName}</h3>
+        {isInactive && (
+          <span className="text-xs bg-slate-500 text-white px-2 py-0.5 rounded-full font-medium shrink-0">Inativa neste projeto</span>
+        )}
+        {phaseOverride?.custom_name && (
+          <span className="text-xs bg-blue-500/50 text-blue-100 px-2 py-0.5 rounded-full font-medium shrink-0">Personalizada</span>
+        )}
+        <span className={`text-xs shrink-0 ${isInactive ? "text-slate-300" : "text-blue-200"}`}>{total} atividade(s)</span>
 
         <div className="flex items-center gap-2 ml-auto" onClick={e => e.stopPropagation()}>
-          {!readOnly && canCompletePhase && (
+          {!readOnly && !isInactive && canCompletePhase && (
             <button
               onClick={async () => { setCompleting(true); await onCompletePhase(visibleTasks); setCompleting(false); }}
               disabled={completing}
@@ -366,7 +379,7 @@ function PhaseSection({
               Concluir fase
             </button>
           )}
-          {!readOnly && canAddActivity && (
+          {!readOnly && !isInactive && canAddActivity && (
             <button
               onClick={() => onAddActivity(phaseName)}
               className="flex items-center gap-1 text-xs bg-white/20 hover:bg-white/30 text-white border border-white/30 rounded-lg px-2.5 py-1 font-medium"
@@ -374,8 +387,57 @@ function PhaseSection({
               <Plus className="w-3 h-3" /> Adicionar atividade
             </button>
           )}
+          {/* Menu ⋯ de override */}
+          {(canEditPhase || canExcluirPhase) && (
+            <div className="relative" onClick={e => e.stopPropagation()}>
+              <button
+                onClick={() => setMenuOpen(m => !m)}
+                className="p-1.5 text-white/80 hover:text-white hover:bg-white/20 rounded-lg"
+                title="Ações da fase neste projeto"
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+              {menuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                  <div className="absolute right-0 top-8 z-20 bg-white rounded-xl shadow-lg border border-slate-200 py-1 min-w-[200px]">
+                    {canEditPhase && !isInactive && (
+                      <button
+                        onClick={() => { setMenuOpen(false); onEditOverride(phaseName); }}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-slate-400" /> Editar fase neste projeto
+                      </button>
+                    )}
+                    {canExcluirPhase && !isInactive && (
+                      <button
+                        onClick={() => { setMenuOpen(false); onInactivate(phaseName); }}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-orange-600 hover:bg-orange-50"
+                      >
+                        <EyeOff className="w-3.5 h-3.5" /> Inativar fase neste projeto
+                      </button>
+                    )}
+                    {isInactive && (
+                      <button
+                        onClick={() => { setMenuOpen(false); onReactivate(phaseName); }}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-green-600 hover:bg-green-50"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> Reativar fase neste projeto
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {open && phaseOverride?.observations && (
+        <div className="px-5 py-2 bg-blue-50 border-b border-blue-100 text-xs text-blue-700 italic">
+          {phaseOverride.observations}
+        </div>
+      )}
 
       {open && (
         <div className="overflow-x-auto">
@@ -508,6 +570,12 @@ export default function ScheduleTab({
   const [showAddPhaseModal, setShowAddPhaseModal] = useState(false);
   const [editingPhase, setEditingPhase]         = useState(null);
 
+  // Overrides de fases do template (por fase canônica)
+  const [phaseOverrides, setPhaseOverrides]         = useState({}); // { phaseName: overrideRecord }
+  const [phaseOverridesLoaded, setPhaseOverridesLoaded] = useState(false);
+  const [showOverrideModal, setShowOverrideModal]   = useState(false);
+  const [overrideModalPhase, setOverrideModalPhase] = useState(null);
+
   // Carregar âncoras do banco
   useEffect(() => {
     if (!projectId || anchorsLoaded) return;
@@ -555,6 +623,19 @@ export default function ScheduleTab({
       .then(list => { setLocalPhases(list || []); setLocalPhasesLoaded(true); })
       .catch(() => setLocalPhasesLoaded(true));
   }, [projectId, localPhasesLoaded]);
+
+  // Carregar overrides de fases do template
+  useEffect(() => {
+    if (!projectId || phaseOverridesLoaded) return;
+    base44.entities.SchedulePhaseOverride.filter({ project_id: projectId })
+      .then(list => {
+        const map = {};
+        (list || []).forEach(o => { map[o.phase_name] = o; });
+        setPhaseOverrides(map);
+        setPhaseOverridesLoaded(true);
+      })
+      .catch(() => setPhaseOverridesLoaded(true));
+  }, [projectId, phaseOverridesLoaded]);
 
   useEffect(() => {
     base44.entities.ScheduleTemplate.filter({ is_default: true }).then(list => {
@@ -685,6 +766,39 @@ export default function ScheduleTab({
     setSavedActivities(prev => [...prev, created]);
   };
 
+  // Handlers para overrides de fases do template
+  const handleInactivateTemplatePhase = useCallback(async (phaseName) => {
+    const existing = phaseOverrides[phaseName];
+    const user = await base44.auth.me().catch(() => null);
+    const payload = {
+      project_id: projectId, phase_name: phaseName, is_active: false,
+      updated_by: user?.full_name || user?.email || "", updated_at: new Date().toISOString(),
+    };
+    let saved;
+    if (existing?.id) {
+      await base44.entities.SchedulePhaseOverride.update(existing.id, payload);
+      saved = { ...existing, ...payload };
+    } else {
+      saved = await base44.entities.SchedulePhaseOverride.create(payload);
+    }
+    setPhaseOverrides(prev => ({ ...prev, [phaseName]: saved }));
+  }, [phaseOverrides, projectId]);
+
+  const handleReactivateTemplatePhase = useCallback(async (phaseName) => {
+    const existing = phaseOverrides[phaseName];
+    if (!existing?.id) return;
+    const user = await base44.auth.me().catch(() => null);
+    const payload = { is_active: true, updated_by: user?.full_name || user?.email || "", updated_at: new Date().toISOString() };
+    await base44.entities.SchedulePhaseOverride.update(existing.id, payload);
+    setPhaseOverrides(prev => ({ ...prev, [phaseName]: { ...existing, ...payload } }));
+  }, [phaseOverrides]);
+
+  const handleSavePhaseOverride = useCallback((saved) => {
+    setPhaseOverrides(prev => ({ ...prev, [saved.phase_name]: saved }));
+    setShowOverrideModal(false);
+    setOverrideModalPhase(null);
+  }, []);
+
   // Lista de nomes de fase para o modal de atividade
   const allPhaseNames = useMemo(() => {
     const templatePhases = PHASE_ORDER.filter(ph => tasksByPhase[ph]?.some(t => t.type === "task"));
@@ -692,17 +806,23 @@ export default function ScheduleTab({
     return [...new Set([...templatePhases, ...localPhaseNames])];
   }, [tasksByPhase, localPhases]);
 
-  const phases = PHASE_ORDER.filter(ph =>
-    tasksByPhase[ph]?.some(t => t.type === "task") ||
-    localActivities.some(a => a.phase_name === ph)
-  );
+  // Fases do template: inclui ou exclui conforme override local + toggle inativos
+  const phases = PHASE_ORDER.filter(ph => {
+    const hasContent = tasksByPhase[ph]?.some(t => t.type === "task") || localActivities.some(a => a.phase_name === ph);
+    if (!hasContent) return false;
+    const override = phaseOverrides[ph];
+    if (override?.is_active === false) return showInactive; // oculta por padrão; mostra se toggle ativo
+    return true;
+  });
   const anchors = SCHEDULE_TASKS.filter(t => t.plannedStart?.type === "anchor");
   const anchorsSavedInDB = project?.schedule_anchor_dates && Object.values(project.schedule_anchor_dates).some(Boolean);
   const inactiveLocalCount = localPhases.filter(p => p.is_active === false).length;
+  const inactiveTemplatePhaseCount = Object.values(phaseOverrides).filter(o => o.is_active === false).length;
   const inactiveActivityCount = localActivities.filter(a =>
     a.status === "Cancelado" && (a.history_observations || "").includes("[INATIVADO]")
   ).length;
-  const hasInactiveItems = inactiveLocalCount > 0 || inactiveActivityCount > 0;
+  const totalInactiveCount = inactiveLocalCount + inactiveTemplatePhaseCount + inactiveActivityCount;
+  const hasInactiveItems = totalInactiveCount > 0;
 
   return (
     <div>
@@ -724,9 +844,9 @@ export default function ScheduleTab({
               />
               <Eye className="w-3.5 h-3.5" />
               Mostrar itens inativos
-              {(inactiveLocalCount + inactiveActivityCount) > 0 && (
+              {totalInactiveCount > 0 && (
                 <span className="bg-slate-200 text-slate-600 text-xs px-1.5 py-0.5 rounded-full font-medium">
-                  {inactiveLocalCount + inactiveActivityCount}
+                  {totalInactiveCount}
                 </span>
               )}
             </label>
@@ -835,6 +955,12 @@ export default function ScheduleTab({
           canEditActivity={!readOnly}
           canExcluirActivity={!readOnly && canAddActivity}
           showInactive={showInactive}
+          phaseOverride={phaseOverrides[ph]}
+          onEditOverride={(phaseName) => { setOverrideModalPhase(phaseName); setShowOverrideModal(true); }}
+          onInactivate={handleInactivateTemplatePhase}
+          onReactivate={handleReactivateTemplatePhase}
+          canEditPhase={canEditPhase && !readOnly}
+          canExcluirPhase={canExcluirPhase && !readOnly}
         />
       ))}
 
@@ -891,6 +1017,17 @@ export default function ScheduleTab({
             setEditingPhase(null);
           }}
           onClose={() => { setShowAddPhaseModal(false); setEditingPhase(null); }}
+        />
+      )}
+
+      {/* Modal override de fase do template */}
+      {showOverrideModal && overrideModalPhase && (
+        <PhaseOverrideModal
+          projectId={projectId}
+          phaseName={overrideModalPhase}
+          existing={phaseOverrides[overrideModalPhase] || null}
+          onSave={handleSavePhaseOverride}
+          onClose={() => { setShowOverrideModal(false); setOverrideModalPhase(null); }}
         />
       )}
     </div>

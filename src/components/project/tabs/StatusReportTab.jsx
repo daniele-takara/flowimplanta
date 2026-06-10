@@ -443,8 +443,15 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         if (dateStr) overrides[taskId] = { plannedStart: dateStr };
       });
 
+      // Carregar overrides de fases do template para excluir fases inativadas localmente
+      let phaseOverridesMap = {};
+      try {
+        const phaseOverrideList = await base44.entities.SchedulePhaseOverride.filter({ project_id: projectId });
+        (phaseOverrideList || []).forEach(o => { phaseOverridesMap[o.phase_name] = o; });
+      } catch {}
+
       const { macroPhases: phases, overallProgress: progress } = computeMacroSchedule(
-        overrides, answersMap, project, savedActivities || []
+        overrides, answersMap, project, savedActivities || [], phaseOverridesMap
       );
       setMacroPhases(phases);
       setOverallProgress(progress);
