@@ -33,6 +33,8 @@ export default function LocalPhaseSection({
   canEditPhase,
   canExcluirPhase,
   canAddActivity,
+  canEditActivity = true,
+  canExcluirActivity = true,
   showInactive,
 }) {
   const [open, setOpen] = useState(true);
@@ -236,6 +238,8 @@ export default function LocalPhaseSection({
                   onRemoved={onActivityRemoved}
                   readOnly={readOnly}
                   showInactive={showInactive}
+                  canEdit={canEditActivity}
+                  canExcluir={canExcluirActivity}
                 />
               ))}
             </tbody>

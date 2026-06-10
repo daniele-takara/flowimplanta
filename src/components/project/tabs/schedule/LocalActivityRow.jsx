@@ -17,7 +17,7 @@ function fmtDate(d) {
   try { const [y, m, day] = d.substring(0, 10).split("-"); return `${day}/${m}/${y}`; } catch { return d; }
 }
 
-export default function LocalActivityRow({ activity, onUpdated, onRemoved, readOnly, showInactive }) {
+export default function LocalActivityRow({ activity, onUpdated, onRemoved, readOnly, showInactive, canEdit = true, canExcluir = true }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -148,17 +148,21 @@ export default function LocalActivityRow({ activity, onUpdated, onRemoved, readO
               </div>
             ) : (
               <div className="flex flex-col gap-1">
-                <button onClick={() => setEditing(true)} className="flex items-center gap-1 text-xs text-blue-600 hover:underline px-1">
-                  <Pencil className="w-3 h-3" /> Editar
-                </button>
-                <button
-                  onClick={() => setConfirm(true)}
-                  className="flex items-center gap-1 text-xs text-red-400 hover:underline px-1"
-                  title={hasData ? "Inativar (possui dados executados)" : "Excluir"}
-                >
-                  {hasData ? <EyeOff className="w-3 h-3" /> : <Trash2 className="w-3 h-3" />}
-                  {hasData ? "Inativar" : "Excluir"}
-                </button>
+                {canEdit && (
+                  <button onClick={() => setEditing(true)} className="flex items-center gap-1 text-xs text-blue-600 hover:underline px-1">
+                    <Pencil className="w-3 h-3" /> Editar
+                  </button>
+                )}
+                {canExcluir && (
+                  <button
+                    onClick={() => setConfirm(true)}
+                    className="flex items-center gap-1 text-xs text-red-400 hover:underline px-1"
+                    title={hasData ? "Inativar (possui dados executados)" : "Excluir"}
+                  >
+                    {hasData ? <EyeOff className="w-3 h-3" /> : <Trash2 className="w-3 h-3" />}
+                    {hasData ? "Inativar" : "Excluir"}
+                  </button>
+                )}
               </div>
             )
           )}

@@ -860,6 +860,8 @@ export default function ScheduleTab({
           canEditPhase={canEditPhase}
           canExcluirPhase={canExcluirPhase}
           canAddActivity={canAddActivity && !readOnly}
+          canEditActivity={!readOnly && canEditExecuted}
+          canExcluirActivity={!readOnly && canExcluirPhase}
           showInactive={showInactive}
         />
       ))}
