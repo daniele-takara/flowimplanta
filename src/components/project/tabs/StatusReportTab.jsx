@@ -443,15 +443,20 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         if (dateStr) overrides[taskId] = { plannedStart: dateStr };
       });
 
-      // Carregar overrides de fases do template para excluir fases inativadas localmente
+      // Carregar overrides de fases e fases locais para sincronizar com o cronograma real
       let phaseOverridesMap = {};
+      let localPhases = [];
       try {
-        const phaseOverrideList = await base44.entities.SchedulePhaseOverride.filter({ project_id: projectId });
+        const [phaseOverrideList, localPhaseList] = await Promise.all([
+          base44.entities.SchedulePhaseOverride.filter({ project_id: projectId }),
+          base44.entities.LocalSchedulePhase.filter({ project_id: projectId }),
+        ]);
         (phaseOverrideList || []).forEach(o => { phaseOverridesMap[o.phase_name] = o; });
+        localPhases = (localPhaseList || []).filter(p => p.is_active !== false);
       } catch {}
 
       const { macroPhases: phases, overallProgress: progress } = computeMacroSchedule(
-        overrides, answersMap, project, savedActivities || [], phaseOverridesMap
+        overrides, answersMap, project, savedActivities || [], phaseOverridesMap, localPhases
       );
       setMacroPhases(phases);
       setOverallProgress(progress);

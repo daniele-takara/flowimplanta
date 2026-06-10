@@ -9,8 +9,7 @@ import {
   buildParticipants, buildDatas, buildEntregas, FASES_MACRO, getAnswer
 } from "@/lib/tapTemplate";
 import { CONTRACTED_MODULES_OPTIONS } from "@/lib/scopeTemplate";
-import { SCHEDULE_TASKS, PHASE_ORDER } from "@/lib/scheduleTasks.js";
-import { computeSchedule, evaluateCondition } from "@/lib/scheduleEngine.js";
+import { buildProjectScheduleView } from "@/lib/buildProjectScheduleView.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -25,33 +24,44 @@ function buildAnswersMap(scopeItems) {
   return map;
 }
 
-// Fases macro para a seção 5 — lê os overrides do cronograma do localStorage
-function buildScheduleSnapshotFromLocal(projectId, answersMap, project) {
-  const overrides = (() => {
-    try { return JSON.parse(localStorage.getItem(`schedule_overrides_${projectId}`) || "{}"); }
-    catch { return {}; }
-  })();
+/**
+ * Constrói o snapshot do cronograma para a seção 5 da TAP usando a fonte oficial.
+ * Carrega overrides de fases e fases locais do banco para refletir o cronograma real.
+ * Retorna array de { label, plannedStart, plannedEnd }.
+ */
+async function buildScheduleSnapshotFromDB(projectId, answersMap, project) {
+  try {
+    const [phaseOverrideList, localPhaseList, savedActivities] = await Promise.all([
+      base44.entities.SchedulePhaseOverride.filter({ project_id: projectId }),
+      base44.entities.LocalSchedulePhase.filter({ project_id: projectId }),
+      base44.entities.ScheduleActivity.filter({ project_id: projectId }),
+    ]);
 
-  const { dates, visible } = computeSchedule(SCHEDULE_TASKS, overrides, answersMap, project);
+    const phaseOverridesMap = {};
+    (phaseOverrideList || []).forEach(o => { phaseOverridesMap[o.phase_name] = o; });
+    const localPhases = (localPhaseList || []).filter(p => p.is_active !== false);
 
-  // Fases macro relevantes para a TAP
-  const MACRO_PHASES = [
-    { key: "Abertura de projeto", label: "Abertura de projeto", tasks: ["alinhamento_inicial", "agenda_status_report_inicial"] },
-    { key: "Parametrização", label: "Parametrização", tasks: ["reuniao_parametrizacao_regras", "validar_cadastros_empregados_usuarios"] },
-    { key: "Operação Assistida", label: "Go Live / Início de Registro de Ponto", tasks: ["go_live_registro_ponto", "agenda_verificacao_pre_fechamento"] },
-    { key: "Fechamento de Folha", label: "Operação Assistida / Fechamento", tasks: ["agenda_fechamento_folha", "fechamento_folha"] },
-    { key: "Expansão", label: "Expansão", tasks: ["expansao_registro_ponto_real", "fechamento_folha_real"] },
-    { key: "Encerramento", label: "Encerramento", tasks: ["agenda_encerramento_projeto", "passagem_sucesso_cliente"] },
-  ];
+    const scheduleView = buildProjectScheduleView({
+      project,
+      answersMap,
+      savedActivities: savedActivities || [],
+      phaseOverridesMap,
+      localPhases,
+      includeInactive: false,
+    });
 
-  return MACRO_PHASES.map(ph => {
-    const visibleTasks = ph.tasks.filter(tid => visible.has(tid));
-    const starts = visibleTasks.map(tid => dates[tid]?.plannedStart).filter(Boolean);
-    const ends = visibleTasks.map(tid => dates[tid]?.plannedEnd).filter(Boolean);
-    const start = starts.length ? starts.reduce((a,b) => a < b ? a : b) : null;
-    const end = ends.length ? ends.reduce((a,b) => a > b ? a : b) : null;
-    return { label: ph.label, plannedStart: start, plannedEnd: end };
-  }).filter(ph => ph.plannedStart || ph.plannedEnd);
+    return scheduleView
+      .filter(ph => ph.planned_start || ph.planned_end)
+      .map(ph => ({
+        label: ph.phase_name,
+        plannedStart: ph.planned_start || null,
+        plannedEnd: ph.planned_end || null,
+        isLocal: ph.is_local,
+      }));
+  } catch (err) {
+    console.warn("[TAPTab] buildScheduleSnapshotFromDB falhou, usando vazio:", err?.message);
+    return [];
+  }
 }
 
 function fmtTapDate(d) {
@@ -563,12 +573,11 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
   const handleRefreshAuto = async () => {
     setRefreshing(true);
     await onRefresh(); // busca dados mais recentes do projeto/escopo
-    // Somente atualiza o cronograma na TAP se for a v1 e ainda não enviada
-    const isFirstVersion = !currentVersion || currentVersion.version_number === 1;
+    // Sempre atualiza o snapshot do cronograma com a fonte oficial do banco
     const isSent = currentVersion?.status === "Enviada ao cliente";
     let snap = scheduleSnapshot;
-    if (isFirstVersion && !isSent) {
-      snap = buildScheduleSnapshotFromLocal(projectId, answersMap, project);
+    if (!isSent) {
+      snap = await buildScheduleSnapshotFromDB(projectId, answersMap, project);
       setScheduleSnapshot(snap);
     }
     await saveVersion(form, { updateAutoTime: true, scheduleSnapshot: snap });

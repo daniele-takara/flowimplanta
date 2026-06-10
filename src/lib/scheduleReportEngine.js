@@ -1,11 +1,12 @@
 /**
  * Motor de cálculo do cronograma macro para o Status Report.
- * Agrupa tasks visíveis do Cronograma Detalhado em fases macro,
- * calcula datas planejadas/realizadas e progresso.
+ * Usa buildProjectScheduleView como fonte única do cronograma real do projeto.
+ * Inclui fases do template (respeitando inativações) + fases locais ativas.
  */
 
 import { SCHEDULE_TASKS, PHASE_ORDER } from "@/lib/scheduleTasks.js";
 import { computeSchedule, evaluateCondition } from "@/lib/scheduleEngine.js";
+import { buildProjectScheduleView } from "@/lib/buildProjectScheduleView.js";
 
 // Mapeamento de fases detalhadas → fases macro do Status Report
 export const MACRO_PHASE_MAP = {
@@ -33,46 +34,100 @@ export const MACRO_PHASE_ORDER = [
 ];
 
 /**
- * Computa o cronograma macro para o Status Report.
+ * Computa o cronograma macro para o Status Report usando buildProjectScheduleView como fonte única.
  *
- * @param {Object} overrides - overrides do localStorage (datas âncora e manuais)
- * @param {Object} answersMap - respostas do escopo técnico
- * @param {Object} project - dados do projeto
- * @param {Array} savedActivities - atividades salvas no banco (com actual_start/actual_end)
- * @param {Object} phaseOverridesMap - mapa { phaseName: SchedulePhaseOverride } para respeitar inativações locais
- * @returns {Array} fases macro com datas e progresso
+ * @param {Object} overrides        - overrides de datas âncora (não mais necessário, mantido por compatibilidade)
+ * @param {Object} answersMap       - respostas do escopo técnico
+ * @param {Object} project          - dados do projeto
+ * @param {Array}  savedActivities  - atividades salvas no banco (com actual_start/actual_end)
+ * @param {Object} phaseOverridesMap - mapa { phaseName: SchedulePhaseOverride }
+ * @param {Array}  localPhases      - LocalSchedulePhase[] do projeto
+ * @returns {{ macroPhases: Array, overallProgress: number }}
  */
-export function computeMacroSchedule(overrides, answersMap, project, savedActivities = [], phaseOverridesMap = {}) {
-  const { dates, visible } = computeSchedule(SCHEDULE_TASKS, overrides, answersMap, project);
+export function computeMacroSchedule(
+  overrides,
+  answersMap,
+  project,
+  savedActivities = [],
+  phaseOverridesMap = {},
+  localPhases = [],
+) {
+  try {
+    // Usar buildProjectScheduleView como fonte única — inclui fases locais + overrides + inativações
+    const scheduleView = buildProjectScheduleView({
+      project,
+      answersMap,
+      savedActivities,
+      phaseOverridesMap,
+      localPhases,
+      includeInactive: false,
+    });
 
-  // Indexar atividades salvas por activity_name para buscar datas realizadas
+    if (!scheduleView.length) {
+      // Fallback: usar lógica anterior para projetos sem dados
+      return _legacyComputeMacroSchedule(overrides, answersMap, project, savedActivities, phaseOverridesMap);
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+
+    // Mapear fases do template para macro-fases do Status Report
+    // Fases locais aparecem com o próprio nome (não mapeadas para canônicos)
+    const macroPhases = scheduleView.map(phase => {
+      // Nome do macro: usar mapeamento canônico se existir, senão usar o nome da fase
+      const macroName = phase.canonical_name
+        ? (MACRO_PHASE_MAP[phase.canonical_name] || phase.phase_name)
+        : phase.phase_name;
+
+      return {
+        phase: macroName,
+        phaseName: phase.phase_name,        // nome exibido (customizado ou local)
+        isLocal: phase.is_local,
+        plannedStart: phase.planned_start,
+        plannedEnd: phase.planned_end,
+        actualStart: phase.actual_start,
+        actualEnd: phase.actual_end,
+        totalTasks: 0,    // mantido para compatibilidade
+        completedTasks: 0,
+        progress: phase.progress,
+        status: phase.status,
+      };
+    });
+
+    // % geral do projeto = média do progresso das fases macro
+    const overallProgress = macroPhases.length > 0
+      ? Math.round(macroPhases.reduce((sum, p) => sum + p.progress, 0) / macroPhases.length)
+      : 0;
+
+    return { macroPhases, overallProgress };
+
+  } catch (err) {
+    console.warn("[computeMacroSchedule] Fallback ativado:", err?.message);
+    return _legacyComputeMacroSchedule(overrides, answersMap, project, savedActivities, phaseOverridesMap);
+  }
+}
+
+/**
+ * Implementação legada — mantida como fallback para compatibilidade com projetos antigos.
+ * Usada quando buildProjectScheduleView não retorna dados.
+ */
+function _legacyComputeMacroSchedule(overrides, answersMap, project, savedActivities, phaseOverridesMap) {
+  const { dates, visible } = computeSchedule(SCHEDULE_TASKS, overrides || {}, answersMap, project);
+
   const activityByName = {};
-  (savedActivities || []).forEach(a => {
-    activityByName[a.activity_name] = a;
-  });
+  (savedActivities || []).forEach(a => { activityByName[a.activity_name] = a; });
 
-  // Agrupar tasks visíveis por fase macro
   const groups = {};
-
   SCHEDULE_TASKS.forEach(task => {
     if (task.type !== "task") return;
     if (!visible.has(task.id)) return;
-
     const macroPhase = MACRO_PHASE_MAP[task.phase];
     if (!macroPhase) return;
-
-    // Respeitar inativação local da fase neste projeto
     const phaseOverride = phaseOverridesMap[task.phase];
     if (phaseOverride?.is_active === false) return;
-
     if (!groups[macroPhase]) groups[macroPhase] = [];
-
     const taskDates = dates[task.id] || {};
     const saved = activityByName[task.activity] || {};
-
     groups[macroPhase].push({
-      taskId: task.id,
-      activity: task.activity,
       plannedStart: taskDates.plannedStart || null,
       plannedEnd: taskDates.plannedEnd || null,
       actualStart: saved.actual_start || null,
@@ -81,57 +136,28 @@ export function computeMacroSchedule(overrides, answersMap, project, savedActivi
   });
 
   const today = new Date().toISOString().split("T")[0];
-
-  // Calcular dados por fase macro
   const macroPhases = MACRO_PHASE_ORDER
-    .filter(phase => groups[phase] && groups[phase].length > 0)
+    .filter(phase => groups[phase]?.length > 0)
     .map(phase => {
       const tasks = groups[phase];
-
-      const plannedStarts = tasks.map(t => t.plannedStart).filter(Boolean);
-      const plannedEnds = tasks.map(t => t.plannedEnd).filter(Boolean);
-      const actualStarts = tasks.map(t => t.actualStart).filter(Boolean);
-      const actualEnds = tasks.map(t => t.actualEnd).filter(Boolean);
-
-      const plannedStart = plannedStarts.length ? plannedStarts.reduce((a, b) => a < b ? a : b) : null;
-      const plannedEnd = plannedEnds.length ? plannedEnds.reduce((a, b) => a > b ? a : b) : null;
-      const actualStart = actualStarts.length ? actualStarts.reduce((a, b) => a < b ? a : b) : null;
-      const actualEnd = actualEnds.length ? actualEnds.reduce((a, b) => a > b ? a : b) : null;
-
-      const totalTasks = tasks.length;
-      const completedTasks = tasks.filter(t => !!t.actualEnd).length;
-      const startedTasks = tasks.filter(t => !!t.actualStart).length;
-      const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-      // Status da fase
+      const plannedStart = tasks.map(t => t.plannedStart).filter(Boolean).reduce((a,b) => a < b ? a : b, null);
+      const plannedEnd   = tasks.map(t => t.plannedEnd).filter(Boolean).reduce((a,b) => a > b ? a : b, null);
+      const actualStart  = tasks.map(t => t.actualStart).filter(Boolean).reduce((a,b) => a < b ? a : b, null);
+      const actualEnd    = tasks.map(t => t.actualEnd).filter(Boolean).reduce((a,b) => a > b ? a : b, null);
+      const total = tasks.length;
+      const completed = tasks.filter(t => !!t.actualEnd).length;
+      const started   = tasks.filter(t => !!t.actualStart).length;
+      const progress  = total > 0 ? Math.round((completed / total) * 100) : 0;
       let status;
-      if (completedTasks === totalTasks) {
-        status = "Concluído";
-      } else if (startedTasks > 0) {
-        status = "Em andamento";
-      } else if (plannedEnd && today > plannedEnd) {
-        status = "Atrasado";
-      } else {
-        status = "Não iniciado";
-      }
-
-      return {
-        phase,
-        plannedStart,
-        plannedEnd,
-        actualStart,
-        actualEnd,
-        totalTasks,
-        completedTasks,
-        progress,
-        status,
-      };
+      if (completed === total) status = "Concluído";
+      else if (started > 0)   status = "Em andamento";
+      else if (plannedEnd && today > plannedEnd) status = "Atrasado";
+      else                    status = "Não iniciado";
+      return { phase, plannedStart, plannedEnd, actualStart, actualEnd, totalTasks: total, completedTasks: completed, progress, status };
     });
 
-  // % geral do projeto = média do progresso das fases macro
   const overallProgress = macroPhases.length > 0
     ? Math.round(macroPhases.reduce((sum, p) => sum + p.progress, 0) / macroPhases.length)
     : 0;
-
   return { macroPhases, overallProgress };
 }

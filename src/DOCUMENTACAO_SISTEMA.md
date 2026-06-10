@@ -458,9 +458,48 @@ Verificada em IntegrationLog.event_type antes de processar.
 ## 5. MOTOR DE CRONOGRAMA (Frontend)
 
 ### Arquivos
-- `lib/scheduleTasks.js` — 76 tasks + PHASE_ORDER + ANCHOR_IDS
+- `lib/scheduleTasks.js` — 76 tasks + PHASE_ORDER + ANCHOR_IDS (NÃO ALTERAR — template global)
 - `lib/scheduleEngine.js` — computeSchedule, workday, evaluateCondition
 - `lib/scheduleReportEngine.js` — computeMacroSchedule para StatusReport
+- **`lib/buildProjectScheduleView.js`** — ⭐ **FONTE ÚNICA** da visão consolidada do cronograma por projeto
+
+### Fonte única: `buildProjectScheduleView`
+
+A partir da v6.2, **TAP e Status Report usam `buildProjectScheduleView` como fonte oficial** do cronograma do projeto. Ela consolida:
+
+| Fonte | Comportamento |
+|-------|---------------|
+| Fases do template (`scheduleTasks.js`) | Filtradas por visibilidade condicional (módulos, escopo) |
+| `SchedulePhaseOverride` | Respeita `is_active=false` (inativa) e `custom_name` (renomeio local) |
+| `LocalSchedulePhase` | Fases/marcos criados manualmente no projeto (aparecem após as do template) |
+| `ScheduleActivity` | Datas executadas (actual_start/actual_end) de todas as atividades |
+| `Project.schedule_anchor_dates` | Âncoras de data persistidas no banco |
+
+**Parâmetros:**
+```js
+buildProjectScheduleView({
+  project,             // Entidade Project
+  answersMap,          // { qXXX: resposta }
+  savedActivities,     // ScheduleActivity[] do banco
+  phaseOverridesMap,   // { phaseName: SchedulePhaseOverride } — pode ser {}
+  localPhases,         // LocalSchedulePhase[] — pode ser []
+  includeInactive,     // boolean — padrão false
+})
+// Retorna: Array<{ phase_name, canonical_name, is_local, is_active, planned_start,
+//                  planned_end, actual_start, actual_end, status, progress, order }>
+```
+
+**Fallback seguro:** Se qualquer dado extra estiver ausente, retorna array com fases do template. Nunca quebra TAP ou Status Report.
+
+### Regras de exibição (respeitadas automaticamente)
+
+| Regra | Comportamento |
+|-------|---------------|
+| Fase inativa (`is_active=false`) | Oculta em TAP e Status Report (a menos que `includeInactive=true`) |
+| Fase local ativa | Aparece em TAP e Status Report com seu próprio nome |
+| Nome customizado | Exibido nos três lugares (Cronograma, TAP, Status Report) |
+| Ordem das fases | Template segue PHASE_ORDER; fases locais aparecem ao final |
+| Fase do template sem conteúdo visível | Omitida automaticamente |
 
 ### Tipos de Data
 | Tipo | Comportamento |
@@ -468,6 +507,11 @@ Verificada em IntegrationLog.event_type antes de processar.
 | `anchor` | Editável pelo usuário. Propaga para dependentes. Salvo em `Project.schedule_anchor_dates` |
 | `calculated` | Calculado por fórmula (workday, sameDay). Somente leitura |
 | `manual_override` | Editável, não propaga |
+
+**Prioridade de fontes para datas planejadas:**
+1. Override manual do usuário (salvo em `Project.schedule_anchor_dates` para âncoras)
+2. Sincronização Pipedrive (salvo em `schedule_anchor_dates` com `_origin: "pipedrive"`)
+3. Calculado automaticamente pelo motor (`scheduleEngine.js`)
 
 ### 5 Âncoras (campos de `schedule_anchor_dates`)
 | ID | Descrição |
@@ -481,7 +525,44 @@ Verificada em IntegrationLog.event_type antes de processar.
 ### Persistência de Âncoras
 - **Salvo em:** `Project.schedule_anchor_dates` (banco — multiusuário)
 - **Migração:** Se não há dados no banco, tenta migrar do localStorage (uma vez)
-- **Acesso:** ScheduleTab, StatusReportTab, computeMacroSchedule — todos leem do banco
+- **Acesso:** ScheduleTab, StatusReportTab, TAP, computeMacroSchedule — todos leem do banco
+
+### Fases Locais (`LocalSchedulePhase`)
+
+Fases/marcos criados manualmente em um projeto específico, sem afetar o template global.
+
+| Campo | Descrição |
+|-------|-----------|
+| `project_id` | Projeto ao qual a fase pertence |
+| `phase_name` | Nome da fase local |
+| `order` | Ordem de exibição (fases locais aparecem após as do template) |
+| `is_local` | Sempre `true` |
+| `is_active` | `false` = inativada (dados preservados, fase oculta) |
+| `planned_start/end` | Datas planejadas |
+| `status` | Status da fase |
+
+**Inativação:** Ao inativar uma fase local, ela é ocultada do Cronograma, TAP e Status Report. Os dados são preservados no banco.
+
+### Overrides Locais de Fase do Template (`SchedulePhaseOverride`)
+
+Permite customizar fases do template global em um projeto específico, sem alterar o template.
+
+| Campo | Descrição |
+|-------|-----------|
+| `project_id` | Projeto ao qual o override pertence |
+| `phase_name` | Nome canônico da fase do template (chave de matching) |
+| `is_active` | `false` = fase inativada neste projeto (oculta em Cronograma, TAP e Status Report) |
+| `custom_name` | Nome customizado para este projeto |
+| `planned_start/end_override` | Datas planejadas sobrescritas localmente |
+| `observations` | Observações sobre a inativação/customização |
+
+**Importante:** Overrides são estritamente por projeto. O template global (`scheduleTasks.js`) NUNCA é alterado.
+
+### Atividades Locais (`ScheduleActivity` sem correspondência no template)
+
+Atividades criadas manualmente dentro de uma fase (template ou local). Identificadas por não terem correspondência de nome em `SCHEDULE_TASKS`.
+
+**Inativação:** Status "Cancelado" com observação `[INATIVADO]` = atividade inativada (preservada no banco).
 
 ### Fórmulas Suportadas
 ```
@@ -499,8 +580,61 @@ plannedStart              → self reference
 1. `AuthContext` carrega `user._resolvedProfile` (PermissionProfile)
 2. `usePermissions()` resolve: perfil > role=admin (tudo) > sem perfil (nada)
 
-### 18 Flags
-`projetos_ver/criar/editar/excluir`, `dados_iniciais_ver/editar`, `escopo_ver/editar`, `cronograma_ver/editar`, `tap_ver/editar`, `status_report_ver/editar`, `termo_ver/pdf`, `parametrizacoes_acessar/editar`
+### Flags de Cronograma (adicionadas na v6.1)
+
+| Flag | Descrição |
+|------|-----------|
+| `cronograma_ver` | Visualizar cronograma |
+| `cronograma_editar` | Editar datas executadas (actual_start/actual_end) |
+| `cronograma_editar_planejado` | Editar datas planejadas e âncoras |
+| `cronograma_concluir_fase` | Marcar fase como concluída conforme planejado |
+| `cronograma_recalcular` | Concluir projeto completo conforme planejado |
+| `cronograma_criar_atividade` | Adicionar atividade local a uma fase |
+| `cronograma_criar_fase` | Adicionar marco/fase local |
+| `cronograma_editar_fase` | Editar marco/fase local OU editar fase do template neste projeto (nome, datas, obs) |
+| `cronograma_excluir_fase` | Excluir ou inativar marco/fase local OU inativar fase do template neste projeto |
+| `cronograma_editar_atividade` | Editar atividade local |
+| `cronograma_excluir_atividade` | Excluir ou inativar atividade local |
+
+### Todas as Flags (26 total)
+`projetos_ver/criar/editar/excluir`, `dados_iniciais_ver/editar`, `escopo_ver/editar/atualizar_template`,
+`cronograma_ver/editar/editar_planejado/concluir_fase/recalcular/criar_atividade/criar_fase/editar_fase/excluir_fase/editar_atividade/excluir_atividade`,
+`tap_ver/editar/gerar_pdf`, `status_report_ver/editar/atualizar/email`,
+`termo_ver/editar/pdf`, `integracao_sync_pipedrive_dados/cronograma/status`, `parametrizacoes_acessar/editar`
+
+---
+
+## 6.1 TAP — ARQUITETURA v6.2
+
+### Seção 5 — Cronograma
+
+A seção de Cronograma da TAP usa `buildProjectScheduleView` como fonte oficial (a partir da v6.2).
+
+**Fonte antiga (antes da v6.2):**
+- Função `buildScheduleSnapshotFromLocal` (código inline no TAPTab)
+- Lia do `localStorage` (não do banco)
+- Usava lista fixa hardcoded de 6 fases
+- Não conhecia fases locais nem overrides de inativação
+
+**Nova fonte oficial:**
+- Função `buildScheduleSnapshotFromDB(projectId, answersMap, project)` (async)
+- Carrega do banco: `SchedulePhaseOverride` + `LocalSchedulePhase` + `ScheduleActivity`
+- Chama `buildProjectScheduleView` com todos os dados reais
+- Retorna array `[{ label, plannedStart, plannedEnd, isLocal }]` filtrado (sem inativas)
+
+**Quando é atualizada:**
+- Ao clicar "Atualizar dados automáticos" (botão âmbar na TAP)
+- Busca dados mais recentes do banco a cada atualização
+- Versões já enviadas ao cliente **não** têm o snapshot atualizado (trava histórica preservada)
+- Snapshot salvo em `TAPVersion.schedule_snapshot` (JSON) para garantir histórico imutável da versão
+
+**Fallback seguro:**
+- Se `buildScheduleSnapshotFromDB` falhar, retorna array vazio → TAP mostra `FASES_MACRO` descritivas (comportamento anterior)
+- Projeto antigos sem fases locais/overrides continuam funcionando normalmente
+
+**Compatibilidade retroativa:**
+- Versões antigas com `schedule_snapshot` salvo continuam sendo exibidas corretamente (lidas do banco)
+- Apenas novas atualizações passam pela nova função
 
 ---
 
@@ -901,7 +1035,7 @@ calculated:      if (!d.plannedStart) d.plannedStart = resolve(formula)  (planne
 
 ---
 
-## 12. STATUS REPORT — ARQUITETURA v5.6
+## 12. STATUS REPORT — ARQUITETURA v6.2
 
 ### Source único de dados
 
@@ -911,19 +1045,34 @@ calculated:      if (!d.plannedStart) d.plannedStart = resolve(formula)  (planne
 | `recording_employees` | Aba "Mais recente" da planilha | `updateReportFromSheet` |
 | `adherence_percent` | Calculado: `recording / contracted * 100` | StatusReportTab |
 | `contracted_employees` | Pipedrive → Project | `syncPipedriveData` |
-| `macroPhases` / cronograma | `computeMacroSchedule(savedActivities)` | Motor frontend |
+| `macroPhases` / cronograma | `buildProjectScheduleView` via `computeMacroSchedule` | Motor frontend |
 | Pendências / next_agenda | Pipedrive campo customizado | `applyStatusReportFromPipedrive` |
+
+### Sincronização do cronograma com o Cronograma real
+
+O bloco "Cronograma do Projeto" no Status Report usa `buildProjectScheduleView` como fonte oficial. Ao clicar "Atualizar Status Report", o sistema:
+
+1. Carrega `SchedulePhaseOverride` do projeto (fases inativadas/customizadas)
+2. Carrega `LocalSchedulePhase` do projeto (fases locais ativas)
+3. Chama `computeMacroSchedule(overrides, answersMap, project, savedActivities, phaseOverridesMap, localPhases)`
+4. O motor usa `buildProjectScheduleView` internamente para montar a visão consolidada
+
+**Resultado:**
+- Fases inativadas (template ou local) **não aparecem** no Status Report
+- Fases locais ativas **aparecem** no Status Report com seu nome
+- Nomes customizados de fases **são usados** na exibição
 
 ### Botão único "Atualizar Status Report"
 
 O único botão de atualização executa esta sequência em ordem:
 1. `updateReportFromSheet` → registered/recording employees da aba "Mais recente"
 2. Calcular aderência = `recording / contracted * 100`
-3. `computeMacroSchedule(savedActivities)` → cronograma macro real
-4. `applyStatusReportFromPipedrive` → pendências e next_agenda (se deal_id vinculado)
-5. `StatusReport.update()` → persiste tudo
-6. `Project.update({ progress_percent })` → atualiza projeto
-7. `setKpiData()` → atualiza KPIs na UI
+3. Carregar `SchedulePhaseOverride` + `LocalSchedulePhase` do projeto
+4. `computeMacroSchedule(...)` via `buildProjectScheduleView` → cronograma macro real
+5. `applyStatusReportFromPipedrive` → pendências e next_agenda (se deal_id vinculado)
+6. `StatusReport.update()` → persiste tudo
+7. `Project.update({ progress_percent })` → atualiza projeto
+8. `setKpiData()` → atualiza KPIs na UI
 
 ### KPI na UI e no e-mail — source único
 
