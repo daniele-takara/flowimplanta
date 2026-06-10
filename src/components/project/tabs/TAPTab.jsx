@@ -51,7 +51,6 @@ async function buildScheduleSnapshotFromDB(projectId, answersMap, project) {
     });
 
     return scheduleView
-      .filter(ph => ph.planned_start || ph.planned_end)
       .map(ph => ({
         label: ph.phase_name,
         plannedStart: ph.planned_start || null,
