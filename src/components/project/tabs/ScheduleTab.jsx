@@ -331,7 +331,7 @@ function PhaseSection({
   onSaveOverride, onRemoveOverride, onSaveActivity, onCompletePhase, onAddActivity,
   onActivityUpdated, onActivityRemoved,
   project, templateConfig, readOnly,
-  canCompletePhase, canEditPlanned, canEditExecuted, canAddActivity, showInactive,
+  canCompletePhase, canEditPlanned, canEditExecuted, canAddActivity, canEditActivity = true, canExcluirActivity = true, showInactive,
 }) {
   const [open, setOpen] = useState(true);
   const [completing, setCompleting] = useState(false);
@@ -414,6 +414,8 @@ function PhaseSection({
                   onRemoved={onActivityRemoved}
                   readOnly={readOnly}
                   showInactive={showInactive}
+                  canEdit={canEditActivity}
+                  canExcluir={canExcluirActivity}
                 />
               ))}
             </tbody>
@@ -730,26 +732,22 @@ export default function ScheduleTab({
             </label>
           )}
 
-          {!readOnly && (
-            <>
-              {project?.pipedrive_deal_id && canSyncPipedrive && (
-                <SyncPipedriveButton projectId={projectId} onReload={reloadActivities} onSuccess={() => { if (onSyncSuccess) onSyncSuccess(); }} />
-              )}
-              {canRecalculate && (
-                <CompleteProjectButton onComplete={async () => {
-                  const all = SCHEDULE_TASKS.filter(t => t.type === "task" && visible.has(t.id));
-                  await handleCompleteAsTasks(all);
-                }} />
-              )}
-              {canCreatePhase && (
-                <button
-                  onClick={() => { setEditingPhase(null); setShowAddPhaseModal(true); }}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100"
-                >
-                  <Plus className="w-4 h-4" /> Adicionar marco/fase
-                </button>
-              )}
-            </>
+          {!readOnly && project?.pipedrive_deal_id && canSyncPipedrive && (
+            <SyncPipedriveButton projectId={projectId} onReload={reloadActivities} onSuccess={() => { if (onSyncSuccess) onSyncSuccess(); }} />
+          )}
+          {!readOnly && canRecalculate && (
+            <CompleteProjectButton onComplete={async () => {
+              const all = SCHEDULE_TASKS.filter(t => t.type === "task" && visible.has(t.id));
+              await handleCompleteAsTasks(all);
+            }} />
+          )}
+          {canCreatePhase && (
+            <button
+              onClick={() => { setEditingPhase(null); setShowAddPhaseModal(true); }}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100"
+            >
+              <Plus className="w-4 h-4" /> Adicionar marco/fase
+            </button>
           )}
         </div>
       </div>
@@ -834,6 +832,8 @@ export default function ScheduleTab({
           readOnly={readOnly} canCompletePhase={canCompletePhase}
           canEditPlanned={canEditPlanned} canEditExecuted={canEditExecuted}
           canAddActivity={canAddActivity && !readOnly}
+          canEditActivity={!readOnly}
+          canExcluirActivity={!readOnly && canAddActivity}
           showInactive={showInactive}
         />
       ))}
