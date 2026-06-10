@@ -1,50 +1,46 @@
 import { useState } from "react";
 import { X, Save } from "lucide-react";
 
-const PHASE_OPTIONS = [
-  "Abertura de projeto", "Integração", "Cadastros", "Parametrização",
-  "Treinamento e Validações", "Operação Assistida", "Fechamento de Folha",
-  "Expansão", "Encerramento",
-];
 const STATUS_OPTIONS = ["Não iniciado", "Em andamento", "Concluído", "Atrasado", "Bloqueado", "Cancelado"];
 const inputClass = "w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white";
 const labelClass = "block text-xs font-semibold text-slate-500 mb-1";
 
-export default function AddActivityModal({ projectId, onSave, onClose }) {
+export default function AddActivityModal({ projectId, defaultPhase, allPhaseNames = [], onSave, onClose }) {
   const [form, setForm] = useState({
-    phase_name: PHASE_OPTIONS[0],
-    activity_name: "",
-    planned_start: "",
-    planned_end: "",
-    actual_start: "",
-    actual_end: "",
-    responsible_general: "",
-    responsible_leader: "",
-    status: "Não iniciado",
+    phase_name:           defaultPhase || (allPhaseNames[0] || ""),
+    activity_name:        "",
+    planned_start:        "",
+    planned_end:          "",
+    actual_start:         "",
+    actual_end:           "",
+    responsible_general:  "",
+    responsible_leader:   "",
+    status:               "Não iniciado",
     history_observations: "",
   });
   const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState("");
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   const handleSave = async () => {
-    if (!form.activity_name.trim()) return;
+    if (!form.activity_name.trim()) { setError("Nome da atividade é obrigatório."); return; }
     setSaving(true);
+    setError("");
     await onSave({
-      project_id: projectId,
-      phase_name: form.phase_name,
-      activity_name: form.activity_name.trim(),
-      planned_start: form.planned_start || null,
-      planned_end: form.planned_end || null,
-      actual_start: form.actual_start || null,
-      actual_end: form.actual_end || null,
-      responsible_general: form.responsible_general,
-      responsible_leader: form.responsible_leader,
-      status: form.status,
+      project_id:           projectId,
+      phase_name:           form.phase_name,
+      activity_name:        form.activity_name.trim(),
+      planned_start:        form.planned_start || null,
+      planned_end:          form.planned_end   || null,
+      actual_start:         form.actual_start  || null,
+      actual_end:           form.actual_end    || null,
+      responsible_general:  form.responsible_general,
+      responsible_leader:   form.responsible_leader,
+      status:               form.status,
       history_observations: form.history_observations,
-      // Marca como atividade local (não do template)
-      template_id: null,
-      is_local: true,
+      template_id:          null,
+      is_local:             true,
     });
     setSaving(false);
     onClose();
@@ -52,25 +48,34 @@ export default function AddActivityModal({ projectId, onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="text-sm font-bold text-slate-800">Adicionar Atividade Local</h2>
+          <h2 className="text-sm font-bold text-slate-800">➕ Adicionar Atividade Local</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100">
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="px-6 py-5 space-y-4 overflow-y-auto">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <label className={labelClass}>Fase *</label>
+
+        <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
+          {/* Fase */}
+          <div>
+            <label className={labelClass}>Fase *</label>
+            {allPhaseNames.length > 0 ? (
               <select value={form.phase_name} onChange={set("phase_name")} className={inputClass}>
-                {PHASE_OPTIONS.map(p => <option key={p}>{p}</option>)}
+                {allPhaseNames.map(p => <option key={p}>{p}</option>)}
               </select>
-            </div>
-            <div className="col-span-2">
-              <label className={labelClass}>Nome da atividade *</label>
-              <input value={form.activity_name} onChange={set("activity_name")} className={inputClass} placeholder="Descreva a atividade..." />
-            </div>
+            ) : (
+              <input value={form.phase_name} onChange={set("phase_name")} className={inputClass} placeholder="Nome da fase" />
+            )}
+          </div>
+
+          {/* Nome */}
+          <div>
+            <label className={labelClass}>Nome da atividade *</label>
+            <input value={form.activity_name} onChange={set("activity_name")} className={inputClass} placeholder="Descreva a atividade..." />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelClass}>Início Planejado</label>
               <input type="date" value={form.planned_start} onChange={set("planned_start")} className={inputClass} />
@@ -106,8 +111,11 @@ export default function AddActivityModal({ projectId, onSave, onClose }) {
               <input value={form.history_observations} onChange={set("history_observations")} className={inputClass} placeholder="Observações..." />
             </div>
           </div>
+
+          {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
           <p className="text-xs text-slate-400">Esta atividade será salva somente neste projeto e não afeta o template global.</p>
         </div>
+
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-100">Cancelar</button>
           <button
