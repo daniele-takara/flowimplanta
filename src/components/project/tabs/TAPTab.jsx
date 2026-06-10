@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { formatDate } from "@/lib/utils";
 import {
   Download, RefreshCw, CheckCircle2, XCircle, Clock, Lock,
-  History, Send, ChevronDown, ChevronUp, AlertCircle, Info
+  History, Send, ChevronDown, ChevronUp, AlertCircle, Info, AlertTriangle
 } from "lucide-react";
 import {
   buildParticipants, buildDatas, buildEntregas, FASES_MACRO, getAnswer
@@ -30,6 +30,7 @@ function buildAnswersMap(scopeItems) {
  * Retorna array de { label, plannedStart, plannedEnd }.
  */
 async function buildScheduleSnapshotFromDB(projectId, answersMap, project) {
+  console.log("[TAPTab] buildScheduleSnapshotFromDB INÍCIO — project_id:", projectId);
   try {
     const [phaseOverrideList, localPhaseList, savedActivities] = await Promise.all([
       base44.entities.SchedulePhaseOverride.filter({ project_id: projectId }),
@@ -37,9 +38,18 @@ async function buildScheduleSnapshotFromDB(projectId, answersMap, project) {
       base44.entities.ScheduleActivity.filter({ project_id: projectId }),
     ]);
 
+    console.log("[TAPTab] buildScheduleSnapshotFromDB — Dados carregados:", {
+      phaseOverrideList: phaseOverrideList?.length || 0,
+      localPhaseList: localPhaseList?.length || 0,
+      savedActivities: savedActivities?.length || 0,
+    });
+
     const phaseOverridesMap = {};
     (phaseOverrideList || []).forEach(o => { phaseOverridesMap[o.phase_name] = o; });
     const localPhases = (localPhaseList || []).filter(p => p.is_active !== false);
+
+    console.log("[TAPTab] buildScheduleSnapshotFromDB — phaseOverridesMap:", Object.keys(phaseOverridesMap));
+    console.log("[TAPTab] buildScheduleSnapshotFromDB — localPhases:", localPhases.map(p => p.phase_name));
 
     const scheduleView = buildProjectScheduleView({
       project,
@@ -50,15 +60,27 @@ async function buildScheduleSnapshotFromDB(projectId, answersMap, project) {
       includeInactive: false,
     });
 
-    return scheduleView
+    console.log("[TAPTab] buildScheduleSnapshotFromDB — scheduleView RETORNO:", {
+      total: scheduleView?.length || 0,
+      fases: scheduleView?.map(f => ({ nome: f.phase_name, is_local: f.is_local, is_active: f.is_active, start: f.planned_start, end: f.planned_end })),
+    });
+
+    const result = scheduleView
       .map(ph => ({
         label: ph.phase_name,
         plannedStart: ph.planned_start || null,
         plannedEnd: ph.planned_end || null,
         isLocal: ph.is_local,
       }));
+
+    console.log("[TAPTab] buildScheduleSnapshotFromDB — scheduleSnapshot final:", {
+      total: result.length,
+      fases: result.map(f => f.label),
+    });
+
+    return result;
   } catch (err) {
-    console.warn("[TAPTab] buildScheduleSnapshotFromDB falhou, usando vazio:", err?.message);
+    console.error("[TAPTab] buildScheduleSnapshotFromDB ERRO:", err?.message, err);
     return [];
   }
 }
@@ -449,11 +471,14 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
 
   // Carrega versões
   const loadVersions = useCallback(async () => {
+    console.log("[TAPTab] loadVersions — INÍCIO, project_id:", projectId);
     setLoadingVersions(true);
     try {
       const vs = await base44.entities.TAPVersion.filter({ project_id: projectId }, "-version_number");
+      console.log("[TAPTab] loadVersions — versões carregadas:", vs.length);
       setVersions(vs);
       const current = vs.find(v => v.is_current) || vs[0] || null;
+      console.log("[TAPTab] loadVersions — versão current:", current?.version_number, "id:", current?.id);
       if (current) {
         setCurrentVersion(current);
         setForm({
@@ -464,16 +489,26 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
         });
         // Restaurar snapshot do cronograma salvo
         if (current.schedule_snapshot) {
-          try { setScheduleSnapshot(JSON.parse(current.schedule_snapshot)); } catch {}
+          try {
+            const parsed = JSON.parse(current.schedule_snapshot);
+            console.log("[TAPTab] loadVersions — schedule_snapshot RESTAURADO:", parsed.length, "fases:", parsed.map(f => f.label));
+            setScheduleSnapshot(parsed);
+          } catch (e) {
+            console.error("[TAPTab] loadVersions — ERRO ao parsear schedule_snapshot:", e);
+          }
+        } else {
+          console.log("[TAPTab] loadVersions — schedule_snapshot VAZIO na versão salva");
         }
       } else {
-        // Sem versões: inicializar com defaults
+        console.log("[TAPTab] loadVersions — SEM versões, inicializando com defaults");
         setForm({ objetivo: defaultObjetivo, formato_expansao: "", expectativa_inicio_expansao: "", conclusao: defaultConclusao });
       }
-    } catch {
+    } catch (e) {
+      console.error("[TAPTab] loadVersions — ERRO:", e);
       setForm({ objetivo: defaultObjetivo, formato_expansao: "", expectativa_inicio_expansao: "", conclusao: defaultConclusao });
     }
     setLoadingVersions(false);
+    console.log("[TAPTab] loadVersions — FIM");
   }, [projectId]);
 
   useEffect(() => { loadVersions(); }, [loadVersions]);
@@ -485,6 +520,12 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
 
   // Cria ou atualiza versão atual
   const saveVersion = useCallback(async (formData, opts = {}) => {
+    console.log("[TAPTab] saveVersion — INÍCIO", {
+      currentVersionId: currentVersion?.id,
+      isLocked,
+      scheduleSnapshotSize: opts.scheduleSnapshot?.length,
+      scheduleSnapshotFases: opts.scheduleSnapshot?.map(f => f.label),
+    });
     setSaveStatus("saving");
     const autoSnapshot = JSON.stringify({ answersMap, participants, datas });
     const payload = {
@@ -502,6 +543,7 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
     try {
       if (currentVersion && !isLocked) {
         await base44.entities.TAPVersion.update(currentVersion.id, payload);
+        console.log("[TAPTab] saveVersion — versão ATUALIZADA no banco");
         setCurrentVersion(cv => ({ ...cv, ...payload }));
       } else if (!currentVersion) {
         const user = await base44.auth.me();
@@ -512,13 +554,16 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
           created_by_name: user?.full_name || user?.email || "",
           last_auto_update: new Date().toISOString(),
         });
+        console.log("[TAPTab] saveVersion — versão CRIADA no banco", newV.id);
         setCurrentVersion(newV);
         setVersions([newV]);
       }
       setSaveStatus("saved");
       clearTimeout(savedTimerRef.current);
       savedTimerRef.current = setTimeout(() => setSaveStatus(null), 2500);
-    } catch {
+      console.log("[TAPTab] saveVersion — FIM");
+    } catch (e) {
+      console.error("[TAPTab] saveVersion — ERRO:", e);
       setSaveStatus("error");
     }
   }, [currentVersion, isLocked, projectId, answersMap, participants, datas]);
@@ -570,16 +615,31 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
 
   // Botão "Atualizar dados automáticos"
   const handleRefreshAuto = async () => {
+    console.log("[TAPTab] handleRefreshAuto — INÍCIO");
+    console.log("[TAPTab] handleRefreshAuto — project_id:", projectId);
+    console.log("[TAPTab] handleRefreshAuto — currentVersion:", currentVersion?.version_number, "status:", currentVersion?.status);
+    console.log("[TAPTab] handleRefreshAuto — scheduleSnapshot atual:", scheduleSnapshot.length, "fases:", scheduleSnapshot.map(f => f.label));
+    
     setRefreshing(true);
     await onRefresh(); // busca dados mais recentes do projeto/escopo
+    
     // Sempre atualiza o snapshot do cronograma com a fonte oficial do banco
     const isSent = currentVersion?.status === "Enviada ao cliente";
+    console.log("[TAPTab] handleRefreshAuto — isSent:", isSent);
+    
     let snap = scheduleSnapshot;
     if (!isSent) {
+      console.log("[TAPTab] handleRefreshAuto — CHAMANDO buildScheduleSnapshotFromDB");
       snap = await buildScheduleSnapshotFromDB(projectId, answersMap, project);
+      console.log("[TAPTab] handleRefreshAuto — snap RETORNADO:", snap.length, "fases:", snap.map(f => f.label));
       setScheduleSnapshot(snap);
+    } else {
+      console.log("[TAPTab] handleRefreshAuto — PULANDO atualização (versão enviada ao cliente)");
     }
+    
+    console.log("[TAPTab] handleRefreshAuto — SALVANDO versão com scheduleSnapshot:", snap.length, "fases:", snap.map(f => f.label));
     await saveVersion(form, { updateAutoTime: true, scheduleSnapshot: snap });
+    console.log("[TAPTab] handleRefreshAuto — FIM");
     setRefreshing(false);
   };
 
@@ -973,13 +1033,19 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
                 </table>
               </div>
             ) : (
-              <div className="space-y-2 mb-5">
-                {FASES_MACRO.map((f, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
-                    <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full whitespace-nowrap shrink-0">{f.fase}</span>
-                    <p className="text-sm text-slate-600">{f.descricao}</p>
+              <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg mb-5">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold text-red-800 mb-1">Cronograma real não disponível</p>
+                    <p className="text-xs text-red-700">
+                      Não foi possível carregar as fases do Cronograma Detalhado. Clique em <strong>"Atualizar dados automáticos"</strong> para tentar novamente.
+                    </p>
+                    <p className="text-xs text-red-600 mt-2">
+                      Se o problema persistir, verifique se o projeto possui fases e atividades no Cronograma Detalhado.
+                    </p>
                   </div>
-                ))}
+                </div>
               </div>
             )}
 

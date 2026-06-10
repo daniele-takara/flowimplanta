@@ -604,11 +604,53 @@ plannedStart              → self reference
 
 ---
 
-## 6.1 TAP — ARQUITETURA v6.2
+## 6.1 TAP — ARQUITETURA v6.3 (COM DIAGNÓSTICO)
 
 ### Seção 5 — Cronograma
 
 A seção de Cronograma da TAP usa `buildProjectScheduleView` como fonte oficial (a partir da v6.2).
+
+**Fluxo completo ao clicar "Atualizar dados automáticos":**
+
+```
+handleRefreshAuto()
+  ↓
+1. onRefresh() — recarrega projeto e escopo do banco
+2. buildScheduleSnapshotFromDB(projectId, answersMap, project)
+   ↓
+   a. Carrega SchedulePhaseOverride do banco
+   b. Carrega LocalSchedulePhase do banco
+   c. Carrega ScheduleActivity do banco
+   d. Chama buildProjectScheduleView({ project, answersMap, savedActivities, phaseOverridesMap, localPhases })
+   e. Retorna [{ label, plannedStart, plannedEnd, isLocal }]
+3. setScheduleSnapshot(snap) — atualiza estado local
+4. saveVersion(form, { scheduleSnapshot: snap }) — persiste no banco
+```
+
+**Logs de diagnóstico (abrir console do navegador):**
+
+Ao clicar em "Atualizar dados automáticos", os seguintes logs são emitidos:
+
+```
+[TAPTab] handleRefreshAuto — INÍCIO
+[TAPTab] handleRefreshAuto — project_id: <id>
+[TAPTab] handleRefreshAuto — currentVersion: <n> status: <status>
+[TAPTab] handleRefreshAuto — scheduleSnapshot atual: <count> fases: [<lista>]
+[TAPTab] handleRefreshAuto — isSent: <true/false>
+[TAPTab] handleRefreshAuto — CHAMANDO buildScheduleSnapshotFromDB
+[TAPTab] buildScheduleSnapshotFromDB INÍCIO — project_id: <id>
+[TAPTab] buildScheduleSnapshotFromDB — Dados carregados: { phaseOverrideList, localPhaseList, savedActivities }
+[TAPTab] buildScheduleSnapshotFromDB — phaseOverridesMap: [<chaves>]
+[TAPTab] buildScheduleSnapshotFromDB — localPhases: [<nomes>]
+[TAPTab] buildScheduleSnapshotFromDB — scheduleView RETORNO: { total, fases }
+[TAPTab] buildScheduleSnapshotFromDB — scheduleSnapshot final: { total, fases }
+[TAPTab] handleRefreshAuto — snap RETORNADO: <count> fases: [<lista>]
+[TAPTab] handleRefreshAuto — SALVANDO versão com scheduleSnapshot
+[TAPTab] saveVersion — INÍCIO
+[TAPTab] saveVersion — versão ATUALIZADA/CRIADA no banco
+[TAPTab] saveVersion — FIM
+[TAPTab] handleRefreshAuto — FIM
+```
 
 **Fonte antiga (antes da v6.2):**
 - Função `buildScheduleSnapshotFromLocal` (código inline no TAPTab)
@@ -620,7 +662,7 @@ A seção de Cronograma da TAP usa `buildProjectScheduleView` como fonte oficial
 - Função `buildScheduleSnapshotFromDB(projectId, answersMap, project)` (async)
 - Carrega do banco: `SchedulePhaseOverride` + `LocalSchedulePhase` + `ScheduleActivity`
 - Chama `buildProjectScheduleView` com todos os dados reais
-- Retorna array `[{ label, plannedStart, plannedEnd, isLocal }]` filtrado (sem inativas)
+- Retorna array `[{ label, plannedStart, plannedEnd, isLocal }]` (todas fases ativas, com ou sem datas)
 
 **Quando é atualizada:**
 - Ao clicar "Atualizar dados automáticos" (botão âmbar na TAP)
@@ -629,12 +671,31 @@ A seção de Cronograma da TAP usa `buildProjectScheduleView` como fonte oficial
 - Snapshot salvo em `TAPVersion.schedule_snapshot` (JSON) para garantir histórico imutável da versão
 
 **Fallback seguro:**
-- Se `buildScheduleSnapshotFromDB` falhar, retorna array vazio → TAP mostra `FASES_MACRO` descritivas (comportamento anterior)
-- Projeto antigos sem fases locais/overrides continuam funcionando normalmente
+- Se `buildProjectScheduleView` retornar array vazio (falha ou projeto sem cronograma), `scheduleSnapshot` fica `[]`
+- UI mostra `FASES_MACRO` (lista descritiva hardcoded) apenas quando `scheduleSnapshot.length === 0`
+- **Importante:** `FASES_MACRO` NÃO deve aparecer em projetos Pontotel com cronograma real
 
 **Compatibilidade retroativa:**
 - Versões antigas com `schedule_snapshot` salvo continuam sendo exibidas corretamente (lidas do banco)
 - Apenas novas atualizações passam pela nova função
+
+### Diagnóstico de problemas
+
+**Se a TAP ainda mostra fases antigas (Homologação, Rollout, Go-live, Pós Go-live):**
+
+1. Abrir console do navegador (F12)
+2. Clicar em "Atualizar dados automáticos" na TAP
+3. Verificar logs:
+   - `buildScheduleSnapshotFromDB — scheduleView RETORNO` — quantas fases? quais nomes?
+   - `buildScheduleSnapshotFromDB — scheduleSnapshot final` — quantas fases? quais nomes?
+   - `saveVersion — versão ATUALIZADA/CRIADA` — salvou no banco?
+4. Se `scheduleView` retorna fases corretas mas UI mostra errado:
+   - Verificar se `scheduleSnapshot` estado local foi atualizado
+   - Verificar se UI está lendo `scheduleSnapshot` correto (linha ~949)
+5. Se `scheduleView` retorna vazio:
+   - Verificar se `savedActivities` tem dados no banco
+   - Verificar se `project.schedule_anchor_dates` tem âncoras definidas
+   - Verificar se `answersMap` tem respostas do escopo
 
 ---
 
