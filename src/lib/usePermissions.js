@@ -48,6 +48,7 @@ export function usePermissions() {
     canEditSchedulePlanned: can("cronograma_editar_planejado") || isSystemAdmin,
     canCompletePhase: can("cronograma_concluir_fase") || isSystemAdmin,
     canRecalculateSchedule: can("cronograma_recalcular") || isSystemAdmin,
+    canAddScheduleActivity: can("cronograma_criar_atividade") || isSystemAdmin,
 
     // TAP
     canReadTAP: can("tap_ver") || isSystemAdmin,
