@@ -75,6 +75,30 @@
           "type": "boolean",
           "default": false
         },
+        "cronograma_criar_atividade": {
+          "type": "boolean",
+          "default": false
+        },
+        "cronograma_criar_fase": {
+          "type": "boolean",
+          "default": false
+        },
+        "cronograma_editar_fase": {
+          "type": "boolean",
+          "default": false
+        },
+        "cronograma_excluir_fase": {
+          "type": "boolean",
+          "default": false
+        },
+        "cronograma_editar_atividade": {
+          "type": "boolean",
+          "default": false
+        },
+        "cronograma_excluir_atividade": {
+          "type": "boolean",
+          "default": false
+        },
         "tap_ver": {
           "type": "boolean",
           "default": false
