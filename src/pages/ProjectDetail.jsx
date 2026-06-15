@@ -86,7 +86,8 @@ export default function ProjectDetail() {
   const reloadScopeItems = async () => {
     if (isMock) return;
     try {
-      console.log("[ProjectDetail] reloadScopeItems — INÍCIO");
+      const ts = new Date().toISOString().substr(11, 12);
+      console.log(`[ProjectDetail] ⏱ ${ts} reloadScopeItems — INÍCIO`);
       const sc = await base44.entities.ScopeItem.filter({ project_id: id }, "order_number");
       console.log("[ProjectDetail] reloadScopeItems — carregados", {
         count: sc?.length || 0,

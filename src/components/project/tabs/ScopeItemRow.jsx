@@ -155,17 +155,23 @@ export default function ScopeItemRow({ question, savedAnswer, savedObs, onSave }
   const savedObsRef = useRef(savedObs);
 
   // Sync when parent updates saved values
+  const syncCallCount = useRef(0);
   useEffect(() => {
+    syncCallCount.current += 1;
+    const callN = syncCallCount.current;
     const prevAnswer = savedAnswerRef.current;
     const prevObs = savedObsRef.current;
-    console.log("[ScopeItemRow] useEffect sync — parent props mudaram", {
+    const ts = new Date().toISOString().substr(11, 12);
+    const overwriting = (!!savedAnswer && savedAnswer !== answer) || (!!savedObs && savedObs !== obs);
+    console.log(`[ScopeItemRow ${question.id}] ⏱ ${ts} useEffect SYNC #${callN} — parent props mudaram`, {
       question_id: question.id,
       savedAnswer_prev: prevAnswer,
       savedAnswer_new: savedAnswer,
       savedObs_prev: prevObs,
       savedObs_new: savedObs,
-      localAnswer: answer,
-      localObs: obs,
+      localAnswer_antes: answer,
+      localObs_antes: obs,
+      OVERWRITING: overwriting ? "⚠️ SOBRESCREVENDO VALOR LOCAL" : "✓ sem conflito",
     });
     setAnswer(savedAnswer || "");
     setObs(savedObs || "");
@@ -173,62 +179,83 @@ export default function ScopeItemRow({ question, savedAnswer, savedObs, onSave }
     savedObsRef.current = savedObs;
   }, [savedAnswer, savedObs]);
 
+  const triggerSaveCallCount = useRef(0);
   const triggerSave = useCallback(async (a, o) => {
-    console.log("[ScopeItemRow] triggerSave — DISPARO", {
+    triggerSaveCallCount.current += 1;
+    const callN = triggerSaveCallCount.current;
+    const ts = new Date().toISOString().substr(11, 12);
+    console.log(`[ScopeItemRow ${question.id}] ⏱ ${ts} triggerSave #${callN} — DISPARO`, {
       question_id: question.id,
       type: question.type,
       answer: a,
       observations: o,
       hasAnswer: !!a,
       hasObs: !!o,
+      savedAnswerRef: savedAnswerRef.current,
+      savedObsRef: savedObsRef.current,
     });
     setSaveStatus("saving");
     try {
       await onSave(question.id, { answer: a, observations: o });
-      console.log("[ScopeItemRow] triggerSave — SUCESSO", { question_id: question.id });
+      console.log(`[ScopeItemRow ${question.id}] ⏱ ${ts} triggerSave #${callN} — SUCESSO`);
       setSaveStatus("saved");
       clearTimeout(savedTimerRef.current);
       savedTimerRef.current = setTimeout(() => setSaveStatus(null), 2500);
     } catch (err) {
-      console.error("[ScopeItemRow] triggerSave — ERRO", {
+      console.error(`[ScopeItemRow ${question.id}] ⏱ ${ts} triggerSave #${callN} — ERRO`, {
         question_id: question.id,
         error: err?.message,
         response: err?.response?.data,
       });
       setSaveStatus("error");
-      // retry once after 2s
       setTimeout(() => triggerSave(a, o), 2000);
     }
   }, [onSave, question.id]);
 
   const scheduleDebounce = useCallback((a, o) => {
     clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => triggerSave(a, o), DEBOUNCE_MS);
-  }, [triggerSave]);
+    const ts = new Date().toISOString().substr(11, 12);
+    console.log(`[ScopeItemRow ${question.id}] ⏱ ${ts} scheduleDebounce — agendado em ${DEBOUNCE_MS}ms | answer="${a}" obs="${o}"`);
+    debounceRef.current = setTimeout(() => {
+      const ts2 = new Date().toISOString().substr(11, 12);
+      console.log(`[ScopeItemRow ${question.id}] ⏱ ${ts2} scheduleDebounce — DISPAROU após ${DEBOUNCE_MS}ms`);
+      triggerSave(a, o);
+    }, DEBOUNCE_MS);
+  }, [triggerSave, question.id]);
 
   const handleAnswerChange = (val) => {
+    const ts = new Date().toISOString().substr(11, 12);
+    console.log(`[ScopeItemRow ${question.id}] ⏱ ${ts} handleAnswerChange → val="${val}" | localAnswer_atual="${answer}"`);
     setAnswer(val);
     scheduleDebounce(val, obs);
   };
 
   const handleObsChange = (val) => {
+    const ts = new Date().toISOString().substr(11, 12);
+    console.log(`[ScopeItemRow ${question.id}] ⏱ ${ts} handleObsChange → val="${val}" | localObs_atual="${obs}"`);
     setObs(val);
     scheduleDebounce(answer, val);
   };
 
   const handleBlur = () => {
+    const ts = new Date().toISOString().substr(11, 12);
+    console.log(`[ScopeItemRow ${question.id}] ⏱ ${ts} handleBlur — limpando debounce, save imediato | answer="${answer}" obs="${obs}"`);
     clearTimeout(debounceRef.current);
     triggerSave(answer, obs);
   };
 
   // For select types, save immediately on change (no blur)
   const handleSelectChange = (val) => {
+    const ts = new Date().toISOString().substr(11, 12);
+    console.log(`[ScopeItemRow ${question.id}] ⏱ ${ts} handleSelectChange — save imediato | val="${val}" obs="${obs}"`);
     setAnswer(val);
     clearTimeout(debounceRef.current);
     triggerSave(val, obs);
   };
 
   const handleMultiSelectChange = (val) => {
+    const ts = new Date().toISOString().substr(11, 12);
+    console.log(`[ScopeItemRow ${question.id}] ⏱ ${ts} handleMultiSelectChange — save imediato | val="${val}" obs="${obs}"`);
     setAnswer(val);
     clearTimeout(debounceRef.current);
     triggerSave(val, obs);

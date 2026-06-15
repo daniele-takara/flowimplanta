@@ -82,14 +82,17 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
   // (previne que reloadScopeItems com dados stale sobrescreva save otimista recém-feito)
   const STALE_PROTECTION_WINDOW_MS = 3000; // 3s de proteção após save
   useEffect(() => {
+    const ts = new Date().toISOString().substr(11, 12);
     if (!scopeItems?.length) {
-      console.log("[ScopeTab] useEffect sync — scopeItems vazio, pulando");
+      console.log(`[ScopeTab] ⏱ ${ts} useEffect sync — scopeItems VAZIO, pulando`);
       return;
     }
     const now = Date.now();
-    console.log("[ScopeTab] useEffect sync — scopeItems recebidos", {
+    console.log(`[ScopeTab] ⏱ ${ts} useEffect sync — scopeItems recebidos`, {
       count: scopeItems.length,
       pendingKeys: [...pendingKeys.current],
+      orderNumbers: scopeItems.map(s => s.order_number),
+      questionIds: scopeItems.map(s => s.question_id),
     });
     setLocalAnswers(prev => {
       const next = { ...prev };
@@ -136,12 +139,15 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
         }
         next[key] = newVal;
       });
-      console.log("[ScopeTab] useEffect sync — RESULTADO", {
+      console.log(`[ScopeTab] ⏱ ${ts} useEffect sync — RESULTADO`, {
         syncedCount,
         skippedPending,
         skippedStaleProtection,
         skippedNoOrder,
         totalLocalKeys: Object.keys(next).length,
+        sampleEntries: Object.fromEntries(
+          Object.entries(next).filter(([k]) => syncedCount > 0 || skippedStaleProtection > 0)
+        ),
       });
       return next;
     });
@@ -193,6 +199,9 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
       hasObs: !!observations,
       scopeItemsCount: scopeItemsRef.current?.length || 0,
     });
+
+    const ts = new Date().toISOString().substr(11, 12);
+    console.log(`[ScopeTab] ⏱ ${ts} handleSave — INÍCIO (DEMAIS LOGS ABAIXO)`);
 
     // Mark as pending to prevent parent re-sync from overwriting
     pendingKeys.current.add(questionId);
@@ -272,6 +281,7 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
     pendingKeys.current.delete(questionId);
     // Notifica o pai para recarregar scopeItems silenciosamente (sem spinner),
     // garantindo que TAP, Cronograma e Termo de Encerramento recebam o answersMap atualizado
+    console.log(`[ScopeTab] ⏱ ${ts} handleSave — FIM → chamando onScopeSaved()`);
     if (onScopeSaved) onScopeSaved();
   };
 
