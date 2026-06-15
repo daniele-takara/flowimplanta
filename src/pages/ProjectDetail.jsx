@@ -86,7 +86,13 @@ export default function ProjectDetail() {
   const reloadScopeItems = async () => {
     if (isMock) return;
     try {
+      console.log("[ProjectDetail] reloadScopeItems — INÍCIO");
       const sc = await base44.entities.ScopeItem.filter({ project_id: id }, "order_number");
+      console.log("[ProjectDetail] reloadScopeItems — carregados", {
+        count: sc?.length || 0,
+        sampleWithAnswer: sc?.filter(s => s.answer).slice(0, 5).map(s => ({ question_id: s.question_id, order_number: s.order_number, answer: s.answer, observations: s.observations })),
+        itemsWithoutOrderNumber: sc?.filter(s => !s.order_number).map(s => ({ id: s.id, question_id: s.question_id })),
+      });
       setScopeItems(sc);
     } catch (e) {
       console.error("[ProjectDetail] reloadScopeItems erro:", e);

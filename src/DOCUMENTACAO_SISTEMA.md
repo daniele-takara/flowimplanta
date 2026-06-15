@@ -699,6 +699,60 @@ Ao clicar em "Atualizar dados automáticos", os seguintes logs são emitidos:
 
 ---
 
+## 6.2 ESCOPO TÉCNICO — ARQUITETURA v2.1 (COM PROTEÇÃO STALE — 2026-06-15)
+
+### Fluxo de Save (corrigido)
+
+```
+Usuário edita resposta/observação no ScopeItemRow
+  ↓
+handleAnswerChange / handleObsChange
+  ↓ setAnswer / setObs (state local)
+  ↓ scheduleDebounce (800ms) ou onBlur imediato
+  ↓ triggerSave(answer, obs)
+  ↓
+ScopeTab.handleSave(questionId, { answer, observations })
+  ↓
+1. pendingKeys.add(questionId) — protege contra overwrite do sync
+2. setLocalAnswers() — otimista
+3. parseInt(questionId) → orderNum
+4. scopeItemsRef.current.find(s => Number(s.order_number) === orderNum)
+5. UPDATE ou CREATE no banco
+6. scopeItemsRef.current ATUALIZADO IMEDIATAMENTE com dados retornados
+7. lastSavedAt.current[questionId] = Date.now() — timestamp
+8. pendingKeys.delete(questionId)
+9. onScopeSaved() → ProjectDetail.reloadScopeItems()
+```
+
+### Proteção Stale (NOVA)
+
+**Problema:** Quando `handleSave` atualiza/cria ScopeItem e dispara `reloadScopeItems`, o banco pode retornar dados stale. O sync useEffect então sobrescrevia o state local otimista com dados vazios.
+
+**Solução:** Três camadas:
+1. `scopeItemsRef` atualizado após UPDATE e CREATE
+2. `lastSavedAt` timestamp por questionId
+3. Janela de 3s: se DB retornar vazio mas local tem valor salvo há <3s, mantém local
+
+### Observações independentes da resposta
+
+Payload sempre inclui `{ answer, observations }` juntos. Resposta vazia não bloqueia save de observação.
+
+### Campos: `ScopeItem.answer` + `ScopeItem.observations`
+
+### Logs de diagnóstico (console F12)
+
+```
+[ScopeItemRow] triggerSave — DISPARO
+[ScopeTab] handleSave — INÍCIO
+[ScopeTab] handleSave — BUSCA (found, existingId, allOrderNumbers)
+[ScopeTab] handleSave — UPDATE/CREATE
+[ScopeTab] useEffect sync — RESULTADO (syncedCount, skippedStaleProtection)
+[ScopeTab] useEffect sync — PROTEÇÃO STALE ativada (se aplicável)
+[ProjectDetail] reloadScopeItems — carregados
+```
+
+---
+
 ## 15. AUDITORIA DE REGRAS DE DATA DO CRONOGRAMA (v5.9 — 2026-05-06)
 
 ### Causa raiz dos problemas identificados

@@ -74,18 +74,74 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
   // Track which keys have pending (unsaved) edits so we don't overwrite them on re-sync
   const pendingKeys = useRef(new Set());
 
+  // Track last save timestamp per key to prevent stale DB data from overwriting optimistic updates
+  const lastSavedAt = useRef({});
+
   // Sync localAnswers from scopeItems whenever the prop changes (e.g. after loadData in parent)
-  // Only update keys that are NOT currently being edited
+  // Only update keys that are NOT currently being edited AND were not recently saved
+  // (previne que reloadScopeItems com dados stale sobrescreva save otimista recém-feito)
+  const STALE_PROTECTION_WINDOW_MS = 3000; // 3s de proteção após save
   useEffect(() => {
-    if (!scopeItems?.length) return;
+    if (!scopeItems?.length) {
+      console.log("[ScopeTab] useEffect sync — scopeItems vazio, pulando");
+      return;
+    }
+    const now = Date.now();
+    console.log("[ScopeTab] useEffect sync — scopeItems recebidos", {
+      count: scopeItems.length,
+      pendingKeys: [...pendingKeys.current],
+    });
     setLocalAnswers(prev => {
       const next = { ...prev };
+      let syncedCount = 0;
+      let skippedPending = 0;
+      let skippedStaleProtection = 0;
+      let skippedNoOrder = 0;
       scopeItems.forEach(item => {
-        if (!item.order_number) return;
+        if (!item.order_number) {
+          skippedNoOrder++;
+          console.warn("[ScopeTab] useEffect sync — item SEM order_number", { id: item.id, question_id: item.question_id, answer: item.answer });
+          return;
+        }
         const key = `q${String(item.order_number).padStart(3, "0")}`;
         // Don't overwrite a key the user is actively editing
-        if (pendingKeys.current.has(key)) return;
-        next[key] = { answer: item.answer || "", observations: item.observations || "" };
+        if (pendingKeys.current.has(key)) {
+          skippedPending++;
+          console.log("[ScopeTab] useEffect sync — PULANDO key pendente", { key });
+          return;
+        }
+        // Proteção contra stale data: se salvou recentemente e o DB retornou vazio,
+        // mantém o valor otimista do state local
+        const lastSave = lastSavedAt.current[key] || 0;
+        const wasRecentlySaved = (now - lastSave) < STALE_PROTECTION_WINDOW_MS;
+        const prevVal = prev[key];
+        const newVal = { answer: item.answer || "", observations: item.observations || "" };
+        if (wasRecentlySaved && prevVal && (prevVal.answer || prevVal.observations)) {
+          const dbHasLess = (!newVal.answer && prevVal.answer) || (!newVal.observations && prevVal.observations);
+          if (dbHasLess) {
+            skippedStaleProtection++;
+            console.log("[ScopeTab] useEffect sync — PROTEÇÃO STALE ativada", {
+              key,
+              dbAnswer: newVal.answer,
+              localAnswer: prevVal.answer,
+              dbObs: newVal.observations,
+              localObs: prevVal.observations,
+              msSinceSave: now - lastSave,
+            });
+            return; // Mantém valor local (otimista), ignora DB stale
+          }
+        }
+        if (prevVal?.answer !== newVal.answer || prevVal?.observations !== newVal.observations) {
+          syncedCount++;
+        }
+        next[key] = newVal;
+      });
+      console.log("[ScopeTab] useEffect sync — RESULTADO", {
+        syncedCount,
+        skippedPending,
+        skippedStaleProtection,
+        skippedNoOrder,
+        totalLocalKeys: Object.keys(next).length,
       });
       return next;
     });
@@ -129,6 +185,15 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
 
   // Save a single question answer — NO onRefresh, NO page reload
   const handleSave = async (questionId, { answer, observations }) => {
+    console.log("[ScopeTab] handleSave — INÍCIO", {
+      questionId,
+      answer,
+      observations,
+      hasAnswer: !!answer,
+      hasObs: !!observations,
+      scopeItemsCount: scopeItemsRef.current?.length || 0,
+    });
+
     // Mark as pending to prevent parent re-sync from overwriting
     pendingKeys.current.add(questionId);
 
@@ -139,8 +204,30 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
     const orderNum = parseInt(questionId.replace("q", ""), 10);
     const existing = scopeItemsRef.current.find(s => Number(s.order_number) === orderNum);
 
+    // Log detalhado da busca
+    console.log("[ScopeTab] handleSave — BUSCA ScopeItem existente", {
+      questionId,
+      orderNum,
+      found: !!existing,
+      existingId: existing?.id || null,
+      existingOrderNum: existing?.order_number ?? null,
+      existingQuestionId: existing?.question_id ?? null,
+      existingAnswer: existing?.answer ?? null,
+      existingObs: existing?.observations ?? null,
+      allOrderNumbers: scopeItemsRef.current.map(s => ({ id: s.id, order_number: s.order_number, question_id: s.question_id })),
+    });
+
     if (existing) {
+      console.log("[ScopeTab] handleSave — UPDATE", { id: existing.id, answer, observations });
       await base44.entities.ScopeItem.update(existing.id, { answer, observations });
+      console.log("[ScopeTab] handleSave — UPDATE OK", { id: existing.id });
+      // Atualiza o ref IMEDIATAMENTE com os novos valores para evitar
+      // que um reloadScopeItems subsequente traga dados stale e sobrescreva
+      scopeItemsRef.current = scopeItemsRef.current.map(s =>
+        s.id === existing.id ? { ...s, answer, observations } : s
+      );
+      // Registra timestamp do save para proteção contra overwrite por sync stale
+      lastSavedAt.current[questionId] = Date.now();
     } else {
       // Find question metadata from effective modules (overrides already applied)
       let foundQ = null;
@@ -150,6 +237,14 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
         const q = qs.find(q => q.id === questionId);
         if (q) { foundQ = q; foundSection = mod.moduleLabel; break; }
       }
+      console.log("[ScopeTab] handleSave — CREATE (sem ScopeItem existente)", {
+        questionId,
+        orderNum,
+        foundInTemplate: !!foundQ,
+        section: foundSection,
+        questionPrompt: foundQ?.prompt || "não encontrado no template",
+        field_type: foundQ?.type || "text",
+      });
       const created = await base44.entities.ScopeItem.create({
         project_id: projectId,
         question_id: questionId,
@@ -162,12 +257,15 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
         field_type: foundQ?.type || "text",
         is_required: foundQ?.is_required || false
       });
+      console.log("[ScopeTab] handleSave — CREATE OK", { id: created?.id, question_id: created?.question_id, order_number: created?.order_number });
       // Add to ref so subsequent saves find the record
       if (created?.id) {
         scopeItemsRef.current = [
           ...scopeItemsRef.current,
           { ...created, order_number: orderNum }
         ];
+        // Registra timestamp do save para proteção contra overwrite por sync stale
+        lastSavedAt.current[questionId] = Date.now();
       }
     }
     // Clear pending flag — data is now persisted

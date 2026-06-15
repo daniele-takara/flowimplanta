@@ -151,21 +151,50 @@ export default function ScopeItemRow({ question, savedAnswer, savedObs, onSave }
   const [saveStatus, setSaveStatus] = useState(null);
   const debounceRef = useRef(null);
   const savedTimerRef = useRef(null);
+  const savedAnswerRef = useRef(savedAnswer);
+  const savedObsRef = useRef(savedObs);
 
   // Sync when parent updates saved values
   useEffect(() => {
+    const prevAnswer = savedAnswerRef.current;
+    const prevObs = savedObsRef.current;
+    console.log("[ScopeItemRow] useEffect sync — parent props mudaram", {
+      question_id: question.id,
+      savedAnswer_prev: prevAnswer,
+      savedAnswer_new: savedAnswer,
+      savedObs_prev: prevObs,
+      savedObs_new: savedObs,
+      localAnswer: answer,
+      localObs: obs,
+    });
     setAnswer(savedAnswer || "");
     setObs(savedObs || "");
+    savedAnswerRef.current = savedAnswer;
+    savedObsRef.current = savedObs;
   }, [savedAnswer, savedObs]);
 
   const triggerSave = useCallback(async (a, o) => {
+    console.log("[ScopeItemRow] triggerSave — DISPARO", {
+      question_id: question.id,
+      type: question.type,
+      answer: a,
+      observations: o,
+      hasAnswer: !!a,
+      hasObs: !!o,
+    });
     setSaveStatus("saving");
     try {
       await onSave(question.id, { answer: a, observations: o });
+      console.log("[ScopeItemRow] triggerSave — SUCESSO", { question_id: question.id });
       setSaveStatus("saved");
       clearTimeout(savedTimerRef.current);
       savedTimerRef.current = setTimeout(() => setSaveStatus(null), 2500);
-    } catch {
+    } catch (err) {
+      console.error("[ScopeItemRow] triggerSave — ERRO", {
+        question_id: question.id,
+        error: err?.message,
+        response: err?.response?.data,
+      });
       setSaveStatus("error");
       // retry once after 2s
       setTimeout(() => triggerSave(a, o), 2000);
