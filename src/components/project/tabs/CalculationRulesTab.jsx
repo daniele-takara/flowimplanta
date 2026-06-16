@@ -140,72 +140,108 @@ function DadosEmpresaForm({ data, onChange, project, readOnly }) {
 function RegrasForm({ companyData, data, onChange }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
-  const selected = (name) => d[name] || { model: "", toleranciaAtraso: "", toleranciaExtra: "", janelaAntes: "", janelaDepois: "" };
+  const selected = (name) => d[name] || { model: "", entradaToleranciaAtraso: "", saidaToleranciaAntecipada: "", entradaToleranciaExtra: "", saidaToleranciaExtra: "", toleranciaAtraso: "", toleranciaExtra: "", janelaAntes: "", janelaDepois: "", useInheritance: false, inheritFrom: "" };
 
   if (rules.length === 0) return <p className="text-slate-400 text-sm">Adicione regras de cálculo no passo anterior primeiro.</p>;
 
   return (
     <div className="space-y-6">
-      {rules.map((name) => {
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
+        <p className="font-semibold mb-1">Modelos de Regra</p>
+        <p><strong>Fixo:</strong> Por Entrada e Saída — sem compensação automática. Cada evento (atraso/extra) gera apontamento individual.</p>
+        <p><strong>Flexível:</strong> Por Período — compensação automática dentro das janelas definidas.</p>
+        <p><strong>Híbrido:</strong> Mistura os dois modelos anteriores com tolerâncias e compensação.</p>
+      </div>
+      {rules.map((name, idx) => {
         const val = selected(name);
+        const canInherit = idx > 0;
+        const inherited = val.useInheritance && val.inheritFrom;
+        const sourceRule = inherited ? selected(val.inheritFrom) : val;
+
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
-            <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Modelo</label>
-                <select value={val.model} onChange={e => onChange({ ...d, [name]: { ...val, model: e.target.value } })} className={selectClass}>
-                  <option value="">Selecione...</option>
-                  <option value="Fixo">Fixo</option>
-                  <option value="Flexível">Flexível</option>
-                  <option value="Híbrido">Híbrido</option>
-                </select>
-              </div>
-              {val.model === "Fixo" && (
-                <>
-                  <div>
-                    <label className={labelClass}>Tolerância de Atraso (min)</label>
-                    <input value={val.toleranciaAtraso} onChange={e => onChange({ ...d, [name]: { ...val, toleranciaAtraso: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Tolerância Extra (min)</label>
-                    <input value={val.toleranciaExtra} onChange={e => onChange({ ...d, [name]: { ...val, toleranciaExtra: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
-                  </div>
-                </>
-              )}
-              {val.model === "Flexível" && (
-                <>
-                  <div>
-                    <label className={labelClass}>Janela Antes (min)</label>
-                    <input value={val.janelaAntes} onChange={e => onChange({ ...d, [name]: { ...val, janelaAntes: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 30" />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Janela Depois (min)</label>
-                    <input value={val.janelaDepois} onChange={e => onChange({ ...d, [name]: { ...val, janelaDepois: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 30" />
-                  </div>
-                </>
-              )}
-              {val.model === "Híbrido" && (
-                <>
-                  <div>
-                    <label className={labelClass}>Tolerância de Atraso (min)</label>
-                    <input value={val.toleranciaAtraso} onChange={e => onChange({ ...d, [name]: { ...val, toleranciaAtraso: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Tolerância Extra (min)</label>
-                    <input value={val.toleranciaExtra} onChange={e => onChange({ ...d, [name]: { ...val, toleranciaExtra: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Janela Antes (min)</label>
-                    <input value={val.janelaAntes} onChange={e => onChange({ ...d, [name]: { ...val, janelaAntes: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 30" />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Janela Depois (min)</label>
-                    <input value={val.janelaDepois} onChange={e => onChange({ ...d, [name]: { ...val, janelaDepois: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 30" />
-                  </div>
-                </>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-semibold text-slate-800">{name}</h4>
+              {canInherit && (
+                <label className="flex items-center gap-2 text-xs text-slate-500">
+                  <input type="checkbox" checked={!!val.useInheritance} onChange={e => onChange({ ...d, [name]: { ...val, useInheritance: e.target.checked, inheritFrom: e.target.checked ? rules[0] : "" } })} className="w-3.5 h-3.5 accent-blue-600" />
+                  Herdar da {rules[0]}
+                </label>
               )}
             </div>
+
+            {inherited ? (
+              <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-500 italic">
+                Herdando configuração de <strong>{val.inheritFrom}</strong>
+              </div>
+            ) : (
+              <>
+                <div className="mb-4">
+                  <label className={labelClass}>Modelo</label>
+                  <select value={val.model} onChange={e => onChange({ ...d, [name]: { ...val, model: e.target.value } })} className={selectClass}>
+                    <option value="">Selecione...</option>
+                    <option value="Fixo">Fixo — Por Entrada e Saída</option>
+                    <option value="Flexível">Flexível — Por Período</option>
+                    <option value="Híbrido">Híbrido</option>
+                  </select>
+                </div>
+
+                {val.model === "Fixo" && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClass}>Tolerância Atraso Entrada (min)</label>
+                      <input value={val.entradaToleranciaAtraso || ""} onChange={e => onChange({ ...d, [name]: { ...val, entradaToleranciaAtraso: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Tolerância Antecipação Saída (min)</label>
+                      <input value={val.saidaToleranciaAntecipada || ""} onChange={e => onChange({ ...d, [name]: { ...val, saidaToleranciaAntecipada: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Tolerância Extra Entrada (min)</label>
+                      <input value={val.entradaToleranciaExtra || ""} onChange={e => onChange({ ...d, [name]: { ...val, entradaToleranciaExtra: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Tolerância Extra Saída (min)</label>
+                      <input value={val.saidaToleranciaExtra || ""} onChange={e => onChange({ ...d, [name]: { ...val, saidaToleranciaExtra: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
+                    </div>
+                  </div>
+                )}
+
+                {val.model === "Flexível" && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClass}>Janela Antes (min)</label>
+                      <input value={val.janelaAntes || ""} onChange={e => onChange({ ...d, [name]: { ...val, janelaAntes: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 30" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Janela Depois (min)</label>
+                      <input value={val.janelaDepois || ""} onChange={e => onChange({ ...d, [name]: { ...val, janelaDepois: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 30" />
+                    </div>
+                  </div>
+                )}
+
+                {val.model === "Híbrido" && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClass}>Tolerância de Atraso (min)</label>
+                      <input value={val.toleranciaAtraso || ""} onChange={e => onChange({ ...d, [name]: { ...val, toleranciaAtraso: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Tolerância Extra (min)</label>
+                      <input value={val.toleranciaExtra || ""} onChange={e => onChange({ ...d, [name]: { ...val, toleranciaExtra: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Janela Antes (min)</label>
+                      <input value={val.janelaAntes || ""} onChange={e => onChange({ ...d, [name]: { ...val, janelaAntes: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 30" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Janela Depois (min)</label>
+                      <input value={val.janelaDepois || ""} onChange={e => onChange({ ...d, [name]: { ...val, janelaDepois: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 30" />
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         );
       })}
@@ -220,34 +256,129 @@ function HorasExtrasForm({ companyData, data, onChange }) {
 
   if (rules.length === 0) return <p className="text-slate-400 text-sm">Adicione regras de cálculo no passo 1 primeiro.</p>;
 
-  const selected = (name) => d[name] || { model: "", percDiasComuns: "50" };
+  const selected = (name) => d[name] || {
+    model: "", percDiasComuns: "50", percSabado: "50", percDomingo: "100", percFeriado: "100",
+    envioE02DiasComuns: false, envioE02Sabado: false, envioE02Domingo: false, envioE02Feriado: false,
+    codigoVerbaDiasComuns: "", codigoVerbaSabado: "", codigoVerbaDomingo: "", codigoVerbaFeriado: "",
+    hasAdditionalRates: false, additionalRates: []
+  };
+
+  const updateRule = (name, field, value) => {
+    const val = selected(name);
+    onChange({ ...d, [name]: { ...val, [field]: value } });
+  };
+
+  const addAdditionalRate = (name) => {
+    const val = selected(name);
+    const rates = [...(val.additionalRates || [])];
+    rates.push({ name: "", percentage: "50", explanation: "", envioE02: false, codigoVerba: "" });
+    onChange({ ...d, [name]: { ...val, additionalRates: rates } });
+  };
+
+  const removeAdditionalRate = (name, idx) => {
+    const val = selected(name);
+    const rates = [...(val.additionalRates || [])];
+    rates.splice(idx, 1);
+    onChange({ ...d, [name]: { ...val, additionalRates: rates } });
+  };
+
+  const updateAdditionalRate = (name, idx, field, value) => {
+    const val = selected(name);
+    const rates = [...(val.additionalRates || [])];
+    rates[idx] = { ...rates[idx], [field]: value };
+    onChange({ ...d, [name]: { ...val, additionalRates: rates } });
+  };
 
   return (
     <div className="space-y-6">
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
+        <p className="font-semibold mb-1">Percentuais de Hora Extra</p>
+        <p>Configure os percentuais para cada tipo de dia. Os valores padrão seguem a CLT.</p>
+      </div>
+
       {rules.map((name) => {
         const val = selected(name);
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
-            <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Modelo</label>
-                <select value={val.model} onChange={e => onChange({ ...d, [name]: { ...val, model: e.target.value } })} className={selectClass}>
-                  <option value="">Selecione...</option>
-                  <option value="Modelo 1">Modelo 1 — Compensação de horas com base mensal</option>
-                  <option value="Modelo 2">Modelo 2 — Compensação de horas com base semanal</option>
-                </select>
+            <h4 className="font-semibold text-slate-800 mb-4">{name}</h4>
+
+            {/* Percentuais principais */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              {[
+                { key: "percDiasComuns", label: "% Dias Comuns", envioKey: "envioE02DiasComuns", codigoKey: "codigoVerbaDiasComuns" },
+                { key: "percSabado", label: "% Sábado", envioKey: "envioE02Sabado", codigoKey: "codigoVerbaSabado" },
+                { key: "percDomingo", label: "% Domingo", envioKey: "envioE02Domingo", codigoKey: "codigoVerbaDomingo" },
+                { key: "percFeriado", label: "% Feriado", envioKey: "envioE02Feriado", codigoKey: "codigoVerbaFeriado" },
+              ].map(p => (
+                <div key={p.key}>
+                  <label className={labelClass}>{p.label}</label>
+                  <select value={val[p.key] || "50"} onChange={e => updateRule(name, p.key, e.target.value)} className={selectClass}>
+                    <option value="50">50%</option>
+                    <option value="60">60%</option>
+                    <option value="75">75%</option>
+                    <option value="100">100%</option>
+                    <option value="custom">Personalizado</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+
+            {/* Códigos de verba e envio E02 */}
+            <div className="border-t pt-4 mb-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Códigos de Verba e Envio E02</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                  { label: "Dias Comuns", codigoKey: "codigoVerbaDiasComuns", envioKey: "envioE02DiasComuns" },
+                  { label: "Sábado", codigoKey: "codigoVerbaSabado", envioKey: "envioE02Sabado" },
+                  { label: "Domingo", codigoKey: "codigoVerbaDomingo", envioKey: "envioE02Domingo" },
+                  { label: "Feriado", codigoKey: "codigoVerbaFeriado", envioKey: "envioE02Feriado" },
+                ].map(p => (
+                  <div key={p.label} className="bg-slate-50 rounded-lg p-3">
+                    <p className="text-xs font-medium text-slate-600 mb-2">{p.label}</p>
+                    <input value={val[p.codigoKey] || ""} onChange={e => updateRule(name, p.codigoKey, e.target.value)} className={`${inputClass} mb-2`} placeholder="Cód. verba" />
+                    <label className="flex items-center gap-2 text-xs text-slate-500">
+                      <input type="checkbox" checked={!!val[p.envioKey]} onChange={e => updateRule(name, p.envioKey, e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
+                      Envio E02
+                    </label>
+                  </div>
+                ))}
               </div>
-              <div>
-                <label className={labelClass}>% Dias Comuns</label>
-                <select value={val.percDiasComuns} onChange={e => onChange({ ...d, [name]: { ...val, percDiasComuns: e.target.value } })} className={selectClass}>
-                  <option value="50">50%</option>
-                  <option value="60">60%</option>
-                  <option value="75">75%</option>
-                  <option value="100">100%</option>
-                  <option value="custom">Personalizado</option>
-                </select>
+            </div>
+
+            {/* Percentuais Adicionais */}
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <input type="checkbox" checked={!!val.hasAdditionalRates} onChange={e => updateRule(name, "hasAdditionalRates", e.target.checked)} className="w-4 h-4 accent-blue-600" />
+                  Possui percentuais adicionais
+                </label>
+                {val.hasAdditionalRates && (
+                  <button onClick={() => addAdditionalRate(name)} className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700">
+                    + Adicionar percentual
+                  </button>
+                )}
               </div>
+
+              {(val.additionalRates || []).map((rate, i) => (
+                <div key={i} className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-slate-600">Percentual Adicional #{i + 1}</span>
+                    <button onClick={() => removeAdditionalRate(name, i)} className="text-slate-400 hover:text-red-500 text-sm">&times;</button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input value={rate.name || ""} onChange={e => updateAdditionalRate(name, i, "name", e.target.value)} className={inputClass} placeholder="Nome (ex: 70% extra)" />
+                    <input value={rate.percentage || ""} onChange={e => updateAdditionalRate(name, i, "percentage", e.target.value)} className={inputClass} placeholder="Percentual (ex: 70)" />
+                    <input value={rate.codigoVerba || ""} onChange={e => updateAdditionalRate(name, i, "codigoVerba", e.target.value)} className={inputClass} placeholder="Cód. verba" />
+                  </div>
+                  <div className="mt-2 flex items-center gap-4">
+                    <input value={rate.explanation || ""} onChange={e => updateAdditionalRate(name, i, "explanation", e.target.value)} className={`${inputClass} flex-1`} placeholder="Justificativa do percentual" />
+                    <label className="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap">
+                      <input type="checkbox" checked={!!rate.envioE02} onChange={e => updateAdditionalRate(name, i, "envioE02", e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
+                      E02
+                    </label>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         );
@@ -263,31 +394,121 @@ function IntervalosForm({ companyData, data, onChange }) {
 
   if (rules.length === 0) return <p className="text-slate-400 text-sm">Adicione regras de cálculo no passo 1 primeiro.</p>;
 
-  const selected = (name) => d[name] || { model: "", toleranciaAtrasoPausa: "", toleranciaInicioPausa: "" };
+  const selected = (name) => d[name] || {
+    model: "", toleranciaAtrasoPausa: "5", toleranciaInicioPausa: "10", toleranciaFimPausa: "10",
+    envioE02: false, codigoVerba: "",
+    ranges: []
+  };
+
+  const updateRule = (name, field, value) => {
+    const val = selected(name);
+    onChange({ ...d, [name]: { ...val, [field]: value } });
+  };
+
+  const addRange = (name) => {
+    const val = selected(name);
+    const ranges = [...(val.ranges || [])];
+    ranges.push({ inicio: "", fim: "", duracaoPrevista: "" });
+    onChange({ ...d, [name]: { ...val, ranges } });
+  };
+
+  const removeRange = (name, idx) => {
+    const val = selected(name);
+    const ranges = [...(val.ranges || [])];
+    ranges.splice(idx, 1);
+    onChange({ ...d, [name]: { ...val, ranges } });
+  };
+
+  const updateRange = (name, idx, field, value) => {
+    const val = selected(name);
+    const ranges = [...(val.ranges || [])];
+    ranges[idx] = { ...ranges[idx], [field]: value };
+    onChange({ ...d, [name]: { ...val, ranges } });
+  };
 
   return (
     <div className="space-y-6">
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
+        <p className="font-semibold mb-1">Modelos de Intervalo</p>
+        <p><strong>Modelo 1:</strong> Tempo integral de pausa conta como hora trabalhada para compensação.</p>
+        <p><strong>Modelo 2:</strong> Tempo excedente da pausa NÃO conta como hora trabalhada.</p>
+      </div>
+
       {rules.map((name) => {
         const val = selected(name);
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
-            <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <h4 className="font-semibold text-slate-800 mb-4">{name}</h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className={labelClass}>Modelo</label>
-                <select value={val.model} onChange={e => onChange({ ...d, [name]: { ...val, model: e.target.value } })} className={selectClass}>
+                <select value={val.model} onChange={e => updateRule(name, "model", e.target.value)} className={selectClass}>
                   <option value="">Selecione...</option>
-                  <option value="Modelo 1">Modelo 1 — Horas de pausa não contam como extra</option>
-                  <option value="Modelo 2">Modelo 2 — Horas de pausa contam como trabalhadas</option>
+                  <option value="Modelo 1">Modelo 1 — Tempo integral conta como trabalhada</option>
+                  <option value="Modelo 2">Modelo 2 — Excedente NÃO conta como trabalhada</option>
                 </select>
               </div>
+            </div>
+
+            <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Tolerâncias (minutos)</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
-                <label className={labelClass}>Tolerância Atraso da Pausa (min)</label>
-                <input value={val.toleranciaAtrasoPausa} onChange={e => onChange({ ...d, [name]: { ...val, toleranciaAtrasoPausa: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 5" />
+                <label className={labelClass}>Atraso da Pausa</label>
+                <input value={val.toleranciaAtrasoPausa || ""} onChange={e => updateRule(name, "toleranciaAtrasoPausa", e.target.value)} className={inputClass} type="number" placeholder="Ex: 5" />
               </div>
               <div>
-                <label className={labelClass}>Tolerância Início da Pausa (min)</label>
-                <input value={val.toleranciaInicioPausa} onChange={e => onChange({ ...d, [name]: { ...val, toleranciaInicioPausa: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
+                <label className={labelClass}>Início da Pausa</label>
+                <input value={val.toleranciaInicioPausa || ""} onChange={e => updateRule(name, "toleranciaInicioPausa", e.target.value)} className={inputClass} type="number" placeholder="Ex: 10" />
+              </div>
+              <div>
+                <label className={labelClass}>Fim da Pausa</label>
+                <input value={val.toleranciaFimPausa || ""} onChange={e => updateRule(name, "toleranciaFimPausa", e.target.value)} className={inputClass} type="number" placeholder="Ex: 10" />
+              </div>
+            </div>
+
+            {/* Faixas de horário */}
+            <div className="border-t pt-4 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-slate-500 uppercase">Faixas de Horário de Pausa</p>
+                <button onClick={() => addRange(name)} className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700">
+                  + Adicionar faixa
+                </button>
+              </div>
+              {(val.ranges || []).map((r, i) => (
+                <div key={i} className="flex items-center gap-3 bg-slate-50 rounded-lg p-3 mb-2">
+                  <span className="text-xs text-slate-400 font-mono w-5">{i + 1}.</span>
+                  <div className="grid grid-cols-3 gap-2 flex-1">
+                    <div>
+                      <span className="text-xs text-slate-400">Início</span>
+                      <input value={r.inicio || ""} onChange={e => updateRange(name, i, "inicio", e.target.value)} className={inputClass} type="time" />
+                    </div>
+                    <div>
+                      <span className="text-xs text-slate-400">Fim</span>
+                      <input value={r.fim || ""} onChange={e => updateRange(name, i, "fim", e.target.value)} className={inputClass} type="time" />
+                    </div>
+                    <div>
+                      <span className="text-xs text-slate-400">Dur. Prevista (min)</span>
+                      <input value={r.duracaoPrevista || ""} onChange={e => updateRange(name, i, "duracaoPrevista", e.target.value)} className={inputClass} type="number" placeholder="Ex: 60" />
+                    </div>
+                  </div>
+                  <button onClick={() => removeRange(name, i)} className="text-slate-400 hover:text-red-500 shrink-0">&times;</button>
+                </div>
+              ))}
+              {(val.ranges || []).length === 0 && (
+                <p className="text-xs text-slate-400 italic">Nenhuma faixa configurada. O sistema usará a duração padrão da jornada.</p>
+              )}
+            </div>
+
+            {/* Código de verba */}
+            <div className="border-t pt-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Código de Verba</p>
+              <div className="flex items-center gap-4">
+                <input value={val.codigoVerba || ""} onChange={e => updateRule(name, "codigoVerba", e.target.value)} className={`${inputClass} max-w-[200px]`} placeholder="Cód. verba" />
+                <label className="flex items-center gap-2 text-xs text-slate-500">
+                  <input type="checkbox" checked={!!val.envioE02} onChange={e => updateRule(name, "envioE02", e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
+                  Envio E02
+                </label>
               </div>
             </div>
           </div>
@@ -304,19 +525,36 @@ function AdicionalNoturnoForm({ companyData, data, onChange }) {
 
   if (rules.length === 0) return <p className="text-slate-400 text-sm">Adicione regras de cálculo no passo 1 primeiro.</p>;
 
-  const selected = (name) => d[name] || { percAdicional: "20", horaInicioNoturna: "22:00", horaFimNoturna: "05:00" };
+  const selected = (name) => d[name] || {
+    percAdicional: "20", horaInicioNoturna: "22:00", horaFimNoturna: "05:00",
+    separarHENoturna: "nao",
+    percHENoturnaComuns: "50", percHENoturnaSabado: "50", percHENoturnaDomingo: "100", percHENoturnaFeriado: "100",
+    envioE02: false, codigoVerba: ""
+  };
+
+  const updateRule = (name, field, value) => {
+    const val = selected(name);
+    onChange({ ...d, [name]: { ...val, [field]: value } });
+  };
 
   return (
     <div className="space-y-6">
+      <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-indigo-700">
+        <p className="font-semibold mb-1">Adicional Noturno</p>
+        <p>Horário noturno padrão: 22:00 às 05:00. O adicional legal é de 20% sobre a hora diurna.</p>
+      </div>
+
       {rules.map((name) => {
         const val = selected(name);
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
-            <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <h4 className="font-semibold text-slate-800 mb-4">{name}</h4>
+
+            {/* Configuração básica */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className={labelClass}>% Adicional Noturno</label>
-                <select value={val.percAdicional} onChange={e => onChange({ ...d, [name]: { ...val, percAdicional: e.target.value } })} className={selectClass}>
+                <select value={val.percAdicional} onChange={e => updateRule(name, "percAdicional", e.target.value)} className={selectClass}>
                   <option value="20">20%</option>
                   <option value="25">25%</option>
                   <option value="custom">Personalizado</option>
@@ -324,11 +562,53 @@ function AdicionalNoturnoForm({ companyData, data, onChange }) {
               </div>
               <div>
                 <label className={labelClass}>Início Hora Noturna</label>
-                <input value={val.horaInicioNoturna} onChange={e => onChange({ ...d, [name]: { ...val, horaInicioNoturna: e.target.value } })} className={inputClass} type="time" />
+                <input value={val.horaInicioNoturna || "22:00"} onChange={e => updateRule(name, "horaInicioNoturna", e.target.value)} className={inputClass} type="time" />
               </div>
               <div>
                 <label className={labelClass}>Fim Hora Noturna</label>
-                <input value={val.horaFimNoturna} onChange={e => onChange({ ...d, [name]: { ...val, horaFimNoturna: e.target.value } })} className={inputClass} type="time" />
+                <input value={val.horaFimNoturna || "05:00"} onChange={e => updateRule(name, "horaFimNoturna", e.target.value)} className={inputClass} type="time" />
+              </div>
+            </div>
+
+            {/* Separação HE Noturna vs Diurna */}
+            <div className="border-t pt-4 mb-4">
+              <label className={labelClass}>Separar HE Noturna e Diurna?</label>
+              <select value={val.separarHENoturna || "nao"} onChange={e => updateRule(name, "separarHENoturna", e.target.value)} className={`${selectClass} max-w-xs mb-4`}>
+                <option value="nao">Não — usar mesmos percentuais da HE diurna</option>
+                <option value="sim">Sim — definir percentuais específicos</option>
+              </select>
+
+              {val.separarHENoturna === "sim" && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { key: "percHENoturnaComuns", label: "% Dias Comuns" },
+                    { key: "percHENoturnaSabado", label: "% Sábado" },
+                    { key: "percHENoturnaDomingo", label: "% Domingo" },
+                    { key: "percHENoturnaFeriado", label: "% Feriado" },
+                  ].map(p => (
+                    <div key={p.key}>
+                      <label className="text-xs text-slate-500">{p.label}</label>
+                      <select value={val[p.key] || "50"} onChange={e => updateRule(name, p.key, e.target.value)} className={selectClass}>
+                        <option value="50">50%</option>
+                        <option value="60">60%</option>
+                        <option value="75">75%</option>
+                        <option value="100">100%</option>
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Código de verba */}
+            <div className="border-t pt-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Código de Verba</p>
+              <div className="flex items-center gap-4">
+                <input value={val.codigoVerba || ""} onChange={e => updateRule(name, "codigoVerba", e.target.value)} className={`${inputClass} max-w-[200px]`} placeholder="Cód. verba" />
+                <label className="flex items-center gap-2 text-xs text-slate-500">
+                  <input type="checkbox" checked={!!val.envioE02} onChange={e => updateRule(name, "envioE02", e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
+                  Envio E02
+                </label>
               </div>
             </div>
           </div>
@@ -413,19 +693,36 @@ function BancoHorasForm({ companyData, data, onChange }) {
 
   if (rules.length === 0) return <p className="text-slate-400 text-sm">Adicione regras de cálculo no passo 1 primeiro.</p>;
 
-  const selected = (name) => d[name] || { model: "", periodoCompensacao: "mensal" };
+  const selected = (name) => d[name] || {
+    model: "", periodoCompensacao: "mensal",
+    limiteCreditoMensal: "", limiteDebitoMensal: "",
+    limiteCreditoSemestral: "", limiteDebitoSemestral: "",
+    permiteEstouro: false, toleranciaEstouro: "",
+    envioE02: false, codigoVerbaCredito: "", codigoVerbaDebito: ""
+  };
+
+  const updateRule = (name, field, value) => {
+    const val = selected(name);
+    onChange({ ...d, [name]: { ...val, [field]: value } });
+  };
 
   return (
     <div className="space-y-6">
+      <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 text-sm text-teal-700">
+        <p className="font-semibold mb-1">Banco de Horas</p>
+        <p>Configure o período de compensação e os limites de acúmulo de crédito e débito de horas.</p>
+      </div>
+
       {rules.map((name) => {
         const val = selected(name);
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
-            <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <h4 className="font-semibold text-slate-800 mb-4">{name}</h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className={labelClass}>Modelo</label>
-                <select value={val.model} onChange={e => onChange({ ...d, [name]: { ...val, model: e.target.value } })} className={selectClass}>
+                <select value={val.model} onChange={e => updateRule(name, "model", e.target.value)} className={selectClass}>
                   <option value="">Selecione...</option>
                   <option value="Modelo 1">Modelo 1 — Compensação mensal</option>
                   <option value="Modelo 2">Modelo 2 — Compensação semestral</option>
@@ -433,13 +730,80 @@ function BancoHorasForm({ companyData, data, onChange }) {
               </div>
               <div>
                 <label className={labelClass}>Período de Compensação</label>
-                <select value={val.periodoCompensacao} onChange={e => onChange({ ...d, [name]: { ...val, periodoCompensacao: e.target.value } })} className={selectClass}>
+                <select value={val.periodoCompensacao} onChange={e => updateRule(name, "periodoCompensacao", e.target.value)} className={selectClass}>
                   <option value="mensal">Mensal</option>
                   <option value="bimestral">Bimestral</option>
+                  <option value="trimestral">Trimestral</option>
                   <option value="semestral">Semestral</option>
                   <option value="anual">Anual</option>
                 </select>
               </div>
+            </div>
+
+            {/* Limites de acúmulo */}
+            <div className="border-t pt-4 mb-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Limites de Acúmulo (horas)</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-slate-50 rounded-lg p-3">
+                  <p className="text-xs font-medium text-green-700 mb-2">Crédito (saldo positivo)</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-xs text-slate-400">Mensal</span>
+                      <input value={val.limiteCreditoMensal || ""} onChange={e => updateRule(name, "limiteCreditoMensal", e.target.value)} className={inputClass} type="number" placeholder="Ex: 10" />
+                    </div>
+                    <div>
+                      <span className="text-xs text-slate-400">Semestral</span>
+                      <input value={val.limiteCreditoSemestral || ""} onChange={e => updateRule(name, "limiteCreditoSemestral", e.target.value)} className={inputClass} type="number" placeholder="Ex: 40" />
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-slate-50 rounded-lg p-3">
+                  <p className="text-xs font-medium text-red-700 mb-2">Débito (saldo negativo)</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-xs text-slate-400">Mensal</span>
+                      <input value={val.limiteDebitoMensal || ""} onChange={e => updateRule(name, "limiteDebitoMensal", e.target.value)} className={inputClass} type="number" placeholder="Ex: 8" />
+                    </div>
+                    <div>
+                      <span className="text-xs text-slate-400">Semestral</span>
+                      <input value={val.limiteDebitoSemestral || ""} onChange={e => updateRule(name, "limiteDebitoSemestral", e.target.value)} className={inputClass} type="number" placeholder="Ex: 24" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Estouro de limite */}
+              <div className="mt-3">
+                <label className="flex items-center gap-2 text-sm text-slate-600 mb-2">
+                  <input type="checkbox" checked={!!val.permiteEstouro} onChange={e => updateRule(name, "permiteEstouro", e.target.checked)} className="w-4 h-4 accent-blue-600" />
+                  Permitir estouro de limite
+                </label>
+                {val.permiteEstouro && (
+                  <div>
+                    <span className="text-xs text-slate-400">Tolerância de estouro (horas)</span>
+                    <input value={val.toleranciaEstouro || ""} onChange={e => updateRule(name, "toleranciaEstouro", e.target.value)} className={`${inputClass} max-w-[150px]`} type="number" placeholder="Ex: 4" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Códigos de verba */}
+            <div className="border-t pt-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Códigos de Verba</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-500">Cód. Verba Crédito</label>
+                  <input value={val.codigoVerbaCredito || ""} onChange={e => updateRule(name, "codigoVerbaCredito", e.target.value)} className={inputClass} placeholder="Código" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500">Cód. Verba Débito</label>
+                  <input value={val.codigoVerbaDebito || ""} onChange={e => updateRule(name, "codigoVerbaDebito", e.target.value)} className={inputClass} placeholder="Código" />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-slate-500 mt-3">
+                <input type="checkbox" checked={!!val.envioE02} onChange={e => updateRule(name, "envioE02", e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
+                Envio E02
+              </label>
             </div>
           </div>
         );
@@ -541,6 +905,7 @@ function RevisaoFinal({ companyData, allData, project }) {
       <div className="bg-green-50 border border-green-200 rounded-xl p-4">
         <h4 className="font-semibold text-green-800 mb-2">Dados da Empresa</h4>
         <p className="text-sm text-green-700">{project?.client_name || "—"}</p>
+        <p className="text-sm text-green-700">Responsável: {companyData?.responsibleName || "—"}</p>
         <p className="text-sm text-green-700">Regras: {(rules || []).join(", ") || "Nenhuma"}</p>
         <div className="flex flex-wrap gap-2 mt-2">
           {companyData?.hasNightShift && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Noturno</span>}
@@ -550,16 +915,55 @@ function RevisaoFinal({ companyData, allData, project }) {
         </div>
       </div>
 
-      {rules.map(name => (
-        <div key={name} className="border border-slate-200 rounded-xl p-4">
-          <h4 className="font-semibold text-slate-800 mb-2">{name}</h4>
-          <div className="text-xs text-slate-500 space-y-1">
-            {allData.rule_configurations?.[name]?.model && <p>Modelo: {allData.rule_configurations[name].model}</p>}
-            {allData.overtime_rules?.[name]?.model && <p>Horas Extras: {allData.overtime_rules[name].model} — {allData.overtime_rules[name].percDiasComuns}%</p>}
-            {allData.break_time_rules?.[name]?.model && <p>Intervalos: {allData.break_time_rules[name].model}</p>}
+      {rules.map(name => {
+        const rc = allData.rule_configurations?.[name] || {};
+        const he = allData.overtime_rules?.[name] || {};
+        const br = allData.break_time_rules?.[name] || {};
+        const an = allData.night_shift_rules?.[name] || {};
+        const j12 = allData.shift_12x36_rules?.[name] || {};
+        const sb = allData.sobreaviso_rules?.[name] || {};
+        const bh = allData.bank_hours_rules?.[name] || {};
+        const dsr = allData.dsr_rules?.[name] || {};
+
+        return (
+          <div key={name} className="border border-slate-200 rounded-xl p-4">
+            <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
+            <div className="text-xs text-slate-500 space-y-1.5">
+              {rc.model && (
+                <p><span className="font-medium text-slate-600">Modelo:</span> {rc.model}
+                  {rc.model === "Fixo" && ` — Atraso Entrada: ${rc.entradaToleranciaAtraso || "—"}min, Antecipação Saída: ${rc.saidaToleranciaAntecipada || "—"}min`}
+                  {rc.model === "Flexível" && ` — Janela: ${rc.janelaAntes || "—"}min antes / ${rc.janelaDepois || "—"}min depois`}
+                  {rc.model === "Híbrido" && ` — Tolerância: ${rc.toleranciaAtraso || "—"}min / Janela: ${rc.janelaAntes || "—"}min`}
+                </p>
+              )}
+              {he.percDiasComuns && (
+                <p><span className="font-medium text-slate-600">HE:</span> Dias Comuns {he.percDiasComuns}% | Sáb {he.percSabado || "50"}% | Dom {he.percDomingo || "100"}% | Fer {he.percFeriado || "100"}%
+                  {(he.additionalRates || []).length > 0 && ` + ${he.additionalRates.length} percentual(is) adicional(is)`}
+                </p>
+              )}
+              {br.model && <p><span className="font-medium text-slate-600">Intervalos:</span> {br.model} — Atraso: {br.toleranciaAtrasoPausa || "—"}min, Início: {br.toleranciaInicioPausa || "—"}min, Fim: {br.toleranciaFimPausa || "—"}min {(br.ranges || []).length > 0 && `(${br.ranges.length} faixas)`}</p>}
+              {an.percAdicional && <p><span className="font-medium text-slate-600">Noturno:</span> {an.percAdicional}% — {an.horaInicioNoturna || "22:00"} às {an.horaFimNoturna || "05:00"}{an.separarHENoturna === "sim" ? " (HE separada)" : ""}</p>}
+              {j12.model && <p><span className="font-medium text-slate-600">12x36:</span> {j12.model}{j12.folgaFixa ? " — Folga fixa" : ""}</p>}
+              {sb.percSobreaviso && <p><span className="font-medium text-slate-600">Sobreaviso:</span> {sb.percSobreaviso}</p>}
+              {bh.model && <p><span className="font-medium text-slate-600">Banco de Horas:</span> {bh.model} — {bh.periodoCompensacao || "mensal"}{bh.limiteCreditoMensal ? ` | Crédito máx: ${bh.limiteCreditoMensal}h/mês` : ""}</p>}
+              {dsr.modeloDSR && <p><span className="font-medium text-slate-600">DSR:</span> {dsr.modeloDSR === "padrao" ? "Incluso nas HE" : "Separado"}</p>}
+            </div>
+          </div>
+        );
+      })}
+
+      {allData.other_verbs_rules?.verbas?.length > 0 && (
+        <div className="border border-slate-200 rounded-xl p-4">
+          <h4 className="font-semibold text-slate-800 mb-2">Outras Verbas</h4>
+          <div className="flex flex-wrap gap-2">
+            {allData.other_verbs_rules.verbas.map((v, i) => (
+              <span key={i} className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full">
+                {v.nome} {v.codigo && `(${v.codigo})`} {v.percentual && `${v.percentual}%`}
+              </span>
+            ))}
           </div>
         </div>
-      ))}
+      )}
     </div>
   );
 }
