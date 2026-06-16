@@ -1002,8 +1002,6 @@ export default function CalculationRulesTab({ projectId, project }) {
     if (step.key === "shift_12x36_rules" && companyData?.has12x36Shift === false) return false;
     if (step.key === "sobreaviso_rules" && companyData?.hasOnCallWorkers === false) return false;
     if (step.key === "bank_hours_rules" && companyData?.hasTimeBank === false) return false;
-    if (step.key === "break_time_rules" && companyData?.hasTimeBank === false) return false;
-    if (step.key === "dsr_rules" && companyData?.hasTimeBank === false) return false;
     return true;
   });
 
