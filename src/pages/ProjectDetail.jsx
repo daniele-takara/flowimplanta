@@ -167,7 +167,7 @@ export default function ProjectDetail() {
 
       {perms.readOnly && (
         <div className="bg-amber-50 border-b border-amber-200 px-8 py-2 flex items-center gap-2 text-sm text-amber-700">
-          <span className="font-semibold">Modo somente leitura</span> — seu perfil <strong>{perms.appRole}</strong> não permite edições.
+          <span className="font-semibold">Modo somente leitura</span> — seu perfil <strong>{perms.profileName}</strong> não permite edições.
         </div>
       )}
 

@@ -152,26 +152,31 @@ function TaskRow({
 
   const handleSave = async () => {
     setSaving(true);
-    const plannedStartChanged = form.planned_start && form.planned_start !== (dates.plannedStart || "");
-    const plannedEndChanged   = form.planned_end   && form.planned_end   !== (dates.plannedEnd   || "");
-    if ((plannedStartChanged || plannedEndChanged) && canEditPlanned) {
-      const overridePayload = { ...(override || {}) };
-      const newOrigin = { ...(override._origin || {}) };
-      if (plannedStartChanged) { overridePayload.plannedStart = form.planned_start; newOrigin.plannedStart = "manual"; }
-      if (plannedEndChanged)   { overridePayload.plannedEnd   = form.planned_end;   newOrigin.plannedEnd   = "manual"; }
-      overridePayload._origin = newOrigin;
-      await onSaveOverride(task.id, overridePayload);
+    try {
+      const plannedStartChanged = form.planned_start && form.planned_start !== (dates.plannedStart || "");
+      const plannedEndChanged   = form.planned_end   && form.planned_end   !== (dates.plannedEnd   || "");
+      if ((plannedStartChanged || plannedEndChanged) && canEditPlanned) {
+        const overridePayload = { ...(override || {}) };
+        const newOrigin = { ...(override._origin || {}) };
+        if (plannedStartChanged) { overridePayload.plannedStart = form.planned_start; newOrigin.plannedStart = "manual"; }
+        if (plannedEndChanged)   { overridePayload.plannedEnd   = form.planned_end;   newOrigin.plannedEnd   = "manual"; }
+        overridePayload._origin = newOrigin;
+        await onSaveOverride(task.id, overridePayload);
+      }
+      await onSaveActivity(task, {
+        actual_start:         form.actual_start,
+        actual_end:           form.actual_end,
+        status:               form.status,
+        history_observations: form.history_observations,
+        responsible_leader:   form.responsible_leader,
+        responsible_general:  form.responsible_general,
+      });
+      setEditing(false);
+    } catch (err) {
+      console.error("[TaskRow] Erro ao salvar:", task.id, err);
+      alert("Erro ao salvar. Verifique suas permissões ou tente novamente.");
     }
-    await onSaveActivity(task, {
-      actual_start:         form.actual_start,
-      actual_end:           form.actual_end,
-      status:               form.status,
-      history_observations: form.history_observations,
-      responsible_leader:   form.responsible_leader,
-      responsible_general:  form.responsible_general,
-    });
     setSaving(false);
-    setEditing(false);
   };
 
   return (
@@ -698,11 +703,16 @@ export default function ScheduleTab({
   const handleSaveOverride = useCallback(async (taskId, payload) => {
     setManualOverrides(prev => {
       const next = { ...prev, [taskId]: { ...(prev[taskId] || {}), ...payload } };
+      // Persiste todas as âncoras no banco (campo schedule_anchor_dates do Project)
       const anchorDates = {};
       ANCHOR_IDS.forEach(aid => { const val = next[aid]?.plannedStart; if (val) anchorDates[aid] = val; });
       if (Object.keys(anchorDates).length > 0) {
         base44.entities.Project.update(projectId, { schedule_anchor_dates: anchorDates }).catch(() => {});
       }
+      // Persiste TODOS os overrides (âncora e não-âncora) no localStorage como fallback
+      try {
+        localStorage.setItem(`schedule_overrides_${projectId}`, JSON.stringify(next));
+      } catch {}
       return next;
     });
   }, [projectId]);
@@ -717,7 +727,9 @@ export default function ScheduleTab({
         delete bankAnchors[taskId];
         base44.entities.Project.update(projectId, { schedule_anchor_dates: bankAnchors }).catch(() => {});
       }
-      return { ...prev, [taskId]: current };
+      const next = { ...prev, [taskId]: current };
+      try { localStorage.setItem(`schedule_overrides_${projectId}`, JSON.stringify(next)); } catch {}
+      return next;
     });
   }, [projectId, project]);
 
@@ -768,29 +780,39 @@ export default function ScheduleTab({
 
   // Handlers para overrides de fases do template
   const handleInactivateTemplatePhase = useCallback(async (phaseName) => {
-    const existing = phaseOverrides[phaseName];
-    const user = await base44.auth.me().catch(() => null);
-    const payload = {
-      project_id: projectId, phase_name: phaseName, is_active: false,
-      updated_by: user?.full_name || user?.email || "", updated_at: new Date().toISOString(),
-    };
-    let saved;
-    if (existing?.id) {
-      await base44.entities.SchedulePhaseOverride.update(existing.id, payload);
-      saved = { ...existing, ...payload };
-    } else {
-      saved = await base44.entities.SchedulePhaseOverride.create(payload);
+    try {
+      const existing = phaseOverrides[phaseName];
+      const user = await base44.auth.me().catch(() => null);
+      const payload = {
+        project_id: projectId, phase_name: phaseName, is_active: false,
+        updated_by: user?.full_name || user?.email || "", updated_at: new Date().toISOString(),
+      };
+      let saved;
+      if (existing?.id) {
+        await base44.entities.SchedulePhaseOverride.update(existing.id, payload);
+        saved = { ...existing, ...payload };
+      } else {
+        saved = await base44.entities.SchedulePhaseOverride.create(payload);
+      }
+      setPhaseOverrides(prev => ({ ...prev, [phaseName]: saved }));
+    } catch (err) {
+      console.error("[ScheduleTab] Erro ao inativar fase:", phaseName, err);
+      alert("Erro ao inativar fase. Verifique suas permissões ou tente novamente.");
     }
-    setPhaseOverrides(prev => ({ ...prev, [phaseName]: saved }));
   }, [phaseOverrides, projectId]);
 
   const handleReactivateTemplatePhase = useCallback(async (phaseName) => {
-    const existing = phaseOverrides[phaseName];
-    if (!existing?.id) return;
-    const user = await base44.auth.me().catch(() => null);
-    const payload = { is_active: true, updated_by: user?.full_name || user?.email || "", updated_at: new Date().toISOString() };
-    await base44.entities.SchedulePhaseOverride.update(existing.id, payload);
-    setPhaseOverrides(prev => ({ ...prev, [phaseName]: { ...existing, ...payload } }));
+    try {
+      const existing = phaseOverrides[phaseName];
+      if (!existing?.id) return;
+      const user = await base44.auth.me().catch(() => null);
+      const payload = { is_active: true, updated_by: user?.full_name || user?.email || "", updated_at: new Date().toISOString() };
+      await base44.entities.SchedulePhaseOverride.update(existing.id, payload);
+      setPhaseOverrides(prev => ({ ...prev, [phaseName]: { ...existing, ...payload } }));
+    } catch (err) {
+      console.error("[ScheduleTab] Erro ao reativar fase:", phaseName, err);
+      alert("Erro ao reativar fase. Verifique suas permissões ou tente novamente.");
+    }
   }, [phaseOverrides]);
 
   const handleSavePhaseOverride = useCallback((saved) => {
