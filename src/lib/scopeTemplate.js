@@ -205,7 +205,7 @@ export const SCOPE_MODULES = [
             order: 23, id: "q023",
             prompt: "Os pontos serão importados manualmente ou por arquivo AFD para validação de cálculos? ",
             description: "Essa definição é importante para estabelecer como será realizada a validação das regras de cálculo durante a fase de implantação.\n\nCaso seja utilizada a importação de arquivo AFD, a validação será feita com base em dados reais de registro de ponto.\n\nCaso não seja utilizada a importação de AFD, a validação será realizada por meio de folhas de ponto pré-preenchidas em colaboradores de teste, seguindo cenários padrão da Pontotel, podendo também contar com o apoio do cliente no preenchimento de casos específicos.",
-            type: "single_select", options: ["Manual", "Arquivo AFD"], placeholder: null, rules: []
+            type: "single_select", options: ["Manual", "Arquivo AFD", "registro com a Pontotel"], placeholder: null, rules: []
           },
           {
             order: 24, id: "q024",
