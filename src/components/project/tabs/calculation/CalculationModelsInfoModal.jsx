@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { X } from "lucide-react";
+import ImageExpandModal from "@/components/project/tabs/ImageExpandModal";
 
 export default function CalculationModelsInfoModal({ onClose }) {
+  const [expandedImg, setExpandedImg] = useState(null);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div 
@@ -50,30 +53,22 @@ export default function CalculationModelsInfoModal({ onClose }) {
 
             {/* Examples */}
             <div className="mt-4 grid grid-cols-1 gap-6">
-              <div>
-                <img 
-                  src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/2ddf4e4d1_Atrasoehoraextraalmdatolernciade10minutos.png" 
-                  alt="Atraso e hora extra além da tolerância de 10 minutos"
-                  className="w-full rounded-lg border border-slate-200"
-                />
-                <p className="text-xs text-slate-400 mt-1.5 text-center">Atraso e hora extra na mesma jornada</p>
-              </div>
-              <div>
-                <img 
-                  src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/64ed06747_Atrasoalmdatolernciade10minutos.png" 
-                  alt="Atraso além da tolerância de 10 minutos"
-                  className="w-full rounded-lg border border-slate-200"
-                />
-                <p className="text-xs text-slate-400 mt-1.5 text-center">Atraso além da tolerância de 10 minutos</p>
-              </div>
-              <div>
-                <img 
-                  src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/8786a7dbb_Sadaantecipadaalmdatolernciade10minutos.png" 
-                  alt="Saída antecipada além da tolerância de 10 minutos"
-                  className="w-full rounded-lg border border-slate-200"
-                />
-                <p className="text-xs text-slate-400 mt-1.5 text-center">Saída antecipada além da tolerância de 10 minutos</p>
-              </div>
+              {[
+                { src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/2ddf4e4d1_Atrasoehoraextraalmdatolernciade10minutos.png", alt: "Atraso e hora extra além da tolerância de 10 minutos", label: "Atraso e hora extra na mesma jornada" },
+                { src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/64ed06747_Atrasoalmdatolernciade10minutos.png", alt: "Atraso além da tolerância de 10 minutos", label: "Atraso além da tolerância de 10 minutos" },
+                { src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/8786a7dbb_Sadaantecipadaalmdatolernciade10minutos.png", alt: "Saída antecipada além da tolerância de 10 minutos", label: "Saída antecipada além da tolerância de 10 minutos" },
+              ].map((img) => (
+                <div key={img.src}>
+                  <img 
+                    src={img.src} 
+                    alt={img.alt}
+                    onClick={() => setExpandedImg(img)}
+                    className="w-full rounded-lg border border-slate-200 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all"
+                    title="Clique para ampliar"
+                  />
+                  <p className="text-xs text-slate-400 mt-1.5 text-center">{img.label}</p>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -126,6 +121,14 @@ export default function CalculationModelsInfoModal({ onClose }) {
           </div>
         </div>
       </div>
+
+      {expandedImg && (
+        <ImageExpandModal 
+          src={expandedImg.src} 
+          alt={expandedImg.alt} 
+          onClose={() => setExpandedImg(null)} 
+        />
+      )}
     </div>
   );
 }
