@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { ChevronLeft, ChevronRight, Save, CheckCircle, Loader2, FileDown, RotateCcw, AlertCircle, Lock } from "lucide-react";
 import { usePermissions } from "@/lib/usePermissions";
@@ -1066,13 +1066,38 @@ export default function CalculationRulesTab({ projectId, project }) {
   const currentStepIdx = visibleSteps.findIndex(s => s.id === currentStep);
   const step = visibleSteps[currentStepIdx];
 
-  const goToStep = async (newStep) => {
-    setCurrentStep(newStep);
-    await save({ current_step: newStep });
+  // Debounce: buffer local changes and persist only after inactivity
+  const pendingSaveRef = useRef(null);
+  const pendingDataRef = useRef({});
+
+  const flushPending = async () => {
+    if (pendingSaveRef.current) {
+      clearTimeout(pendingSaveRef.current);
+      pendingSaveRef.current = null;
+    }
+    const keys = Object.keys(pendingDataRef.current);
+    if (keys.length > 0) {
+      const payload = { ...pendingDataRef.current, current_step: currentStep };
+      pendingDataRef.current = {};
+      await save(payload);
+    }
   };
 
-  const saveCurrentStep = async (key, data) => {
-    await save({ [key]: data, current_step: currentStep });
+  const scheduleSave = (key, data) => {
+    pendingDataRef.current[key] = data;
+    if (pendingSaveRef.current) clearTimeout(pendingSaveRef.current);
+    pendingSaveRef.current = setTimeout(() => {
+      pendingSaveRef.current = null;
+      const payload = { ...pendingDataRef.current, current_step: currentStep };
+      pendingDataRef.current = {};
+      save(payload);
+    }, 800);
+  };
+
+  const goToStep = async (newStep) => {
+    setCurrentStep(newStep);
+    await flushPending();
+    await save({ current_step: newStep });
   };
 
   if (loading) {
@@ -1151,34 +1176,34 @@ export default function CalculationRulesTab({ projectId, project }) {
         <p className="text-sm text-slate-400 mb-6">Passo {currentStepIdx + 1} de {visibleSteps.length}</p>
 
         {step?.key === "company_data" && (
-          <DadosEmpresaForm data={companyData} onChange={(data) => saveCurrentStep("company_data", data)} project={project} readOnly={!canEdit} />
+          <DadosEmpresaForm data={companyData} onChange={(data) => scheduleSave("company_data", data)} project={project} readOnly={!canEdit} />
         )}
         {step?.key === "rule_configurations" && (
-          <RegrasForm companyData={companyData} data={stepData.rule_configurations} onChange={canEdit ? (data) => saveCurrentStep("rule_configurations", data) : () => {}} />
+          <RegrasForm companyData={companyData} data={stepData.rule_configurations} onChange={canEdit ? (data) => scheduleSave("rule_configurations", data) : () => {}} />
         )}
         {step?.key === "overtime_rules" && (
-          <HorasExtrasForm companyData={companyData} data={stepData.overtime_rules} onChange={canEdit ? (data) => saveCurrentStep("overtime_rules", data) : () => {}} />
+          <HorasExtrasForm companyData={companyData} data={stepData.overtime_rules} onChange={canEdit ? (data) => scheduleSave("overtime_rules", data) : () => {}} />
         )}
         {step?.key === "break_time_rules" && (
-          <IntervalosForm companyData={companyData} data={stepData.break_time_rules} onChange={canEdit ? (data) => saveCurrentStep("break_time_rules", data) : () => {}} />
+          <IntervalosForm companyData={companyData} data={stepData.break_time_rules} onChange={canEdit ? (data) => scheduleSave("break_time_rules", data) : () => {}} />
         )}
         {step?.key === "night_shift_rules" && (
-          <AdicionalNoturnoForm companyData={companyData} data={stepData.night_shift_rules} onChange={canEdit ? (data) => saveCurrentStep("night_shift_rules", data) : () => {}} />
+          <AdicionalNoturnoForm companyData={companyData} data={stepData.night_shift_rules} onChange={canEdit ? (data) => scheduleSave("night_shift_rules", data) : () => {}} />
         )}
         {step?.key === "shift_12x36_rules" && (
-          <Jornada12x36Form companyData={companyData} data={stepData.shift_12x36_rules} onChange={canEdit ? (data) => saveCurrentStep("shift_12x36_rules", data) : () => {}} />
+          <Jornada12x36Form companyData={companyData} data={stepData.shift_12x36_rules} onChange={canEdit ? (data) => scheduleSave("shift_12x36_rules", data) : () => {}} />
         )}
         {step?.key === "sobreaviso_rules" && (
-          <SobreavisoForm companyData={companyData} data={stepData.sobreaviso_rules} onChange={canEdit ? (data) => saveCurrentStep("sobreaviso_rules", data) : () => {}} />
+          <SobreavisoForm companyData={companyData} data={stepData.sobreaviso_rules} onChange={canEdit ? (data) => scheduleSave("sobreaviso_rules", data) : () => {}} />
         )}
         {step?.key === "bank_hours_rules" && (
-          <BancoHorasForm companyData={companyData} data={stepData.bank_hours_rules} onChange={canEdit ? (data) => saveCurrentStep("bank_hours_rules", data) : () => {}} />
+          <BancoHorasForm companyData={companyData} data={stepData.bank_hours_rules} onChange={canEdit ? (data) => scheduleSave("bank_hours_rules", data) : () => {}} />
         )}
         {step?.key === "dsr_rules" && (
-          <DSRForm companyData={companyData} data={stepData.dsr_rules} onChange={canEdit ? (data) => saveCurrentStep("dsr_rules", data) : () => {}} />
+          <DSRForm companyData={companyData} data={stepData.dsr_rules} onChange={canEdit ? (data) => scheduleSave("dsr_rules", data) : () => {}} />
         )}
         {step?.key === "other_verbs_rules" && (
-          <OutrasVerbasForm companyData={companyData} data={stepData.other_verbs_rules} onChange={canEdit ? (data) => saveCurrentStep("other_verbs_rules", data) : () => {}} />
+          <OutrasVerbasForm companyData={companyData} data={stepData.other_verbs_rules} onChange={canEdit ? (data) => scheduleSave("other_verbs_rules", data) : () => {}} />
         )}
         {step?.id === 11 && <RevisaoFinal companyData={companyData} allData={stepData} project={project} />}
       </div>
