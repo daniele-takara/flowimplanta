@@ -388,7 +388,7 @@ function HorasExtrasForm({ companyData, data, onChange }) {
 }
 
 // ── Step 4: Intervalos ───────────────────────────────────────────────────────
-function IntervalosForm({ companyData, data, onChange }) {
+function IntervalosForm({ companyData, data, onChange, images }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
 
@@ -399,6 +399,22 @@ function IntervalosForm({ companyData, data, onChange }) {
     envioE02: false, codigoVerba: "",
     ranges: []
   };
+
+  // Helper to find image by partial name match
+  const findImg = (partialName) => {
+    if (!images || Object.keys(images).length === 0) return null;
+    const key = Object.keys(images).find(k => k.toLowerCase().includes(partialName.toLowerCase()));
+    return key ? images[key] : null;
+  };
+
+  const imgModelo1HE = findImg("Considerar como hora extra");
+  const imgModelo2HE = findImg("Não considerar como hora extra");
+  const imgModelo1Trab = findImg("Considerando como hora trabalhada");
+  const imgModelo2Trab = findImg("Não considerando como hora trabalhada");
+  const imgAtraso5 = findImg("5 minutos de atraso");
+  const imgAtraso10 = findImg("10 minutos de atraso");
+  const imgInicio5 = findImg("5 minutos de início");
+  const imgInicio10 = findImg("10 minutos de início");
 
   const updateRule = (name, field, value) => {
     const val = selected(name);
@@ -434,6 +450,39 @@ function IntervalosForm({ companyData, data, onChange }) {
         <p><strong>Modelo 2:</strong> Tempo excedente da pausa NÃO conta como hora trabalhada.</p>
       </div>
 
+      {/* Galeria de imagens ilustrativas */}
+      {Object.keys(images || {}).length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-xl p-4">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Ilustrações dos Modelos</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {imgModelo1Trab && (
+              <div className="border border-green-200 rounded-lg overflow-hidden bg-green-50/30">
+                <p className="text-xs font-medium text-green-700 px-3 pt-2">Modelo 1 — Pausa conta como hora trabalhada</p>
+                <img src={imgModelo1Trab} alt="Modelo 1" className="w-full h-auto max-h-[200px] object-contain p-2" />
+              </div>
+            )}
+            {imgModelo2Trab && (
+              <div className="border border-red-200 rounded-lg overflow-hidden bg-red-50/30">
+                <p className="text-xs font-medium text-red-700 px-3 pt-2">Modelo 2 — Pausa NÃO conta como hora trabalhada</p>
+                <img src={imgModelo2Trab} alt="Modelo 2" className="w-full h-auto max-h-[200px] object-contain p-2" />
+              </div>
+            )}
+            {imgModelo1HE && (
+              <div className="border border-green-200 rounded-lg overflow-hidden bg-green-50/30">
+                <p className="text-xs font-medium text-green-700 px-3 pt-2">Modelo 1 — Tempo remanescente vira HE</p>
+                <img src={imgModelo1HE} alt="Modelo 1 HE" className="w-full h-auto max-h-[200px] object-contain p-2" />
+              </div>
+            )}
+            {imgModelo2HE && (
+              <div className="border border-red-200 rounded-lg overflow-hidden bg-red-50/30">
+                <p className="text-xs font-medium text-red-700 px-3 pt-2">Modelo 2 — Tempo remanescente NÃO vira HE</p>
+                <img src={imgModelo2HE} alt="Modelo 2 HE" className="w-full h-auto max-h-[200px] object-contain p-2" />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {rules.map((name) => {
         const val = selected(name);
         return (
@@ -456,14 +505,25 @@ function IntervalosForm({ companyData, data, onChange }) {
               <div>
                 <label className={labelClass}>Atraso da Pausa</label>
                 <input value={val.toleranciaAtrasoPausa || ""} onChange={e => updateRule(name, "toleranciaAtrasoPausa", e.target.value)} className={inputClass} type="number" placeholder="Ex: 5" />
+                {(imgAtraso5 || imgAtraso10) && (
+                  <div className="mt-2 border border-slate-100 rounded overflow-hidden">
+                    <img src={imgAtraso5 || imgAtraso10} alt="Atraso da pausa" className="w-full h-auto max-h-[120px] object-contain" />
+                  </div>
+                )}
               </div>
               <div>
                 <label className={labelClass}>Início da Pausa</label>
                 <input value={val.toleranciaInicioPausa || ""} onChange={e => updateRule(name, "toleranciaInicioPausa", e.target.value)} className={inputClass} type="number" placeholder="Ex: 10" />
+                {(imgInicio5 || imgInicio10) && (
+                  <div className="mt-2 border border-slate-100 rounded overflow-hidden">
+                    <img src={imgInicio5 || imgInicio10} alt="Início da pausa" className="w-full h-auto max-h-[120px] object-contain" />
+                  </div>
+                )}
               </div>
               <div>
                 <label className={labelClass}>Fim da Pausa</label>
                 <input value={val.toleranciaFimPausa || ""} onChange={e => updateRule(name, "toleranciaFimPausa", e.target.value)} className={inputClass} type="number" placeholder="Ex: 10" />
+                <p className="text-xs text-slate-400 mt-1">Tolerância para antecipação do fim da pausa.</p>
               </div>
             </div>
 
@@ -977,8 +1037,20 @@ export default function CalculationRulesTab({ projectId, project }) {
 
   const companyData = getData("company_data") || {};
   const [currentStep, setCurrentStep] = useState(record?.current_step || 1);
+  const [wizardImages, setWizardImages] = useState({});
+  const [imagesLoading, setImagesLoading] = useState(true);
 
   useEffect(() => { if (record?.current_step) setCurrentStep(record.current_step); }, [record?.current_step]);
+
+  // Fetch wizard images from GitHub repo
+  useEffect(() => {
+    base44.functions.invoke('getAllWizardImages', {})
+      .then(res => {
+        setWizardImages(res.data?.images || {});
+        setImagesLoading(false);
+      })
+      .catch(() => setImagesLoading(false));
+  }, []);
 
   const stepData = {
     company_data: companyData,
@@ -1102,7 +1174,7 @@ export default function CalculationRulesTab({ projectId, project }) {
           <HorasExtrasForm companyData={companyData} data={stepData.overtime_rules} onChange={canEdit ? (data) => saveCurrentStep("overtime_rules", data) : () => {}} />
         )}
         {step?.key === "break_time_rules" && (
-          <IntervalosForm companyData={companyData} data={stepData.break_time_rules} onChange={canEdit ? (data) => saveCurrentStep("break_time_rules", data) : () => {}} />
+          <IntervalosForm companyData={companyData} data={stepData.break_time_rules} onChange={canEdit ? (data) => saveCurrentStep("break_time_rules", data) : () => {}} images={wizardImages} />
         )}
         {step?.key === "night_shift_rules" && (
           <AdicionalNoturnoForm companyData={companyData} data={stepData.night_shift_rules} onChange={canEdit ? (data) => saveCurrentStep("night_shift_rules", data) : () => {}} />
