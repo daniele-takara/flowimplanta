@@ -1035,13 +1035,14 @@ export default function CalculationRulesTab({ projectId, project }) {
   const canEdit = perms.canEditCalcRules;
   const canFinalize = perms.canFinalizeCalcRules;
 
-  const companyData = getData("company_data") || {};
+  const dbCompanyData = getData("company_data") || {};
   const [currentStep, setCurrentStep] = useState(record?.current_step || 1);
 
   useEffect(() => { if (record?.current_step) setCurrentStep(record.current_step); }, [record?.current_step]);
 
-  const stepData = {
-    company_data: companyData,
+  // Build stepData from DB (used as initial seed for buffer)
+  const dbStepData = {
+    company_data: dbCompanyData,
     rule_configurations: getData("rule_configurations") || {},
     overtime_rules: getData("overtime_rules") || {},
     break_time_rules: getData("break_time_rules") || {},
@@ -1053,13 +1054,22 @@ export default function CalculationRulesTab({ projectId, project }) {
     other_verbs_rules: getData("other_verbs_rules") || {},
   };
 
+  // Local buffer: updates immediately on every keystroke, feeds form inputs
+  const [stepData, setStepData] = useState(dbStepData);
+
+  // Sync buffer from DB when record changes (e.g. after load, after save completes)
+  useEffect(() => {
+    setStepData(dbStepData);
+  }, [record]);
+
   // Determine visible steps based on company data
   const visibleSteps = STEPS.filter(step => {
-    if (!companyData?.rulesNames?.length && step.id > 1) return false;
-    if (step.key === "night_shift_rules" && companyData?.hasNightShift === false) return false;
-    if (step.key === "shift_12x36_rules" && companyData?.has12x36Shift === false) return false;
-    if (step.key === "sobreaviso_rules" && companyData?.hasOnCallWorkers === false) return false;
-    if (step.key === "bank_hours_rules" && companyData?.hasTimeBank === false) return false;
+    const cd = stepData.company_data;
+    if (!cd?.rulesNames?.length && step.id > 1) return false;
+    if (step.key === "night_shift_rules" && cd?.hasNightShift === false) return false;
+    if (step.key === "shift_12x36_rules" && cd?.has12x36Shift === false) return false;
+    if (step.key === "sobreaviso_rules" && cd?.hasOnCallWorkers === false) return false;
+    if (step.key === "bank_hours_rules" && cd?.hasTimeBank === false) return false;
     return true;
   });
 
@@ -1084,6 +1094,9 @@ export default function CalculationRulesTab({ projectId, project }) {
   };
 
   const scheduleSave = (key, data) => {
+    // Update UI buffer immediately — input stays responsive
+    setStepData(prev => ({ ...prev, [key]: data }));
+    // Schedule DB persistence
     pendingDataRef.current[key] = data;
     if (pendingSaveRef.current) clearTimeout(pendingSaveRef.current);
     pendingSaveRef.current = setTimeout(() => {
@@ -1176,36 +1189,36 @@ export default function CalculationRulesTab({ projectId, project }) {
         <p className="text-sm text-slate-400 mb-6">Passo {currentStepIdx + 1} de {visibleSteps.length}</p>
 
         {step?.key === "company_data" && (
-          <DadosEmpresaForm data={companyData} onChange={(data) => scheduleSave("company_data", data)} project={project} readOnly={!canEdit} />
+          <DadosEmpresaForm data={stepData.company_data} onChange={(data) => scheduleSave("company_data", data)} project={project} readOnly={!canEdit} />
         )}
         {step?.key === "rule_configurations" && (
-          <RegrasForm companyData={companyData} data={stepData.rule_configurations} onChange={canEdit ? (data) => scheduleSave("rule_configurations", data) : () => {}} />
+          <RegrasForm companyData={stepData.company_data} data={stepData.rule_configurations} onChange={canEdit ? (data) => scheduleSave("rule_configurations", data) : () => {}} />
         )}
         {step?.key === "overtime_rules" && (
-          <HorasExtrasForm companyData={companyData} data={stepData.overtime_rules} onChange={canEdit ? (data) => scheduleSave("overtime_rules", data) : () => {}} />
+          <HorasExtrasForm companyData={stepData.company_data} data={stepData.overtime_rules} onChange={canEdit ? (data) => scheduleSave("overtime_rules", data) : () => {}} />
         )}
         {step?.key === "break_time_rules" && (
-          <IntervalosForm companyData={companyData} data={stepData.break_time_rules} onChange={canEdit ? (data) => scheduleSave("break_time_rules", data) : () => {}} />
+          <IntervalosForm companyData={stepData.company_data} data={stepData.break_time_rules} onChange={canEdit ? (data) => scheduleSave("break_time_rules", data) : () => {}} />
         )}
         {step?.key === "night_shift_rules" && (
-          <AdicionalNoturnoForm companyData={companyData} data={stepData.night_shift_rules} onChange={canEdit ? (data) => scheduleSave("night_shift_rules", data) : () => {}} />
+          <AdicionalNoturnoForm companyData={stepData.company_data} data={stepData.night_shift_rules} onChange={canEdit ? (data) => scheduleSave("night_shift_rules", data) : () => {}} />
         )}
         {step?.key === "shift_12x36_rules" && (
-          <Jornada12x36Form companyData={companyData} data={stepData.shift_12x36_rules} onChange={canEdit ? (data) => scheduleSave("shift_12x36_rules", data) : () => {}} />
+          <Jornada12x36Form companyData={stepData.company_data} data={stepData.shift_12x36_rules} onChange={canEdit ? (data) => scheduleSave("shift_12x36_rules", data) : () => {}} />
         )}
         {step?.key === "sobreaviso_rules" && (
-          <SobreavisoForm companyData={companyData} data={stepData.sobreaviso_rules} onChange={canEdit ? (data) => scheduleSave("sobreaviso_rules", data) : () => {}} />
+          <SobreavisoForm companyData={stepData.company_data} data={stepData.sobreaviso_rules} onChange={canEdit ? (data) => scheduleSave("sobreaviso_rules", data) : () => {}} />
         )}
         {step?.key === "bank_hours_rules" && (
-          <BancoHorasForm companyData={companyData} data={stepData.bank_hours_rules} onChange={canEdit ? (data) => scheduleSave("bank_hours_rules", data) : () => {}} />
+          <BancoHorasForm companyData={stepData.company_data} data={stepData.bank_hours_rules} onChange={canEdit ? (data) => scheduleSave("bank_hours_rules", data) : () => {}} />
         )}
         {step?.key === "dsr_rules" && (
-          <DSRForm companyData={companyData} data={stepData.dsr_rules} onChange={canEdit ? (data) => scheduleSave("dsr_rules", data) : () => {}} />
+          <DSRForm companyData={stepData.company_data} data={stepData.dsr_rules} onChange={canEdit ? (data) => scheduleSave("dsr_rules", data) : () => {}} />
         )}
         {step?.key === "other_verbs_rules" && (
-          <OutrasVerbasForm companyData={companyData} data={stepData.other_verbs_rules} onChange={canEdit ? (data) => scheduleSave("other_verbs_rules", data) : () => {}} />
+          <OutrasVerbasForm companyData={stepData.company_data} data={stepData.other_verbs_rules} onChange={canEdit ? (data) => scheduleSave("other_verbs_rules", data) : () => {}} />
         )}
-        {step?.id === 11 && <RevisaoFinal companyData={companyData} allData={stepData} project={project} />}
+        {step?.id === 11 && <RevisaoFinal companyData={stepData.company_data} allData={stepData} project={project} />}
       </div>
 
       {/* Navigation */}
@@ -1231,6 +1244,7 @@ export default function CalculationRulesTab({ projectId, project }) {
           canFinalize ? (
             <button
               onClick={async () => {
+                await flushPending();
                 await save({ status: "finalizado" });
                 alert("Regras de cálculo finalizadas com sucesso!");
               }}
