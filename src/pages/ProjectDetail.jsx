@@ -14,6 +14,7 @@ import ActionPlanTab from "@/components/project/tabs/ActionPlanTab";
 import TAPTab from "@/components/project/tabs/TAPTab.jsx";
 import ClosureTab from "@/components/project/tabs/ClosureTab.jsx";
 import TermoEncerramentoTab from "@/components/project/tabs/TermoEncerramentoTab";
+import CalculationRulesTab from "@/components/project/tabs/CalculationRulesTab.jsx";
 import EditProjectModal from "@/components/project/EditProjectModal";
 import { usePermissions } from "@/lib/usePermissions";
 
@@ -25,6 +26,7 @@ const TABS = [
   { id: "status",    label: "Status Report" },
   { id: "actions",   label: "Plano de Ação" },
   { id: "termo",     label: "Termo de Encerramento" },
+  { id: "calc",      label: "Regras de Cálculo" },
 ];
 
 export default function ProjectDetail() {
@@ -187,6 +189,7 @@ export default function ProjectDetail() {
           {activeTab === "status" && <StatusReportTab reports={reports} projectId={id} projectClientName={project.client_name} project={project} scopeItems={scopeItems} savedActivities={activities} onRefresh={loadData} readOnly={!perms.canEditStatusReport} canUpdate={perms.canUpdateStatusReport} canGenerateEmail={perms.canGenerateStatusReportEmail} canSyncPipedrive={perms.canSyncPipedriveStatus} />}
           {activeTab === "actions" && <ActionPlanTab actions={actions} projectId={id} onRefresh={loadData} readOnly={!perms.canEditActionPlan} />}
           {activeTab === "termo" && <TermoEncerramentoTab project={project} scopeItems={scopeItems} reports={reports} savedActivities={activities} projectId={id} readOnly={!perms.canEditTermo} canGeneratePDF={perms.canGenerateTermoPDF} />}
+          {activeTab === "calc" && <CalculationRulesTab projectId={id} project={project} />}
           {activeTab === "closure" && <ClosureTab project={project} documents={documents} activities={activities} projectId={id} onRefresh={loadData} readOnly={!perms.canEditTermo} />}
         </div>
       </div>
