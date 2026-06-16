@@ -143,7 +143,7 @@ function InformativoBlock({ question }) {
   );
 }
 
-export default function ScopeItemRow({ question, savedAnswer, savedObs, onSave }) {
+export default function ScopeItemRow({ question, savedAnswer, savedObs, onSave, readOnly = false }) {
   const isInfo = question.type === "informativo";
   const [open, setOpen] = useState(false);
   const [answer, setAnswer] = useState(savedAnswer || "");
@@ -280,8 +280,11 @@ export default function ScopeItemRow({ question, savedAnswer, savedObs, onSave }
             <button
               key={opt}
               type="button"
+              disabled={readOnly}
               onClick={() => handleSelectChange(answer === opt ? "" : opt)}
               className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                readOnly ? "opacity-60 cursor-not-allowed" : ""
+              } ${
                 answer === opt
                   ? "bg-blue-600 text-white border-blue-600"
                   : "bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50"
@@ -308,8 +311,11 @@ export default function ScopeItemRow({ question, savedAnswer, savedObs, onSave }
             <button
               key={opt}
               type="button"
+              disabled={readOnly}
               onClick={() => toggle(opt)}
               className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                readOnly ? "opacity-60 cursor-not-allowed" : ""
+              } ${
                 selected.includes(opt)
                   ? "bg-blue-600 text-white border-blue-600"
                   : "bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50"
@@ -322,6 +328,8 @@ export default function ScopeItemRow({ question, savedAnswer, savedObs, onSave }
       );
     }
 
+    const disabledAttrs = readOnly ? { disabled: true, className: `${inputClass} opacity-60 cursor-not-allowed` } : { className: inputClass };
+
     if (type === "number") {
       return (
         <input
@@ -330,7 +338,7 @@ export default function ScopeItemRow({ question, savedAnswer, savedObs, onSave }
           onChange={e => handleAnswerChange(e.target.value)}
           onBlur={handleBlur}
           placeholder={placeholder || ""}
-          className={inputClass}
+          {...disabledAttrs}
         />
       );
     }
@@ -343,7 +351,7 @@ export default function ScopeItemRow({ question, savedAnswer, savedObs, onSave }
           onChange={e => handleAnswerChange(e.target.value)}
           onBlur={handleBlur}
           placeholder={placeholder || ""}
-          className={inputClass}
+          {...disabledAttrs}
         />
       );
     }
@@ -356,7 +364,7 @@ export default function ScopeItemRow({ question, savedAnswer, savedObs, onSave }
           onChange={e => handleAnswerChange(e.target.value)}
           onBlur={handleBlur}
           placeholder={placeholder || "dd/mm/aaaa a dd/mm/aaaa"}
-          className={inputClass}
+          {...disabledAttrs}
         />
       );
     }
@@ -367,8 +375,9 @@ export default function ScopeItemRow({ question, savedAnswer, savedObs, onSave }
         onChange={e => handleAnswerChange(e.target.value)}
         onBlur={handleBlur}
         placeholder={placeholder || "Descreva a resposta..."}
-        className={`${inputClass} resize-none`}
+        className={`${disabledAttrs.className} resize-none`}
         rows={3}
+        disabled={readOnly}
       />
     );
   };
@@ -440,6 +449,7 @@ export default function ScopeItemRow({ question, savedAnswer, savedObs, onSave }
               placeholder="Observações adicionais..."
               className={`${inputClass} resize-none ${needsObsWarning && !obs ? "border-orange-300 focus:ring-orange-500" : ""}`}
               rows={3}
+              disabled={readOnly}
             />
           </div>
         </div>

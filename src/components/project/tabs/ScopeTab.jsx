@@ -100,21 +100,35 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
       let skippedPending = 0;
       let skippedStaleProtection = 0;
       let skippedNoOrder = 0;
+      // Deduplicate by order_number: keep item with non-empty answer; if both have answers, keep latest updated
+      const seen = {};
       scopeItems.forEach(item => {
-        if (!item.order_number) {
+        const on = item.order_number;
+        if (on == null) {
           skippedNoOrder++;
-          console.warn("[ScopeTab] useEffect sync — item SEM order_number", { id: item.id, question_id: item.question_id, answer: item.answer });
           return;
         }
+        const key = `q${String(on).padStart(3, "0")}`;
+        if (!seen[key]) { seen[key] = item; return; }
+        // Duplicate detected — keep best (non-empty answer wins; then latest updated_date)
+        const existing = seen[key];
+        const existingHas = !!existing.answer;
+        const currentHas = !!item.answer;
+        if (!existingHas && currentHas) { seen[key] = item; }
+        else if (existingHas && !currentHas) { /* keep existing */ }
+        else if (currentHas && existingHas) {
+          const exUp = new Date(existing.updated_date || existing.created_date || 0).getTime();
+          const curUp = new Date(item.updated_date || item.created_date || 0).getTime();
+          if (curUp > exUp) seen[key] = item;
+        }
+      });
+
+      Object.values(seen).forEach(item => {
         const key = `q${String(item.order_number).padStart(3, "0")}`;
-        // Don't overwrite a key the user is actively editing
         if (pendingKeys.current.has(key)) {
           skippedPending++;
-          console.log("[ScopeTab] useEffect sync — PULANDO key pendente", { key });
           return;
         }
-        // Proteção contra stale data: se salvou recentemente e o DB retornou vazio,
-        // mantém o valor otimista do state local
         const lastSave = lastSavedAt.current[key] || 0;
         const wasRecentlySaved = (now - lastSave) < STALE_PROTECTION_WINDOW_MS;
         const prevVal = prev[key];
@@ -123,15 +137,7 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
           const dbHasLess = (!newVal.answer && prevVal.answer) || (!newVal.observations && prevVal.observations);
           if (dbHasLess) {
             skippedStaleProtection++;
-            console.log("[ScopeTab] useEffect sync — PROTEÇÃO STALE ativada", {
-              key,
-              dbAnswer: newVal.answer,
-              localAnswer: prevVal.answer,
-              dbObs: newVal.observations,
-              localObs: prevVal.observations,
-              msSinceSave: now - lastSave,
-            });
-            return; // Mantém valor local (otimista), ignora DB stale
+            return;
           }
         }
         if (prevVal?.answer !== newVal.answer || prevVal?.observations !== newVal.observations) {
@@ -238,6 +244,21 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
       // Registra timestamp do save para proteção contra overwrite por sync stale
       lastSavedAt.current[questionId] = Date.now();
     } else {
+      // Anti-duplicate: check DB before creating, in case the item exists but wasn't in scopeItemsRef
+      const dbExisting = await base44.entities.ScopeItem.filter({ project_id: projectId, order_number: orderNum });
+      if (dbExisting.length > 0) {
+        const match = dbExisting[0];
+        const tsAlt = new Date().toISOString().substr(11, 12);
+        console.log(`[ScopeTab] ⏱ ${tsAlt} handleSave — UPDATE (via DB lookup, item não estava no ref)`, { id: match.id, answer, observations });
+        await base44.entities.ScopeItem.update(match.id, { answer, observations });
+        scopeItemsRef.current = scopeItemsRef.current.map(s =>
+          s.id === match.id ? { ...s, answer, observations } : s
+        );
+        lastSavedAt.current[questionId] = Date.now();
+        pendingKeys.current.delete(questionId);
+        if (onScopeSaved) onScopeSaved();
+        return;
+      }
       // Find question metadata from effective modules (overrides already applied)
       let foundQ = null;
       let foundSection = "";
