@@ -49,56 +49,30 @@ export default function CalculationModelsInfoModal({ onClose }) {
             </div>
 
             {/* Examples */}
-            <div className="mt-4 grid grid-cols-1 gap-4">
-              {/* Example 1: Atraso e hora extra */}
-              <div className="border border-slate-200 rounded-lg p-4">
-                <div className="flex items-center gap-4 mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 text-xs text-slate-500">
-                      <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px]">✓</span>
-                      <span>07 mai sex</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-4 gap-1 text-center text-xs mb-2">
-                  {["09:00", "12:00", "13:00", "18:00"].map(t => (
-                    <span key={t} className="bg-green-100 text-green-700 py-1 px-2 rounded font-medium">{t}</span>
-                  ))}
-                </div>
-                <div className="bg-green-50 rounded-lg p-2 mb-2 text-xs">
-                  <span className="text-green-700 font-mono">08:00-17:00</span>
-                </div>
-                <div className="flex gap-4 text-xs">
-                  <span className="text-slate-600">08:00 H. Trabalhadas</span>
-                  <span className="text-amber-600">01:00 H. Extra</span>
-                  <span className="text-red-600">01:00 H. de Atraso</span>
-                </div>
-                <p className="text-xs text-slate-400 mt-2">Atraso e hora extra, além da tolerância de 10 minutos</p>
+            <div className="mt-4 grid grid-cols-1 gap-6">
+              <div>
+                <img 
+                  src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/2ddf4e4d1_Atrasoehoraextraalmdatolernciade10minutos.png" 
+                  alt="Atraso e hora extra além da tolerância de 10 minutos"
+                  className="w-full rounded-lg border border-slate-200"
+                />
+                <p className="text-xs text-slate-400 mt-1.5 text-center">Atraso e hora extra na mesma jornada</p>
               </div>
-
-              {/* Example 2: Atraso */}
-              <div className="border border-slate-200 rounded-lg p-4">
-                <div className="flex items-center gap-4 mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 text-xs text-slate-500">
-                      <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px]">✓</span>
-                      <span>07 mai ter</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-4 gap-1 text-center text-xs mb-2">
-                  {["07:11", "12:00", "13:00", "19:00"].map(t => (
-                    <span key={t} className="bg-green-100 text-green-700 py-1 px-2 rounded font-medium">{t}</span>
-                  ))}
-                </div>
-                <div className="bg-green-50 rounded-lg p-2 mb-2 text-xs">
-                  <span className="text-green-700 font-mono">07:00-19:00</span>
-                </div>
-                <div className="flex gap-4 text-xs">
-                  <span className="text-slate-600">10:49 H. Trabalhadas</span>
-                  <span className="text-red-600">00:11 Atraso</span>
-                </div>
-                <p className="text-xs text-slate-400 mt-2">Atraso além da tolerância de 10 minutos</p>
+              <div>
+                <img 
+                  src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/64ed06747_Atrasoalmdatolernciade10minutos.png" 
+                  alt="Atraso além da tolerância de 10 minutos"
+                  className="w-full rounded-lg border border-slate-200"
+                />
+                <p className="text-xs text-slate-400 mt-1.5 text-center">Atraso além da tolerância de 10 minutos</p>
+              </div>
+              <div>
+                <img 
+                  src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/8786a7dbb_Sadaantecipadaalmdatolernciade10minutos.png" 
+                  alt="Saída antecipada além da tolerância de 10 minutos"
+                  className="w-full rounded-lg border border-slate-200"
+                />
+                <p className="text-xs text-slate-400 mt-1.5 text-center">Saída antecipada além da tolerância de 10 minutos</p>
               </div>
             </div>
           </div>
