@@ -142,6 +142,11 @@ function RegrasForm({ companyData, data, onChange }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
   const selected = (name) => d[name] || { model: "", entradaToleranciaAtraso: "", saidaToleranciaAntecipada: "", entradaToleranciaExtra: "", saidaToleranciaExtra: "", toleranciaAtraso: "", toleranciaExtra: "", janelaAntes: "", janelaDepois: "" };
+  const getInherit = (name) => {
+    const val = selected(name);
+    const from = val._inheritingFrom || "";
+    return { isInheriting: "_inheritingFrom" in val, inheritingFrom: from, locked: ("_inheritingFrom" in val) && !!from };
+  };
 
   if (rules.length === 0) return <p className="text-slate-400 text-sm">Adicione regras de cálculo no passo anterior primeiro.</p>;
 
@@ -160,8 +165,9 @@ function RegrasForm({ companyData, data, onChange }) {
           <div key={name} className="border border-slate-200 rounded-xl p-4">
             <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
 
-            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} />
-
+            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} isInheriting={getInherit(name).isInheriting} inheritingFrom={getInherit(name).inheritingFrom} />
+            {getInherit(name).locked ? null : (
+            <>
             <div className="mb-4">
               <label className={labelClass}>Modelo</label>
               <select value={val.model} onChange={e => onChange({ ...d, [name]: { ...val, model: e.target.value } })} className={selectClass}>
@@ -226,6 +232,8 @@ function RegrasForm({ companyData, data, onChange }) {
                 </div>
               </div>
             )}
+            </>
+            )}
           </div>
         );
       })}
@@ -282,12 +290,17 @@ function HorasExtrasForm({ companyData, data, onChange }) {
 
       {rules.map((name) => {
         const val = selected(name);
+        const inhr = (d || {})[name] || {};
+        const inhFrom = inhr._inheritingFrom || "";
+        const inhLocked = ("_inheritingFrom" in inhr) && !!inhFrom;
+        const inhActive = "_inheritingFrom" in inhr;
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
             <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
 
-            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} />
-
+            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} isInheriting={inhActive} inheritingFrom={inhFrom} />
+            {inhLocked ? null : (
+            <>
             {/* Percentuais principais */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               {[
@@ -366,6 +379,8 @@ function HorasExtrasForm({ companyData, data, onChange }) {
                 </div>
               ))}
             </div>
+            </>
+            )}
           </div>
         );
       })}
@@ -422,12 +437,17 @@ function IntervalosForm({ companyData, data, onChange }) {
 
       {rules.map((name) => {
         const val = selected(name);
+        const inhr = (d || {})[name] || {};
+        const inhFrom = inhr._inheritingFrom || "";
+        const inhLocked = ("_inheritingFrom" in inhr) && !!inhFrom;
+        const inhActive = "_inheritingFrom" in inhr;
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
             <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
 
-            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} />
-
+            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} isInheriting={inhActive} inheritingFrom={inhFrom} />
+            {inhLocked ? null : (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className={labelClass}>Modelo</label>
@@ -500,6 +520,8 @@ function IntervalosForm({ companyData, data, onChange }) {
                 </label>
               </div>
             </div>
+            </>
+            )}
           </div>
         );
       })}
@@ -536,12 +558,17 @@ function AdicionalNoturnoForm({ companyData, data, onChange }) {
 
       {rules.map((name) => {
         const val = selected(name);
+        const inhr = (d || {})[name] || {};
+        const inhFrom = inhr._inheritingFrom || "";
+        const inhLocked = ("_inheritingFrom" in inhr) && !!inhFrom;
+        const inhActive = "_inheritingFrom" in inhr;
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
             <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
 
-            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} />
-
+            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} isInheriting={inhActive} inheritingFrom={inhFrom} />
+            {inhLocked ? null : (
+            <>
             {/* Configuração básica */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
@@ -603,6 +630,8 @@ function AdicionalNoturnoForm({ companyData, data, onChange }) {
                 </label>
               </div>
             </div>
+            </>
+            )}
           </div>
         );
       })}
@@ -623,12 +652,17 @@ function Jornada12x36Form({ companyData, data, onChange }) {
     <div className="space-y-6">
       {rules.map((name) => {
         const val = selected(name);
+        const inhr = (d || {})[name] || {};
+        const inhFrom = inhr._inheritingFrom || "";
+        const inhLocked = ("_inheritingFrom" in inhr) && !!inhFrom;
+        const inhActive = "_inheritingFrom" in inhr;
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
             <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
 
-            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} />
-
+            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} isInheriting={inhActive} inheritingFrom={inhFrom} />
+            {inhLocked ? null : (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Modelo</label>
@@ -643,6 +677,8 @@ function Jornada12x36Form({ companyData, data, onChange }) {
                 Possui dia de folga fixa
               </label>
             </div>
+            </>
+            )}
           </div>
         );
       })}
@@ -663,12 +699,17 @@ function SobreavisoForm({ companyData, data, onChange }) {
     <div className="space-y-6">
       {rules.map((name) => {
         const val = selected(name);
+        const inhr = (d || {})[name] || {};
+        const inhFrom = inhr._inheritingFrom || "";
+        const inhLocked = ("_inheritingFrom" in inhr) && !!inhFrom;
+        const inhActive = "_inheritingFrom" in inhr;
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
             <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
 
-            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} />
-
+            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} isInheriting={inhActive} inheritingFrom={inhFrom} />
+            {inhLocked ? null : (
+            <>
             <div>
               <label className={labelClass}>Percentual do Sobreaviso</label>
               <select value={val.percSobreaviso} onChange={e => onChange({ ...d, [name]: { ...val, percSobreaviso: e.target.value } })} className={`${selectClass} max-w-xs`}>
@@ -677,6 +718,8 @@ function SobreavisoForm({ companyData, data, onChange }) {
                 <option value="custom">Personalizado</option>
               </select>
             </div>
+            </>
+            )}
           </div>
         );
       })}
@@ -713,12 +756,17 @@ function BancoHorasForm({ companyData, data, onChange }) {
 
       {rules.map((name) => {
         const val = selected(name);
+        const inhr = (d || {})[name] || {};
+        const inhFrom = inhr._inheritingFrom || "";
+        const inhLocked = ("_inheritingFrom" in inhr) && !!inhFrom;
+        const inhActive = "_inheritingFrom" in inhr;
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
             <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
 
-            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} />
-
+            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} isInheriting={inhActive} inheritingFrom={inhFrom} />
+            {inhLocked ? null : (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className={labelClass}>Modelo</label>
@@ -805,6 +853,8 @@ function BancoHorasForm({ companyData, data, onChange }) {
                 Envio E02
               </label>
             </div>
+            </>
+            )}
           </div>
         );
       })}
@@ -825,12 +875,17 @@ function DSRForm({ companyData, data, onChange }) {
     <div className="space-y-6">
       {rules.map((name) => {
         const val = selected(name);
+        const inhr = (d || {})[name] || {};
+        const inhFrom = inhr._inheritingFrom || "";
+        const inhLocked = ("_inheritingFrom" in inhr) && !!inhFrom;
+        const inhActive = "_inheritingFrom" in inhr;
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
             <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
 
-            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} />
-
+            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} isInheriting={inhActive} inheritingFrom={inhFrom} />
+            {inhLocked ? null : (
+            <>
             <div>
               <label className={labelClass}>Modelo DSR/Feriados</label>
               <select value={val.modeloDSR} onChange={e => onChange({ ...d, [name]: { ...val, modeloDSR: e.target.value } })} className={`${selectClass} max-w-xs`}>
@@ -838,6 +893,8 @@ function DSRForm({ companyData, data, onChange }) {
                 <option value="separado">Separado — DSR calculado separadamente</option>
               </select>
             </div>
+            </>
+            )}
           </div>
         );
       })}
