@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { ChevronLeft, ChevronRight, Save, CheckCircle, Loader2, FileDown, RotateCcw, AlertCircle, Lock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, CheckCircle, Loader2, FileDown, RotateCcw, AlertCircle, Lock, Info } from "lucide-react";
 import { usePermissions } from "@/lib/usePermissions";
 import CopyFromRule from "@/components/project/tabs/calculation/CopyFromRule";
+import CalculationModelsInfoModal from "@/components/project/tabs/calculation/CalculationModelsInfoModal";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const STEPS = [
@@ -1037,6 +1038,7 @@ export default function CalculationRulesTab({ projectId, project }) {
 
   const dbCompanyData = getData("company_data") || {};
   const [currentStep, setCurrentStep] = useState(record?.current_step || 1);
+  const [showCalcModelsModal, setShowCalcModelsModal] = useState(false);
 
   useEffect(() => { if (record?.current_step) setCurrentStep(record.current_step); }, [record?.current_step]);
 
@@ -1185,7 +1187,18 @@ export default function CalculationRulesTab({ projectId, project }) {
 
       {/* Step content */}
       <div className="bg-white rounded-xl border border-slate-200 p-6 mb-5 min-h-[300px]">
-        <h3 className="text-lg font-semibold text-slate-800 mb-1">{step?.title}</h3>
+        <div className="flex items-center gap-2 mb-1">
+          <h3 className="text-lg font-semibold text-slate-800">{step?.title}</h3>
+          {step?.id === 2 && (
+            <button
+              onClick={() => setShowCalcModelsModal(true)}
+              className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"
+              title="Entenda os modelos de cálculo"
+            >
+              <Info className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
         <p className="text-sm text-slate-400 mb-6">Passo {currentStepIdx + 1} de {visibleSteps.length}</p>
 
         {step?.key === "company_data" && (
@@ -1220,6 +1233,11 @@ export default function CalculationRulesTab({ projectId, project }) {
         )}
         {step?.id === 11 && <RevisaoFinal companyData={stepData.company_data} allData={stepData} project={project} />}
       </div>
+
+      {/* Modal informativo de modelos de cálculo */}
+      {showCalcModelsModal && (
+        <CalculationModelsInfoModal onClose={() => setShowCalcModelsModal(false)} />
+      )}
 
       {/* Navigation */}
       <div className="flex items-center justify-between">
