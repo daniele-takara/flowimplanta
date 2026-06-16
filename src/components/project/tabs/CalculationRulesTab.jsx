@@ -63,7 +63,7 @@ function useWizardState(projectId) {
 
 // ── Step 1: Dados da Empresa ─────────────────────────────────────────────────
 function DadosEmpresaForm({ data, onChange }) {
-  const d = data || { name: "", responsibleName: "", cnpj: "", rulesNames: [], hasNightShift: true, has12x36Shift: true, hasOnCallWorkers: true, hasTimeBank: true };
+  const d = { name: "", responsibleName: "", cnpj: "", rulesNames: [], hasNightShift: true, has12x36Shift: true, hasOnCallWorkers: true, hasTimeBank: true, ...(data || {}) };
   const [ruleInput, setRuleInput] = useState("");
 
   const addRule = () => {
@@ -480,7 +480,7 @@ function DSRForm({ companyData, data, onChange }) {
 // ── Step 10: Outras Verbas ───────────────────────────────────────────────────
 function OutrasVerbasForm({ companyData, data, onChange }) {
   const rules = companyData?.rulesNames || [];
-  const d = data || { verbas: [] };
+  const d = { verbas: [], ...(data || {}) };
 
   const [novaVerba, setNovaVerba] = useState({ nome: "", codigo: "", percentual: "" });
 
