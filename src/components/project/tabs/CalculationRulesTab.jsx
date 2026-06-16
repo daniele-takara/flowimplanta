@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { ChevronLeft, ChevronRight, Save, CheckCircle, Loader2, FileDown, RotateCcw, AlertCircle, Lock } from "lucide-react";
 import { usePermissions } from "@/lib/usePermissions";
+import CopyFromRule from "@/components/project/tabs/calculation/CopyFromRule";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const STEPS = [
@@ -140,7 +141,7 @@ function DadosEmpresaForm({ data, onChange, project, readOnly }) {
 function RegrasForm({ companyData, data, onChange }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
-  const selected = (name) => d[name] || { model: "", entradaToleranciaAtraso: "", saidaToleranciaAntecipada: "", entradaToleranciaExtra: "", saidaToleranciaExtra: "", toleranciaAtraso: "", toleranciaExtra: "", janelaAntes: "", janelaDepois: "", useInheritance: false, inheritFrom: "" };
+  const selected = (name) => d[name] || { model: "", entradaToleranciaAtraso: "", saidaToleranciaAntecipada: "", entradaToleranciaExtra: "", saidaToleranciaExtra: "", toleranciaAtraso: "", toleranciaExtra: "", janelaAntes: "", janelaDepois: "" };
 
   if (rules.length === 0) return <p className="text-slate-400 text-sm">Adicione regras de cálculo no passo anterior primeiro.</p>;
 
@@ -152,95 +153,78 @@ function RegrasForm({ companyData, data, onChange }) {
         <p><strong>Flexível:</strong> Por Período — compensação automática dentro das janelas definidas.</p>
         <p><strong>Híbrido:</strong> Mistura os dois modelos anteriores com tolerâncias e compensação.</p>
       </div>
-      {rules.map((name, idx) => {
+      {rules.map((name) => {
         const val = selected(name);
-        const canInherit = idx > 0;
-        const inherited = val.useInheritance && val.inheritFrom;
-        const sourceRule = inherited ? selected(val.inheritFrom) : val;
 
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="font-semibold text-slate-800">{name}</h4>
-              {canInherit && (
-                <label className="flex items-center gap-2 text-xs text-slate-500">
-                  <input type="checkbox" checked={!!val.useInheritance} onChange={e => onChange({ ...d, [name]: { ...val, useInheritance: e.target.checked, inheritFrom: e.target.checked ? rules[0] : "" } })} className="w-3.5 h-3.5 accent-blue-600" />
-                  Herdar da {rules[0]}
-                </label>
-              )}
+            <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
+
+            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} />
+
+            <div className="mb-4">
+              <label className={labelClass}>Modelo</label>
+              <select value={val.model} onChange={e => onChange({ ...d, [name]: { ...val, model: e.target.value } })} className={selectClass}>
+                <option value="">Selecione...</option>
+                <option value="Fixo">Fixo — Por Entrada e Saída</option>
+                <option value="Flexível">Flexível — Por Período</option>
+                <option value="Híbrido">Híbrido</option>
+              </select>
             </div>
 
-            {inherited ? (
-              <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-500 italic">
-                Herdando configuração de <strong>{val.inheritFrom}</strong>
-              </div>
-            ) : (
-              <>
-                <div className="mb-4">
-                  <label className={labelClass}>Modelo</label>
-                  <select value={val.model} onChange={e => onChange({ ...d, [name]: { ...val, model: e.target.value } })} className={selectClass}>
-                    <option value="">Selecione...</option>
-                    <option value="Fixo">Fixo — Por Entrada e Saída</option>
-                    <option value="Flexível">Flexível — Por Período</option>
-                    <option value="Híbrido">Híbrido</option>
-                  </select>
+            {val.model === "Fixo" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>Tolerância Atraso Entrada (min)</label>
+                  <input value={val.entradaToleranciaAtraso || ""} onChange={e => onChange({ ...d, [name]: { ...val, entradaToleranciaAtraso: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
                 </div>
+                <div>
+                  <label className={labelClass}>Tolerância Antecipação Saída (min)</label>
+                  <input value={val.saidaToleranciaAntecipada || ""} onChange={e => onChange({ ...d, [name]: { ...val, saidaToleranciaAntecipada: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
+                </div>
+                <div>
+                  <label className={labelClass}>Tolerância Extra Entrada (min)</label>
+                  <input value={val.entradaToleranciaExtra || ""} onChange={e => onChange({ ...d, [name]: { ...val, entradaToleranciaExtra: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
+                </div>
+                <div>
+                  <label className={labelClass}>Tolerância Extra Saída (min)</label>
+                  <input value={val.saidaToleranciaExtra || ""} onChange={e => onChange({ ...d, [name]: { ...val, saidaToleranciaExtra: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
+                </div>
+              </div>
+            )}
 
-                {val.model === "Fixo" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelClass}>Tolerância Atraso Entrada (min)</label>
-                      <input value={val.entradaToleranciaAtraso || ""} onChange={e => onChange({ ...d, [name]: { ...val, entradaToleranciaAtraso: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Tolerância Antecipação Saída (min)</label>
-                      <input value={val.saidaToleranciaAntecipada || ""} onChange={e => onChange({ ...d, [name]: { ...val, saidaToleranciaAntecipada: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Tolerância Extra Entrada (min)</label>
-                      <input value={val.entradaToleranciaExtra || ""} onChange={e => onChange({ ...d, [name]: { ...val, entradaToleranciaExtra: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Tolerância Extra Saída (min)</label>
-                      <input value={val.saidaToleranciaExtra || ""} onChange={e => onChange({ ...d, [name]: { ...val, saidaToleranciaExtra: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
-                    </div>
-                  </div>
-                )}
+            {val.model === "Flexível" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>Janela Antes (min)</label>
+                  <input value={val.janelaAntes || ""} onChange={e => onChange({ ...d, [name]: { ...val, janelaAntes: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 30" />
+                </div>
+                <div>
+                  <label className={labelClass}>Janela Depois (min)</label>
+                  <input value={val.janelaDepois || ""} onChange={e => onChange({ ...d, [name]: { ...val, janelaDepois: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 30" />
+                </div>
+              </div>
+            )}
 
-                {val.model === "Flexível" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelClass}>Janela Antes (min)</label>
-                      <input value={val.janelaAntes || ""} onChange={e => onChange({ ...d, [name]: { ...val, janelaAntes: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 30" />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Janela Depois (min)</label>
-                      <input value={val.janelaDepois || ""} onChange={e => onChange({ ...d, [name]: { ...val, janelaDepois: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 30" />
-                    </div>
-                  </div>
-                )}
-
-                {val.model === "Híbrido" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelClass}>Tolerância de Atraso (min)</label>
-                      <input value={val.toleranciaAtraso || ""} onChange={e => onChange({ ...d, [name]: { ...val, toleranciaAtraso: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Tolerância Extra (min)</label>
-                      <input value={val.toleranciaExtra || ""} onChange={e => onChange({ ...d, [name]: { ...val, toleranciaExtra: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Janela Antes (min)</label>
-                      <input value={val.janelaAntes || ""} onChange={e => onChange({ ...d, [name]: { ...val, janelaAntes: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 30" />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Janela Depois (min)</label>
-                      <input value={val.janelaDepois || ""} onChange={e => onChange({ ...d, [name]: { ...val, janelaDepois: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 30" />
-                    </div>
-                  </div>
-                )}
-              </>
+            {val.model === "Híbrido" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>Tolerância de Atraso (min)</label>
+                  <input value={val.toleranciaAtraso || ""} onChange={e => onChange({ ...d, [name]: { ...val, toleranciaAtraso: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
+                </div>
+                <div>
+                  <label className={labelClass}>Tolerância Extra (min)</label>
+                  <input value={val.toleranciaExtra || ""} onChange={e => onChange({ ...d, [name]: { ...val, toleranciaExtra: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 10" />
+                </div>
+                <div>
+                  <label className={labelClass}>Janela Antes (min)</label>
+                  <input value={val.janelaAntes || ""} onChange={e => onChange({ ...d, [name]: { ...val, janelaAntes: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 30" />
+                </div>
+                <div>
+                  <label className={labelClass}>Janela Depois (min)</label>
+                  <input value={val.janelaDepois || ""} onChange={e => onChange({ ...d, [name]: { ...val, janelaDepois: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 30" />
+                </div>
+              </div>
             )}
           </div>
         );
@@ -300,7 +284,9 @@ function HorasExtrasForm({ companyData, data, onChange }) {
         const val = selected(name);
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
-            <h4 className="font-semibold text-slate-800 mb-4">{name}</h4>
+            <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
+
+            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} />
 
             {/* Percentuais principais */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
@@ -438,7 +424,9 @@ function IntervalosForm({ companyData, data, onChange }) {
         const val = selected(name);
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
-            <h4 className="font-semibold text-slate-800 mb-4">{name}</h4>
+            <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
+
+            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
@@ -550,7 +538,9 @@ function AdicionalNoturnoForm({ companyData, data, onChange }) {
         const val = selected(name);
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
-            <h4 className="font-semibold text-slate-800 mb-4">{name}</h4>
+            <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
+
+            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} />
 
             {/* Configuração básica */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -636,6 +626,9 @@ function Jornada12x36Form({ companyData, data, onChange }) {
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
             <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
+
+            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} />
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Modelo</label>
@@ -673,6 +666,9 @@ function SobreavisoForm({ companyData, data, onChange }) {
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
             <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
+
+            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} />
+
             <div>
               <label className={labelClass}>Percentual do Sobreaviso</label>
               <select value={val.percSobreaviso} onChange={e => onChange({ ...d, [name]: { ...val, percSobreaviso: e.target.value } })} className={`${selectClass} max-w-xs`}>
@@ -719,7 +715,9 @@ function BancoHorasForm({ companyData, data, onChange }) {
         const val = selected(name);
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
-            <h4 className="font-semibold text-slate-800 mb-4">{name}</h4>
+            <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
+
+            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
@@ -830,6 +828,9 @@ function DSRForm({ companyData, data, onChange }) {
         return (
           <div key={name} className="border border-slate-200 rounded-xl p-4">
             <h4 className="font-semibold text-slate-800 mb-3">{name}</h4>
+
+            <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} />
+
             <div>
               <label className={labelClass}>Modelo DSR/Feriados</label>
               <select value={val.modeloDSR} onChange={e => onChange({ ...d, [name]: { ...val, modeloDSR: e.target.value } })} className={`${selectClass} max-w-xs`}>
