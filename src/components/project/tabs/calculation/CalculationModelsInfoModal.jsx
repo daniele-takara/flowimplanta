@@ -7,7 +7,7 @@ export default function CalculationModelsInfoModal({ onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div 
-        className="relative bg-white rounded-2xl max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl"
+        className="relative bg-white rounded-2xl max-w-5xl w-[95vw] max-h-[95vh] overflow-y-auto shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         {/* Close button */}
@@ -63,7 +63,7 @@ export default function CalculationModelsInfoModal({ onClose }) {
                     src={img.src} 
                     alt={img.alt}
                     onClick={() => setExpandedImg(img)}
-                    className="w-full rounded-lg border border-slate-200 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all"
+                    className="w-full rounded-lg border border-slate-200 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all shadow-sm"
                     title="Clique para ampliar"
                   />
                   <p className="text-xs text-slate-400 mt-1.5 text-center">{img.label}</p>
