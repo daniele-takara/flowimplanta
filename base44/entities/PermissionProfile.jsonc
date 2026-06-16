@@ -158,6 +158,26 @@
         "parametrizacoes_editar": {
           "type": "boolean",
           "default": false
+        },
+        "regras_calculo_ver": {
+          "type": "boolean",
+          "default": false
+        },
+        "regras_calculo_editar": {
+          "type": "boolean",
+          "default": false
+        },
+        "regras_calculo_criar": {
+          "type": "boolean",
+          "default": false
+        },
+        "regras_calculo_excluir": {
+          "type": "boolean",
+          "default": false
+        },
+        "regras_calculo_finalizar": {
+          "type": "boolean",
+          "default": false
         }
       }
     }

@@ -17,6 +17,7 @@ import TermoEncerramentoTab from "@/components/project/tabs/TermoEncerramentoTab
 import CalculationRulesTab from "@/components/project/tabs/CalculationRulesTab.jsx";
 import EditProjectModal from "@/components/project/EditProjectModal";
 import { usePermissions } from "@/lib/usePermissions";
+import ProtectedRoute from "@/components/layout/ProtectedRoute";
 
 const TABS = [
   { id: "overview",  label: "Dados Iniciais" },
@@ -44,6 +45,11 @@ export default function ProjectDetail() {
 
   const perms = usePermissions();
   const isMock = id && id.startsWith("proj-");
+
+  const visibleTabs = TABS.filter(tab => {
+    if (tab.id === "calc" && !perms.canReadCalcRules) return false;
+    return true;
+  });
 
   const loadData = async () => {
     setLoading(true);
@@ -143,7 +149,7 @@ export default function ProjectDetail() {
 
       <div className="bg-white border-b border-slate-200 px-8 overflow-x-auto">
         <div className="flex gap-0 min-w-max">
-          {TABS.map(tab => (
+          {visibleTabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -189,7 +195,11 @@ export default function ProjectDetail() {
           {activeTab === "status" && <StatusReportTab reports={reports} projectId={id} projectClientName={project.client_name} project={project} scopeItems={scopeItems} savedActivities={activities} onRefresh={loadData} readOnly={!perms.canEditStatusReport} canUpdate={perms.canUpdateStatusReport} canGenerateEmail={perms.canGenerateStatusReportEmail} canSyncPipedrive={perms.canSyncPipedriveStatus} />}
           {activeTab === "actions" && <ActionPlanTab actions={actions} projectId={id} onRefresh={loadData} readOnly={!perms.canEditActionPlan} />}
           {activeTab === "termo" && <TermoEncerramentoTab project={project} scopeItems={scopeItems} reports={reports} savedActivities={activities} projectId={id} readOnly={!perms.canEditTermo} canGeneratePDF={perms.canGenerateTermoPDF} />}
-          {activeTab === "calc" && <CalculationRulesTab projectId={id} project={project} />}
+          {activeTab === "calc" && (
+            <ProtectedRoute allowed={perms.canReadCalcRules}>
+              <CalculationRulesTab projectId={id} project={project} />
+            </ProtectedRoute>
+          )}
           {activeTab === "closure" && <ClosureTab project={project} documents={documents} activities={activities} projectId={id} onRefresh={loadData} readOnly={!perms.canEditTermo} />}
         </div>
       </div>

@@ -86,6 +86,17 @@ export const PERMISSION_MODULES = [
     ],
   },
   {
+    key: "regras_calculo",
+    label: "Regras de Cálculo",
+    permissions: [
+      { key: "regras_calculo_ver", label: "Visualizar" },
+      { key: "regras_calculo_editar", label: "Editar" },
+      { key: "regras_calculo_criar", label: "Criar" },
+      { key: "regras_calculo_excluir", label: "Excluir" },
+      { key: "regras_calculo_finalizar", label: "Finalizar" },
+    ],
+  },
+  {
     key: "parametrizacoes",
     label: "Parametrizações",
     permissions: [
@@ -116,6 +127,8 @@ export const DEFAULT_PROFILES = [
       integracao_sync_pipedrive_cronograma: true,
       integracao_sync_pipedrive_status: true,
       parametrizacoes_acessar: true, parametrizacoes_editar: true,
+      regras_calculo_ver: true, regras_calculo_editar: true,
+      regras_calculo_criar: true, regras_calculo_excluir: true, regras_calculo_finalizar: true,
     },
   },
   {
@@ -137,6 +150,8 @@ export const DEFAULT_PROFILES = [
       integracao_sync_pipedrive_cronograma: true,
       integracao_sync_pipedrive_status: true,
       parametrizacoes_acessar: false, parametrizacoes_editar: false,
+      regras_calculo_ver: true, regras_calculo_editar: true,
+      regras_calculo_criar: true, regras_calculo_excluir: false, regras_calculo_finalizar: true,
     },
   },
   {
@@ -158,6 +173,8 @@ export const DEFAULT_PROFILES = [
       integracao_sync_pipedrive_cronograma: false,
       integracao_sync_pipedrive_status: false,
       parametrizacoes_acessar: false, parametrizacoes_editar: false,
+      regras_calculo_ver: true, regras_calculo_editar: true,
+      regras_calculo_criar: true, regras_calculo_excluir: false, regras_calculo_finalizar: true,
     },
   },
   {
@@ -179,6 +196,8 @@ export const DEFAULT_PROFILES = [
       integracao_sync_pipedrive_cronograma: false,
       integracao_sync_pipedrive_status: false,
       parametrizacoes_acessar: false, parametrizacoes_editar: false,
+      regras_calculo_ver: true, regras_calculo_editar: false,
+      regras_calculo_criar: false, regras_calculo_excluir: false, regras_calculo_finalizar: false,
     },
   },
 ];

@@ -78,6 +78,13 @@ export function usePermissions() {
     canEditParametrizacoes: can("parametrizacoes_editar") || isSystemAdmin,
     canReadParametrizacoes: can("parametrizacoes_acessar") || isSystemAdmin,
 
+    // Regras de Cálculo
+    canReadCalcRules: can("regras_calculo_ver") || isSystemAdmin,
+    canEditCalcRules: can("regras_calculo_editar") || isSystemAdmin,
+    canCreateCalcRules: can("regras_calculo_criar") || isSystemAdmin,
+    canDeleteCalcRules: can("regras_calculo_excluir") || isSystemAdmin,
+    canFinalizeCalcRules: can("regras_calculo_finalizar") || isSystemAdmin,
+
     // Integrações / Ações
     canSyncPipedriveDados: can("integracao_sync_pipedrive_dados") || isSystemAdmin,
     canSyncPipedriveCronograma: can("integracao_sync_pipedrive_cronograma") || isSystemAdmin,

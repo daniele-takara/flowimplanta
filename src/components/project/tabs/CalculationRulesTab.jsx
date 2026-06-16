@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { ChevronLeft, ChevronRight, Save, CheckCircle, Loader2, FileDown, RotateCcw, AlertCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, CheckCircle, Loader2, FileDown, RotateCcw, AlertCircle, Lock } from "lucide-react";
+import { usePermissions } from "@/lib/usePermissions";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const STEPS = [
@@ -62,8 +63,9 @@ function useWizardState(projectId) {
 }
 
 // ── Step 1: Dados da Empresa ─────────────────────────────────────────────────
-function DadosEmpresaForm({ data, onChange }) {
-  const d = { name: "", responsibleName: "", cnpj: "", rulesNames: [], hasNightShift: true, has12x36Shift: true, hasOnCallWorkers: true, hasTimeBank: true, ...(data || {}) };
+// Nome da Empresa e CNPJ vêm dos Dados Iniciais do projeto — não são editáveis aqui
+function DadosEmpresaForm({ data, onChange, project, readOnly }) {
+  const d = { responsibleName: "", rulesNames: [], hasNightShift: true, has12x36Shift: true, hasOnCallWorkers: true, hasTimeBank: true, ...(data || {}) };
   const [ruleInput, setRuleInput] = useState("");
 
   const addRule = () => {
@@ -82,27 +84,32 @@ function DadosEmpresaForm({ data, onChange }) {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className={labelClass}>Nome da Empresa *</label>
-          <input value={d.name} onChange={e => onChange({ ...d, name: e.target.value })} className={inputClass} placeholder="Razão social" />
-        </div>
-        <div>
-          <label className={labelClass}>Responsável</label>
-          <input value={d.responsibleName} onChange={e => onChange({ ...d, responsibleName: e.target.value })} className={inputClass} placeholder="Nome do responsável" />
+      {/* Info da empresa — somente leitura, dos Dados Iniciais */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Dados da Empresa (Dados Iniciais)</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <span className="text-xs text-slate-400">Empresa</span>
+            <p className="text-sm font-medium text-slate-700">{project?.client_name || "—"}</p>
+          </div>
+          <div>
+            <span className="text-xs text-slate-400">CNPJ</span>
+            <p className="text-sm font-medium text-slate-700">{project?.sponsor_contact || "—"}</p>
+          </div>
         </div>
       </div>
+
       <div>
-        <label className={labelClass}>CNPJ</label>
-        <input value={d.cnpj} onChange={e => onChange({ ...d, cnpj: e.target.value })} className={`${inputClass} max-w-xs`} placeholder="00.000.000/0000-00" />
+        <label className={labelClass}>Responsável</label>
+        <input value={d.responsibleName} onChange={e => onChange({ ...d, responsibleName: e.target.value })} className={`${inputClass} max-w-sm`} placeholder="Nome do responsável pelas regras" disabled={readOnly} />
       </div>
 
       <div>
         <label className={labelClass}>Regras de Cálculo</label>
         <p className="text-xs text-slate-400 mb-2">Adicione os nomes das regras de cálculo da empresa</p>
         <div className="flex gap-2 mb-3">
-          <input value={ruleInput} onChange={e => setRuleInput(e.target.value)} onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addRule())} className={`${inputClass} flex-1`} placeholder="Ex: Matriz, Filial SP, Filial RJ..." />
-          <button onClick={addRule} className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700">Adicionar</button>
+          <input value={ruleInput} onChange={e => setRuleInput(e.target.value)} onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addRule())} className={`${inputClass} flex-1`} placeholder="Ex: Matriz, Filial SP, Filial RJ..." disabled={readOnly} />
+          <button onClick={addRule} className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700" disabled={readOnly}>Adicionar</button>
         </div>
         {d.rulesNames.length === 0 && <p className="text-xs text-slate-400 italic">Nenhuma regra adicionada ainda.</p>}
         <div className="flex flex-wrap gap-2">
@@ -125,7 +132,7 @@ function DadosEmpresaForm({ data, onChange }) {
             { key: "hasTimeBank", label: "Possui Banco de Horas" },
           ].map(item => (
             <label key={item.key} className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
-              <input type="checkbox" checked={!!d[item.key]} onChange={() => toggle(item.key)} className="w-4 h-4 accent-blue-600" />
+              <input type="checkbox" checked={!!d[item.key]} onChange={() => toggle(item.key)} className="w-4 h-4 accent-blue-600" disabled={readOnly} />
               {item.label}
             </label>
           ))}
@@ -533,13 +540,13 @@ function OutrasVerbasForm({ companyData, data, onChange }) {
 }
 
 // ── Step 11: Revisão Final ───────────────────────────────────────────────────
-function RevisaoFinal({ companyData, allData }) {
+function RevisaoFinal({ companyData, allData, project }) {
   const rules = companyData?.rulesNames || [];
   return (
     <div className="space-y-4">
       <div className="bg-green-50 border border-green-200 rounded-xl p-4">
         <h4 className="font-semibold text-green-800 mb-2">Dados da Empresa</h4>
-        <p className="text-sm text-green-700">{companyData?.name || "—"} | CNPJ: {companyData?.cnpj || "—"}</p>
+        <p className="text-sm text-green-700">{project?.client_name || "—"}{project?.sponsor_contact ? ` | CNPJ: ${project.sponsor_contact}` : ""}</p>
         <p className="text-sm text-green-700">Regras: {(rules || []).join(", ") || "Nenhuma"}</p>
         <div className="flex flex-wrap gap-2 mt-2">
           {companyData?.hasNightShift && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Noturno</span>}
@@ -566,6 +573,9 @@ function RevisaoFinal({ companyData, allData }) {
 // ── Componente Principal ─────────────────────────────────────────────────────
 export default function CalculationRulesTab({ projectId, project }) {
   const { record, loading, saving, save, getData, reload } = useWizardState(projectId);
+  const perms = usePermissions();
+  const canEdit = perms.canEditCalcRules;
+  const canFinalize = perms.canFinalizeCalcRules;
 
   const companyData = getData("company_data") || {};
   const [currentStep, setCurrentStep] = useState(record?.current_step || 1);
@@ -619,6 +629,14 @@ export default function CalculationRulesTab({ projectId, project }) {
 
   return (
     <div>
+      {/* Read-only banner */}
+      {!canEdit && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 mb-4 flex items-center gap-2 text-sm text-amber-700">
+          <Lock className="w-4 h-4" />
+          <span>Modo somente leitura — seu perfil não permite edições nas Regras de Cálculo.</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
@@ -626,18 +644,20 @@ export default function CalculationRulesTab({ projectId, project }) {
           <p className="text-sm text-slate-400">Wizard de configuração das regras de cálculo da empresa</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={async () => {
-              if (window.confirm("Reiniciar o assistente? Todos os dados serão perdidos.")) {
-                if (record?.id) await base44.entities.CalculationRule.delete(record.id);
-                reload();
-                setCurrentStep(1);
-              }
-            }}
-            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-red-300 hover:bg-red-50 transition-colors"
-          >
-            <RotateCcw className="w-3.5 h-3.5" /> Reiniciar
-          </button>
+          {canEdit && (
+            <button
+              onClick={async () => {
+                if (window.confirm("Reiniciar o assistente? Todos os dados serão perdidos.")) {
+                  if (record?.id) await base44.entities.CalculationRule.delete(record.id);
+                  reload();
+                  setCurrentStep(1);
+                }
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-red-300 hover:bg-red-50 transition-colors"
+            >
+              <RotateCcw className="w-3.5 h-3.5" /> Reiniciar
+            </button>
+          )}
           {saving && (
             <span className="flex items-center gap-1 text-xs text-slate-400">
               <Loader2 className="w-3 h-3 animate-spin" /> Salvando...
@@ -675,36 +695,36 @@ export default function CalculationRulesTab({ projectId, project }) {
         <p className="text-sm text-slate-400 mb-6">Passo {currentStepIdx + 1} de {visibleSteps.length}</p>
 
         {step?.key === "company_data" && (
-          <DadosEmpresaForm data={companyData} onChange={(data) => saveCurrentStep("company_data", data)} />
+          <DadosEmpresaForm data={companyData} onChange={(data) => saveCurrentStep("company_data", data)} project={project} readOnly={!canEdit} />
         )}
         {step?.key === "rule_configurations" && (
-          <RegrasForm companyData={companyData} data={stepData.rule_configurations} onChange={(data) => saveCurrentStep("rule_configurations", data)} />
+          <RegrasForm companyData={companyData} data={stepData.rule_configurations} onChange={canEdit ? (data) => saveCurrentStep("rule_configurations", data) : () => {}} />
         )}
         {step?.key === "overtime_rules" && (
-          <HorasExtrasForm companyData={companyData} data={stepData.overtime_rules} onChange={(data) => saveCurrentStep("overtime_rules", data)} />
+          <HorasExtrasForm companyData={companyData} data={stepData.overtime_rules} onChange={canEdit ? (data) => saveCurrentStep("overtime_rules", data) : () => {}} />
         )}
         {step?.key === "break_time_rules" && (
-          <IntervalosForm companyData={companyData} data={stepData.break_time_rules} onChange={(data) => saveCurrentStep("break_time_rules", data)} />
+          <IntervalosForm companyData={companyData} data={stepData.break_time_rules} onChange={canEdit ? (data) => saveCurrentStep("break_time_rules", data) : () => {}} />
         )}
         {step?.key === "night_shift_rules" && (
-          <AdicionalNoturnoForm companyData={companyData} data={stepData.night_shift_rules} onChange={(data) => saveCurrentStep("night_shift_rules", data)} />
+          <AdicionalNoturnoForm companyData={companyData} data={stepData.night_shift_rules} onChange={canEdit ? (data) => saveCurrentStep("night_shift_rules", data) : () => {}} />
         )}
         {step?.key === "shift_12x36_rules" && (
-          <Jornada12x36Form companyData={companyData} data={stepData.shift_12x36_rules} onChange={(data) => saveCurrentStep("shift_12x36_rules", data)} />
+          <Jornada12x36Form companyData={companyData} data={stepData.shift_12x36_rules} onChange={canEdit ? (data) => saveCurrentStep("shift_12x36_rules", data) : () => {}} />
         )}
         {step?.key === "sobreaviso_rules" && (
-          <SobreavisoForm companyData={companyData} data={stepData.sobreaviso_rules} onChange={(data) => saveCurrentStep("sobreaviso_rules", data)} />
+          <SobreavisoForm companyData={companyData} data={stepData.sobreaviso_rules} onChange={canEdit ? (data) => saveCurrentStep("sobreaviso_rules", data) : () => {}} />
         )}
         {step?.key === "bank_hours_rules" && (
-          <BancoHorasForm companyData={companyData} data={stepData.bank_hours_rules} onChange={(data) => saveCurrentStep("bank_hours_rules", data)} />
+          <BancoHorasForm companyData={companyData} data={stepData.bank_hours_rules} onChange={canEdit ? (data) => saveCurrentStep("bank_hours_rules", data) : () => {}} />
         )}
         {step?.key === "dsr_rules" && (
-          <DSRForm companyData={companyData} data={stepData.dsr_rules} onChange={(data) => saveCurrentStep("dsr_rules", data)} />
+          <DSRForm companyData={companyData} data={stepData.dsr_rules} onChange={canEdit ? (data) => saveCurrentStep("dsr_rules", data) : () => {}} />
         )}
         {step?.key === "other_verbs_rules" && (
-          <OutrasVerbasForm companyData={companyData} data={stepData.other_verbs_rules} onChange={(data) => saveCurrentStep("other_verbs_rules", data)} />
+          <OutrasVerbasForm companyData={companyData} data={stepData.other_verbs_rules} onChange={canEdit ? (data) => saveCurrentStep("other_verbs_rules", data) : () => {}} />
         )}
-        {step?.id === 11 && <RevisaoFinal companyData={companyData} allData={stepData} />}
+        {step?.id === 11 && <RevisaoFinal companyData={companyData} allData={stepData} project={project} />}
       </div>
 
       {/* Navigation */}
@@ -727,15 +747,25 @@ export default function CalculationRulesTab({ projectId, project }) {
             Próximo <ChevronRight className="w-4 h-4" />
           </button>
         ) : (
-          <button
-            onClick={async () => {
-              await save({ status: "finalizado" });
-              alert("Regras de cálculo finalizadas com sucesso!");
-            }}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-green-600 bg-green-600 text-white hover:bg-green-700"
-          >
-            <FileDown className="w-4 h-4" /> Finalizar
-          </button>
+          canFinalize ? (
+            <button
+              onClick={async () => {
+                await save({ status: "finalizado" });
+                alert("Regras de cálculo finalizadas com sucesso!");
+              }}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-green-600 bg-green-600 text-white hover:bg-green-700"
+            >
+              <FileDown className="w-4 h-4" /> Finalizar
+            </button>
+          ) : (
+            <button
+              disabled
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
+              title="Você não tem permissão para finalizar"
+            >
+              <Lock className="w-4 h-4" /> Finalizar
+            </button>
+          )
         )}
       </div>
     </div>

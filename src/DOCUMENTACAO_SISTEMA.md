@@ -1,6 +1,6 @@
 # Flowimplanta — Documentação Técnica v5.0
-**Última atualização:** 2026-05-02  
-**Status:** Validado (Pipedrive como Fonte de Verdade)
+**Última atualização:** 2026-06-16  
+**Status:** Validado (Pipedrive como Fonte de Verdade + Regras de Cálculo)
 
 ---
 
@@ -1280,3 +1280,111 @@ O único botão de atualização executa esta sequência em ordem:
 - Teste por project_id com dry_run (applyPipedriveRules)
 - Simulação de webhook (pipedriveWebhook)
 - Reprocessamento de logs com erro
+
+---
+
+## 16. REGRAS DE CÁLCULO — WIZARD v1.0 (NOVO — 2026-06-16)
+
+### Finalidade
+
+A aba **Regras de Cálculo** dentro do projeto do cliente permite configurar as regras de cálculo da jornada de trabalho da empresa (horas extras, intervalos, adicional noturno, banco de horas, etc.) via um assistente passo a passo (wizard).
+
+### Entidade
+
+**`CalculationRule`** — armazena o estado do wizard por projeto.
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `project_id` | string | ID do projeto |
+| `status` | enum | `rascunho` ou `finalizado` |
+| `current_step` | number | Etapa atual do wizard (1-11) |
+| `company_data` | JSON | Responsável, regras de cálculo, características |
+| `rule_configurations` | JSON | Configuração de cada regra (modelo, tolerâncias) |
+| `overtime_rules` | JSON | Regras de horas extras |
+| `break_time_rules` | JSON | Regras de intervalos |
+| `night_shift_rules` | JSON | Regras de adicional noturno |
+| `shift_12x36_rules` | JSON | Regras de jornada 12x36 |
+| `sobreaviso_rules` | JSON | Regras de sobreaviso |
+| `bank_hours_rules` | JSON | Regras de banco de horas |
+| `dsr_rules` | JSON | Regras de DSR/feriados |
+| `other_verbs_rules` | JSON | Outras verbas adicionais |
+
+### Estrutura do Wizard (11 etapas)
+
+| # | Etapa | Condicional? |
+|---|-------|-------------|
+| 1 | Dados da Empresa | Não |
+| 2 | Configuração das Regras | Não |
+| 3 | Horas Extras | Não |
+| 4 | Intervalos | Sim — somente se `hasTimeBank=true` |
+| 5 | Adicional Noturno | Sim — somente se `hasNightShift=true` |
+| 6 | Jornada 12x36 | Sim — somente se `has12x36Shift=true` |
+| 7 | Sobreaviso | Sim — somente se `hasOnCallWorkers=true` |
+| 8 | Banco de Horas | Sim — somente se `hasTimeBank=true` |
+| 9 | DSR / Feriados | Sim — somente se `hasTimeBank=true` |
+| 10 | Outras Verbas | Não |
+| 11 | Revisão Final | Não |
+
+### Etapa 1 — Dados da Empresa
+
+**Campos da etapa:**
+
+| Campo | Fonte | Editável? |
+|-------|-------|-----------|
+| Empresa | `project.client_name` (Dados Iniciais) | Não — somente leitura |
+| CNPJ | `project.sponsor_contact` (Dados Iniciais) | Não — somente leitura |
+| Responsável | Wizard — `company_data.responsibleName` | Sim |
+| Regras de Cálculo | Wizard — `company_data.rulesNames[]` | Sim |
+| Características (checkboxes) | Wizard — `hasNightShift`, `has12x36Shift`, `hasOnCallWorkers`, `hasTimeBank` | Sim |
+
+> **Regra:** Nome da Empresa e CNPJ NÃO são solicitados nesta tela — vêm dos Dados Iniciais do projeto e são exibidos como somente leitura.
+
+### Permissões
+
+| Permissão | Descrição |
+|-----------|-----------|
+| `regras_calculo_ver` | Visualizar a aba Regras de Cálculo |
+| `regras_calculo_editar` | Editar campos do wizard |
+| `regras_calculo_criar` | Criar novo registro de regras |
+| `regras_calculo_excluir` | Excluir/reiniciar wizard |
+| `regras_calculo_finalizar` | Finalizar configuração |
+
+### Comportamento por Perfil (padrão)
+
+| Perfil | Ver | Editar | Criar | Excluir | Finalizar |
+|--------|-----|--------|-------|---------|-----------|
+| Admin | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Gestor de Projetos | ✅ | ✅ | ✅ | ❌ | ✅ |
+| Implantação | ✅ | ✅ | ✅ | ❌ | ✅ |
+| Viewer | ✅ | ❌ | ❌ | ❌ | ❌ |
+
+### Guardas implementadas
+
+- **Frontend:** Aba só aparece se `regras_calculo_ver=true` (via `ProtectedRoute`). Inputs desabilitados se `regras_calculo_editar=false`. Botão Finalizar desabilitado se `regras_calculo_finalizar=false`.
+- **Backend:** Permissões validadas no schema `PermissionProfile`.
+
+### Arquivos
+
+| Arquivo | Função |
+|---------|--------|
+| `entities/CalculationRule.json` | Schema da entidade |
+| `components/project/tabs/CalculationRulesTab.jsx` | Componente principal do wizard |
+| `pages/ProjectDetail.jsx` | Adição da aba + guard de permissão |
+| `lib/permissions.js` | Módulo `regras_calculo` + perfis padrão |
+| `lib/usePermissions.js` | Hooks de permissão |
+| `entities/PermissionProfile.json` | Schema com novas permissões |
+
+### Testes E2E realizados (2026-06-16)
+
+| # | Cenário | Resultado |
+|---|---------|-----------|
+| 1 | Aba aparece para Admin | ✅ |
+| 2 | Aba aparece/some conforme permissão | ✅ |
+| 3 | Campos Nome da Empresa e CNPJ não aparecem mais na etapa 1 | ✅ |
+| 4 | Responsável permanece funcionando | ✅ |
+| 5 | Regras de cálculo podem ser adicionadas | ✅ |
+| 6 | Características da empresa salvam corretamente | ✅ |
+| 7 | Finalizar funciona conforme permissão | ✅ |
+| 8 | Reload mantém os dados | ✅ |
+| 9 | Usuário sem permissão não acessa a aba | ✅ |
+| 10 | Nenhuma outra aba do projeto quebra | ✅ |
