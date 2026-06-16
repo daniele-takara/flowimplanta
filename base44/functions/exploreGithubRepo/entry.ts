@@ -1,5 +1,11 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
+// Only .tsx and .ts files, no images/assets/configs
+const KEY_FILES = [
+    "src/pages/Index.tsx",
+    "src/components/CalculationModelsModal.tsx",
+];
+
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
@@ -9,70 +15,50 @@ Deno.serve(async (req) => {
         }
 
         const token = Deno.env.get("GITHUB_ACCESS_TOKEN");
-        if (!token) {
-            return Response.json({ error: 'GitHub token not configured' }, { status: 500 });
-        }
-
         const owner = "naomi-wagatsuma";
         const repo = "regra-calculo-wizard";
+        const headers = { Authorization: `Bearer ${token}`, Accept: "application/vnd.github.v3+json" };
+        const base = `https://api.github.com/repos/${owner}/${repo}/contents`;
 
-        // Get repo contents at root
-        const rootRes = await fetch(
-            `https://api.github.com/repos/${owner}/${repo}/contents/`,
-            { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github.v3+json" } }
-        );
-
-        if (!rootRes.ok) {
-            const errBody = await rootRes.text();
-            return Response.json({ error: `GitHub API error ${rootRes.status}`, detail: errBody, headers_sent: Object.fromEntries(rootRes.headers) }, { status: rootRes.status });
-        }
-
-        const rootContents = await rootRes.json();
-
-        // Recursively fetch all files
-        const allFiles = [];
-
-        async function traverse(contents) {
-            for (const item of contents) {
-                if (item.type === "dir") {
-                    const dirRes = await fetch(item.url, {
-                        headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github.v3+json" }
-                    });
-                    if (dirRes.ok) {
-                        const dirContents = await dirRes.json();
-                        await traverse(dirContents);
-                    }
-                } else if (item.type === "file") {
-                    allFiles.push({ path: item.path, name: item.name, download_url: item.download_url, size: item.size });
+        async function listDir(path) {
+            const res = await fetch(`${base}/${path}`, { headers });
+            if (!res.ok) return [];
+            const items = await res.json();
+            const results = [];
+            for (const item of items) {
+                if (item.type === "dir" && item.name !== "assets" && item.name !== "node_modules") {
+                    const sub = await listDir(item.path);
+                    results.push(...sub);
+                } else if (item.type === "file" && (item.name.endsWith(".tsx") || item.name.endsWith(".ts"))) {
+                    results.push({ path: item.path, download_url: item.download_url, size: item.size });
                 }
             }
+            return results;
         }
 
-        await traverse(rootContents);
+        const allFiles = await listDir("src");
 
-        // Fetch content of each file (limit to reasonable size)
-        const filesWithContent = [];
-        for (const file of allFiles) {
-            if (file.size > 500000) {
-                filesWithContent.push({ ...file, content: "[FILE TOO LARGE]", skipped: true });
-                continue;
-            }
-            const contentRes = await fetch(file.download_url, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (contentRes.ok) {
-                const text = await contentRes.text();
-                filesWithContent.push({ ...file, content: text });
+        // First get key files, then add any other .tsx/.ts files up to reasonable count
+        const keyResults = [];
+        const otherResults = [];
+        for (const f of allFiles) {
+            if (KEY_FILES.includes(f.path)) {
+                keyResults.push(f);
             } else {
-                filesWithContent.push({ ...file, content: "[FETCH FAILED]", error: contentRes.status });
+                otherResults.push(f);
             }
         }
 
-        return Response.json({
-            repo: `${owner}/${repo}`,
-            file_count: allFiles.length,
-            files: filesWithContent
-        });
+        const toFetch = [...keyResults, ...otherResults].slice(0, 25);
+
+        const results = await Promise.all(toFetch.map(async (f) => {
+            if (f.size > 80000) return { path: f.path, content: `[SKIPPED: ${f.size} bytes]` };
+            const res = await fetch(f.download_url, { headers });
+            const text = res.ok ? await res.text() : `[ERROR: ${res.status}]`;
+            return { path: f.path, content: text };
+        }));
+
+        return Response.json({ count: results.length, files: results });
     } catch (error) {
         return Response.json({ error: error.message }, { status: 500 });
     }
