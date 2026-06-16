@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { ChevronLeft, ChevronRight, Save, CheckCircle, Loader2, FileDown, RotateCcw, AlertCircle, Lock, Info, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, CheckCircle, Loader2, FileDown, RotateCcw, AlertCircle, Lock } from "lucide-react";
 import { usePermissions } from "@/lib/usePermissions";
-import ImageExpandModal from "@/components/project/tabs/ImageExpandModal";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const STEPS = [
@@ -389,10 +388,9 @@ function HorasExtrasForm({ companyData, data, onChange }) {
 }
 
 // ── Step 4: Intervalos ───────────────────────────────────────────────────────
-function IntervalosForm({ companyData, data, onChange, images }) {
+function IntervalosForm({ companyData, data, onChange }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
-  const [expandedImg, setExpandedImg] = useState(null);
 
   if (rules.length === 0) return <p className="text-slate-400 text-sm">Adicione regras de cálculo no passo 1 primeiro.</p>;
 
@@ -401,22 +399,6 @@ function IntervalosForm({ companyData, data, onChange, images }) {
     envioE02: false, codigoVerba: "",
     ranges: []
   };
-
-  // Helper to find image by partial name match
-  const findImg = (partialName) => {
-    if (!images || Object.keys(images).length === 0) return null;
-    const key = Object.keys(images).find(k => k.toLowerCase().includes(partialName.toLowerCase()));
-    return key ? images[key] : null;
-  };
-
-  const imgModelo1HE = findImg("Considerar como hora extra");
-  const imgModelo2HE = findImg("Não considerar como hora extra");
-  const imgModelo1Trab = findImg("Considerando como hora trabalhada");
-  const imgModelo2Trab = findImg("Não considerando como hora trabalhada");
-  const imgAtraso5 = findImg("5 minutos de atraso");
-  const imgAtraso10 = findImg("10 minutos de atraso");
-  const imgInicio5 = findImg("5 minutos de início");
-  const imgInicio10 = findImg("10 minutos de início");
 
   const updateRule = (name, field, value) => {
     const val = selected(name);
@@ -452,39 +434,6 @@ function IntervalosForm({ companyData, data, onChange, images }) {
         <p><strong>Modelo 2:</strong> Tempo excedente da pausa NÃO conta como hora trabalhada.</p>
       </div>
 
-      {/* Galeria de imagens ilustrativas */}
-      {Object.keys(images || {}).length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Ilustrações dos Modelos</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {imgModelo1Trab && (
-              <div className="border border-green-200 rounded-lg overflow-hidden bg-green-50/30 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setExpandedImg({ src: imgModelo1Trab, alt: "Modelo 1 — Pausa conta como hora trabalhada" })}>
-                <p className="text-xs font-medium text-green-700 px-3 pt-2">Modelo 1 — Pausa conta como hora trabalhada</p>
-                <img src={imgModelo1Trab} alt="Modelo 1" className="w-full h-auto max-h-[200px] object-contain p-2 pointer-events-none" />
-              </div>
-            )}
-            {imgModelo2Trab && (
-              <div className="border border-red-200 rounded-lg overflow-hidden bg-red-50/30 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setExpandedImg({ src: imgModelo2Trab, alt: "Modelo 2 — Pausa NÃO conta como hora trabalhada" })}>
-                <p className="text-xs font-medium text-red-700 px-3 pt-2">Modelo 2 — Pausa NÃO conta como hora trabalhada</p>
-                <img src={imgModelo2Trab} alt="Modelo 2" className="w-full h-auto max-h-[200px] object-contain p-2 pointer-events-none" />
-              </div>
-            )}
-            {imgModelo1HE && (
-              <div className="border border-green-200 rounded-lg overflow-hidden bg-green-50/30 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setExpandedImg({ src: imgModelo1HE, alt: "Modelo 1 — Tempo remanescente vira HE" })}>
-                <p className="text-xs font-medium text-green-700 px-3 pt-2">Modelo 1 — Tempo remanescente vira HE</p>
-                <img src={imgModelo1HE} alt="Modelo 1 HE" className="w-full h-auto max-h-[200px] object-contain p-2 pointer-events-none" />
-              </div>
-            )}
-            {imgModelo2HE && (
-              <div className="border border-red-200 rounded-lg overflow-hidden bg-red-50/30 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setExpandedImg({ src: imgModelo2HE, alt: "Modelo 2 — Tempo remanescente NÃO vira HE" })}>
-                <p className="text-xs font-medium text-red-700 px-3 pt-2">Modelo 2 — Tempo remanescente NÃO vira HE</p>
-                <img src={imgModelo2HE} alt="Modelo 2 HE" className="w-full h-auto max-h-[200px] object-contain p-2 pointer-events-none" />
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {rules.map((name) => {
         const val = selected(name);
         return (
@@ -507,20 +456,10 @@ function IntervalosForm({ companyData, data, onChange, images }) {
               <div>
                 <label className={labelClass}>Atraso da Pausa</label>
                 <input value={val.toleranciaAtrasoPausa || ""} onChange={e => updateRule(name, "toleranciaAtrasoPausa", e.target.value)} className={inputClass} type="number" placeholder="Ex: 5" />
-                {(imgAtraso5 || imgAtraso10) && (
-                  <div className="mt-2 border border-slate-100 rounded overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onClick={() => setExpandedImg({ src: imgAtraso5 || imgAtraso10, alt: "Tolerância de atraso da pausa" })}>
-                    <img src={imgAtraso5 || imgAtraso10} alt="Atraso da pausa" className="w-full h-auto max-h-[120px] object-contain pointer-events-none" />
-                  </div>
-                )}
               </div>
               <div>
                 <label className={labelClass}>Início da Pausa</label>
                 <input value={val.toleranciaInicioPausa || ""} onChange={e => updateRule(name, "toleranciaInicioPausa", e.target.value)} className={inputClass} type="number" placeholder="Ex: 10" />
-                {(imgInicio5 || imgInicio10) && (
-                  <div className="mt-2 border border-slate-100 rounded overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onClick={() => setExpandedImg({ src: imgInicio5 || imgInicio10, alt: "Tolerância de início da pausa" })}>
-                    <img src={imgInicio5 || imgInicio10} alt="Início da pausa" className="w-full h-auto max-h-[120px] object-contain pointer-events-none" />
-                  </div>
-                )}
               </div>
               <div>
                 <label className={labelClass}>Fim da Pausa</label>
@@ -577,9 +516,6 @@ function IntervalosForm({ companyData, data, onChange, images }) {
         );
       })}
 
-      {expandedImg && (
-        <ImageExpandModal src={expandedImg.src} alt={expandedImg.alt} onClose={() => setExpandedImg(null)} />
-      )}
     </div>
   );
 }
@@ -1043,21 +979,8 @@ export default function CalculationRulesTab({ projectId, project }) {
 
   const companyData = getData("company_data") || {};
   const [currentStep, setCurrentStep] = useState(record?.current_step || 1);
-  const [wizardImages, setWizardImages] = useState({});
-  const [imagesLoading, setImagesLoading] = useState(true);
-  const [infoStep, setInfoStep] = useState(null);
 
   useEffect(() => { if (record?.current_step) setCurrentStep(record.current_step); }, [record?.current_step]);
-
-  // Fetch wizard images from GitHub repo
-  useEffect(() => {
-    base44.functions.invoke('getAllWizardImages', {})
-      .then(res => {
-        setWizardImages(res.data?.images || {});
-        setImagesLoading(false);
-      })
-      .catch(() => setImagesLoading(false));
-  }, []);
 
   const stepData = {
     company_data: companyData,
@@ -1148,34 +1071,20 @@ export default function CalculationRulesTab({ projectId, project }) {
         {visibleSteps.map((s, idx) => {
           const isActive = s.id === currentStep;
           const isPast = s.id < currentStep;
-          const hasImages = s.key === "break_time_rules";
           return (
-            <div key={s.id} className="flex items-center gap-0.5 shrink-0">
-              <button
-                onClick={() => goToStep(s.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium whitespace-nowrap transition-colors ${
-                  isActive ? "bg-blue-600 text-white border-blue-600" :
-                  isPast ? "bg-green-50 text-green-700 border-green-200" :
-                  "bg-white text-slate-400 border-slate-200"
-                }`}
-              >
-                {isPast && <CheckCircle className="w-3 h-3 text-green-500" />}
-                <span className="font-mono text-xs opacity-60">{s.id}</span>
-                <span className="hidden sm:inline">{s.title}</span>
-              </button>
-              {hasImages && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); setInfoStep(s); }}
-                  className={`w-6 h-6 flex items-center justify-center rounded-full border text-xs font-bold transition-colors ${
-                    isActive ? "border-blue-300 bg-blue-500 text-white hover:bg-blue-400" :
-                    "border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-300"
-                  }`}
-                  title="Ver ilustrações"
-                >
-                  <Info className="w-3 h-3" />
-                </button>
-              )}
-            </div>
+            <button
+              key={s.id}
+              onClick={() => goToStep(s.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${
+                isActive ? "bg-blue-600 text-white border-blue-600" :
+                isPast ? "bg-green-50 text-green-700 border-green-200" :
+                "bg-white text-slate-400 border-slate-200"
+              }`}
+            >
+              {isPast && <CheckCircle className="w-3 h-3 text-green-500" />}
+              <span className="font-mono text-xs opacity-60">{s.id}</span>
+              <span className="hidden sm:inline">{s.title}</span>
+            </button>
           );
         })}
       </div>
@@ -1195,7 +1104,7 @@ export default function CalculationRulesTab({ projectId, project }) {
           <HorasExtrasForm companyData={companyData} data={stepData.overtime_rules} onChange={canEdit ? (data) => saveCurrentStep("overtime_rules", data) : () => {}} />
         )}
         {step?.key === "break_time_rules" && (
-          <IntervalosForm companyData={companyData} data={stepData.break_time_rules} onChange={canEdit ? (data) => saveCurrentStep("break_time_rules", data) : () => {}} images={wizardImages} />
+          <IntervalosForm companyData={companyData} data={stepData.break_time_rules} onChange={canEdit ? (data) => saveCurrentStep("break_time_rules", data) : () => {}} />
         )}
         {step?.key === "night_shift_rules" && (
           <AdicionalNoturnoForm companyData={companyData} data={stepData.night_shift_rules} onChange={canEdit ? (data) => saveCurrentStep("night_shift_rules", data) : () => {}} />
@@ -1217,34 +1126,6 @@ export default function CalculationRulesTab({ projectId, project }) {
         )}
         {step?.id === 11 && <RevisaoFinal companyData={companyData} allData={stepData} project={project} />}
       </div>
-
-      {/* Info modal for steps with images */}
-      {infoStep && !infoStep._overrideImg && Object.keys(wizardImages).length > 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setInfoStep(null)}>
-          <div className="relative bg-white rounded-xl max-w-4xl max-h-[90vh] overflow-auto p-6" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-slate-800">Ilustrações — {infoStep.title}</h3>
-              <button onClick={() => setInfoStep(null)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Object.entries(wizardImages).map(([name, url]) => (
-                <div key={name} className="border border-slate-200 rounded-lg overflow-hidden cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setInfoStep(prev => ({ ...prev, _overrideImg: { src: url, alt: name.replace(/\.(png|svg)$/i, "") } }))}>
-                  <p className="text-xs font-medium text-slate-600 px-3 pt-2 truncate">{name.replace(/\.(png|svg)$/i, "")}</p>
-                  <img src={url} alt={name} className="w-full h-auto max-h-[180px] object-contain p-2 pointer-events-none" />
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-slate-400 mt-4 text-center">Clique em uma imagem para ampliá-la</p>
-          </div>
-        </div>
-      )}
-
-      {/* Image expand overlay when viewing from info modal */}
-      {infoStep?._overrideImg && (
-        <ImageExpandModal src={infoStep._overrideImg.src} alt={infoStep._overrideImg.alt} onClose={() => setInfoStep(prev => ({ ...prev, _overrideImg: null }))} />
-      )}
 
       {/* Navigation */}
       <div className="flex items-center justify-between">
