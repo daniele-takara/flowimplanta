@@ -63,7 +63,7 @@ function useWizardState(projectId) {
 }
 
 // ── Step 1: Dados da Empresa ─────────────────────────────────────────────────
-// Nome da Empresa e CNPJ vêm dos Dados Iniciais do projeto — não são editáveis aqui
+// Nome da Empresa vem dos Dados Iniciais do projeto — não é editável aqui
 function DadosEmpresaForm({ data, onChange, project, readOnly }) {
   const d = { responsibleName: "", rulesNames: [], hasNightShift: true, has12x36Shift: true, hasOnCallWorkers: true, hasTimeBank: true, ...(data || {}) };
   const [ruleInput, setRuleInput] = useState("");
@@ -86,17 +86,11 @@ function DadosEmpresaForm({ data, onChange, project, readOnly }) {
     <div className="space-y-5">
       {/* Info da empresa — somente leitura, dos Dados Iniciais */}
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Dados da Empresa (Dados Iniciais)</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <span className="text-xs text-slate-400">Empresa</span>
-            <p className="text-sm font-medium text-slate-700">{project?.client_name || "—"}</p>
-          </div>
-          <div>
-            <span className="text-xs text-slate-400">CNPJ</span>
-            <p className="text-sm font-medium text-slate-700">{project?.sponsor_contact || "—"}</p>
-          </div>
-        </div>
+       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Dados da Empresa (Dados Iniciais)</p>
+       <div>
+         <span className="text-xs text-slate-400">Empresa</span>
+         <p className="text-sm font-medium text-slate-700">{project?.client_name || "—"}</p>
+       </div>
       </div>
 
       <div>
@@ -546,7 +540,7 @@ function RevisaoFinal({ companyData, allData, project }) {
     <div className="space-y-4">
       <div className="bg-green-50 border border-green-200 rounded-xl p-4">
         <h4 className="font-semibold text-green-800 mb-2">Dados da Empresa</h4>
-        <p className="text-sm text-green-700">{project?.client_name || "—"}{project?.sponsor_contact ? ` | CNPJ: ${project.sponsor_contact}` : ""}</p>
+        <p className="text-sm text-green-700">{project?.client_name || "—"}</p>
         <p className="text-sm text-green-700">Regras: {(rules || []).join(", ") || "Nenhuma"}</p>
         <div className="flex flex-wrap gap-2 mt-2">
           {companyData?.hasNightShift && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Noturno</span>}
