@@ -1,11 +1,27 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { X, Save } from "lucide-react";
+import { RESPONSIBLE_ROLE_LABELS, resolveRoleToName } from "@/lib/resolveResponsibleRole.js";
 
 const STATUS_OPTIONS = ["Não iniciado", "Em andamento", "Concluído", "Atrasado", "Bloqueado", "Cancelado"];
 const inputClass = "w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white";
 const labelClass = "block text-xs font-semibold text-slate-500 mb-1";
 
-export default function AddActivityModal({ projectId, defaultPhase, allPhaseNames = [], onSave, onClose }) {
+const RESP_GERAL_OPTIONS = [
+  { value: "Pontotel", label: "Pontotel" },
+  { value: "Cliente", label: "Cliente" },
+  { value: "Pontotel e Cliente", label: "Pontotel e Cliente" },
+];
+
+function buildRoleOptions(project) {
+  return Object.entries(RESPONSIBLE_ROLE_LABELS).map(([role, label]) => {
+    const name = resolveRoleToName(role, project);
+    return { value: role, label: name ? `${label}: ${name}` : label };
+  });
+}
+
+export default function AddActivityModal({ projectId, defaultPhase, allPhaseNames = [], onSave, onClose, project }) {
+  const roleOptions = useMemo(() => buildRoleOptions(project), [project]);
+
   const [form, setForm] = useState({
     phase_name:           defaultPhase || (allPhaseNames[0] || ""),
     activity_name:        "",
@@ -99,11 +115,21 @@ export default function AddActivityModal({ projectId, defaultPhase, allPhaseName
             </div>
             <div>
               <label className={labelClass}>Resp. Geral</label>
-              <input value={form.responsible_general} onChange={set("responsible_general")} className={inputClass} placeholder="Responsável geral" />
+              <select value={form.responsible_general} onChange={set("responsible_general")} className={inputClass}>
+                <option value="">Selecione...</option>
+                {RESP_GERAL_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className={labelClass}>Papel Líder</label>
-              <input value={form.responsible_leader} onChange={set("responsible_leader")} className={inputClass} placeholder="Líder da atividade" />
+              <select value={form.responsible_leader} onChange={set("responsible_leader")} className={inputClass}>
+                <option value="">Selecione...</option>
+                {roleOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className={labelClass}>Status</label>

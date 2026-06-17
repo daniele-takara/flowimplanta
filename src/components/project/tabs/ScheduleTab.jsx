@@ -571,6 +571,7 @@ export default function ScheduleTab({
   canEditPlanned = true, canCompletePhase = true, canRecalculate = true, canSyncPipedrive = true,
   canEditExecuted = true, canAddActivity = true,
   canCreatePhase = true, canEditPhase = true, canExcluirPhase = true,
+  canExcluirActivity = true,
 }) {
   const [anchorsLoaded, setAnchorsLoaded]       = useState(false);
   const [manualOverrides, setManualOverrides]   = useState({});
@@ -1028,7 +1029,7 @@ export default function ScheduleTab({
           canEditPlanned={canEditPlanned} canEditExecuted={canEditExecuted}
           canAddActivity={canAddActivity && !readOnly}
           canEditActivity={!readOnly}
-          canExcluirActivity={!readOnly && canAddActivity}
+          canExcluirActivity={!readOnly && canExcluirActivity}
           showInactive={showInactive}
           phaseOverride={phaseOverrides[ph]}
           onEditOverride={(phaseName) => { setOverrideModalPhase(phaseName); setShowOverrideModal(true); }}
@@ -1062,7 +1063,7 @@ export default function ScheduleTab({
           canExcluirPhase={canExcluirPhase}
           canAddActivity={canAddActivity && !readOnly}
           canEditActivity={!readOnly && canEditExecuted}
-          canExcluirActivity={!readOnly && canExcluirPhase}
+          canExcluirActivity={!readOnly && canExcluirActivity}
           showInactive={showInactive}
         />
       ))}
@@ -1071,6 +1072,7 @@ export default function ScheduleTab({
       {showAddModal && (
         <AddActivityModal
           projectId={projectId}
+          project={project}
           defaultPhase={addModalPhase}
           allPhaseNames={allPhaseNames}
           onSave={handleAddLocalActivity}
