@@ -1170,6 +1170,10 @@ export default function ScheduleTab({
         <AddPhaseModal
           projectId={projectId}
           phase={editingPhase}
+          existingPhases={[...new Set([
+            ...PHASE_ORDER.filter(ph => tasksByPhase[ph]?.some(t => t.type === "task")).map(name => ({ phase_name: name, order: PHASE_ORDER.indexOf(name) })),
+            ...localPhases.filter(p => p.is_active !== false).map(p => ({ phase_name: p.phase_name, order: p.order ?? 99 })),
+          ])].sort((a, b) => a.order - b.order)}
           onSave={(saved) => {
             setLocalPhases(prev => {
               const exists = prev.find(p => p.id === saved.id);
