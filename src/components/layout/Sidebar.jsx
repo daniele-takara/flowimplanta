@@ -44,7 +44,7 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="px-6 py-5 border-b border-slate-700">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FCCC31" }}>
             <span className="text-white font-bold text-sm">P</span>
           </div>
           <div>
