@@ -1,10 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-
-import {
-  Plus, Download, X, ChevronDown, ChevronUp, Save,
-  Search, FileText
-} from "lucide-react";
+import { Plus, Download, X, ChevronDown, ChevronUp, Search, FileText } from "lucide-react";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -14,43 +10,35 @@ const STATUS_PONTOTEL = ["Aberto", "Em andamento", "Validação", "Concluído", 
 const STATUS_CLIENT = ["Aberto", "Em validação", "Validado", "Cancelado"];
 
 const TYPE_COLORS = {
-  "Erro":       "bg-red-100 text-red-700 border-red-200",
-  "Melhoria":   "bg-blue-100 text-blue-700 border-blue-200",
-  "Dúvida":     "bg-amber-100 text-amber-700 border-amber-200",
-  "Pendência":  "bg-orange-100 text-orange-700 border-orange-200",
-  "Risco":      "bg-purple-100 text-purple-700 border-purple-200",
+  "Erro": "bg-red-100 text-red-700 border-red-200",
+  "Melhoria": "bg-blue-100 text-blue-700 border-blue-200",
+  "Dúvida": "bg-amber-100 text-amber-700 border-amber-200",
+  "Pendência": "bg-orange-100 text-orange-700 border-orange-200",
+  "Risco": "bg-purple-100 text-purple-700 border-purple-200",
 };
 
 const IMPACT_COLORS = {
-  "Alto":   "bg-red-50 text-red-600",
-  "Médio":  "bg-amber-50 text-amber-600",
-  "Baixo":  "bg-slate-100 text-slate-500",
+  "Alto": "bg-red-50 text-red-600",
+  "Médio": "bg-amber-50 text-amber-600",
+  "Baixo": "bg-slate-100 text-slate-500",
 };
 
 const STATUS_P_COLORS = {
-  "Aberto":        "bg-red-100 text-red-700",
-  "Em andamento":  "bg-blue-100 text-blue-700",
-  "Validação":     "bg-purple-100 text-purple-700",
-  "Concluído":     "bg-green-100 text-green-700",
-  "Cancelado":     "bg-slate-100 text-slate-400",
+  "Aberto": "bg-red-100 text-red-700",
+  "Em andamento": "bg-blue-100 text-blue-700",
+  "Validação": "bg-purple-100 text-purple-700",
+  "Concluído": "bg-green-100 text-green-700",
+  "Cancelado": "bg-slate-100 text-slate-400",
 };
 
 const STATUS_C_COLORS = {
-  "Aberto":       "bg-red-100 text-red-700",
+  "Aberto": "bg-red-100 text-red-700",
   "Em validação": "bg-purple-100 text-purple-700",
-  "Validado":     "bg-green-100 text-green-700",
-  "Cancelado":    "bg-slate-100 text-slate-400",
+  "Validado": "bg-green-100 text-green-700",
+  "Cancelado": "bg-slate-100 text-slate-400",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function Pill({ label, colorClass }) {
-  return (
-    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${colorClass}`}>
-      {label}
-    </span>
-  );
-}
 
 function fmt(d) {
   if (!d) return "—";
@@ -145,7 +133,134 @@ function generateActionPlanPDF(project, items) {
   setTimeout(() => w.print(), 600);
 }
 
-// ─── Modal de Edição ─────────────────────────────────────────────────────────
+// ─── Inputs Inline ────────────────────────────────────────────────────────────
+
+const cellBase = "w-full bg-transparent text-[11px] outline-none px-1 py-1 rounded focus:bg-blue-50 focus:ring-1 focus:ring-blue-300";
+
+function TextCell({ value, onChange, placeholder, readOnly }) {
+  return readOnly
+    ? <span className="text-[11px] text-slate-600 block px-1 py-1 truncate">{value || "—"}</span>
+    : <input className={cellBase} value={value || ""} onChange={e => onChange(e.target.value)} onBlur={onChange ? undefined : undefined} placeholder={placeholder} />;
+}
+
+function SelectCell({ value, onChange, options, colorMap, readOnly }) {
+  if (readOnly) {
+    const cls = colorMap?.[value] || "";
+    return <span className={`inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${cls}`}>{value || "—"}</span>;
+  }
+  return (
+    <select
+      value={value || ""}
+      onChange={e => onChange(e.target.value)}
+      className={`${cellBase} text-[10px] font-semibold cursor-pointer`}
+      style={{ color: "inherit" }}
+    >
+      {options.map(o => <option key={o}>{o}</option>)}
+    </select>
+  );
+}
+
+function DateCell({ value, onChange, readOnly }) {
+  return readOnly
+    ? <span className="text-[11px] text-slate-500 block px-1 py-1 whitespace-nowrap">{fmt(value)}</span>
+    : <input type="date" className={`${cellBase} text-[10px] min-w-[90px]`} value={value || ""} onChange={e => onChange(e.target.value)} />;
+}
+
+// ─── Linha da Tabela ─────────────────────────────────────────────────────────
+
+function TableRow({ item, onFieldSave, readOnly }) {
+  const [expanded, setExpanded] = useState(false);
+  const [local, setLocal] = useState({ ...item });
+  const saveTimer = useRef(null);
+
+  // sync external changes
+  useEffect(() => { setLocal({ ...item }); }, [item]);
+
+  const save = useCallback((field, value) => {
+    const updated = { ...local, [field]: value };
+    setLocal(updated);
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      onFieldSave(item.id, field, value);
+    }, 400);
+  }, [item.id, local, onFieldSave]);
+
+  const saveNow = useCallback((field, value) => {
+    const updated = { ...local, [field]: value };
+    setLocal(updated);
+    clearTimeout(saveTimer.current);
+    onFieldSave(item.id, field, value);
+  }, [item.id, local, onFieldSave]);
+
+  // Cleanup timer on unmount
+  useEffect(() => () => clearTimeout(saveTimer.current), []);
+
+  return (
+    <>
+      <tr className="border-b border-slate-100 hover:bg-slate-50/30 group">
+        <td className="p-0.5 min-w-[80px]"><TextCell value={local.ticket_code} onChange={v => save("ticket_code", v)} readOnly={readOnly} /></td>
+        <td className="p-0.5 min-w-[85px]"><TextCell value={local.technical_call_code} onChange={v => save("technical_call_code", v)} readOnly={readOnly} /></td>
+        <td className="p-0.5 min-w-[90px]"><TextCell value={local.theme} onChange={v => save("theme", v)} readOnly={readOnly} /></td>
+        <td className="p-0.5 min-w-[140px]"><TextCell value={local.issue} onChange={v => save("issue", v)} readOnly={readOnly} /></td>
+        <td className="p-0.5 min-w-[90px]">
+          <SelectCell value={local.type} onChange={v => saveNow("type", v)} options={TYPES} colorMap={TYPE_COLORS} readOnly={readOnly} />
+        </td>
+        <td className="p-0.5 min-w-[70px]">
+          <SelectCell value={local.impact} onChange={v => saveNow("impact", v)} options={IMPACTS} colorMap={IMPACT_COLORS} readOnly={readOnly} />
+        </td>
+        <td className="p-0.5 min-w-[100px]"><TextCell value={local.responsible_pontotel} onChange={v => save("responsible_pontotel", v)} readOnly={readOnly} /></td>
+        <td className="p-0.5 min-w-[120px]">
+          <SelectCell value={local.status_pontotel} onChange={v => saveNow("status_pontotel", v)} options={STATUS_PONTOTEL} colorMap={STATUS_P_COLORS} readOnly={readOnly} />
+        </td>
+        <td className="p-0.5 min-w-[100px]">
+          <SelectCell value={local.status_client} onChange={v => saveNow("status_client", v)} options={STATUS_CLIENT} colorMap={STATUS_C_COLORS} readOnly={readOnly} />
+        </td>
+        <td className="p-0.5 min-w-[100px]"><TextCell value={local.responsible_client} onChange={v => save("responsible_client", v)} readOnly={readOnly} /></td>
+        <td className="p-0.5 min-w-[95px]"><DateCell value={local.request_date} onChange={v => saveNow("request_date", v)} readOnly={readOnly} /></td>
+        <td className="p-0.5 min-w-[95px]"><DateCell value={local.deadline_date} onChange={v => saveNow("deadline_date", v)} readOnly={readOnly} /></td>
+        <td className="p-0.5 min-w-[95px]"><DateCell value={local.rollout_start} onChange={v => saveNow("rollout_start", v)} readOnly={readOnly} /></td>
+        <td className="p-0.5 min-w-[95px]"><DateCell value={local.rollout_end} onChange={v => saveNow("rollout_end", v)} readOnly={readOnly} /></td>
+        <td className="p-0.5 min-w-[95px]"><DateCell value={local.solution_date} onChange={v => saveNow("solution_date", v)} readOnly={readOnly} /></td>
+        <td className="p-0.5 min-w-[100px]"><DateCell value={local.new_solution_date} onChange={v => saveNow("new_solution_date", v)} readOnly={readOnly} /></td>
+        <td className="p-0.5 min-w-[60px]">
+          {readOnly ? (
+            <span className="text-[11px] text-slate-400 px-1">{local.history ? "✓" : "—"}</span>
+          ) : local.history ? (
+            <button onClick={() => setExpanded(e => !e)} className="flex items-center gap-0.5 text-[10px] text-blue-600 hover:text-blue-800 px-1">
+              <FileText className="w-3 h-3" />
+              {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+          ) : (
+            <button onClick={() => setExpanded(true)} className="text-[10px] text-slate-300 hover:text-blue-500 px-1">+</button>
+          )}
+        </td>
+      </tr>
+      {expanded && (
+        <tr className="bg-slate-50/80">
+          <td colSpan={17} className="px-3 py-2">
+            <div className="flex gap-3 items-start">
+              <span className="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap mt-1">Histórico:</span>
+              {readOnly ? (
+                <p className="text-[11px] text-slate-600 whitespace-pre-wrap leading-relaxed flex-1">{local.history}</p>
+              ) : (
+                <textarea
+                  className="flex-1 text-[11px] border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                  rows={3}
+                  value={local.history || ""}
+                  onChange={e => setLocal(l => ({ ...l, history: e.target.value }))}
+                  onBlur={() => { const v = local.history; if (v !== item.history) onFieldSave(item.id, "history", v); }}
+                  placeholder="Registro de ações / atualizações..."
+                />
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+// ─── Modal (apenas para novos itens) ─────────────────────────────────────────
 
 const EMPTY_ITEM = {
   ticket_code: "", technical_call_code: "", theme: "", issue: "", issue_description: "",
@@ -154,19 +269,14 @@ const EMPTY_ITEM = {
   deadline_date: "", rollout_start: "", rollout_end: "", solution_date: "", new_solution_date: "", history: ""
 };
 
-function ItemModal({ item, onClose, onSave }) {
-  const [form, setForm] = useState(item ? { ...item } : { ...EMPTY_ITEM });
+function NewItemModal({ projectId, onClose, onSave }) {
+  const [form, setForm] = useState({ ...EMPTY_ITEM });
   const [saving, setSaving] = useState(false);
 
-  const isNew = !item?.id;
-
   const handleSave = async () => {
+    if (!form.theme || !form.issue) return;
     setSaving(true);
-    if (isNew) {
-      await base44.entities.ActionPlan.create({ ...form, project_id: form.project_id });
-    } else {
-      await base44.entities.ActionPlan.update(item.id, form);
-    }
+    await base44.entities.ActionPlan.create({ ...form, project_id: projectId });
     setSaving(false);
     onSave();
   };
@@ -179,12 +289,9 @@ function ItemModal({ item, onClose, onSave }) {
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[80vh] overflow-y-auto mx-4">
         <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between z-10">
-          <h3 className="text-base font-bold text-slate-800">
-            {isNew ? "Novo Item" : "Editar Item"}
-          </h3>
+          <h3 className="text-base font-bold text-slate-800">Novo Item</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
         </div>
-
         <div className="p-6 grid grid-cols-3 gap-4">
           <div>
             <label className={labelCls}>Cód. Ticket</label>
@@ -198,91 +305,54 @@ function ItemModal({ item, onClose, onSave }) {
             <label className={labelCls}>Tema *</label>
             <input className={inputCls} value={form.theme} onChange={e => setForm(f => ({ ...f, theme: e.target.value }))} placeholder="Ex: Integração" />
           </div>
-
           <div className="col-span-3">
             <label className={labelCls}>Ocorrência *</label>
             <input className={inputCls} value={form.issue} onChange={e => setForm(f => ({ ...f, issue: e.target.value }))} placeholder="Título da ocorrência" />
           </div>
-
           <div className="col-span-3">
             <label className={labelCls}>Descrição da Ocorrência</label>
             <textarea className={`${inputCls} resize-none h-20`} value={form.issue_description} onChange={e => setForm(f => ({ ...f, issue_description: e.target.value }))} />
           </div>
-
           <div>
             <label className={labelCls}>Tipo</label>
-            <select className={selectCls} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
-              {TYPES.map(t => <option key={t}>{t}</option>)}
-            </select>
+            <select className={selectCls} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>{TYPES.map(t => <option key={t}>{t}</option>)}</select>
           </div>
           <div>
             <label className={labelCls}>Impacto</label>
-            <select className={selectCls} value={form.impact} onChange={e => setForm(f => ({ ...f, impact: e.target.value }))}>
-              {IMPACTS.map(t => <option key={t}>{t}</option>)}
-            </select>
+            <select className={selectCls} value={form.impact} onChange={e => setForm(f => ({ ...f, impact: e.target.value }))}>{IMPACTS.map(t => <option key={t}>{t}</option>)}</select>
           </div>
           <div>
             <label className={labelCls}>Resp. Pontotel</label>
             <input className={inputCls} value={form.responsible_pontotel} onChange={e => setForm(f => ({ ...f, responsible_pontotel: e.target.value }))} />
           </div>
-
           <div>
             <label className={labelCls}>Status Pontotel</label>
-            <select className={selectCls} value={form.status_pontotel} onChange={e => setForm(f => ({ ...f, status_pontotel: e.target.value }))}>
-              {STATUS_PONTOTEL.map(s => <option key={s}>{s}</option>)}
-            </select>
+            <select className={selectCls} value={form.status_pontotel} onChange={e => setForm(f => ({ ...f, status_pontotel: e.target.value }))}>{STATUS_PONTOTEL.map(s => <option key={s}>{s}</option>)}</select>
           </div>
           <div>
             <label className={labelCls}>Status Cliente</label>
-            <select className={selectCls} value={form.status_client} onChange={e => setForm(f => ({ ...f, status_client: e.target.value }))}>
-              {STATUS_CLIENT.map(s => <option key={s}>{s}</option>)}
-            </select>
+            <select className={selectCls} value={form.status_client} onChange={e => setForm(f => ({ ...f, status_client: e.target.value }))}>{STATUS_CLIENT.map(s => <option key={s}>{s}</option>)}</select>
           </div>
           <div>
             <label className={labelCls}>Resp. Cliente</label>
             <input className={inputCls} value={form.responsible_client} onChange={e => setForm(f => ({ ...f, responsible_client: e.target.value }))} />
           </div>
-
-          <div>
-            <label className={labelCls}>Data Solicitação</label>
-            <input type="date" className={inputCls} value={form.request_date || ""} onChange={e => setForm(f => ({ ...f, request_date: e.target.value }))} />
-          </div>
-          <div>
-            <label className={labelCls}>Prazo</label>
-            <input type="date" className={inputCls} value={form.deadline_date || ""} onChange={e => setForm(f => ({ ...f, deadline_date: e.target.value }))} />
-          </div>
-          <div>
-            <label className={labelCls}>Data Solução</label>
-            <input type="date" className={inputCls} value={form.solution_date || ""} onChange={e => setForm(f => ({ ...f, solution_date: e.target.value }))} />
-          </div>
-
-          <div>
-            <label className={labelCls}>Rollout Início</label>
-            <input type="date" className={inputCls} value={form.rollout_start || ""} onChange={e => setForm(f => ({ ...f, rollout_start: e.target.value }))} />
-          </div>
-          <div>
-            <label className={labelCls}>Rollout Fim</label>
-            <input type="date" className={inputCls} value={form.rollout_end || ""} onChange={e => setForm(f => ({ ...f, rollout_end: e.target.value }))} />
-          </div>
-          <div>
-            <label className={labelCls}>Nova Data Solução</label>
-            <input type="date" className={inputCls} value={form.new_solution_date || ""} onChange={e => setForm(f => ({ ...f, new_solution_date: e.target.value }))} />
-          </div>
-
+          <div><label className={labelCls}>Data Solicitação</label><input type="date" className={inputCls} value={form.request_date || ""} onChange={e => setForm(f => ({ ...f, request_date: e.target.value }))} /></div>
+          <div><label className={labelCls}>Prazo</label><input type="date" className={inputCls} value={form.deadline_date || ""} onChange={e => setForm(f => ({ ...f, deadline_date: e.target.value }))} /></div>
+          <div><label className={labelCls}>Data Solução</label><input type="date" className={inputCls} value={form.solution_date || ""} onChange={e => setForm(f => ({ ...f, solution_date: e.target.value }))} /></div>
+          <div><label className={labelCls}>Rollout Início</label><input type="date" className={inputCls} value={form.rollout_start || ""} onChange={e => setForm(f => ({ ...f, rollout_start: e.target.value }))} /></div>
+          <div><label className={labelCls}>Rollout Fim</label><input type="date" className={inputCls} value={form.rollout_end || ""} onChange={e => setForm(f => ({ ...f, rollout_end: e.target.value }))} /></div>
+          <div><label className={labelCls}>Nova Data Solução</label><input type="date" className={inputCls} value={form.new_solution_date || ""} onChange={e => setForm(f => ({ ...f, new_solution_date: e.target.value }))} /></div>
           <div className="col-span-3">
             <label className={labelCls}>Histórico</label>
             <textarea className={`${inputCls} resize-none h-24`} value={form.history} onChange={e => setForm(f => ({ ...f, history: e.target.value }))} placeholder="Registro de ações / atualizações..." />
           </div>
         </div>
-
         <div className="sticky bottom-0 bg-white border-t border-slate-100 px-6 py-4 flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">Cancelar</button>
-          <button
-            onClick={handleSave}
-            disabled={saving || !form.theme || !form.issue}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium disabled:opacity-40"
-          >
-            <Save className="w-4 h-4" />{saving ? "Salvando..." : "Salvar"}
+          <button onClick={handleSave} disabled={saving || !form.theme || !form.issue}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium disabled:opacity-40">
+            {saving ? "Salvando..." : "Criar Item"}
           </button>
         </div>
       </div>
@@ -290,80 +360,13 @@ function ItemModal({ item, onClose, onSave }) {
   );
 }
 
-// ─── Linha da Tabela ─────────────────────────────────────────────────────────
-
-function TableRow({ item, onEdit, onStatusChange }) {
-  const [expanded, setExpanded] = useState(false);
-
-  const handleQuickStatus = async (newStatus) => {
-    await base44.entities.ActionPlan.update(item.id, { status_pontotel: newStatus });
-    onStatusChange();
-  };
-
-  return (
-    <>
-      <tr className="border-b border-slate-100 hover:bg-slate-50/50 group">
-        <td className="px-2 py-2.5 text-xs font-mono text-slate-400 whitespace-nowrap">{item.ticket_code || "—"}</td>
-        <td className="px-2 py-2.5 text-xs text-slate-500 whitespace-nowrap">{item.technical_call_code || "—"}</td>
-        <td className="px-2 py-2.5 text-xs font-semibold text-slate-700 whitespace-nowrap">{item.theme}</td>
-        <td className="px-2 py-2.5 text-xs text-slate-700 max-w-[180px] truncate" title={item.issue}>
-          <button onClick={() => onEdit(item)} className="text-left hover:text-blue-600 transition-colors">
-            {item.issue}
-          </button>
-        </td>
-        <td className="px-2 py-2.5"><Pill label={item.type} colorClass={TYPE_COLORS[item.type] || "bg-slate-100 text-slate-500 border-slate-200"} /></td>
-        <td className="px-2 py-2.5 text-xs font-bold whitespace-nowrap">
-          <span className={IMPACT_COLORS[item.impact] || "text-slate-500"}>{item.impact}</span>
-        </td>
-        <td className="px-2 py-2.5 text-xs text-slate-600 whitespace-nowrap">{item.responsible_pontotel || "—"}</td>
-        <td className="px-2 py-2.5">
-          <select
-            value={item.status_pontotel}
-            onChange={e => handleQuickStatus(e.target.value)}
-            className={`text-[10px] font-semibold rounded-full px-2 py-0.5 border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-300 ${STATUS_P_COLORS[item.status_pontotel] || "bg-slate-100 text-slate-500"}`}
-          >
-            {STATUS_PONTOTEL.map(s => <option key={s}>{s}</option>)}
-          </select>
-        </td>
-        <td className="px-2 py-2.5"><Pill label={item.status_client} colorClass={STATUS_C_COLORS[item.status_client] || "bg-slate-100 text-slate-500"} /></td>
-        <td className="px-2 py-2.5 text-xs text-slate-600 whitespace-nowrap">{item.responsible_client || "—"}</td>
-        <td className="px-2 py-2.5 text-xs text-slate-500 whitespace-nowrap">{fmt(item.request_date)}</td>
-        <td className="px-2 py-2.5 text-xs text-slate-500 whitespace-nowrap">{fmt(item.deadline_date)}</td>
-        <td className="px-2 py-2.5 text-xs text-slate-500 whitespace-nowrap">{fmt(item.rollout_start)}</td>
-        <td className="px-2 py-2.5 text-xs text-slate-500 whitespace-nowrap">{fmt(item.rollout_end)}</td>
-        <td className="px-2 py-2.5 text-xs text-slate-500 whitespace-nowrap">{fmt(item.solution_date)}</td>
-        <td className="px-2 py-2.5 text-xs text-slate-500 whitespace-nowrap">{fmt(item.new_solution_date)}</td>
-        <td className="px-2 py-2.5">
-          {item.history ? (
-            <button
-              onClick={() => setExpanded(e => !e)}
-              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 whitespace-nowrap"
-            >
-              <FileText className="w-3 h-3" />
-              {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            </button>
-          ) : <span className="text-xs text-slate-300">—</span>}
-        </td>
-      </tr>
-      {expanded && item.history && (
-        <tr className="bg-slate-50">
-          <td colSpan={17} className="px-4 py-3">
-            <div className="flex gap-3">
-              <span className="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">Histórico:</span>
-              <p className="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed">{item.history}</p>
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
-  );
-}
-
 // ─── Componente Principal ────────────────────────────────────────────────────
 
+// colgroup widths (%): compact but readable
+const COL_W = ["5%","5%","6%","11%","6%","5%","7%","8%","7%","7%","6%","6%","6%","6%","6%","6%","4%"];
+
 export default function ActionPlanTab({ actions = [], projectId, project, onRefresh, readOnly = false }) {
-  const [showModal, setShowModal] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
+  const [showNewModal, setShowNewModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterType, setFilterType] = useState("all");
   const [search, setSearch] = useState("");
@@ -379,80 +382,50 @@ export default function ActionPlanTab({ actions = [], projectId, project, onRefr
     return true;
   });
 
-  const handleSave = useCallback(() => {
-    setShowModal(false);
-    setEditingItem(null);
+  const handleFieldSave = useCallback(async (id, field, value) => {
+    await base44.entities.ActionPlan.update(id, { [field]: value });
+  }, []);
+
+  const handleNewSaved = useCallback(() => {
+    setShowNewModal(false);
     onRefresh();
   }, [onRefresh]);
-
-  const handleEdit = (item) => {
-    setEditingItem(item);
-    setShowModal(true);
-  };
-
-  const handleNew = () => {
-    setEditingItem(null);
-    setShowModal(true);
-  };
 
   const openCount = actions.filter(a => !["Concluído", "Cancelado"].includes(a.status_pontotel)).length;
 
   return (
     <div>
       {/* Toolbar */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-4 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white rounded-2xl border border-slate-200 p-3 mb-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-bold text-slate-800">Plano de Ação</h2>
-            <p className="text-xs text-slate-400 mt-0.5">{actions.length} itens · {openCount} em aberto</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">{actions.length} itens · {openCount} em aberto</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Busca */}
+          <div className="flex flex-wrap items-center gap-1.5">
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                className="pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 w-48"
-                placeholder="Buscar..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
+              <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2" />
+              <input className="pl-7 pr-2.5 py-1 text-[11px] border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 w-36" placeholder="Buscar..."
+                value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-
-            {/* Filtro Status */}
-            <select
-              value={filterStatus}
-              onChange={e => setFilterStatus(e.target.value)}
-              className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              <option value="all">Todos os Status</option>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+              className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+              <option value="all">Todos Status</option>
               {STATUS_PONTOTEL.map(s => <option key={s}>{s}</option>)}
             </select>
-
-            {/* Filtro Tipo */}
-            <select
-              value={filterType}
-              onChange={e => setFilterType(e.target.value)}
-              className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              <option value="all">Todos os Tipos</option>
+            <select value={filterType} onChange={e => setFilterType(e.target.value)}
+              className="text-[11px] border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+              <option value="all">Todos Tipos</option>
               {TYPES.map(t => <option key={t}>{t}</option>)}
             </select>
-
-            {/* PDF */}
-            <button
-              onClick={() => generateActionPlanPDF(project, filtered)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />PDF
+            <button onClick={() => generateActionPlanPDF(project, filtered)}
+              className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors">
+              <Download className="w-3 h-3" />PDF
             </button>
-
-            {/* Novo */}
             {!readOnly && (
-              <button
-                onClick={handleNew}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />Novo Item
+              <button onClick={() => setShowNewModal(true)}
+                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+                <Plus className="w-3 h-3" />Novo
               </button>
             )}
           </div>
@@ -464,42 +437,38 @@ export default function ActionPlanTab({ actions = [], projectId, project, onRefr
         {filtered.length === 0 ? (
           <div className="text-center py-16 text-slate-400">
             <p className="text-sm">Nenhum item encontrado.</p>
-            {!readOnly && (
-              <button onClick={handleNew} className="mt-2 text-blue-600 hover:underline text-sm">Criar primeiro item</button>
-            )}
+            {!readOnly && <button onClick={() => setShowNewModal(true)} className="mt-2 text-blue-600 hover:underline text-sm">Criar primeiro item</button>}
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1600px]">
+            <table className="w-full" style={{ minWidth: 1100 }}>
+              <colgroup>
+                {COL_W.map((w, i) => <col key={i} style={{ width: w }} />)}
+              </colgroup>
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-3">Cod. Ticket</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-3">Chamado Técnico</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-3">Tema</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-3">Ocorrência</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-3">Tipo</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-3">Impacto</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-3">Resp. Pontotel</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-3">Status Pontotel</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-3">Status Cliente</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-3">Resp. Cliente</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-3">Data Solicitação</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-3">Prazo</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-3">Rollout Início</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-3">Rollout Fim</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-3">Data Solução</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-3">Nova Data Solução</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-3">Histórico</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Cod. Ticket</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Chamado Técnico</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Tema</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Ocorrência</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Tipo</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Impacto</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Resp. Pontotel</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Status Pontotel</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Status Cliente</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Resp. Cliente</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Data Solic.</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Prazo</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Rollout Ini.</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Rollout Fim</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Data Solução</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Nova Data Sol.</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Hist.</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map(item => (
-                  <TableRow
-                    key={item.id}
-                    item={item}
-                    onEdit={handleEdit}
-                    onStatusChange={onRefresh}
-                  />
+                  <TableRow key={item.id} item={item} onFieldSave={handleFieldSave} readOnly={readOnly} />
                 ))}
               </tbody>
             </table>
@@ -507,13 +476,9 @@ export default function ActionPlanTab({ actions = [], projectId, project, onRefr
         )}
       </div>
 
-      {/* Modal */}
-      {showModal && (
-        <ItemModal
-          item={editingItem ? { ...editingItem, project_id: projectId } : { ...EMPTY_ITEM, project_id: projectId }}
-          onClose={() => { setShowModal(false); setEditingItem(null); }}
-          onSave={handleSave}
-        />
+      {/* Modal apenas para novo item */}
+      {showNewModal && (
+        <NewItemModal projectId={projectId} onClose={() => setShowNewModal(false)} onSave={handleNewSaved} />
       )}
     </div>
   );
