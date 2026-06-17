@@ -443,6 +443,18 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         if (dateStr) overrides[taskId] = { plannedStart: dateStr };
       });
 
+      // Carregar overrides manuais do localStorage (datas editadas + Pipedrive)
+      let localStorageOverrides = {};
+      try {
+        localStorageOverrides = JSON.parse(localStorage.getItem(`schedule_overrides_${projectId}`) || "{}");
+        // Merge: localStorage sobrepõe banco
+        Object.entries(localStorageOverrides).forEach(([taskId, ov]) => {
+          if (ov && typeof ov === "object") {
+            overrides[taskId] = { ...(overrides[taskId] || {}), ...ov };
+          }
+        });
+      } catch {}
+
       // Carregar overrides de fases e fases locais para sincronizar com o cronograma real
       let phaseOverridesMap = {};
       let localPhases = [];
@@ -456,7 +468,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
       } catch {}
 
       const { macroPhases: phases, overallProgress: progress } = computeMacroSchedule(
-        overrides, answersMap, project, savedActivities || [], phaseOverridesMap, localPhases
+        overrides, answersMap, project, savedActivities || [], phaseOverridesMap, localPhases, localStorageOverrides
       );
       setMacroPhases(phases);
       setOverallProgress(progress);

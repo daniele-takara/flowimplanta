@@ -16,9 +16,10 @@ import { buildProjectScheduleView } from "@/lib/buildProjectScheduleView.js";
 function buildAnswersMap(scopeItems) {
   const map = {};
   (scopeItems || []).forEach(item => {
+    if (item.question_id) map[item.question_id] = item.answer || "";
     if (item.order_number) {
       const key = `q${String(item.order_number).padStart(3, "0")}`;
-      map[key] = item.answer || "";
+      if (!map[key]) map[key] = item.answer || "";
     }
   });
   return map;
@@ -38,10 +39,17 @@ async function buildScheduleSnapshotFromDB(projectId, answersMap, project) {
       base44.entities.ScheduleActivity.filter({ project_id: projectId }),
     ]);
 
+    // Carregar overrides manuais do localStorage (datas editadas + Pipedrive)
+    let localOverrides = {};
+    try {
+      localOverrides = JSON.parse(localStorage.getItem(`schedule_overrides_${projectId}`) || "{}");
+    } catch {}
+
     console.log("[TAPTab] buildScheduleSnapshotFromDB — Dados carregados:", {
       phaseOverrideList: phaseOverrideList?.length || 0,
       localPhaseList: localPhaseList?.length || 0,
       savedActivities: savedActivities?.length || 0,
+      localStorageOverrideKeys: Object.keys(localOverrides).length,
     });
 
     const phaseOverridesMap = {};
@@ -57,6 +65,7 @@ async function buildScheduleSnapshotFromDB(projectId, answersMap, project) {
       savedActivities: savedActivities || [],
       phaseOverridesMap,
       localPhases,
+      manualOverrides: localOverrides,
       includeInactive: false,
     });
 

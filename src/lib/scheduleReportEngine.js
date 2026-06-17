@@ -42,6 +42,7 @@ export const MACRO_PHASE_ORDER = [
  * @param {Array}  savedActivities  - atividades salvas no banco (com actual_start/actual_end)
  * @param {Object} phaseOverridesMap - mapa { phaseName: SchedulePhaseOverride }
  * @param {Array}  localPhases      - LocalSchedulePhase[] do projeto
+ * @param {Object} manualOverrides  - { taskId: { plannedStart, plannedEnd } } — overrides do localStorage
  * @returns {{ macroPhases: Array, overallProgress: number }}
  */
 export function computeMacroSchedule(
@@ -51,6 +52,7 @@ export function computeMacroSchedule(
   savedActivities = [],
   phaseOverridesMap = {},
   localPhases = [],
+  manualOverrides = {},
 ) {
   try {
     // Usar buildProjectScheduleView como fonte única — inclui fases locais + overrides + inativações
@@ -60,6 +62,7 @@ export function computeMacroSchedule(
       savedActivities,
       phaseOverridesMap,
       localPhases,
+      manualOverrides,
       includeInactive: false,
     });
 

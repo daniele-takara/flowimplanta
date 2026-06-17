@@ -492,6 +492,7 @@ buildProjectScheduleView({
   savedActivities,     // ScheduleActivity[] do banco
   phaseOverridesMap,   // { phaseName: SchedulePhaseOverride } — pode ser {}
   localPhases,         // LocalSchedulePhase[] — pode ser []
+  manualOverrides,     // { taskId: { plannedStart, plannedEnd, _origin } } — localStorage (manuais + Pipedrive)
   includeInactive,     // boolean — padrão false
 })
 // Retorna: Array<{ phase_name, canonical_name, is_local, is_active, planned_start,
@@ -624,6 +625,31 @@ plannedStart              → self reference
 `cronograma_ver/editar/editar_planejado/concluir_fase/recalcular/criar_atividade/criar_fase/editar_fase/excluir_fase/editar_atividade/excluir_atividade/gerar_pdf`,
 `tap_ver/editar/gerar_pdf`, `status_report_ver/editar/atualizar/email`,
 `termo_ver/editar/pdf`, `integracao_sync_pipedrive_dados/cronograma/status`, `parametrizacoes_acessar/editar`
+
+---
+
+## 6.1 TAP — ARQUITETURA v6.5 (CORRIGIDA — 2026-06-17)
+
+### Diagnóstico e Correção (v6.5)
+
+**Problema:** A TAP não refletia datas manuais editadas no ScheduleTab porque o `buildProjectScheduleView` só lia `schedule_anchor_dates` do banco, ignorando overrides do localStorage (datas não-âncora editadas manualmente ou sincronizadas do Pipedrive).
+
+**Causa raiz:** 
+- `ScheduleTab.handleSaveOverride` persiste âncoras no banco, mas overrides não-âncora ficam só no localStorage
+- `buildProjectScheduleView` usava apenas `project.schedule_anchor_dates` para o `computeSchedule`
+- `buildScheduleSnapshotFromDB` (TAP) não carregava localStorage
+- `computeMacroSchedule` (Status Report) também não
+
+**Correção (3 arquivos):**
+1. `buildProjectScheduleView` — novo parâmetro `manualOverrides` que mescla localStorage com bankAnchors antes do `computeSchedule`
+2. `buildScheduleSnapshotFromDB` (TAPTab) — carrega localStorage e passa como `manualOverrides`
+3. `computeMacroSchedule` + `StatusReportTab` — idem para o Status Report
+
+**Resultado:** TAP e Status Report agora refletem exatamente as mesmas datas que o Cronograma Detalhado, incluindo edições manuais e dados Pipedrive.
+
+### Diagnóstico adicional
+
+**`buildAnswersMap` do TAPTab (v6.5):** Corrigido para priorizar `question_id` sobre `order_number`, alinhando com o ScheduleTab. Isso garante que respostas do escopo sejam resolvidas corretamente para visibilidade condicional de fases.
 
 ---
 

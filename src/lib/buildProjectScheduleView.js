@@ -47,6 +47,7 @@ const TODAY = () => new Date().toISOString().split("T")[0];
  * @param {Array}  params.savedActivities   - ScheduleActivity[] do banco
  * @param {Object} params.phaseOverridesMap - { phaseName: SchedulePhaseOverride } — pode ser {}
  * @param {Array}  params.localPhases       - LocalSchedulePhase[] — pode ser []
+ * @param {Object}  params.manualOverrides   - { taskId: { plannedStart, plannedEnd, _origin } } — overrides do localStorage (manuais + Pipedrive)
  * @param {boolean} params.includeInactive  - Se true, inclui fases inativas (padrão: false)
  * @returns {Array} fases consolidadas, ordenadas, com datas e status
  */
@@ -56,14 +57,23 @@ export function buildProjectScheduleView({
   savedActivities = [],
   phaseOverridesMap = {},
   localPhases = [],
+  manualOverrides = {},
   includeInactive = false,
 }) {
   try {
     // 1. Calcular datas do motor para o cronograma do template
+    // Prioridade: localStorage (manuais + Pipedrive) > banco (schedule_anchor_dates)
     const bankAnchors = project?.schedule_anchor_dates || {};
     const overrides = {};
+    // 1a. Banco como base
     Object.entries(bankAnchors).forEach(([taskId, dateStr]) => {
       if (dateStr) overrides[taskId] = { plannedStart: dateStr };
+    });
+    // 1b. localStorage sobrepõe (prioridade máxima — inclui datas manuais + Pipedrive)
+    Object.entries(manualOverrides || {}).forEach(([taskId, override]) => {
+      if (override && typeof override === "object") {
+        overrides[taskId] = { ...(overrides[taskId] || {}), ...override };
+      }
     });
 
     const { dates: computedDates, visible } = computeSchedule(
