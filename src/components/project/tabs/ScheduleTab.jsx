@@ -851,10 +851,12 @@ export default function ScheduleTab({
     // 3. Persiste TUDO no banco — fonte de verdade compartilhada entre usuários
     try {
       await base44.entities.Project.update(projectId, { schedule_overrides: nextOverrides });
+      // Notifica o ProjectDetail para recarregar o projeto (atualiza estado global)
+      if (onRefresh) onRefresh();
     } catch (err) {
       console.error("[ScheduleTab] Erro ao persistir schedule_overrides no banco:", err);
     }
-  }, [projectId]);
+  }, [projectId, onRefresh]);
 
   const handleRemoveOverride = useCallback(async (taskId, field) => {
     let nextOverrides = {};
@@ -881,10 +883,11 @@ export default function ScheduleTab({
     // Persiste no banco — fonte de verdade compartilhada
     try {
       await base44.entities.Project.update(projectId, { schedule_overrides: nextOverrides });
+      if (onRefresh) onRefresh();
     } catch (err) {
       console.error("[ScheduleTab] Erro ao persistir schedule_overrides no banco:", err);
     }
-  }, [projectId]);
+  }, [projectId, onRefresh]);
 
   const handleSaveActivity = useCallback(async (task, data) => {
     const existing = activitiesByTask[task.id];

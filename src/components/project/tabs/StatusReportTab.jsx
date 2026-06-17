@@ -436,8 +436,12 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         ? Math.round((recordingEmployees / contracted) * 100)
         : 0;
 
-      // 3. Calcular cronograma macro usando atividades reais do banco
-      const bankAnchors = project?.schedule_anchor_dates || {};
+      // 3. Recarregar projeto do banco para ter schedule_overrides mais recentes
+      const freshProjectList = await base44.entities.Project.filter({ id: projectId });
+      const freshProject = freshProjectList[0] || project;
+
+      // Calcular cronograma macro usando atividades reais do banco
+      const bankAnchors = freshProject?.schedule_anchor_dates || {};
       const overrides = {};
       Object.entries(bankAnchors).forEach(([taskId, dateStr]) => {
         if (dateStr) overrides[taskId] = { plannedStart: dateStr };
@@ -446,7 +450,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
       // Carregar overrides manuais do banco (fonte de verdade compartilhada entre usuários)
       let dbOverrides = {};
       try {
-        const raw = project?.schedule_overrides;
+        const raw = freshProject?.schedule_overrides;
         if (raw && typeof raw === "object" && !Array.isArray(raw)) {
           dbOverrides = raw;
         }
@@ -482,7 +486,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
       } catch {}
 
       const { macroPhases: phases, overallProgress: progress } = computeMacroSchedule(
-        overrides, answersMap, project, savedActivities || [], phaseOverridesMap, localPhases
+        overrides, answersMap, freshProject, savedActivities || [], phaseOverridesMap, localPhases
       );
       setMacroPhases(phases);
       setOverallProgress(progress);

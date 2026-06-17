@@ -33,6 +33,10 @@ function buildAnswersMap(scopeItems) {
 async function buildScheduleSnapshotFromDB(projectId, answersMap, project) {
   console.log("[TAPTab] buildScheduleSnapshotFromDB INÍCIO — project_id:", projectId);
   try {
+    // Recarrega projeto do banco para garantir schedule_overrides mais recentes
+    const freshProjectList = await base44.entities.Project.filter({ id: projectId });
+    const freshProject = freshProjectList[0] || project;
+
     const [phaseOverrideList, localPhaseList, savedActivities] = await Promise.all([
       base44.entities.SchedulePhaseOverride.filter({ project_id: projectId }),
       base44.entities.LocalSchedulePhase.filter({ project_id: projectId }),
@@ -40,9 +44,10 @@ async function buildScheduleSnapshotFromDB(projectId, answersMap, project) {
     ]);
 
     // Carregar overrides manuais do banco (fonte de verdade compartilhada entre usuários)
+    // Usa freshProject (recém carregado do banco) para garantir dados atualizados
     let dbOverrides = {};
     try {
-      const raw = project?.schedule_overrides;
+      const raw = freshProject?.schedule_overrides;
       if (raw && typeof raw === "object" && !Array.isArray(raw)) {
         dbOverrides = raw;
       }
@@ -71,7 +76,7 @@ async function buildScheduleSnapshotFromDB(projectId, answersMap, project) {
     console.log("[TAPTab] buildScheduleSnapshotFromDB — localPhases:", localPhases.map(p => p.phase_name));
 
     const scheduleView = buildProjectScheduleView({
-      project,
+      project: freshProject,
       answersMap,
       savedActivities: savedActivities || [],
       phaseOverridesMap,
