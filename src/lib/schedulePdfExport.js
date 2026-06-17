@@ -56,6 +56,20 @@ const norm = (s) => (s || "").toLowerCase().trim()
  * @param {Object} params.manualOverrides - { taskId: { plannedStart, plannedEnd } }
  * @param {Object} params.templateConfig - Config do ScheduleTemplate (tasks_config)
  */
+// Colunas disponíveis para seleção no PDF do Cronograma
+export const SCHEDULE_PDF_COLUMNS = [
+  { key: "activity",        label: "Atividade",         group: "Essenciais", default: true },
+  { key: "planned_start",   label: "Início Planejado",  group: "Datas", default: true },
+  { key: "planned_end",     label: "Fim Planejado",     group: "Datas", default: true },
+  { key: "actual_start",    label: "Início Executado",  group: "Datas", default: true },
+  { key: "actual_end",      label: "Fim Executado",     group: "Datas", default: true },
+  { key: "status",          label: "Status",            group: "Status", default: true },
+  { key: "responsible_general", label: "Resp. Geral",   group: "Responsáveis", default: true },
+  { key: "observations",    label: "Observações",       group: "Outros", default: false },
+];
+
+export const SCHEDULE_PDF_DEFAULT_COLUMNS = SCHEDULE_PDF_COLUMNS.filter(c => c.default).map(c => c.key);
+
 export async function generateSchedulePDF({
   project,
   scopeItems = [],
@@ -64,6 +78,7 @@ export async function generateSchedulePDF({
   phaseOverrides = {},
   manualOverrides = {},
   templateConfig = {},
+  selectedColumns = null,
   includeObservations = true,
 }) {
   const answersMap = {};
@@ -206,16 +221,20 @@ export async function generateSchedulePDF({
     // fallback silencioso se falhar carregar logo
   }
 
-  // ---- Colunas ----
-  const colActivity = margin;
-  const colPS = 100;
-  const colPE = 128;
-  const colAS = 156;
-  const colAE = 184;
-  const colStatus = 212;
-  const colResp = 240;
-  const colObs = 265;
+  // Resolver colunas selecionadas (fallback para includeObservations legado)
+  const cols = (selectedColumns && selectedColumns.length > 0)
+    ? SCHEDULE_PDF_COLUMNS.filter(c => selectedColumns.includes(c.key))
+    : SCHEDULE_PDF_COLUMNS.filter(c => c.key !== "observations" || includeObservations);
+
+  // ---- Colunas dinâmicas ----
   const tableW = pageW - margin * 2;
+  const colWidths = { activity: 60, planned_start: 28, planned_end: 28, actual_start: 28, actual_end: 28, status: 28, responsible_general: 25, observations: 55 };
+  const colPositions = {};
+  let cx = margin;
+  cols.forEach(c => {
+    colPositions[c.key] = cx;
+    cx += colWidths[c.key] || 28;
+  });
 
   // ---- LINHA SEPARADORA ----
   doc.setDrawColor(200);
@@ -266,14 +285,8 @@ export async function generateSchedulePDF({
     doc.setFontSize(6.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(100);
-    doc.text("Atividade", colActivity, y);
-    doc.text("Inicio Plan.", colPS, y);
-    doc.text("Fim Plan.", colPE, y);
-    doc.text("Inicio Exec.", colAS, y);
-    doc.text("Fim Exec.", colAE, y);
-    doc.text("Status", colStatus, y);
-    doc.text("Resp. Geral", colResp, y);
-    if (includeObservations) doc.text("Obs.", colObs, y);
+    const headerLabels = { activity: "Atividade", planned_start: "Inicio Plan.", planned_end: "Fim Plan.", actual_start: "Inicio Exec.", actual_end: "Fim Exec.", status: "Status", responsible_general: "Resp. Geral", observations: "Obs." };
+    cols.forEach(c => { doc.text(headerLabels[c.key] || c.label, colPositions[c.key], y); });
     y += 4;
 
     // Linha separadora
@@ -304,14 +317,17 @@ export async function generateSchedulePDF({
       doc.setFont("helvetica", "normal");
       doc.setTextColor(40);
 
-      doc.text(task.activity.substring(0, 55), colActivity, y);
-      doc.text(fmtDate(pStart), colPS, y);
-      doc.text(fmtDate(pEnd), colPE, y);
-      doc.text(fmtDate(aStart), colAS, y);
-      doc.text(fmtDate(aEnd), colAE, y);
-      doc.text(status, colStatus, y);
-      doc.text(respGeneral.substring(0, 18), colResp, y);
-      if (includeObservations) doc.text(obs ? obs.substring(0, 28) : "—", colObs, y);
+      const rowVals = {
+        activity: task.activity.substring(0, 55),
+        planned_start: fmtDate(pStart),
+        planned_end: fmtDate(pEnd),
+        actual_start: fmtDate(aStart),
+        actual_end: fmtDate(aEnd),
+        status: status,
+        responsible_general: respGeneral.substring(0, 18),
+        observations: obs ? obs.substring(0, 28) : "—",
+      };
+      cols.forEach(c => { doc.text(rowVals[c.key] || "", colPositions[c.key], y); });
       y += 3.5;
     });
 
@@ -325,14 +341,17 @@ export async function generateSchedulePDF({
       doc.setFont("helvetica", "normal");
       doc.setTextColor(40);
 
-      doc.text(act.activity_name.substring(0, 55), colActivity, y);
-      doc.text(fmtDate(act.planned_start), colPS, y);
-      doc.text(fmtDate(act.planned_end), colPE, y);
-      doc.text(fmtDate(act.actual_start), colAS, y);
-      doc.text(fmtDate(act.actual_end), colAE, y);
-      doc.text(act.status || "Nao iniciado", colStatus, y);
-      doc.text((act.responsible_general || "").substring(0, 18), colResp, y);
-      if (includeObservations) doc.text((act.history_observations || "").substring(0, 28) || "—", colObs, y);
+      const localRowVals = {
+        activity: act.activity_name.substring(0, 55),
+        planned_start: fmtDate(act.planned_start),
+        planned_end: fmtDate(act.planned_end),
+        actual_start: fmtDate(act.actual_start),
+        actual_end: fmtDate(act.actual_end),
+        status: act.status || "Nao iniciado",
+        responsible_general: (act.responsible_general || "").substring(0, 18),
+        observations: (act.history_observations || "").substring(0, 28) || "—",
+      };
+      cols.forEach(c => { doc.text(localRowVals[c.key] || "", colPositions[c.key], y); });
       y += 3.5;
     });
 

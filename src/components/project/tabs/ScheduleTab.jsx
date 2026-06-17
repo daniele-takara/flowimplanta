@@ -14,6 +14,7 @@ import AddPhaseModal from "./schedule/AddPhaseModal.jsx";
 import LocalPhaseSection from "./schedule/LocalPhaseSection.jsx";
 import PhaseOverrideModal from "./schedule/PhaseOverrideModal.jsx";
 import { generateSchedulePDF } from "@/lib/schedulePdfExport.js";
+import SchedulePDFColumnModal from "./schedule/SchedulePDFColumnModal.jsx";
 
 function fmtDate(d) {
   if (!d) return "—";
@@ -663,7 +664,7 @@ export default function ScheduleTab({
 
   // PDF generation state
   const [generatingPDF, setGeneratingPDF] = useState(false);
-  const [showPDFOptions, setShowPDFOptions] = useState(false);
+  const [showPDFModal, setShowPDFModal] = useState(false);
 
   // Carregar overrides: DB (schedule_overrides) como fonte primária, localStorage como fallback de migração
   useEffect(() => {
@@ -1019,8 +1020,8 @@ export default function ScheduleTab({
   const totalInactiveCount = inactiveLocalCount + inactiveTemplatePhaseCount + inactiveActivityCount;
   const hasInactiveItems = totalInactiveCount > 0;
 
-  const handleGeneratePDF = async (includeObs = true) => {
-    setShowPDFOptions(false);
+  const handleGeneratePDF = useCallback(async (selectedCols) => {
+    setShowPDFModal(false);
     setGeneratingPDF(true);
     try {
       const doc = await generateSchedulePDF({
@@ -1031,7 +1032,7 @@ export default function ScheduleTab({
         phaseOverrides,
         manualOverrides,
         templateConfig,
-        includeObservations: includeObs,
+        selectedColumns: selectedCols,
       });
       doc.save(`Cronograma_${(project?.client_name || project?.name || "projeto").replace(/\s+/g, "_")}.pdf`);
     } catch (err) {
@@ -1039,7 +1040,7 @@ export default function ScheduleTab({
       alert("Erro ao gerar PDF do cronograma. Tente novamente.");
     }
     setGeneratingPDF(false);
-  };
+  }, [project, scopeItems, savedActivities, localPhases, phaseOverrides, manualOverrides, templateConfig]);
 
   return (
     <div>
@@ -1080,7 +1081,7 @@ export default function ScheduleTab({
           )}
           {canGeneratePDF && (
             <button
-              onClick={() => setShowPDFOptions(true)}
+              onClick={() => setShowPDFModal(true)}
               disabled={generatingPDF}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 disabled:opacity-60"
             >
@@ -1099,36 +1100,12 @@ export default function ScheduleTab({
         </div>
       </div>
 
-      {/* Dialog de opções do PDF */}
-      {showPDFOptions && (
-        <div className="bg-white rounded-xl border border-emerald-200 shadow-lg p-5 mb-5">
-          <p className="text-sm font-semibold text-slate-700 mb-3">Gerar PDF do Cronograma</p>
-          <p className="text-xs text-slate-500 mb-4">Deseja incluir a coluna de <strong>Observações</strong> no PDF?</p>
-          <div className="flex gap-3">
-            <button
-              onClick={() => handleGeneratePDF(true)}
-              disabled={generatingPDF}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
-            >
-              {generatingPDF ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
-              Com observações
-            </button>
-            <button
-              onClick={() => handleGeneratePDF(false)}
-              disabled={generatingPDF}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 disabled:opacity-60"
-            >
-              {generatingPDF ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
-              Sem observações
-            </button>
-            <button
-              onClick={() => setShowPDFOptions(false)}
-              className="px-4 py-2 text-sm text-slate-400 hover:text-slate-600"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
+      {/* Modal de Seleção de Colunas do PDF */}
+      {showPDFModal && (
+        <SchedulePDFColumnModal
+          onClose={() => setShowPDFModal(false)}
+          onGenerate={handleGeneratePDF}
+        />
       )}
 
       {/* Painel de âncoras */}
