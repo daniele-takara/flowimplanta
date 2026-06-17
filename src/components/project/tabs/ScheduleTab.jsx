@@ -80,11 +80,15 @@ function DateOriginBadge({ origin }) {
 // ── TaskRow ────────────────────────────────────────────────────────────────────
 function TaskRow({
   task, computedDates, manualOverrides, onSaveOverride, onRemoveOverride,
-  onSaveActivity, existingActivity, project, templateConfig,
+  onSaveActivity, onInactivateTask, existingActivity, project, templateConfig,
   readOnly, canEditPlanned, canEditExecuted,
 }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [confirmInactivate, setConfirmInactivate] = useState(false);
+
+  const isInactive = existingActivity?.status === "Cancelado" &&
+    (existingActivity?.history_observations || "").includes("[INATIVADO]");
 
   const override = manualOverrides?.[task.id] || {};
   const dates    = computedDates[task.id] || {};
@@ -192,143 +196,195 @@ function TaskRow({
   };
 
   return (
-    <tr className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors">
-      <td className="px-4 py-2.5 text-sm text-slate-700 max-w-[280px]">
-        <div>
-          <span className="leading-snug">{task.activity}</span>
-          <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-            {isAnchor && (
-              <span className="flex items-center gap-0.5 text-xs bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-medium">
-                <Anchor className="w-2.5 h-2.5" />Âncora
+    <>
+      <tr className={`border-b border-slate-50 transition-colors ${isInactive ? "bg-slate-50/60 opacity-60" : "hover:bg-slate-50/80"}`}>
+        <td className="px-4 py-2.5 text-sm text-slate-700 max-w-[280px]">
+          <div>
+            <span className={`leading-snug ${isInactive ? "line-through text-slate-400" : ""}`}>{task.activity}</span>
+            <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+              {isInactive && (
+                <span className="flex items-center gap-0.5 text-xs bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded font-medium">
+                  <EyeOff className="w-2.5 h-2.5" />Inativa
+                </span>
+              )}
+              {isAnchor && (
+                <span className="flex items-center gap-0.5 text-xs bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-medium">
+                  <Anchor className="w-2.5 h-2.5" />Âncora
+                </span>
+              )}
+            </div>
+          </div>
+        </td>
+
+        <td className="px-3 py-2.5 whitespace-nowrap min-w-[130px]">
+          <div className="space-y-1">
+            {editing && canEditPlanned
+              ? <input type="date" value={form.planned_start} onChange={e => setForm(f => ({ ...f, planned_start: e.target.value }))} className={inputClass} />
+              : <span className="text-xs text-slate-600">{fmtDate(displayStart)}</span>
+            }
+            <div className="flex items-center gap-1">
+              <DateOriginBadge origin={startOrigin} />
+              {startOrigin === "manual" && !readOnly && (
+                <button onClick={() => onRemoveOverride(task.id, "plannedStart")} title="Voltar ao calculado" className="text-slate-300 hover:text-red-400">
+                  <RotateCcw className="w-2.5 h-2.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        </td>
+
+        <td className="px-3 py-2.5 whitespace-nowrap min-w-[130px]">
+          <div className="space-y-1">
+            {editing && canEditPlanned
+              ? <input type="date" value={form.planned_end} onChange={e => setForm(f => ({ ...f, planned_end: e.target.value }))} className={inputClass} />
+              : <span className="text-xs text-slate-600">{fmtDate(displayEnd)}</span>
+            }
+            <div className="flex items-center gap-1">
+              <DateOriginBadge origin={endOrigin} />
+              {endOrigin === "manual" && !readOnly && (
+                <button onClick={() => onRemoveOverride(task.id, "plannedEnd")} title="Voltar ao calculado" className="text-slate-300 hover:text-red-400">
+                  <RotateCcw className="w-2.5 h-2.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        </td>
+
+        <td className="px-3 py-2.5 whitespace-nowrap">
+          {editing && canEditExecuted
+            ? <input type="date" value={form.actual_start} onChange={e => handleActualChange("actual_start", e.target.value)} className={inputClass} />
+            : <span className="text-xs text-slate-500">{form.actual_start ? fmtDate(form.actual_start) : <span className="text-slate-300">—</span>}</span>
+          }
+        </td>
+
+        <td className="px-3 py-2.5 whitespace-nowrap">
+          {editing && canEditExecuted
+            ? <input type="date" value={form.actual_end} onChange={e => handleActualChange("actual_end", e.target.value)} className={inputClass} />
+            : <span className="text-xs text-slate-500">{form.actual_end ? fmtDate(form.actual_end) : <span className="text-slate-300">—</span>}</span>
+          }
+        </td>
+
+        <td className="px-3 py-2.5 max-w-[120px]">
+          {editing
+            ? <input value={form.responsible_general} onChange={e => setForm(f => ({ ...f, responsible_general: e.target.value }))} className={inputClass} placeholder="Responsável" />
+            : <span className="text-xs text-slate-500 truncate block">{resolvedGeneralName || form.responsible_general || "—"}</span>
+          }
+        </td>
+
+        <td className="px-3 py-2.5 max-w-[120px]">
+          {editing
+            ? <input value={form.responsible_leader} onChange={e => setForm(f => ({ ...f, responsible_leader: e.target.value }))} className={inputClass} placeholder="Líder" />
+            : resolvedRoleName
+              ? <div>
+                  <span className="text-xs font-medium text-slate-700 block truncate">{resolvedRoleName}</span>
+                  <span className="text-xs text-slate-400 block truncate">{roleLabel}</span>
+                </div>
+              : <span className="text-xs text-slate-500 truncate block">{form.responsible_leader || "—"}</span>
+          }
+        </td>
+
+        <td className="px-3 py-2.5">
+          {editing
+            ? <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
+                {STATUS_OPTIONS.map(s => <option key={s}>{s}</option>)}
+              </select>
+            : <StatusBadge status={form.status} />
+          }
+        </td>
+
+        <td className="px-3 py-2.5 max-w-[140px]">
+          {editing
+            ? <input value={form.history_observations} onChange={e => setForm(f => ({ ...f, history_observations: e.target.value }))} className={inputClass} placeholder="Obs..." />
+            : <span className="text-xs text-slate-400 truncate block">{form.history_observations || "—"}</span>
+          }
+        </td>
+
+        <td className="px-3 py-2.5">
+          {editing ? (
+            <div className="flex gap-1">
+              <button onClick={handleSave} disabled={saving} className="p-1.5 text-green-600 hover:bg-green-50 rounded">
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              </button>
+              <button onClick={() => setEditing(false)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1">
+              {!readOnly && !isInactive && (
+                <button onClick={() => setEditing(true)} className="flex items-center gap-1 text-xs text-blue-600 hover:underline px-1 whitespace-nowrap">
+                  <Pencil className="w-3 h-3" /> Editar
+                </button>
+              )}
+              {!readOnly && !isInactive && !form.actual_start && !form.actual_end && (
+                <button
+                  onClick={async () => {
+                    setSaving(true);
+                    await onSaveActivity(task, {
+                      actual_start: displayStart, actual_end: displayEnd, status: "Concluído",
+                      history_observations: form.history_observations,
+                      responsible_leader:   form.responsible_leader,
+                      responsible_general:  form.responsible_general,
+                    });
+                    setForm(f => ({ ...f, actual_start: displayStart || "", actual_end: displayEnd || "", status: "Concluído" }));
+                    setSaving(false);
+                  }}
+                  disabled={saving}
+                  className="text-xs text-green-600 hover:underline px-1 whitespace-nowrap"
+                >
+                  ✓ Conf. planejado
+                </button>
+              )}
+              {!readOnly && !isInactive && onInactivateTask && (
+                <button
+                  onClick={() => setConfirmInactivate(true)}
+                  className="flex items-center gap-1 text-xs text-red-400 hover:underline px-1 whitespace-nowrap"
+                  title="Inativar esta atividade neste projeto"
+                >
+                  <EyeOff className="w-3 h-3" /> Inativar
+                </button>
+              )}
+              {isInactive && (
+                <span className="text-xs text-slate-400 italic px-1">Inativa</span>
+              )}
+            </div>
+          )}
+        </td>
+      </tr>
+      {confirmInactivate && (
+        <tr className="bg-red-50">
+          <td colSpan={10} className="px-4 py-3">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+              <span className="text-xs text-red-800 flex-1">
+                Inativar "{task.activity}" apenas neste projeto? Os dados existentes serão preservados.
               </span>
-            )}
-          </div>
-        </div>
-      </td>
-
-      <td className="px-3 py-2.5 whitespace-nowrap min-w-[130px]">
-        <div className="space-y-1">
-          {editing && canEditPlanned
-            ? <input type="date" value={form.planned_start} onChange={e => setForm(f => ({ ...f, planned_start: e.target.value }))} className={inputClass} />
-            : <span className="text-xs text-slate-600">{fmtDate(displayStart)}</span>
-          }
-          <div className="flex items-center gap-1">
-            <DateOriginBadge origin={startOrigin} />
-            {startOrigin === "manual" && !readOnly && (
-              <button onClick={() => onRemoveOverride(task.id, "plannedStart")} title="Voltar ao calculado" className="text-slate-300 hover:text-red-400">
-                <RotateCcw className="w-2.5 h-2.5" />
-              </button>
-            )}
-          </div>
-        </div>
-      </td>
-
-      <td className="px-3 py-2.5 whitespace-nowrap min-w-[130px]">
-        <div className="space-y-1">
-          {editing && canEditPlanned
-            ? <input type="date" value={form.planned_end} onChange={e => setForm(f => ({ ...f, planned_end: e.target.value }))} className={inputClass} />
-            : <span className="text-xs text-slate-600">{fmtDate(displayEnd)}</span>
-          }
-          <div className="flex items-center gap-1">
-            <DateOriginBadge origin={endOrigin} />
-            {endOrigin === "manual" && !readOnly && (
-              <button onClick={() => onRemoveOverride(task.id, "plannedEnd")} title="Voltar ao calculado" className="text-slate-300 hover:text-red-400">
-                <RotateCcw className="w-2.5 h-2.5" />
-              </button>
-            )}
-          </div>
-        </div>
-      </td>
-
-      <td className="px-3 py-2.5 whitespace-nowrap">
-        {editing && canEditExecuted
-          ? <input type="date" value={form.actual_start} onChange={e => handleActualChange("actual_start", e.target.value)} className={inputClass} />
-          : <span className="text-xs text-slate-500">{form.actual_start ? fmtDate(form.actual_start) : <span className="text-slate-300">—</span>}</span>
-        }
-      </td>
-
-      <td className="px-3 py-2.5 whitespace-nowrap">
-        {editing && canEditExecuted
-          ? <input type="date" value={form.actual_end} onChange={e => handleActualChange("actual_end", e.target.value)} className={inputClass} />
-          : <span className="text-xs text-slate-500">{form.actual_end ? fmtDate(form.actual_end) : <span className="text-slate-300">—</span>}</span>
-        }
-      </td>
-
-      <td className="px-3 py-2.5 max-w-[120px]">
-        {editing
-          ? <input value={form.responsible_general} onChange={e => setForm(f => ({ ...f, responsible_general: e.target.value }))} className={inputClass} placeholder="Responsável" />
-          : <span className="text-xs text-slate-500 truncate block">{resolvedGeneralName || form.responsible_general || "—"}</span>
-        }
-      </td>
-
-      <td className="px-3 py-2.5 max-w-[120px]">
-        {editing
-          ? <input value={form.responsible_leader} onChange={e => setForm(f => ({ ...f, responsible_leader: e.target.value }))} className={inputClass} placeholder="Líder" />
-          : resolvedRoleName
-            ? <div>
-                <span className="text-xs font-medium text-slate-700 block truncate">{resolvedRoleName}</span>
-                <span className="text-xs text-slate-400 block truncate">{roleLabel}</span>
-              </div>
-            : <span className="text-xs text-slate-500 truncate block">{form.responsible_leader || "—"}</span>
-        }
-      </td>
-
-      <td className="px-3 py-2.5">
-        {editing
-          ? <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
-              {STATUS_OPTIONS.map(s => <option key={s}>{s}</option>)}
-            </select>
-          : <StatusBadge status={form.status} />
-        }
-      </td>
-
-      <td className="px-3 py-2.5 max-w-[140px]">
-        {editing
-          ? <input value={form.history_observations} onChange={e => setForm(f => ({ ...f, history_observations: e.target.value }))} className={inputClass} placeholder="Obs..." />
-          : <span className="text-xs text-slate-400 truncate block">{form.history_observations || "—"}</span>
-        }
-      </td>
-
-      <td className="px-3 py-2.5">
-        {editing ? (
-          <div className="flex gap-1">
-            <button onClick={handleSave} disabled={saving} className="p-1.5 text-green-600 hover:bg-green-50 rounded">
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            </button>
-            <button onClick={() => setEditing(false)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-1">
-            {!readOnly && (
-              <button onClick={() => setEditing(true)} className="flex items-center gap-1 text-xs text-blue-600 hover:underline px-1 whitespace-nowrap">
-                <Pencil className="w-3 h-3" /> Editar
-              </button>
-            )}
-            {!readOnly && !form.actual_start && !form.actual_end && (
               <button
                 onClick={async () => {
                   setSaving(true);
-                  await onSaveActivity(task, {
-                    actual_start: displayStart, actual_end: displayEnd, status: "Concluído",
-                    history_observations: form.history_observations,
-                    responsible_leader:   form.responsible_leader,
-                    responsible_general:  form.responsible_general,
-                  });
-                  setForm(f => ({ ...f, actual_start: displayStart || "", actual_end: displayEnd || "", status: "Concluído" }));
+                  try {
+                    await onInactivateTask(task);
+                    setConfirmInactivate(false);
+                  } catch (err) {
+                    console.error("[TaskRow] Erro ao inativar:", err);
+                    alert("Erro ao inativar atividade. Verifique suas permissões.");
+                  }
                   setSaving(false);
                 }}
                 disabled={saving}
-                className="text-xs text-green-600 hover:underline px-1 whitespace-nowrap"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-60"
               >
-                ✓ Conf. planejado
+                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <EyeOff className="w-3 h-3" />}
+                Confirmar inativação
               </button>
-            )}
-          </div>
-        )}
-      </td>
-    </tr>
+              <button onClick={() => setConfirmInactivate(false)} className="px-3 py-1.5 text-xs font-medium border border-red-200 text-red-600 rounded-lg hover:bg-red-100">
+                Cancelar
+              </button>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
@@ -346,7 +402,7 @@ function GroupRow({ task, computedDates }) {
 // ── PhaseSection (fases do template) ──────────────────────────────────────────
 function PhaseSection({
   phaseName, tasks, computedDates, manualOverrides, activitiesByTask, localActivities,
-  onSaveOverride, onRemoveOverride, onSaveActivity, onCompletePhase, onAddActivity,
+  onSaveOverride, onRemoveOverride, onSaveActivity, onInactivateTask, onCompletePhase, onAddActivity,
   onActivityUpdated, onActivityRemoved,
   project, templateConfig, readOnly,
   canCompletePhase, canEditPlanned, canEditExecuted, canAddActivity, canEditActivity = true, canExcluirActivity = true, showInactive,
@@ -360,7 +416,15 @@ function PhaseSection({
   const isInactive = phaseOverride?.is_active === false;
   const displayName = phaseOverride?.custom_name || phaseName;
 
-  const visibleTasks = tasks.filter(t => t.type === "task");
+  const visibleTasks = tasks.filter(t => {
+    if (t.type !== "task") return false;
+    // Oculta tarefas do template que foram inativadas (via ScheduleActivity com [INATIVADO])
+    const act = activitiesByTask[t.id];
+    if (act && act.status === "Cancelado" && (act.history_observations || "").includes("[INATIVADO]")) {
+      return showInactive; // só mostra se toggle de inativos ativo
+    }
+    return true;
+  });
   const phaseLocalActivities = localActivities.filter(a => a.phase_name === phaseName);
   const activeLocalActivities = phaseLocalActivities.filter(a =>
     !(a.status === "Cancelado" && (a.history_observations || "").includes("[INATIVADO]"))
@@ -480,6 +544,7 @@ function PhaseSection({
                   <TaskRow
                     key={task.id} task={task} computedDates={computedDates} manualOverrides={manualOverrides}
                     onSaveOverride={onSaveOverride} onRemoveOverride={onRemoveOverride} onSaveActivity={onSaveActivity}
+                    onInactivateTask={onInactivateTask}
                     existingActivity={activitiesByTask[task.id]} project={project} templateConfig={templateConfig}
                     readOnly={readOnly} canEditPlanned={canEditPlanned} canEditExecuted={canEditExecuted}
                   />
@@ -875,6 +940,25 @@ export default function ScheduleTab({
     setOverrideModalPhase(null);
   }, []);
 
+  const handleInactivateTemplateActivity = useCallback(async (task) => {
+    const existing = activitiesByTask[task.id];
+    const payload = {
+      status: "Cancelado",
+      history_observations: (existing?.history_observations || "").replace(" [INATIVADO]", "") + " [INATIVADO]",
+    };
+    if (existing) {
+      await base44.entities.ScheduleActivity.update(existing.id, payload);
+      setSavedActivities(prev => prev.map(a => a.id === existing.id ? { ...a, ...payload } : a));
+    } else {
+      const created = await base44.entities.ScheduleActivity.create({
+        project_id: projectId, phase_name: task.phase, activity_name: task.activity,
+        order: task.row, status: "Cancelado",
+        history_observations: " [INATIVADO]",
+      });
+      setSavedActivities(prev => [...prev, created]);
+    }
+  }, [activitiesByTask, projectId]);
+
   // Lista de nomes de fase para o modal de atividade
   const allPhaseNames = useMemo(() => {
     const templatePhases = PHASE_ORDER.filter(ph => tasksByPhase[ph]?.some(t => t.type === "task"));
@@ -894,7 +978,7 @@ export default function ScheduleTab({
   const anchorsSavedInDB = project?.schedule_anchor_dates && Object.values(project.schedule_anchor_dates).some(Boolean);
   const inactiveLocalCount = localPhases.filter(p => p.is_active === false).length;
   const inactiveTemplatePhaseCount = Object.values(phaseOverrides).filter(o => o.is_active === false).length;
-  const inactiveActivityCount = localActivities.filter(a =>
+  const inactiveActivityCount = savedActivities.filter(a =>
     a.status === "Cancelado" && (a.history_observations || "").includes("[INATIVADO]")
   ).length;
   const totalInactiveCount = inactiveLocalCount + inactiveTemplatePhaseCount + inactiveActivityCount;
@@ -1020,6 +1104,7 @@ export default function ScheduleTab({
           onSaveOverride={readOnly ? () => {} : handleSaveOverride}
           onRemoveOverride={readOnly ? () => {} : handleRemoveOverride}
           onSaveActivity={readOnly ? () => {} : handleSaveActivity}
+          onInactivateTask={readOnly ? null : handleInactivateTemplateActivity}
           onCompletePhase={(readOnly || !canCompletePhase) ? () => {} : handleCompleteAsTasks}
           onAddActivity={(phase) => { setAddModalPhase(phase); setShowAddModal(true); }}
           onActivityUpdated={(act) => setSavedActivities(prev => prev.map(a => a.id === act.id ? act : a))}
