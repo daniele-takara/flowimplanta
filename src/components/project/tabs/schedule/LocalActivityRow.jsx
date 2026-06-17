@@ -47,37 +47,47 @@ export default function LocalActivityRow({ activity, onUpdated, onRemoved, readO
 
   const handleSave = async () => {
     setSaving(true);
-    const payload = {
-      activity_name:        form.activity_name,
-      planned_start:        form.planned_start || null,
-      planned_end:          form.planned_end || null,
-      actual_start:         form.actual_start || null,
-      actual_end:           form.actual_end || null,
-      responsible_general:  form.responsible_general,
-      responsible_leader:   form.responsible_leader,
-      status:               form.status,
-      history_observations: form.history_observations,
-    };
-    await base44.entities.ScheduleActivity.update(activity.id, payload);
-    onUpdated({ ...activity, ...payload });
+    try {
+      const payload = {
+        activity_name:        form.activity_name,
+        planned_start:        form.planned_start || null,
+        planned_end:          form.planned_end || null,
+        actual_start:         form.actual_start || null,
+        actual_end:           form.actual_end || null,
+        responsible_general:  form.responsible_general,
+        responsible_leader:   form.responsible_leader,
+        status:               form.status,
+        history_observations: form.history_observations,
+      };
+      await base44.entities.ScheduleActivity.update(activity.id, payload);
+      onUpdated({ ...activity, ...payload });
+      setEditing(false);
+    } catch (err) {
+      console.error("[LocalActivityRow] Erro ao salvar:", err);
+      alert("Erro ao salvar atividade. Verifique suas permissões.");
+    }
     setSaving(false);
-    setEditing(false);
   };
 
   const handleRemove = async () => {
     setRemoving(true);
-    if (hasData) {
-      const obs = (activity.history_observations || "").replace(" [INATIVADO]", "");
-      await base44.entities.ScheduleActivity.update(activity.id, {
-        status: "Cancelado",
-        history_observations: obs + " [INATIVADO]",
-      });
-    } else {
-      await base44.entities.ScheduleActivity.delete(activity.id);
+    try {
+      if (hasData) {
+        const obs = (activity.history_observations || "").replace(" [INATIVADO]", "");
+        await base44.entities.ScheduleActivity.update(activity.id, {
+          status: "Cancelado",
+          history_observations: obs + " [INATIVADO]",
+        });
+      } else {
+        await base44.entities.ScheduleActivity.delete(activity.id);
+      }
+      onRemoved(activity.id);
+      setConfirm(false);
+    } catch (err) {
+      console.error("[LocalActivityRow] Erro ao remover/inativar:", err);
+      alert("Erro ao remover atividade. Verifique suas permissões.");
     }
-    onRemoved(activity.id);
     setRemoving(false);
-    setConfirm(false);
   };
 
   const rowClass = isInactive

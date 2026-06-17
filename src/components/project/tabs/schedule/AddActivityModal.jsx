@@ -27,23 +27,28 @@ export default function AddActivityModal({ projectId, defaultPhase, allPhaseName
     if (!form.activity_name.trim()) { setError("Nome da atividade é obrigatório."); return; }
     setSaving(true);
     setError("");
-    await onSave({
-      project_id:           projectId,
-      phase_name:           form.phase_name,
-      activity_name:        form.activity_name.trim(),
-      planned_start:        form.planned_start || null,
-      planned_end:          form.planned_end   || null,
-      actual_start:         form.actual_start  || null,
-      actual_end:           form.actual_end    || null,
-      responsible_general:  form.responsible_general,
-      responsible_leader:   form.responsible_leader,
-      status:               form.status,
-      history_observations: form.history_observations,
-      template_id:          null,
-      is_local:             true,
-    });
-    setSaving(false);
-    onClose();
+    try {
+      await onSave({
+        project_id:           projectId,
+        phase_name:           form.phase_name,
+        activity_name:        form.activity_name.trim(),
+        planned_start:        form.planned_start || null,
+        planned_end:          form.planned_end   || null,
+        actual_start:         form.actual_start  || null,
+        actual_end:           form.actual_end    || null,
+        responsible_general:  form.responsible_general,
+        responsible_leader:   form.responsible_leader,
+        status:               form.status,
+        history_observations: form.history_observations,
+        template_id:          null,
+      });
+      setSaving(false);
+      onClose();
+    } catch (err) {
+      console.error("[AddActivityModal] Erro ao salvar:", err);
+      setError(err?.message || err?.response?.data?.message || "Erro ao salvar atividade. Verifique suas permissões.");
+      setSaving(false);
+    }
   };
 
   return (

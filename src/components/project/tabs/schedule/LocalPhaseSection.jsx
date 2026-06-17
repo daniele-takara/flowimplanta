@@ -72,7 +72,8 @@ export default function LocalPhaseSection({
         onPhaseInactivated(phase.id);
       }
     } catch (e) {
-      console.error("Erro ao processar fase:", e);
+      console.error("[LocalPhaseSection] Erro ao processar fase:", e);
+      alert("Erro ao " + (confirmAction === "excluir" ? "excluir" : "inativar") + " fase. Verifique suas permissões.");
     }
     setProcessing(false);
     setConfirmAction(null);

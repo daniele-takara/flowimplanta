@@ -103,9 +103,11 @@ export const AuthProvider = ({ children }) => {
           });
           if (profiles?.[0]) {
             currentUser._resolvedProfile = profiles[0];
+          } else {
+            console.warn("[AuthContext] Perfil não encontrado para id:", currentUser.permission_profile_id);
           }
-        } catch {
-          // Perfil não encontrado — sem acesso extra
+        } catch (err) {
+          console.error("[AuthContext] Erro ao carregar perfil de permissões:", err);
         }
       }
 

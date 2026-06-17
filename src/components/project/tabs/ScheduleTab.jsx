@@ -810,8 +810,13 @@ export default function ScheduleTab({
   }, [activitiesByTask, computedDates, manualOverrides, handleSaveActivity]);
 
   const handleAddLocalActivity = async (data) => {
-    const created = await base44.entities.ScheduleActivity.create(data);
-    setSavedActivities(prev => [...prev, created]);
+    try {
+      const created = await base44.entities.ScheduleActivity.create(data);
+      setSavedActivities(prev => [...prev, created]);
+    } catch (err) {
+      console.error("[ScheduleTab] Erro ao criar atividade local:", err);
+      throw err; // Relança para o modal capturar e exibir
+    }
   };
 
   // Handlers para overrides de fases do template
