@@ -147,7 +147,7 @@ export function generateStatusReportEmail({ project, form, macroPhases, overallP
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
           <td>
-            <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#c4b5fd;text-transform:uppercase;letter-spacing:2px;"><img src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/1ea94c9b2_LogoPontotel_AmarelaeBranca.png" style="height:18px;vertical-align:middle;border:0" alt="Pontotel" /> · Implantação</p>
+            <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#c4b5fd;text-transform:uppercase;letter-spacing:2px;"><img src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/1a9549a83_LogoPontotel_AmarelaePreta.png" style="height:18px;vertical-align:middle;border:0" alt="Pontotel" /> · Implantação</p>
             <h1 style="margin:0 0 4px;font-size:22px;font-weight:900;color:#ffffff;">Status do Projeto</h1>
             <p style="margin:0;font-size:14px;color:#ddd6fe;">${project?.client_name || ""}</p>
           </td>
@@ -271,7 +271,7 @@ export function generateStatusReportEmail({ project, form, macroPhases, overallP
   <!-- FOOTER -->
   <tr>
     <td style="padding:16px 0;text-align:center;font-size:11px;color:#94a3b8;">
-      Gerado automaticamente pelo Flowimplanta · <img src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/1ea94c9b2_LogoPontotel_AmarelaeBranca.png" style="height:14px;vertical-align:middle;border:0" alt="Pontotel" />
+      Gerado automaticamente pelo Flowimplanta · <img src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/1a9549a83_LogoPontotel_AmarelaePreta.png" style="height:14px;vertical-align:middle;border:0" alt="Pontotel" />
     </td>
   </tr>
 

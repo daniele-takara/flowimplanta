@@ -332,7 +332,7 @@ function generatePDF({ project, form, answersMap, participants, datas, modulosSe
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
     ${versionLabel ? `<div class="version-badge">${esc(versionLabel)}</div>` : ""}
-    <img src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/1ea94c9b2_LogoPontotel_AmarelaeBranca.png" style="height:40px" alt="Pontotel" />
+    <img src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/1a9549a83_LogoPontotel_AmarelaePreta.png" style="height:40px" alt="Pontotel" />
   </div>
 </div>
 
@@ -835,7 +835,7 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
 
         {/* Cabeçalho */}
         <div className="bg-gradient-to-r from-blue-700 to-blue-800 px-8 py-6 text-white">
-          <p className="text-xs font-semibold uppercase tracking-widest text-blue-200 mb-1"><img src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/1ea94c9b2_LogoPontotel_AmarelaeBranca.png" style={{height:18,verticalAlign:'middle'}} alt="Pontotel" /> · Implantação</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-blue-200 mb-1"><img src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/1a9549a83_LogoPontotel_AmarelaePreta.png" style={{height:18,verticalAlign:'middle'}} alt="Pontotel" /> · Implantação</p>
           <h1 className="text-xl font-bold">Termo de Abertura do Projeto</h1>
           <p className="text-sm text-blue-200 mt-1">{project?.client_name} · {project?.implantation_type}</p>
         </div>

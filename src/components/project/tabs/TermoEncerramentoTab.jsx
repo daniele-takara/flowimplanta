@@ -517,7 +517,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
         {/* Header */}
         <div className="bg-gradient-to-br from-purple-700 to-purple-900 px-8 py-6 text-white">
-          <p className="text-xs font-semibold uppercase tracking-widest text-purple-300 mb-1"><img src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/1ea94c9b2_LogoPontotel_AmarelaeBranca.png" style={{height:18,verticalAlign:'middle'}} alt="Pontotel" /> · Implantação</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-purple-300 mb-1"><img src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/1a9549a83_LogoPontotel_AmarelaePreta.png" style={{height:18,verticalAlign:'middle'}} alt="Pontotel" /> · Implantação</p>
           <h1 className="text-xl font-bold">Termo de Encerramento do Projeto</h1>
           <p className="text-sm text-purple-200 mt-1">{project?.client_name} · {project?.implantation_type}</p>
         </div>

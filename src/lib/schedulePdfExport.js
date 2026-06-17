@@ -200,7 +200,7 @@ export async function generateSchedulePDF({
 
   // Logo Pontotel no canto direito
   try {
-    const logoImg = await loadImage("https://media.base44.com/images/public/69e295c073bbccc7f63f6156/1ea94c9b2_LogoPontotel_AmarelaeBranca.png");
+    const logoImg = await loadImage("https://media.base44.com/images/public/69e295c073bbccc7f63f6156/1a9549a83_LogoPontotel_AmarelaePreta.png");
     doc.addImage(logoImg, "PNG", pageW - margin - 50, margin, 50, 12);
   } catch (e) {
     // fallback silencioso se falhar carregar logo
