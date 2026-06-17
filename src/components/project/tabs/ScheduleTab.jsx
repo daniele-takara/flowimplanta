@@ -791,6 +791,15 @@ export default function ScheduleTab({
       .sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
   }, [localPhases, showInactive]);
 
+  // Fases do template: inclui ou exclui conforme override local + toggle inativos
+  const phases = PHASE_ORDER.filter(ph => {
+    const hasContent = tasksByPhase[ph]?.some(t => t.type === "task") || localActivities.some(a => a.phase_name === ph);
+    if (!hasContent) return false;
+    const override = phaseOverrides[ph];
+    if (override?.is_active === false) return showInactive;
+    return true;
+  });
+
   // ── Lista unificada de fases (template + locais) ordenada por posição ──
   const unifiedPhases = useMemo(() => {
     const items = [];
@@ -984,15 +993,6 @@ export default function ScheduleTab({
       setSavedActivities(prev => [...prev, created]);
     }
   }, [activitiesByTask, projectId]);
-
-  // Fases do template: inclui ou exclui conforme override local + toggle inativos
-  const phases = PHASE_ORDER.filter(ph => {
-    const hasContent = tasksByPhase[ph]?.some(t => t.type === "task") || localActivities.some(a => a.phase_name === ph);
-    if (!hasContent) return false;
-    const override = phaseOverrides[ph];
-    if (override?.is_active === false) return showInactive;
-    return true;
-  });
 
   // Lista de nomes de fase para o modal de atividade
   const allPhaseNames = useMemo(() => {
