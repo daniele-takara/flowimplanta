@@ -985,6 +985,15 @@ export default function ScheduleTab({
     }
   }, [activitiesByTask, projectId]);
 
+  // Fases do template: inclui ou exclui conforme override local + toggle inativos
+  const phases = PHASE_ORDER.filter(ph => {
+    const hasContent = tasksByPhase[ph]?.some(t => t.type === "task") || localActivities.some(a => a.phase_name === ph);
+    if (!hasContent) return false;
+    const override = phaseOverrides[ph];
+    if (override?.is_active === false) return showInactive;
+    return true;
+  });
+
   // Lista de nomes de fase para o modal de atividade
   const allPhaseNames = useMemo(() => {
     const templatePhases = PHASE_ORDER.filter(ph => tasksByPhase[ph]?.some(t => t.type === "task"));
@@ -992,14 +1001,7 @@ export default function ScheduleTab({
     return [...new Set([...templatePhases, ...localPhaseNames])];
   }, [tasksByPhase, localPhases]);
 
-  // Fases do template: inclui ou exclui conforme override local + toggle inativos
-  const phases = PHASE_ORDER.filter(ph => {
-    const hasContent = tasksByPhase[ph]?.some(t => t.type === "task") || localActivities.some(a => a.phase_name === ph);
-    if (!hasContent) return false;
-    const override = phaseOverrides[ph];
-    if (override?.is_active === false) return showInactive; // oculta por padrão; mostra se toggle ativo
-    return true;
-  });
+
   const anchors = SCHEDULE_TASKS.filter(t => t.plannedStart?.type === "anchor");
   const anchorsSavedInDB = project?.schedule_anchor_dates && Object.values(project.schedule_anchor_dates).some(Boolean);
   const inactiveLocalCount = localPhases.filter(p => p.is_active === false).length;
