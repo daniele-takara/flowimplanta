@@ -168,13 +168,27 @@ function DateCell({ value, onChange, readOnly }) {
 
 function ResponsibleCell({ value, onChange, suggestions, readOnly }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
+  const inputRef = useRef(null);
+  const dropdownRef = useRef(null);
 
   useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target) && inputRef.current && !inputRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  const openDropdown = () => {
+    if (inputRef.current) {
+      const r = inputRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 2, left: r.left, width: Math.max(r.width, 220) });
+    }
+    setOpen(true);
+  };
 
   if (readOnly) {
     return <span className="text-[11px] text-slate-600 block px-1 py-1 truncate">{value || "—"}</span>;
@@ -183,23 +197,29 @@ function ResponsibleCell({ value, onChange, suggestions, readOnly }) {
   const filtered = suggestions.filter(s => s && s.toLowerCase().includes((value || "").toLowerCase()));
 
   return (
-    <div ref={ref} className="relative flex items-center">
-      <input
-        className={cellBase + " pr-5"}
-        value={value || ""}
-        onChange={e => { onChange(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
-        placeholder="Digite ou selecione..."
-      />
-      <button
-        type="button"
-        className="absolute right-0.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
-        onClick={() => setOpen(o => !o)}
-      >
-        <ChevronDown className="w-3 h-3" />
-      </button>
+    <>
+      <div className="relative flex items-center" ref={inputRef}>
+        <input
+          className={cellBase + " pr-5"}
+          value={value || ""}
+          onChange={e => { onChange(e.target.value); openDropdown(); }}
+          onFocus={openDropdown}
+          placeholder="Digite ou selecione..."
+        />
+        <button
+          type="button"
+          className="absolute right-0.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
+          onClick={() => setOpen(o => !o)}
+        >
+          <ChevronDown className="w-3 h-3" />
+        </button>
+      </div>
       {open && filtered.length > 0 && (
-        <div className="absolute top-full left-0 z-50 mt-0.5 bg-white border border-slate-200 rounded-lg shadow-lg min-w-[200px] max-h-[220px] overflow-y-auto">
+        <div
+          ref={dropdownRef}
+          className="fixed z-[9999] bg-white border border-slate-200 rounded-lg shadow-xl overflow-y-auto"
+          style={{ top: pos.top, left: pos.left, width: pos.width, maxHeight: Math.min(filtered.length * 36 + 8, 300) }}
+        >
           {filtered.map((s, i) => (
             <button
               key={i}
@@ -212,7 +232,7 @@ function ResponsibleCell({ value, onChange, suggestions, readOnly }) {
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }
 
