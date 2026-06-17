@@ -581,32 +581,45 @@ export default function ScheduleTab({
   const [showOverrideModal, setShowOverrideModal]   = useState(false);
   const [overrideModalPhase, setOverrideModalPhase] = useState(null);
 
-  // Carregar âncoras do banco
+  // Carregar overrides: DB (âncoras) + localStorage (todos) — localStorage prevalece
   useEffect(() => {
     if (!projectId || anchorsLoaded) return;
-    const bankAnchors = project?.schedule_anchor_dates || {};
-    const hasBankData = Object.values(bankAnchors).some(Boolean);
-    if (hasBankData) {
-      const overrides = {};
-      Object.entries(bankAnchors).forEach(([taskId, dateStr]) => {
-        if (dateStr) overrides[taskId] = { plannedStart: dateStr };
-      });
-      setManualOverrides(overrides);
-      setAnchorsLoaded(true);
-      return;
-    }
+    
+    const dbAnchors = project?.schedule_anchor_dates || {};
+    const hasDbData = Object.values(dbAnchors).some(Boolean);
+    
+    // Sempre carrega localStorage como fallback/base
+    let localOverrides = {};
     try {
-      const local = JSON.parse(localStorage.getItem(`schedule_overrides_${projectId}`) || "{}");
-      if (Object.keys(local).length > 0) {
-        setManualOverrides(local);
-        const anchorDates = {};
-        ANCHOR_IDS.forEach(id => { if (local[id]?.plannedStart) anchorDates[id] = local[id].plannedStart; });
-        if (Object.keys(anchorDates).length > 0) {
-          base44.entities.Project.update(projectId, { schedule_anchor_dates: anchorDates })
-            .then(() => localStorage.removeItem(`schedule_overrides_${projectId}`)).catch(() => {});
-        }
-      }
+      localOverrides = JSON.parse(localStorage.getItem(`schedule_overrides_${projectId}`) || "{}");
     } catch {}
+    
+    // Monta overrides: DB como base, localStorage sobrepõe (localStorage tem prioridade)
+    const merged = {};
+    // 1. DB âncoras como base
+    if (hasDbData) {
+      Object.entries(dbAnchors).forEach(([taskId, dateStr]) => {
+        if (dateStr) merged[taskId] = { plannedStart: dateStr };
+      });
+    }
+    // 2. localStorage sobrepõe TUDO (incluindo âncoras) — prioridade máxima
+    Object.entries(localOverrides).forEach(([taskId, override]) => {
+      if (override && typeof override === "object") {
+        merged[taskId] = { ...(merged[taskId] || {}), ...override };
+      }
+    });
+    
+    setManualOverrides(merged);
+    
+    // Se localStorage tem dados mas DB não (ancoras), migra para o banco
+    if (!hasDbData && Object.keys(localOverrides).length > 0) {
+      const anchorDates = {};
+      ANCHOR_IDS.forEach(id => { if (localOverrides[id]?.plannedStart) anchorDates[id] = localOverrides[id].plannedStart; });
+      if (Object.keys(anchorDates).length > 0) {
+        base44.entities.Project.update(projectId, { schedule_anchor_dates: anchorDates }).catch(() => {});
+      }
+    }
+    
     setAnchorsLoaded(true);
   }, [projectId, project, anchorsLoaded]);
 
@@ -701,36 +714,59 @@ export default function ScheduleTab({
   }, [localPhases, showInactive]);
 
   const handleSaveOverride = useCallback(async (taskId, payload) => {
+    // 1. Atualiza estado imediatamente (UI responsiva)
+    let nextOverrides = {};
     setManualOverrides(prev => {
-      const next = { ...prev, [taskId]: { ...(prev[taskId] || {}), ...payload } };
-      // Persiste todas as âncoras no banco (campo schedule_anchor_dates do Project)
-      const anchorDates = {};
-      ANCHOR_IDS.forEach(aid => { const val = next[aid]?.plannedStart; if (val) anchorDates[aid] = val; });
-      if (Object.keys(anchorDates).length > 0) {
-        base44.entities.Project.update(projectId, { schedule_anchor_dates: anchorDates }).catch(() => {});
-      }
-      // Persiste TODOS os overrides (âncora e não-âncora) no localStorage como fallback
-      try {
-        localStorage.setItem(`schedule_overrides_${projectId}`, JSON.stringify(next));
-      } catch {}
-      return next;
+      nextOverrides = { ...prev, [taskId]: { ...(prev[taskId] || {}), ...payload } };
+      return nextOverrides;
     });
+
+    // 2. Persiste no localStorage como fallback imediato (síncrono)
+    try {
+      localStorage.setItem(`schedule_overrides_${projectId}`, JSON.stringify(nextOverrides));
+    } catch {}
+
+    // 3. Persiste âncoras no banco (Project.schedule_anchor_dates)
+    const anchorDates = {};
+    ANCHOR_IDS.forEach(aid => {
+      const val = nextOverrides[aid]?.plannedStart;
+      if (val) anchorDates[aid] = val;
+    });
+    if (Object.keys(anchorDates).length > 0) {
+      try {
+        await base44.entities.Project.update(projectId, { schedule_anchor_dates: anchorDates });
+      } catch (err) {
+        console.error("[ScheduleTab] Erro ao persistir âncoras no banco:", err);
+        // Não lança — o localStorage já tem o dado, sobrevive a reload
+      }
+    }
   }, [projectId]);
 
-  const handleRemoveOverride = useCallback((taskId, field) => {
+  const handleRemoveOverride = useCallback(async (taskId, field) => {
+    let nextOverrides = {};
     setManualOverrides(prev => {
       const current = { ...(prev[taskId] || {}) };
       delete current[field];
       if (current._origin) delete current._origin[field];
-      if (ANCHOR_IDS.includes(taskId) && field === "plannedStart") {
+      nextOverrides = { ...prev, [taskId]: current };
+      return nextOverrides;
+    });
+
+    // Persiste no localStorage
+    try {
+      localStorage.setItem(`schedule_overrides_${projectId}`, JSON.stringify(nextOverrides));
+    } catch {}
+
+    // Se for âncora, remove do banco
+    if (ANCHOR_IDS.includes(taskId) && field === "plannedStart") {
+      try {
         const bankAnchors = { ...(project?.schedule_anchor_dates || {}) };
         delete bankAnchors[taskId];
-        base44.entities.Project.update(projectId, { schedule_anchor_dates: bankAnchors }).catch(() => {});
+        await base44.entities.Project.update(projectId, { schedule_anchor_dates: bankAnchors });
+      } catch (err) {
+        console.error("[ScheduleTab] Erro ao remover âncora do banco:", err);
       }
-      const next = { ...prev, [taskId]: current };
-      try { localStorage.setItem(`schedule_overrides_${projectId}`, JSON.stringify(next)); } catch {}
-      return next;
-    });
+    }
   }, [projectId, project]);
 
   const handleSaveActivity = useCallback(async (task, data) => {
