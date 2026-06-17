@@ -163,14 +163,26 @@ function TaskRow({
         overridePayload._origin = newOrigin;
         await onSaveOverride(task.id, overridePayload);
       }
-      await onSaveActivity(task, {
-        actual_start:         form.actual_start,
-        actual_end:           form.actual_end,
-        status:               form.status,
-        history_observations: form.history_observations,
-        responsible_leader:   form.responsible_leader,
-        responsible_general:  form.responsible_general,
-      });
+
+      // Só persiste dados executados se houve alteração REAL nos campos executados
+      const executedChanged =
+        form.actual_start !== (existingActivity?.actual_start || "") ||
+        form.actual_end   !== (existingActivity?.actual_end   || "") ||
+        form.status       !== (existingActivity?.status       || derivedStatus) ||
+        form.history_observations !== (existingActivity?.history_observations || "") ||
+        form.responsible_leader   !== (existingActivity?.responsible_leader   || task.responsibleLeader  || "") ||
+        form.responsible_general  !== (existingActivity?.responsible_general  || task.responsibleGeneral || "");
+
+      if (executedChanged) {
+        await onSaveActivity(task, {
+          actual_start:         form.actual_start,
+          actual_end:           form.actual_end,
+          status:               form.status,
+          history_observations: form.history_observations,
+          responsible_leader:   form.responsible_leader,
+          responsible_general:  form.responsible_general,
+        });
+      }
       setEditing(false);
     } catch (err) {
       console.error("[TaskRow] Erro ao salvar:", task.id, err);
