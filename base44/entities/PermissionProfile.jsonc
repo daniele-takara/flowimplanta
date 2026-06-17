@@ -99,6 +99,10 @@
           "type": "boolean",
           "default": false
         },
+        "cronograma_gerar_pdf": {
+          "type": "boolean",
+          "default": false
+        },
         "tap_ver": {
           "type": "boolean",
           "default": false

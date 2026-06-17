@@ -54,6 +54,7 @@ export function usePermissions() {
     canExcluirSchedulePhase: can("cronograma_excluir_fase") || isSystemAdmin,
     canEditScheduleActivity: can("cronograma_editar_atividade") || isSystemAdmin,
     canExcluirScheduleActivity: can("cronograma_excluir_atividade") || isSystemAdmin,
+    canGenerateSchedulePDF: can("cronograma_gerar_pdf") || isSystemAdmin,
 
     // TAP
     canReadTAP: can("tap_ver") || isSystemAdmin,

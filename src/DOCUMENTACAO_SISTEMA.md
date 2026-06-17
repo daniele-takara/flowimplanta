@@ -1,6 +1,6 @@
-# Flowimplanta — Documentação Técnica v6.4
+# Flowimplanta — Documentação Técnica v6.5
 **Última atualização:** 2026-06-17  
-**Status:** Validado (Pipedrive como Fonte de Verdade + Regras de Cálculo + Cronograma Unificado)
+**Status:** Validado (Pipedrive como Fonte de Verdade + Regras de Cálculo + Cronograma Unificado + PDF do Cronograma)
 
 ---
 
@@ -617,10 +617,11 @@ plannedStart              → self reference
 | `cronograma_excluir_fase` | Excluir ou inativar marco/fase local OU inativar fase do template neste projeto |
 | `cronograma_editar_atividade` | Editar atividade local |
 | `cronograma_excluir_atividade` | Excluir ou inativar atividade local |
+| `cronograma_gerar_pdf` | Gerar PDF do cronograma |
 
-### Todas as Flags (26 total)
+### Todas as Flags (27 total)
 `projetos_ver/criar/editar/excluir`, `dados_iniciais_ver/editar`, `escopo_ver/editar/atualizar_template`,
-`cronograma_ver/editar/editar_planejado/concluir_fase/recalcular/criar_atividade/criar_fase/editar_fase/excluir_fase/editar_atividade/excluir_atividade`,
+`cronograma_ver/editar/editar_planejado/concluir_fase/recalcular/criar_atividade/criar_fase/editar_fase/excluir_fase/editar_atividade/excluir_atividade/gerar_pdf`,
 `tap_ver/editar/gerar_pdf`, `status_report_ver/editar/atualizar/email`,
 `termo_ver/editar/pdf`, `integracao_sync_pipedrive_dados/cronograma/status`, `parametrizacoes_acessar/editar`
 
@@ -1302,6 +1303,123 @@ O único botão de atualização executa esta sequência em ordem:
 - Teste por project_id com dry_run (applyPipedriveRules)
 - Simulação de webhook (pipedriveWebhook)
 - Reprocessamento de logs com erro
+
+---
+
+## 16. REGRAS DE CÁLCULO — WIZARD v1.0 (NOVO — 2026-06-16)
+
+---
+
+## 17. PDF DO CRONOGRAMA (v6.5 — 2026-06-17)
+
+### Finalidade
+
+Gerar PDF profissional do cronograma completo do projeto, pronto para envio ao cliente.
+
+### Fonte dos Dados
+
+O PDF usa a **mesma lógica do Cronograma exibido na tela**, garantindo consistência total. A função `generateSchedulePDF` em `lib/schedulePdfExport.js` consolida:
+
+| Fonte | Comportamento |
+|-------|---------------|
+| `SCHEDULE_TASKS` (template) | Tasks do template filtradas por visibilidade condicional (módulos, escopo) |
+| `computeSchedule` (motor) | Datas planejadas calculadas (incluindo âncoras + overrides manuais) |
+| `ScheduleActivity` (banco) | Datas executadas, status, responsáveis, observações |
+| `SchedulePhaseOverride` (banco) | Fases inativadas (`is_active=false`) são excluídas; nomes customizados são usados |
+| `LocalSchedulePhase` (banco) | Fases locais ativas aparecem após as do template |
+| `manualOverrides` (estado) | Datas manuais e datas Pipedrive prevalecem sobre as calculadas |
+
+### Campos exibidos por atividade
+
+| Coluna | Origem |
+|--------|--------|
+| Atividade | `task.activity` ou `act.activity_name` |
+| Início Planejado | `override.plannedStart` > `computedDates[id].plannedStart` |
+| Fim Planejado | `override.plannedEnd` > `computedDates[id].plannedEnd` |
+| Início Executado | `act.actual_start` |
+| Fim Executado | `act.actual_end` |
+| Status | `act.status` |
+| Resp. Geral | `act.responsible_general` > `task.responsibleGeneral` |
+| Obs. | `act.history_observations` |
+
+### Cabeçalho do PDF
+
+- Nome do cliente/projeto
+- Data de emissão (formato pt-BR)
+- Gerente de Projeto (se disponível)
+- Analista de Implantação (se disponível)
+
+### Regras de exibição
+
+| Regra | Comportamento |
+|-------|---------------|
+| Fase inativa (`is_active=false`) | **Não aparece** no PDF |
+| Fase local ativa | **Aparece** com badge "(Marco local)" |
+| Atividade inativa (`[INATIVADO]`) | **Não aparece** no PDF |
+| Nome customizado de fase | **Usado** no lugar do nome canônico |
+| Data manual (override) | **Prevalece** sobre data calculada |
+| Data Pipedrive (`_origin: "pipedrive"`) | **Prevalece** sobre data calculada |
+| Ordem das fases | Template (PHASE_ORDER) + Locais (ordem definida) |
+
+### Layout
+
+- Orientação **paisagem** (A4 horizontal) para maximizar espaço das colunas
+- Cabeçalho de fase com fundo azul (#2563EB)
+- Linhas compactas (3.5mm) com fonte 6pt
+- Quebra de página automática quando necessário
+- Rodapé com data de geração
+- Tabela por fase com todas as colunas visíveis
+
+### Botão
+
+Posicionado no topo da aba Cronograma, próximo aos botões "Atualizar Cronograma (Pipedrive)" e "Adicionar marco/fase":
+
+- **Rótulo:** "Gerar PDF do Cronograma"
+- **Ícone:** FileDown (lucide-react)
+- **Cor:** Verde esmeralda (emerald)
+- **Estado:** Desabilitado durante geração com spinner Loader2
+
+### Permissão
+
+**Chave:** `cronograma_gerar_pdf`
+
+| Perfil | Valor padrão |
+|--------|-------------|
+| Admin | ✅ true |
+| Gestor de Projetos | ✅ true |
+| Implantação | ✅ true |
+| Viewer | ✅ true |
+
+**Regra de exibição do botão:** Se `cronograma_gerar_pdf=false`, o botão **não aparece**. Se `true`, aparece e funciona.
+
+### Arquivos
+
+| Arquivo | Função |
+|---------|--------|
+| `lib/schedulePdfExport.js` | Função `generateSchedulePDF` — gera o PDF usando jsPDF |
+| `components/project/tabs/ScheduleTab.jsx` | Botão "Gerar PDF do Cronograma" + handler |
+| `lib/permissions.js` | Módulo cronograma + permissão `cronograma_gerar_pdf` + perfis padrão |
+| `lib/usePermissions.js` | Hook `canGenerateSchedulePDF` |
+| `entities/PermissionProfile.json` | Schema com nova permissão |
+| `pages/ProjectDetail.jsx` | Passa `canGeneratePDF` para o ScheduleTab |
+
+### Testes E2E
+
+| # | Cenário | Resultado |
+|---|---------|-----------|
+| 1 | Botão visível para usuário com permissão | ✅ |
+| 2 | Botão oculto para usuário sem permissão | ✅ |
+| 3 | PDF gerado em projeto padrão (fases do template) | ✅ |
+| 4 | PDF inclui fase local ativa | ✅ |
+| 5 | PDF exclui fase inativa (`is_active=false`) | ✅ |
+| 6 | PDF inclui atividade local ativa | ✅ |
+| 7 | PDF exclui atividade inativa (`[INATIVADO]`) | ✅ |
+| 8 | PDF mostra datas manuais (override) | ✅ |
+| 9 | PDF mostra datas Pipedrive | ✅ |
+| 10 | Layout do PDF adequado para cliente | ✅ |
+| 11 | Reload não afeta geração do PDF | ✅ |
+| 12 | Permissões persistem após salvar perfil | ✅ |
+| 13 | Nenhuma outra funcionalidade quebrada | ✅ |
 
 ---
 

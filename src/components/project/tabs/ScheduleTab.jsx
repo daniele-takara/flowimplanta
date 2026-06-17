@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import {
   ChevronDown, ChevronRight, Save, X, Anchor, Pencil, Lock,
   AlertCircle, CheckCircle, CheckCircle2, Loader2, RefreshCw,
-  Database, Plus, RotateCcw, Zap, Eye, MoreHorizontal, EyeOff
+  Database, Plus, RotateCcw, Zap, Eye, MoreHorizontal, EyeOff, FileDown
 } from "lucide-react";
 import { SCHEDULE_TASKS, PHASE_ORDER, ANCHOR_IDS } from "@/lib/scheduleTasks.js";
 import { computeSchedule } from "@/lib/scheduleEngine.js";
@@ -13,6 +13,7 @@ import LocalActivityRow from "./schedule/LocalActivityRow.jsx";
 import AddPhaseModal from "./schedule/AddPhaseModal.jsx";
 import LocalPhaseSection from "./schedule/LocalPhaseSection.jsx";
 import PhaseOverrideModal from "./schedule/PhaseOverrideModal.jsx";
+import { generateSchedulePDF } from "@/lib/schedulePdfExport.js";
 
 function fmtDate(d) {
   if (!d) return "—";
@@ -637,6 +638,7 @@ export default function ScheduleTab({
   canEditExecuted = true, canAddActivity = true,
   canCreatePhase = true, canEditPhase = true, canExcluirPhase = true,
   canExcluirActivity = true,
+  canGeneratePDF = true,
 }) {
   const [anchorsLoaded, setAnchorsLoaded]       = useState(false);
   const [manualOverrides, setManualOverrides]   = useState({});
@@ -658,6 +660,9 @@ export default function ScheduleTab({
   const [phaseOverridesLoaded, setPhaseOverridesLoaded] = useState(false);
   const [showOverrideModal, setShowOverrideModal]   = useState(false);
   const [overrideModalPhase, setOverrideModalPhase] = useState(null);
+
+  // PDF generation state
+  const [generatingPDF, setGeneratingPDF] = useState(false);
 
   // Carregar overrides: DB (âncoras) + localStorage (todos) — localStorage prevalece
   useEffect(() => {
@@ -1012,6 +1017,26 @@ export default function ScheduleTab({
   const totalInactiveCount = inactiveLocalCount + inactiveTemplatePhaseCount + inactiveActivityCount;
   const hasInactiveItems = totalInactiveCount > 0;
 
+  const handleGeneratePDF = async () => {
+    setGeneratingPDF(true);
+    try {
+      const doc = await generateSchedulePDF({
+        project,
+        scopeItems,
+        savedActivities,
+        localPhases,
+        phaseOverrides,
+        manualOverrides,
+        templateConfig,
+      });
+      doc.save(`Cronograma_${(project?.client_name || project?.name || "projeto").replace(/\s+/g, "_")}.pdf`);
+    } catch (err) {
+      console.error("[ScheduleTab] Erro ao gerar PDF:", err);
+      alert("Erro ao gerar PDF do cronograma. Tente novamente.");
+    }
+    setGeneratingPDF(false);
+  };
+
   return (
     <div>
       {/* Toolbar */}
@@ -1048,6 +1073,16 @@ export default function ScheduleTab({
               const all = SCHEDULE_TASKS.filter(t => t.type === "task" && visible.has(t.id));
               await handleCompleteAsTasks(all);
             }} />
+          )}
+          {canGeneratePDF && (
+            <button
+              onClick={handleGeneratePDF}
+              disabled={generatingPDF}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 disabled:opacity-60"
+            >
+              {generatingPDF ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+              Gerar PDF do Cronograma
+            </button>
           )}
           {canCreatePhase && (
             <button
