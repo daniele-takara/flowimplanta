@@ -15,6 +15,16 @@ import { jsPDF } from "jspdf";
 import { SCHEDULE_TASKS, PHASE_ORDER, ANCHOR_IDS } from "@/lib/scheduleTasks.js";
 import { computeSchedule } from "@/lib/scheduleEngine.js";
 
+function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
 function fmtDate(d) {
   if (!d) return "—";
   try {
@@ -187,6 +197,14 @@ export async function generateSchedulePDF({
     y += 4;
   }
   y += 3;
+
+  // Logo Pontotel no canto direito
+  try {
+    const logoImg = await loadImage("https://media.base44.com/images/public/69e295c073bbccc7f63f6156/1ea94c9b2_LogoPontotel_AmarelaeBranca.png");
+    doc.addImage(logoImg, "PNG", pageW - margin - 50, margin, 50, 12);
+  } catch (e) {
+    // fallback silencioso se falhar carregar logo
+  }
 
   // ---- Colunas ----
   const colActivity = margin;

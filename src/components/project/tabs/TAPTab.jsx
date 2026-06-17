@@ -330,7 +330,10 @@ function generatePDF({ project, form, answersMap, participants, datas, modulosSe
     <h1>Termo de Abertura do Projeto (TAP)</h1>
     <div class="meta">${esc(project?.client_name)} · ${esc(project?.implantation_type)} · Emitido em ${new Date().toLocaleDateString("pt-BR")}</div>
   </div>
-  ${versionLabel ? `<div class="version-badge">${esc(versionLabel)}</div>` : ""}
+  <div style="display:flex;align-items:center;gap:10px;">
+    ${versionLabel ? `<div class="version-badge">${esc(versionLabel)}</div>` : ""}
+    <img src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/1ea94c9b2_LogoPontotel_AmarelaeBranca.png" style="height:40px" alt="Pontotel" />
+  </div>
 </div>
 
 <div class="section">
