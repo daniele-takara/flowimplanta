@@ -137,10 +137,10 @@ function generateActionPlanPDF(project, items) {
 
 const cellBase = "w-full bg-transparent text-[11px] outline-none px-1 py-1 rounded focus:bg-blue-50 focus:ring-1 focus:ring-blue-300";
 
-function TextCell({ value, onChange, placeholder, readOnly }) {
+function TextCell({ value, onChange, onBlur, placeholder, readOnly }) {
   return readOnly
     ? <span className="text-[11px] text-slate-600 block px-1 py-1 truncate">{value || "—"}</span>
-    : <input className={cellBase} value={value || ""} onChange={e => onChange(e.target.value)} onBlur={onChange ? undefined : undefined} placeholder={placeholder} />;
+    : <input className={cellBase} value={value || ""} onChange={e => onChange(e.target.value)} onBlur={onBlur} placeholder={placeholder} />;
 }
 
 function SelectCell({ value, onChange, options, colorMap, readOnly }) {
@@ -166,7 +166,7 @@ function DateCell({ value, onChange, readOnly }) {
     : <input type="date" className={`${cellBase} text-[10px] min-w-[90px]`} value={value || ""} onChange={e => onChange(e.target.value)} />;
 }
 
-function ResponsibleCell({ value, onChange, suggestions, readOnly }) {
+function ResponsibleCell({ value, onChange, onBlur, suggestions, readOnly }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
   const inputRef = useRef(null);
@@ -204,6 +204,7 @@ function ResponsibleCell({ value, onChange, suggestions, readOnly }) {
           value={value || ""}
           onChange={e => { onChange(e.target.value); openDropdown(); }}
           onFocus={openDropdown}
+          onBlur={onBlur}
           placeholder="Digite ou selecione..."
         />
         <button
@@ -242,25 +243,42 @@ function TableRow({ item, onFieldSave, readOnly, project }) {
   const [expanded, setExpanded] = useState(false);
   const [local, setLocal] = useState({ ...item });
   const saveTimer = useRef(null);
+  const onFieldSaveRef = useRef(onFieldSave);
+  const itemIdRef = useRef(item.id);
+  const localRef = useRef(local);
+  onFieldSaveRef.current = onFieldSave;
+  itemIdRef.current = item.id;
+  localRef.current = local;
 
   const pontotelSuggestions = [project?.pontotel_manager_name, project?.pontotel_analyst_name].filter(Boolean);
   const clientSuggestions = [project?.project_leader_name, project?.sponsor_name, project?.operation_name, project?.ti_client_name].filter(Boolean);
 
   useEffect(() => { setLocal({ ...item }); }, [item]);
 
+  const doSave = useCallback((field, value) => {
+    onFieldSaveRef.current(itemIdRef.current, field, value);
+  }, []);
+
   const save = useCallback((field, value) => {
-    const updated = { ...local, [field]: value };
-    setLocal(updated);
+    const next = { ...localRef.current, [field]: value };
+    localRef.current = next;
+    setLocal(next);
     clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => onFieldSave(item.id, field, value), 400);
-  }, [item.id, local, onFieldSave]);
+    saveTimer.current = setTimeout(() => doSave(field, value), 400);
+  }, [doSave]);
 
   const saveNow = useCallback((field, value) => {
-    const updated = { ...local, [field]: value };
-    setLocal(updated);
+    const next = { ...localRef.current, [field]: value };
+    localRef.current = next;
+    setLocal(next);
     clearTimeout(saveTimer.current);
-    onFieldSave(item.id, field, value);
-  }, [item.id, local, onFieldSave]);
+    doSave(field, value);
+  }, [doSave]);
+
+  const saveOnBlur = useCallback((field) => {
+    clearTimeout(saveTimer.current);
+    doSave(field, localRef.current[field]);
+  }, [doSave]);
 
   useEffect(() => () => clearTimeout(saveTimer.current), []);
   const hasDetail = local.ticket_code || local.technical_call_code || local.status_client !== "Aberto" || local.responsible_client || local.request_date || local.rollout_start || local.rollout_end || local.solution_date || local.new_solution_date || local.history || local.issue_description;
@@ -268,15 +286,15 @@ function TableRow({ item, onFieldSave, readOnly, project }) {
   return (
     <>
       <tr className="border-b border-slate-100 hover:bg-slate-50/30 group">
-        <td className="p-0.5"><TextCell value={local.theme} onChange={v => save("theme", v)} readOnly={readOnly} placeholder="Tema" /></td>
-        <td className="p-0.5"><TextCell value={local.issue} onChange={v => save("issue", v)} readOnly={readOnly} placeholder="Ocorrência" /></td>
+        <td className="p-0.5"><TextCell value={local.theme} onChange={v => save("theme", v)} onBlur={() => saveOnBlur("theme")} readOnly={readOnly} placeholder="Tema" /></td>
+        <td className="p-0.5"><TextCell value={local.issue} onChange={v => save("issue", v)} onBlur={() => saveOnBlur("issue")} readOnly={readOnly} placeholder="Ocorrência" /></td>
         <td className="p-0.5">
           <SelectCell value={local.type} onChange={v => saveNow("type", v)} options={TYPES} colorMap={TYPE_COLORS} readOnly={readOnly} />
         </td>
         <td className="p-0.5">
           <SelectCell value={local.impact} onChange={v => saveNow("impact", v)} options={IMPACTS} colorMap={IMPACT_COLORS} readOnly={readOnly} />
         </td>
-        <td className="p-0.5"><ResponsibleCell value={local.responsible_pontotel} onChange={v => save("responsible_pontotel", v)} suggestions={pontotelSuggestions} readOnly={readOnly} /></td>
+        <td className="p-0.5"><ResponsibleCell value={local.responsible_pontotel} onChange={v => save("responsible_pontotel", v)} onBlur={() => saveOnBlur("responsible_pontotel")} suggestions={pontotelSuggestions} readOnly={readOnly} /></td>
         <td className="p-0.5">
           <SelectCell value={local.status_pontotel} onChange={v => saveNow("status_pontotel", v)} options={STATUS_PONTOTEL} colorMap={STATUS_P_COLORS} readOnly={readOnly} />
         </td>
@@ -298,11 +316,11 @@ function TableRow({ item, onFieldSave, readOnly, project }) {
               <div className="space-y-3">
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Cod. Ticket</span>
-                  {readOnly ? <span className="text-slate-700">{local.ticket_code || "—"}</span> : <input className={cellBase} value={local.ticket_code || ""} onChange={e => save("ticket_code", e.target.value)} />}
+                  {readOnly ? <span className="text-slate-700">{local.ticket_code || "—"}</span> : <input className={cellBase} value={local.ticket_code || ""} onChange={e => save("ticket_code", e.target.value)} onBlur={() => saveOnBlur("ticket_code")} />}
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Chamado Técnico</span>
-                  {readOnly ? <span className="text-slate-700">{local.technical_call_code || "—"}</span> : <input className={cellBase} value={local.technical_call_code || ""} onChange={e => save("technical_call_code", e.target.value)} />}
+                  {readOnly ? <span className="text-slate-700">{local.technical_call_code || "—"}</span> : <input className={cellBase} value={local.technical_call_code || ""} onChange={e => save("technical_call_code", e.target.value)} onBlur={() => saveOnBlur("technical_call_code")} />}
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Data Solicitação</span>
@@ -316,7 +334,7 @@ function TableRow({ item, onFieldSave, readOnly, project }) {
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Resp. Cliente</span>
-                  <ResponsibleCell value={local.responsible_client} onChange={v => save("responsible_client", v)} suggestions={clientSuggestions} readOnly={readOnly} />
+                  <ResponsibleCell value={local.responsible_client} onChange={v => save("responsible_client", v)} onBlur={() => saveOnBlur("responsible_client")} suggestions={clientSuggestions} readOnly={readOnly} />
                 </div>
               </div>
               <div className="space-y-3">
@@ -346,16 +364,16 @@ function TableRow({ item, onFieldSave, readOnly, project }) {
                 {readOnly ? (
                   <p className="text-[12px] text-slate-700 whitespace-pre-wrap leading-relaxed">{local.issue_description || "—"}</p>
                 ) : (
-                  <textarea className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" rows={2} value={local.issue_description || ""} onChange={e => setLocal(l => ({ ...l, issue_description: e.target.value }))} onBlur={() => { if (local.issue_description !== item.issue_description) onFieldSave(item.id, "issue_description", local.issue_description); }} />
+                  <textarea className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" rows={2} value={local.issue_description || ""} onChange={e => { const v = e.target.value; localRef.current = { ...localRef.current, issue_description: v }; setLocal(l => ({ ...l, issue_description: v })); }} onBlur={() => doSave("issue_description", localRef.current.issue_description)} />
                 )}
               </div>
             )}
             <div className="mt-4 pt-4 border-t border-slate-200">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Histórico</span>
               {readOnly ? (
-                <p className="text-[12px] text-slate-700 whitespace-pre-wrap leading-relaxed">{local.history || "—"}</p>
+              <p className="text-[12px] text-slate-700 whitespace-pre-wrap leading-relaxed">{local.history || "—"}</p>
               ) : (
-                <textarea className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" rows={3} value={local.history || ""} onChange={e => setLocal(l => ({ ...l, history: e.target.value }))} onBlur={() => { if (local.history !== item.history) onFieldSave(item.id, "history", local.history); }} placeholder="Registro de ações / atualizações..." />
+              <textarea className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" rows={3} value={local.history || ""} onChange={e => { const v = e.target.value; localRef.current = { ...localRef.current, history: v }; setLocal(l => ({ ...l, history: v })); }} onBlur={() => doSave("history", localRef.current.history)} placeholder="Registro de ações / atualizações..." />
               )}
             </div>
           </td>
@@ -500,7 +518,8 @@ export default function ActionPlanTab({ actions = [], projectId, project, onRefr
 
   const handleFieldSave = useCallback(async (id, field, value) => {
     await base44.entities.ActionPlan.update(id, { [field]: value });
-  }, []);
+    onRefresh();
+  }, [onRefresh]);
 
   const handleNewSaved = useCallback(() => {
     setShowNewModal(false);
