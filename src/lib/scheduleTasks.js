@@ -41,52 +41,74 @@ export const SCHEDULE_TASKS = [
   },
 
   // ── INTEGRAÇÃO SANKHYA ──────────────────────────────────────
+  // Visível quando: q006="Sim" (formulário preenchido) OU origem do cliente é Sankhya
   {
     id: "grupo_integracao", row: 13, type: "group",
     phase: "Integração", activity: "Integração",
-    visibleWhen: { source: "escopo.q006", equals: "Sim" }
+    visibleWhenAny: [
+      { source: "escopo.q006", equals: "Sim" },
+      { source: "dados_iniciais.origem_cliente", equals: "Sankhya" }
+    ]
   },
   {
     id: "integracao_sankhya_envio_formulario", row: 14, type: "task",
     phase: "Integração", activity: "[Sankhya] Envio do formulário de dados para integração",
     plannedStart: { type: "calculated", formula: "alinhamento_inicial.plannedStart" },
     plannedEnd: { type: "calculated", formula: "workday(plannedStart, 1)" },
-    visibleWhen: { source: "escopo.q006", equals: "Sim" }
+    visibleWhenAny: [
+      { source: "escopo.q006", equals: "Sim" },
+      { source: "dados_iniciais.origem_cliente", equals: "Sankhya" }
+    ]
   },
   {
     id: "preenchimento_formulario_integracao_sankhya", row: 15, type: "task",
     phase: "Integração", activity: "Preenchimento do formulário de integração [para clientes Sankhya]",
     plannedStart: { type: "calculated", formula: "integracao_sankhya_envio_formulario.plannedEnd" },
     plannedEnd: { type: "calculated", formula: "workday(plannedStart, 3)" },
-    visibleWhen: { source: "escopo.q006", equals: "Sim" }
+    visibleWhenAny: [
+      { source: "escopo.q006", equals: "Sim" },
+      { source: "dados_iniciais.origem_cliente", equals: "Sankhya" }
+    ]
   },
   {
     id: "inicio_ativacao_integracao_sankhya", row: 16, type: "task",
     phase: "Integração", activity: "Inicio da ativação da integração, análise de inconsistências, alinhamento com o cliente para ajustes",
     plannedStart: { type: "calculated", formula: "preenchimento_formulario_integracao_sankhya.plannedEnd" },
     plannedEnd: { type: "calculated", formula: "workday(plannedStart, 5)" },
-    visibleWhen: { source: "escopo.q006", equals: "Sim" }
+    visibleWhenAny: [
+      { source: "escopo.q006", equals: "Sim" },
+      { source: "dados_iniciais.origem_cliente", equals: "Sankhya" }
+    ]
   },
   {
     id: "correcao_cadastros_sankhya", row: 17, type: "task",
     phase: "Integração", activity: "[Sankhya] Correção de cadastros Sankhya",
     plannedStart: { type: "calculated", formula: "inicio_ativacao_integracao_sankhya.plannedStart" },
     plannedEnd: { type: "calculated", formula: "workday(plannedStart, 5)" },
-    visibleWhen: { source: "escopo.q006", equals: "Sim" }
+    visibleWhenAny: [
+      { source: "escopo.q006", equals: "Sim" },
+      { source: "dados_iniciais.origem_cliente", equals: "Sankhya" }
+    ]
   },
   {
     id: "ativacao_integracao_sankhya", row: 18, type: "task",
     phase: "Integração", activity: "Ativação da integração [para clientes Sankhya]",
     plannedStart: { type: "calculated", formula: "correcao_cadastros_sankhya.plannedEnd" },
     plannedEnd: { type: "calculated", formula: "workday(plannedStart, 1)" },
-    visibleWhen: { source: "escopo.q006", equals: "Sim" }
+    visibleWhenAny: [
+      { source: "escopo.q006", equals: "Sim" },
+      { source: "dados_iniciais.origem_cliente", equals: "Sankhya" }
+    ]
   },
   {
     id: "envio_planilha_importacao_escalas_sankhya", row: 19, type: "task",
     phase: "Cadastros", activity: "Envio da planilha de importação de escalas [para clientes Sankhya]",
     plannedStart: { type: "calculated", formula: "integracao_sankhya_envio_formulario.plannedStart" },
     plannedEnd: { type: "calculated", formula: "workday(plannedStart, 1)" },
-    visibleWhen: { source: "escopo.q006", equals: "Sim" }
+    visibleWhenAny: [
+      { source: "escopo.q006", equals: "Sim" },
+      { source: "dados_iniciais.origem_cliente", equals: "Sankhya" }
+    ]
   },
 
   // ── CADASTROS ───────────────────────────────────────────────
@@ -100,14 +122,14 @@ export const SCHEDULE_TASKS = [
     phase: "Cadastros", activity: "Envio da documentação com orientações para o uso do I05",
     plannedStart: { type: "calculated", formula: "alinhamento_inicial.plannedStart" },
     plannedEnd: { type: "calculated", formula: "workday(plannedStart, 1)" },
-    visibleWhen: { source: "escopo.q006", equals: "Não" }
+    visibleWhen: { source: "escopo.q006", notContains: "Sim" }
   },
   {
     id: "importacao_cadastros_i05", row: 22, type: "task",
     phase: "Cadastros", activity: "Importação de cadastros pelo I05",
     plannedStart: { type: "calculated", formula: "envio_documentacao_i05.plannedEnd" },
     plannedEnd: { type: "calculated", formula: "workday(plannedStart, 3)" },
-    visibleWhen: { source: "escopo.q006", equals: "Não" }
+    visibleWhen: { source: "escopo.q006", notContains: "Sim" }
   },
   {
     id: "preencher_planilha_enderecos", row: 23, type: "task",
