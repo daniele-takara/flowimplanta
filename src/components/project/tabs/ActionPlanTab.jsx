@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Download, X, ChevronDown, ChevronUp, Search, Trash2 } from "lucide-react";
+import { Plus, Download, X, ChevronDown, ChevronUp, Search, Trash2, Settings } from "lucide-react";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -50,9 +50,51 @@ function esc(s) {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
 }
 
+// ─── Colunas do PDF ──────────────────────────────────────────────────────────
+
+const ALL_PDF_COLUMNS = [
+  { key: "ticket_code",          label: "Cod. Ticket",            group: "Identificação", default: true },
+  { key: "technical_call_code",  label: "Chamado Técnico",         group: "Identificação", default: true },
+  { key: "theme",                label: "Tema",                    group: "Principais", default: true },
+  { key: "issue",                label: "Descrição da Ocorrência", group: "Principais", default: true },
+  { key: "type",                 label: "Tipo",                    group: "Classificação", default: true,  pill: true, pillMap: { "Erro":"pill-red", "Melhoria":"pill-blue", "Dúvida":"pill-amber", "Pendência":"pill-orange", "Risco":"pill-purple" } },
+  { key: "impact",               label: "Impacto",                 group: "Classificação", default: true,  impactStyle: true, impactMap: { "Alto":"impact-high", "Médio":"impact-med", "Baixo":"impact-low" } },
+  { key: "responsible_pontotel", label: "Resp. Pontotel",          group: "Responsáveis", default: true },
+  { key: "status_pontotel",      label: "Status Pontotel",         group: "Status", default: true,  pill: true, pillMap: { "Aberto":"pill-red", "Em andamento":"pill-blue", "Validação":"pill-purple", "Concluído":"pill-green", "Cancelado":"pill-slate" } },
+  { key: "status_client",        label: "Status Cliente",          group: "Status", default: false, pill: true, pillMap: { "Aberto":"pill-red", "Em validação":"pill-purple", "Validado":"pill-green", "Cancelado":"pill-slate" } },
+  { key: "responsible_client",   label: "Resp. Cliente",           group: "Responsáveis", default: false },
+  { key: "request_date",         label: "Data Solicitação",        group: "Datas", default: false, date: true },
+  { key: "deadline_date",        label: "Prazo",                   group: "Datas", default: true,  date: true },
+  { key: "rollout_start",        label: "Rollout Início",          group: "Datas", default: false, date: true },
+  { key: "rollout_end",          label: "Rollout Fim",             group: "Datas", default: false, date: true },
+  { key: "solution_date",        label: "Data Solução",            group: "Datas", default: false, date: true },
+  { key: "new_solution_date",    label: "Nova Data Solução",       group: "Datas", default: false, date: true },
+  { key: "history",              label: "Histórico",               group: "Outros", default: false, history: true },
+];
+
+const DEFAULT_SELECTED = ALL_PDF_COLUMNS.filter(c => c.default).map(c => c.key);
+
+function renderPDFCell(col, it) {
+  const val = it[col.key];
+  if (col.pill) {
+    const cls = col.pillMap?.[val] || "pill-slate";
+    return `<span class="pill ${cls}">${esc(val)}</span>`;
+  }
+  if (col.impactStyle) {
+    const cls = col.impactMap?.[val] || "";
+    return `<span class="${cls}">${esc(val)}</span>`;
+  }
+  if (col.date) return esc(fmt(val));
+  if (col.history) return esc(val || "");
+  return esc(val);
+}
+
 // ─── Geração de PDF ──────────────────────────────────────────────────────────
 
-function generateActionPlanPDF(project, items) {
+function generateActionPlanPDF(project, items, selectedColumns) {
+  const cols = ALL_PDF_COLUMNS.filter(c => selectedColumns.includes(c.key));
+  if (cols.length === 0) return;
+
   const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
 <title>Plano de Ação – ${esc(project?.name || "Projeto")}</title>
 <style>
@@ -88,40 +130,10 @@ function generateActionPlanPDF(project, items) {
 </div>
 <table>
   <thead>
-    <tr>
-      <th>Cod. Ticket</th><th>Chamado Técnico</th><th>Tema</th><th>Descrição da Ocorrência</th>
-      <th>Tipo</th><th>Impacto</th><th>Resp. Pontotel</th><th>Status Pontotel</th>
-      <th>Status Cliente</th><th>Resp. Cliente</th><th>Data Solicitação</th><th>Prazo</th>
-      <th>Rollout Início</th><th>Rollout Fim</th><th>Data Solução</th><th>Nova Data Solução</th>
-      <th>Histórico</th>
-    </tr>
+    <tr>${cols.map(c => `<th>${esc(c.label)}</th>`).join("")}</tr>
   </thead>
   <tbody>
-    ${items.map(it => {
-      const typeMap = { "Erro":"pill-red", "Melhoria":"pill-blue", "Dúvida":"pill-amber", "Pendência":"pill-orange", "Risco":"pill-purple" };
-      const sPMap = { "Aberto":"pill-red", "Em andamento":"pill-blue", "Validação":"pill-purple", "Concluído":"pill-green", "Cancelado":"pill-slate" };
-      const sCMap = { "Aberto":"pill-red", "Em validação":"pill-purple", "Validado":"pill-green", "Cancelado":"pill-slate" };
-      const impMap = { "Alto":"impact-high", "Médio":"impact-med", "Baixo":"impact-low" };
-      return `<tr>
-        <td>${esc(it.ticket_code)}</td>
-        <td>${esc(it.technical_call_code)}</td>
-        <td>${esc(it.theme)}</td>
-        <td>${esc(it.issue)}</td>
-        <td><span class="pill ${typeMap[it.type]||"pill-slate"}">${esc(it.type)}</span></td>
-        <td class="${impMap[it.impact]||""}">${esc(it.impact)}</td>
-        <td>${esc(it.responsible_pontotel)}</td>
-        <td><span class="pill ${sPMap[it.status_pontotel]||"pill-slate"}">${esc(it.status_pontotel)}</span></td>
-        <td><span class="pill ${sCMap[it.status_client]||"pill-slate"}">${esc(it.status_client)}</span></td>
-        <td>${esc(it.responsible_client)}</td>
-        <td>${fmt(it.request_date)}</td>
-        <td>${fmt(it.deadline_date)}</td>
-        <td>${fmt(it.rollout_start)}</td>
-        <td>${fmt(it.rollout_end)}</td>
-        <td>${fmt(it.solution_date)}</td>
-        <td>${fmt(it.new_solution_date)}</td>
-        <td class="history-cell">${esc(it.history || it.issue_description || "")}</td>
-      </tr>`;
-    }).join("")}
+    ${items.map(it => `<tr>${cols.map(c => `<td${c.history ? ' class="history-cell"' : ''}>${renderPDFCell(c, it)}</td>`).join("")}</tr>`).join("")}
   </tbody>
 </table>
 </body></html>`;
@@ -131,6 +143,79 @@ function generateActionPlanPDF(project, items) {
   w.document.close();
   w.focus();
   setTimeout(() => w.print(), 600);
+}
+
+// ─── Modal de Seleção de Colunas do PDF ──────────────────────────────────────
+
+function PDFColumnSelectModal({ onClose, onGenerate }) {
+  const [selected, setSelected] = useState([...DEFAULT_SELECTED]);
+
+  const toggle = (key) => {
+    setSelected(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
+  };
+
+  const selectAll = () => setSelected(ALL_PDF_COLUMNS.map(c => c.key));
+  const selectDefaults = () => setSelected([...DEFAULT_SELECTED]);
+
+  const groups = {};
+  ALL_PDF_COLUMNS.forEach(c => {
+    if (!groups[c.group]) groups[c.group] = [];
+    groups[c.group].push(c);
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[85vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between z-10">
+          <div>
+            <h3 className="text-base font-bold text-slate-800">Selecionar Colunas do PDF</h3>
+            <p className="text-xs text-slate-400 mt-0.5">{selected.length} de {ALL_PDF_COLUMNS.length} colunas</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="px-5 py-3 border-b border-slate-50 flex gap-2">
+          <button onClick={selectAll} className="text-xs text-blue-600 hover:underline">Marcar todas</button>
+          <span className="text-slate-300">·</span>
+          <button onClick={selectDefaults} className="text-xs text-blue-600 hover:underline">Restaurar padrão</button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {Object.entries(groups).map(([group, cols]) => (
+            <div key={group}>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">{group}</p>
+              <div className="space-y-1">
+                {cols.map(c => (
+                  <label key={c.key} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(c.key)}
+                      onChange={() => toggle(c.key)}
+                      className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-400"
+                    />
+                    <span className={`text-xs ${selected.includes(c.key) ? "text-slate-700 font-medium" : "text-slate-400"}`}>
+                      {c.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="sticky bottom-0 bg-white border-t border-slate-100 px-5 py-4 flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">Cancelar</button>
+          <button
+            onClick={() => onGenerate(selected)}
+            disabled={selected.length === 0}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium disabled:opacity-40"
+          >
+            <Download className="w-3.5 h-3.5" />Gerar PDF
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── Inputs Inline ────────────────────────────────────────────────────────────
@@ -498,6 +583,7 @@ const COL_W = ["13%","22%","8%","7%","13%","11%","9%","8%"];
 
 export default function ActionPlanTab({ actions = [], projectId, project, onRefresh, readOnly = false, canDelete = true }) {
   const [showNewModal, setShowNewModal] = useState(false);
+  const [showPDFModal, setShowPDFModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterType, setFilterType] = useState("all");
   const [search, setSearch] = useState("");
@@ -527,6 +613,11 @@ export default function ActionPlanTab({ actions = [], projectId, project, onRefr
     onRefresh();
   }, [onRefresh]);
 
+  const handlePDFGenerate = useCallback((selectedColumns) => {
+    setShowPDFModal(false);
+    generateActionPlanPDF(project, filtered, selectedColumns);
+  }, [project, filtered]);
+
   const openCount = actions.filter(a => !["Concluído", "Cancelado"].includes(a.status_pontotel)).length;
 
   return (
@@ -554,7 +645,7 @@ export default function ActionPlanTab({ actions = [], projectId, project, onRefr
               <option value="all">Todos Tipos</option>
               {TYPES.map(t => <option key={t}>{t}</option>)}
             </select>
-            <button onClick={() => generateActionPlanPDF(project, filtered)}
+            <button onClick={() => setShowPDFModal(true)}
               className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors">
               <Download className="w-3 h-3" />PDF
             </button>
@@ -602,6 +693,11 @@ export default function ActionPlanTab({ actions = [], projectId, project, onRefr
           </div>
         )}
       </div>
+
+      {/* Modal de Seleção de Colunas do PDF */}
+      {showPDFModal && (
+        <PDFColumnSelectModal onClose={() => setShowPDFModal(false)} onGenerate={handlePDFGenerate} />
+      )}
 
       {/* Modal apenas para novo item */}
       {showNewModal && (
