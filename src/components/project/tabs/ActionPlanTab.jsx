@@ -158,7 +158,7 @@ function ItemModal({ item, onClose, onSave }) {
   const [form, setForm] = useState(item ? { ...item } : { ...EMPTY_ITEM });
   const [saving, setSaving] = useState(false);
 
-  const isNew = !item;
+  const isNew = !item?.id;
 
   const handleSave = async () => {
     setSaving(true);
