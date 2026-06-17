@@ -181,7 +181,7 @@ function StatusReportDashboard({ report, project, macroPhases, overallProgress, 
       <div className="bg-gradient-to-br from-purple-700 to-purple-900 rounded-2xl px-8 py-7 text-white">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs font-semibold text-purple-300 uppercase tracking-widest mb-1">Pontotel · Implantação</p>
+            <p className="text-xs font-semibold text-purple-300 uppercase tracking-widest mb-1"><img src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/1ea94c9b2_LogoPontotel_AmarelaeBranca.png" style={{height:18,verticalAlign:'middle'}} alt="Pontotel" /> · Implantação</p>
             <h1 className="text-2xl font-bold">Status do Projeto</h1>
             <p className="text-purple-200 mt-1 text-sm">{project?.client_name}</p>
           </div>
