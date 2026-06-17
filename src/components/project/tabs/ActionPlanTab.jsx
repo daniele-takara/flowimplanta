@@ -518,8 +518,7 @@ export default function ActionPlanTab({ actions = [], projectId, project, onRefr
 
   const handleFieldSave = useCallback(async (id, field, value) => {
     await base44.entities.ActionPlan.update(id, { [field]: value });
-    onRefresh();
-  }, [onRefresh]);
+  }, []);
 
   const handleNewSaved = useCallback(() => {
     setShowNewModal(false);
