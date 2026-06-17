@@ -201,19 +201,20 @@ export function computeSchedule(tasks, anchors, answersMap, project) {
       const startSpec = task.plannedStart;
       if (startSpec) {
         if (startSpec.type === "anchor") {
-          // Âncora: sempre aplica o override do banco/usuário
           const val = anchorOverride?.plannedStart || null;
           if (val) d.plannedStart = val;
         } else if (startSpec.type === "manual_override") {
-          // Manual override: aplica se tiver valor, não sobrescreve cálculos dependentes
           const val = anchorOverride?.plannedStart || null;
           if (val) d.plannedStart = val;
         } else if (startSpec.type === "calculated" && startSpec.formula) {
-          // Calculado: só tenta se ainda não resolvido (evita re-calcular desnecessariamente)
+          // Calculado: resolve fórmula, depois aplica override manual se existir
           if (!d.plannedStart) {
             const computed = resolve(startSpec.formula, task.id, "plannedStart", startSpec.fallback);
             if (computed) d.plannedStart = computed;
           }
+          // Override manual/Pipedrive sempre prevalece sobre o calculado
+          const val = anchorOverride?.plannedStart || null;
+          if (val) d.plannedStart = val;
         }
       }
 
@@ -230,6 +231,9 @@ export function computeSchedule(tasks, anchors, answersMap, project) {
           // Re-calcula sempre em cada passe para pegar dependências que acabaram de resolver
           const computed = resolve(endSpec.formula, task.id, "plannedEnd");
           if (computed) d.plannedEnd = computed;
+          // Override manual/Pipedrive sempre prevalece sobre o calculado
+          const val = anchorOverride?.plannedEnd || null;
+          if (val) d.plannedEnd = val;
         }
       }
 

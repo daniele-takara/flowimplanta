@@ -1,6 +1,6 @@
 # Flowimplanta — Documentação Técnica v6.5
 **Última atualização:** 2026-06-17  
-**Status:** Validado (Pipedrive como Fonte de Verdade + Regras de Cálculo + Cronograma Unificado + PDF do Cronograma)
+**Status:** Validado (Pipedrive como Fonte de Verdade + Regras de Cálculo + Cronograma Unificado + PDF do Cronograma + Correção Overrides Calculados v6.7)
 
 ---
 
@@ -526,13 +526,14 @@ buildProjectScheduleView({
 | Tipo | Comportamento |
 |------|---------------|
 | `anchor` | Editável pelo usuário. Propaga para dependentes. Salvo em `Project.schedule_anchor_dates` |
-| `calculated` | Calculado por fórmula (workday, sameDay). Somente leitura |
+| `calculated` | Calculado por fórmula (workday, sameDay). **Override manual/Pipedrive prevalece** sobre o calculado (v6.7). |
 | `manual_override` | Editável, não propaga |
 
-**Prioridade de fontes para datas planejadas:**
-1. Override manual do usuário (salvo em `Project.schedule_anchor_dates` para âncoras)
-2. Sincronização Pipedrive (salvo em `schedule_anchor_dates` com `_origin: "pipedrive"`)
+**Prioridade de fontes para datas planejadas (v6.7):**
+1. Override manual do usuário (salvo em `Project.schedule_overrides`)
+2. Sincronização Pipedrive (salvo em `Project.schedule_overrides` com `_origin: "pipedrive"`)
 3. Calculado automaticamente pelo motor (`scheduleEngine.js`)
+> Overrides manuais e Pipedrive agora se aplicam a **todos** os tipos de tarefa (anchor, calculated, manual_override).
 
 ### 5 Âncoras (campos de `schedule_anchor_dates`)
 | ID | Descrição |
@@ -628,6 +629,27 @@ plannedStart              → self reference
 
 ---
 
+## 6.0-B CORREÇÃO: OVERRIDES MANUAIS EM TAREFAS CALCULADAS (v6.7 — 2026-06-17)
+
+### Problema
+TAP e Status Report não refletiam ajustes manuais de datas feitos no Cronograma. As datas de fase (início/fim planejados) ficavam desatualizadas após edições manuais.
+
+### Causa raiz (3 problemas em cadeia)
+1. **`computeSchedule` ignorava overrides em tarefas `calculated`**: Apenas tarefas dos tipos `anchor` e `manual_override` aplicavam overrides do banco. Tarefas `calculated` resolviam a fórmula e ignoravam qualquer override manual. Como ~90% das tarefas são `calculated`, edições manuais não surtiam efeito no motor.
+2. **TAPTab e StatusReportTab liam `project` desatualizado**: O `project` passado como prop estava em cache no estado do `ProjectDetail`. Quando o ScheduleTab salvava `schedule_overrides` no banco, os outros tabs não viam a atualização até recarregar a página.
+3. **ScheduleTab não notificava o ProjectDetail**: Após salvar overrides, não chamava `onRefresh`.
+
+### Correção (3 arquivos)
+1. **`lib/scheduleEngine.js`** — `computeSchedule`: para tarefas `calculated`, após resolver a fórmula, aplica override manual/Pipedrive como camada final. Override sempre prevalece sobre o calculado.
+2. **`components/project/tabs/TAPTab`** — `buildScheduleSnapshotFromDB`: recarrega o projeto do banco (`filter({id})`) antes de ler `schedule_overrides`.
+3. **`components/project/tabs/StatusReportTab`** — `handleUpdate`: recarrega o projeto do banco antes de calcular o cronograma macro.
+4. **`components/project/tabs/ScheduleTab`** — `handleSaveOverride` e `handleRemoveOverride`: chamam `onRefresh()` após persistir no banco, mantendo o estado do `ProjectDetail` sincronizado.
+
+### Resultado
+Datas de fase (início/fim planejados) no Cronograma, TAP e Status Report refletem imediatamente qualquer ajuste manual. O override manual de uma tarefa propaga corretamente para o cálculo de fase (min/max das tarefas da fase).
+
+---
+
 ## 6.0 COMPARTILHAMENTO DE OVERRIDES DO CRONOGRAMA (v6.6 — 2026-06-17)
 
 ### Problema
@@ -651,7 +673,11 @@ Qualquer edição de data no Cronograma é imediatamente visível para TODOS os 
 
 ---
 
-## 6.1 TAP — ARQUITETURA v6.5 (CORRIGIDA — 2026-06-17)
+## 6.1 TAP — ARQUITETURA v6.7 (CORRIGIDA — 2026-06-17)
+
+> **v6.7:** `buildScheduleSnapshotFromDB` agora recarrega o projeto do banco antes de ler `schedule_overrides`, garantindo que as datas mais recentes (editadas por qualquer usuário) sejam usadas.
+
+### Diagnóstico e Correção (v6.5)
 
 ### Diagnóstico e Correção (v6.5)
 
@@ -1222,7 +1248,9 @@ calculated:      if (!d.plannedStart) d.plannedStart = resolve(formula)  (planne
 
 ---
 
-## 12. STATUS REPORT — ARQUITETURA v6.2
+## 12. STATUS REPORT — ARQUITETURA v6.7
+
+> **v6.7:** `handleUpdate` agora recarrega o projeto do banco (`filter({id})`) antes de carregar `schedule_overrides` e calcular o cronograma macro. Isso garante que edições manuais feitas no Cronograma sejam refletidas no Status Report imediatamente após clicar "Atualizar Status Report".
 
 ### Source único de dados
 
