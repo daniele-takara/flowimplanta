@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Download, X, ChevronDown, ChevronUp, Search } from "lucide-react";
+import { Plus, Download, X, ChevronDown, ChevronUp, Search, Trash2 } from "lucide-react";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -89,7 +89,7 @@ function generateActionPlanPDF(project, items) {
 <table>
   <thead>
     <tr>
-      <th>Cod. Ticket</th><th>Chamado Técnico</th><th>Tema</th><th>Ocorrência</th>
+      <th>Cod. Ticket</th><th>Chamado Técnico</th><th>Tema</th><th>Descrição da Ocorrência</th>
       <th>Tipo</th><th>Impacto</th><th>Resp. Pontotel</th><th>Status Pontotel</th>
       <th>Status Cliente</th><th>Resp. Cliente</th><th>Data Solicitação</th><th>Prazo</th>
       <th>Rollout Início</th><th>Rollout Fim</th><th>Data Solução</th><th>Nova Data Solução</th>
@@ -119,7 +119,7 @@ function generateActionPlanPDF(project, items) {
         <td>${fmt(it.rollout_end)}</td>
         <td>${fmt(it.solution_date)}</td>
         <td>${fmt(it.new_solution_date)}</td>
-        <td class="history-cell">${esc(it.history)}</td>
+        <td class="history-cell">${esc(it.history || it.issue_description || "")}</td>
       </tr>`;
     }).join("")}
   </tbody>
@@ -239,7 +239,7 @@ function ResponsibleCell({ value, onChange, onBlur, suggestions, readOnly }) {
 
 // ─── Linha da Tabela ─────────────────────────────────────────────────────────
 
-function TableRow({ item, onFieldSave, readOnly, project }) {
+function TableRow({ item, onFieldSave, onDelete, readOnly, project }) {
   const [expanded, setExpanded] = useState(false);
   const [local, setLocal] = useState({ ...item });
   const saveTimer = useRef(null);
@@ -281,7 +281,7 @@ function TableRow({ item, onFieldSave, readOnly, project }) {
   }, [doSave]);
 
   useEffect(() => () => clearTimeout(saveTimer.current), []);
-  const hasDetail = local.ticket_code || local.technical_call_code || local.status_client !== "Aberto" || local.responsible_client || local.request_date || local.rollout_start || local.rollout_end || local.solution_date || local.new_solution_date || local.history || local.issue_description;
+  const hasDetail = local.ticket_code || local.technical_call_code || local.status_client !== "Aberto" || local.responsible_client || local.request_date || local.rollout_start || local.rollout_end || local.solution_date || local.new_solution_date || local.history;
 
   return (
     <>
@@ -300,13 +300,24 @@ function TableRow({ item, onFieldSave, readOnly, project }) {
         </td>
         <td className="p-0.5"><DateCell value={local.deadline_date} onChange={v => saveNow("deadline_date", v)} readOnly={readOnly} /></td>
         <td className="p-0.5 text-center">
-          <button
-            onClick={() => setExpanded(e => !e)}
-            className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded ${hasDetail ? "text-blue-600 hover:bg-blue-50" : "text-slate-300 hover:text-blue-500"}`}
-          >
-            {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            <span className="hidden sm:inline">{expanded ? "Recolher" : "Detalhes"}</span>
-          </button>
+          <div className="flex items-center justify-center gap-1">
+            <button
+              onClick={() => setExpanded(e => !e)}
+              className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded ${hasDetail ? "text-blue-600 hover:bg-blue-50" : "text-slate-300 hover:text-blue-500"}`}
+            >
+              {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              <span className="hidden sm:inline">{expanded ? "Recolher" : "Detalhes"}</span>
+            </button>
+            {onDelete && (
+              <button
+                onClick={() => onDelete(item.id)}
+                className="text-slate-300 hover:text-red-500 p-0.5 rounded transition-colors"
+                title="Excluir item"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </td>
       </tr>
       {expanded && (
@@ -358,16 +369,6 @@ function TableRow({ item, onFieldSave, readOnly, project }) {
                 </div>
               </div>
             </div>
-            {(local.issue_description || !readOnly) && (
-              <div className="mt-4 pt-4 border-t border-slate-200">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Descrição da Ocorrência</span>
-                {readOnly ? (
-                  <p className="text-[12px] text-slate-700 whitespace-pre-wrap leading-relaxed">{local.issue_description || "—"}</p>
-                ) : (
-                  <textarea className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" rows={2} value={local.issue_description || ""} onChange={e => { const v = e.target.value; localRef.current = { ...localRef.current, issue_description: v }; setLocal(l => ({ ...l, issue_description: v })); }} onBlur={() => doSave("issue_description", localRef.current.issue_description)} />
-                )}
-              </div>
-            )}
             <div className="mt-4 pt-4 border-t border-slate-200">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Histórico</span>
               {readOnly ? (
@@ -386,7 +387,7 @@ function TableRow({ item, onFieldSave, readOnly, project }) {
 // ─── Modal (apenas para novos itens) ─────────────────────────────────────────
 
 const EMPTY_ITEM = {
-  ticket_code: "", technical_call_code: "", theme: "", issue: "", issue_description: "",
+  ticket_code: "", technical_call_code: "", theme: "", issue: "",
   type: "Pendência", impact: "Médio", responsible_pontotel: "", status_pontotel: "Aberto",
   status_client: "Aberto", responsible_client: "", request_date: new Date().toISOString().split("T")[0],
   deadline_date: "", rollout_start: "", rollout_end: "", solution_date: "", new_solution_date: "", history: ""
@@ -432,12 +433,8 @@ function NewItemModal({ projectId, project, onClose, onSave }) {
             <input className={inputCls} value={form.theme} onChange={e => setForm(f => ({ ...f, theme: e.target.value }))} placeholder="Ex: Integração" />
           </div>
           <div className="col-span-3">
-            <label className={labelCls}>Ocorrência *</label>
-            <input className={inputCls} value={form.issue} onChange={e => setForm(f => ({ ...f, issue: e.target.value }))} placeholder="Título da ocorrência" />
-          </div>
-          <div className="col-span-3">
-            <label className={labelCls}>Descrição da Ocorrência</label>
-            <textarea className={`${inputCls} resize-none h-20`} value={form.issue_description} onChange={e => setForm(f => ({ ...f, issue_description: e.target.value }))} />
+            <label className={labelCls}>Descrição da Ocorrência *</label>
+            <textarea className={`${inputCls} resize-none h-20`} value={form.issue} onChange={e => setForm(f => ({ ...f, issue: e.target.value }))} placeholder="Descreva a ocorrência..." />
           </div>
           <div>
             <label className={labelCls}>Tipo</label>
@@ -499,7 +496,7 @@ function NewItemModal({ projectId, project, onClose, onSave }) {
 // colgroup widths (%): 8 colunas visíveis — sem scroll horizontal
 const COL_W = ["13%","22%","8%","7%","13%","11%","9%","8%"];
 
-export default function ActionPlanTab({ actions = [], projectId, project, onRefresh, readOnly = false }) {
+export default function ActionPlanTab({ actions = [], projectId, project, onRefresh, readOnly = false, canDelete = true }) {
   const [showNewModal, setShowNewModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterType, setFilterType] = useState("all");
@@ -510,7 +507,7 @@ export default function ActionPlanTab({ actions = [], projectId, project, onRefr
     if (filterType !== "all" && a.type !== filterType) return false;
     if (search) {
       const s = search.toLowerCase();
-      const fields = [a.ticket_code, a.technical_call_code, a.theme, a.issue, a.issue_description, a.responsible_pontotel, a.responsible_client];
+      const fields = [a.ticket_code, a.technical_call_code, a.theme, a.issue, a.responsible_pontotel, a.responsible_client];
       if (!fields.some(f => f?.toLowerCase().includes(s))) return false;
     }
     return true;
@@ -522,6 +519,11 @@ export default function ActionPlanTab({ actions = [], projectId, project, onRefr
 
   const handleNewSaved = useCallback(() => {
     setShowNewModal(false);
+    onRefresh();
+  }, [onRefresh]);
+
+  const handleDelete = useCallback(async (id) => {
+    await base44.entities.ActionPlan.delete(id);
     onRefresh();
   }, [onRefresh]);
 
@@ -582,7 +584,7 @@ export default function ActionPlanTab({ actions = [], projectId, project, onRefr
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Tema</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Ocorrência</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Descrição da Ocorrência</th>
                   <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Tipo</th>
                   <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Impacto</th>
                   <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Resp. Pontotel</th>
@@ -593,7 +595,7 @@ export default function ActionPlanTab({ actions = [], projectId, project, onRefr
               </thead>
               <tbody>
                 {filtered.map(item => (
-                  <TableRow key={item.id} item={item} onFieldSave={handleFieldSave} readOnly={readOnly} project={project} />
+                  <TableRow key={item.id} item={item} onFieldSave={handleFieldSave} onDelete={canDelete ? handleDelete : null} readOnly={readOnly} project={project} />
                 ))}
               </tbody>
             </table>

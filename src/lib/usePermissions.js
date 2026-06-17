@@ -67,8 +67,10 @@ export function usePermissions() {
     canUpdateStatusReport: can("status_report_atualizar") || isSystemAdmin,
     canGenerateStatusReportEmail: can("status_report_email") || isSystemAdmin,
 
-    // Plano de ação (agrupa com status report por enquanto)
-    canEditActionPlan: can("status_report_editar") || isSystemAdmin,
+    // Plano de Ação
+    canReadActionPlan: can("plano_acao_ver") || isSystemAdmin,
+    canEditActionPlan: can("plano_acao_editar") || isSystemAdmin,
+    canDeleteActionPlan: can("plano_acao_excluir") || isSystemAdmin,
 
     // Termo de Encerramento
     canReadTermo: can("termo_ver") || isSystemAdmin,
