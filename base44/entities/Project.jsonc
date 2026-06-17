@@ -184,6 +184,10 @@
           "description": "YYYY-MM-DD"
         }
       }
+    },
+    "schedule_overrides": {
+      "type": "object",
+      "description": "JSON: { taskId: { plannedStart, plannedEnd, _origin } } \u2014 todos os overrides manuais/Pipedrive do cronograma. Fonte de verdade compartilhada entre usu\u00e1rios."
     }
   },
   "required": [

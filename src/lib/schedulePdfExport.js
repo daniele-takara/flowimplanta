@@ -65,7 +65,28 @@ export async function generateSchedulePDF({
   });
 
   // 1. Calcular datas do motor (mesma lógica do ScheduleTab)
-  const engineOverrides = { ...manualOverrides };
+  // Prioridade: manualOverrides > schedule_overrides (DB) > schedule_anchor_dates (legado)
+  const engineOverrides = {};
+  // 1a. Banco âncoras legado como base
+  Object.entries(project?.schedule_anchor_dates || {}).forEach(([taskId, dateStr]) => {
+    if (dateStr) engineOverrides[taskId] = { plannedStart: dateStr };
+  });
+  // 1b. schedule_overrides do banco (fonte compartilhada)
+  const dbOverrides = project?.schedule_overrides;
+  if (dbOverrides && typeof dbOverrides === "object" && !Array.isArray(dbOverrides)) {
+    Object.entries(dbOverrides).forEach(([taskId, override]) => {
+      if (override && typeof override === "object") {
+        engineOverrides[taskId] = { ...(engineOverrides[taskId] || {}), ...override };
+      }
+    });
+  }
+  // 1c. manualOverrides (parâmetro) — camada final
+  Object.entries(manualOverrides || {}).forEach(([taskId, override]) => {
+    if (override && typeof override === "object") {
+      engineOverrides[taskId] = { ...(engineOverrides[taskId] || {}), ...override };
+    }
+  });
+
   const { dates: computedDates, visible } = computeSchedule(
     SCHEDULE_TASKS, engineOverrides, answersMap, project
   );

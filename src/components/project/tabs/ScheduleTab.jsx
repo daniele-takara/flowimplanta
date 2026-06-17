@@ -5,7 +5,7 @@ import {
   AlertCircle, CheckCircle, CheckCircle2, Loader2, RefreshCw,
   Database, Plus, RotateCcw, Zap, Eye, MoreHorizontal, EyeOff, FileDown
 } from "lucide-react";
-import { SCHEDULE_TASKS, PHASE_ORDER, ANCHOR_IDS } from "@/lib/scheduleTasks.js";
+import { SCHEDULE_TASKS, PHASE_ORDER } from "@/lib/scheduleTasks.js";
 import { computeSchedule } from "@/lib/scheduleEngine.js";
 import { resolveRoleToName, RESPONSIBLE_ROLE_LABELS, resolveGeneralResponsible } from "@/lib/resolveResponsibleRole.js";
 import AddActivityModal from "./schedule/AddActivityModal.jsx";
@@ -664,43 +664,46 @@ export default function ScheduleTab({
   // PDF generation state
   const [generatingPDF, setGeneratingPDF] = useState(false);
 
-  // Carregar overrides: DB (âncoras) + localStorage (todos) — localStorage prevalece
+  // Carregar overrides: DB (schedule_overrides) como fonte primária, localStorage como fallback de migração
   useEffect(() => {
     if (!projectId || anchorsLoaded) return;
     
-    const dbAnchors = project?.schedule_anchor_dates || {};
-    const hasDbData = Object.values(dbAnchors).some(Boolean);
+    // 1. Carrega schedule_overrides do banco (fonte de verdade compartilhada entre usuários)
+    let dbOverrides = {};
+    try {
+      const raw = project?.schedule_overrides;
+      if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+        dbOverrides = raw;
+      }
+    } catch {}
     
-    // Sempre carrega localStorage como fallback/base
+    // 2. Carrega localStorage (fallback para dados não migrados)
     let localOverrides = {};
     try {
       localOverrides = JSON.parse(localStorage.getItem(`schedule_overrides_${projectId}`) || "{}");
     } catch {}
     
-    // Monta overrides: DB como base, localStorage sobrepõe (localStorage tem prioridade)
-    const merged = {};
-    // 1. DB âncoras como base
-    if (hasDbData) {
-      Object.entries(dbAnchors).forEach(([taskId, dateStr]) => {
-        if (dateStr) merged[taskId] = { plannedStart: dateStr };
-      });
-    }
-    // 2. localStorage sobrepõe TUDO (incluindo âncoras) — prioridade máxima
+    // 3. Mescla: localStorage sobrepõe DB (localStorage tem prioridade para o usuário atual)
+    const merged = { ...dbOverrides };
     Object.entries(localOverrides).forEach(([taskId, override]) => {
       if (override && typeof override === "object") {
         merged[taskId] = { ...(merged[taskId] || {}), ...override };
       }
     });
     
+    // 4. Fallback legado: âncoras do schedule_anchor_dates se nenhum override encontrado
+    if (Object.keys(merged).length === 0) {
+      const dbAnchors = project?.schedule_anchor_dates || {};
+      Object.entries(dbAnchors).forEach(([taskId, dateStr]) => {
+        if (dateStr) merged[taskId] = { plannedStart: dateStr };
+      });
+    }
+    
     setManualOverrides(merged);
     
-    // Se localStorage tem dados mas DB não (ancoras), migra para o banco
-    if (!hasDbData && Object.keys(localOverrides).length > 0) {
-      const anchorDates = {};
-      ANCHOR_IDS.forEach(id => { if (localOverrides[id]?.plannedStart) anchorDates[id] = localOverrides[id].plannedStart; });
-      if (Object.keys(anchorDates).length > 0) {
-        base44.entities.Project.update(projectId, { schedule_anchor_dates: anchorDates }).catch(() => {});
-      }
+    // 5. Migração: se localStorage tem dados mas DB não, persiste no banco agora
+    if (Object.keys(localOverrides).length > 0 && Object.keys(dbOverrides).length === 0) {
+      base44.entities.Project.update(projectId, { schedule_overrides: merged }).catch(() => {});
     }
     
     setAnchorsLoaded(true);
@@ -839,24 +842,16 @@ export default function ScheduleTab({
       return nextOverrides;
     });
 
-    // 2. Persiste no localStorage como fallback imediato (síncrono)
+    // 2. Persiste no localStorage como cache local (síncrono, fallback)
     try {
       localStorage.setItem(`schedule_overrides_${projectId}`, JSON.stringify(nextOverrides));
     } catch {}
 
-    // 3. Persiste âncoras no banco (Project.schedule_anchor_dates)
-    const anchorDates = {};
-    ANCHOR_IDS.forEach(aid => {
-      const val = nextOverrides[aid]?.plannedStart;
-      if (val) anchorDates[aid] = val;
-    });
-    if (Object.keys(anchorDates).length > 0) {
-      try {
-        await base44.entities.Project.update(projectId, { schedule_anchor_dates: anchorDates });
-      } catch (err) {
-        console.error("[ScheduleTab] Erro ao persistir âncoras no banco:", err);
-        // Não lança — o localStorage já tem o dado, sobrevive a reload
-      }
+    // 3. Persiste TUDO no banco — fonte de verdade compartilhada entre usuários
+    try {
+      await base44.entities.Project.update(projectId, { schedule_overrides: nextOverrides });
+    } catch (err) {
+      console.error("[ScheduleTab] Erro ao persistir schedule_overrides no banco:", err);
     }
   }, [projectId]);
 
@@ -866,7 +861,14 @@ export default function ScheduleTab({
       const current = { ...(prev[taskId] || {}) };
       delete current[field];
       if (current._origin) delete current._origin[field];
-      nextOverrides = { ...prev, [taskId]: current };
+      // Remove entry se ficou vazio (sem campos restantes além de _origin)
+      const keysLeft = Object.keys(current).filter(k => k !== "_origin");
+      if (keysLeft.length === 0) {
+        nextOverrides = { ...prev };
+        delete nextOverrides[taskId];
+      } else {
+        nextOverrides = { ...prev, [taskId]: current };
+      }
       return nextOverrides;
     });
 
@@ -875,17 +877,13 @@ export default function ScheduleTab({
       localStorage.setItem(`schedule_overrides_${projectId}`, JSON.stringify(nextOverrides));
     } catch {}
 
-    // Se for âncora, remove do banco
-    if (ANCHOR_IDS.includes(taskId) && field === "plannedStart") {
-      try {
-        const bankAnchors = { ...(project?.schedule_anchor_dates || {}) };
-        delete bankAnchors[taskId];
-        await base44.entities.Project.update(projectId, { schedule_anchor_dates: bankAnchors });
-      } catch (err) {
-        console.error("[ScheduleTab] Erro ao remover âncora do banco:", err);
-      }
+    // Persiste no banco — fonte de verdade compartilhada
+    try {
+      await base44.entities.Project.update(projectId, { schedule_overrides: nextOverrides });
+    } catch (err) {
+      console.error("[ScheduleTab] Erro ao persistir schedule_overrides no banco:", err);
     }
-  }, [projectId, project]);
+  }, [projectId]);
 
   const handleSaveActivity = useCallback(async (task, data) => {
     const existing = activitiesByTask[task.id];

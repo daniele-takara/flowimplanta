@@ -39,10 +39,21 @@ async function buildScheduleSnapshotFromDB(projectId, answersMap, project) {
       base44.entities.ScheduleActivity.filter({ project_id: projectId }),
     ]);
 
-    // Carregar overrides manuais do localStorage (datas editadas + Pipedrive)
-    let localOverrides = {};
+    // Carregar overrides manuais do banco (fonte de verdade compartilhada entre usuários)
+    let dbOverrides = {};
     try {
-      localOverrides = JSON.parse(localStorage.getItem(`schedule_overrides_${projectId}`) || "{}");
+      const raw = project?.schedule_overrides;
+      if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+        dbOverrides = raw;
+      }
+    } catch {}
+    
+    // Fallback: localStorage (para dados ainda não migrados de usuários antigos)
+    let localOverrides = { ...dbOverrides };
+    try {
+      const ls = JSON.parse(localStorage.getItem(`schedule_overrides_${projectId}`) || "{}");
+      // localStorage sobrepõe DB — prioridade para o usuário atual
+      Object.entries(ls).forEach(([k, v]) => { if (v && typeof v === "object") localOverrides[k] = { ...(localOverrides[k] || {}), ...v }; });
     } catch {}
 
     console.log("[TAPTab] buildScheduleSnapshotFromDB — Dados carregados:", {

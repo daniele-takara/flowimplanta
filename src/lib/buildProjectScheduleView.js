@@ -62,14 +62,23 @@ export function buildProjectScheduleView({
 }) {
   try {
     // 1. Calcular datas do motor para o cronograma do template
-    // Prioridade: localStorage (manuais + Pipedrive) > banco (schedule_anchor_dates)
+    // Prioridade: manualOverrides > schedule_overrides (DB) > schedule_anchor_dates (legado)
     const bankAnchors = project?.schedule_anchor_dates || {};
     const overrides = {};
-    // 1a. Banco como base
+    // 1a. Banco âncoras legado como base
     Object.entries(bankAnchors).forEach(([taskId, dateStr]) => {
       if (dateStr) overrides[taskId] = { plannedStart: dateStr };
     });
-    // 1b. localStorage sobrepõe (prioridade máxima — inclui datas manuais + Pipedrive)
+    // 1b. schedule_overrides do banco (fonte de verdade compartilhada entre usuários)
+    const dbOverrides = project?.schedule_overrides;
+    if (dbOverrides && typeof dbOverrides === "object" && !Array.isArray(dbOverrides)) {
+      Object.entries(dbOverrides).forEach(([taskId, override]) => {
+        if (override && typeof override === "object") {
+          overrides[taskId] = { ...(overrides[taskId] || {}), ...override };
+        }
+      });
+    }
+    // 1c. manualOverrides (parâmetro) sobrepõe tudo — última camada
     Object.entries(manualOverrides || {}).forEach(([taskId, override]) => {
       if (override && typeof override === "object") {
         overrides[taskId] = { ...(overrides[taskId] || {}), ...override };

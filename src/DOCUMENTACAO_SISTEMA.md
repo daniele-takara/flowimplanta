@@ -628,6 +628,29 @@ plannedStart              → self reference
 
 ---
 
+## 6.0 COMPARTILHAMENTO DE OVERRIDES DO CRONOGRAMA (v6.6 — 2026-06-17)
+
+### Problema
+Edições manuais de datas planejadas no Cronograma (ScheduleTab) ficavam salvas apenas no `localStorage` do navegador do usuário que editou. Outros usuários (ex: amanda.krugel editou, mas outro gestor não via) NÃO enxergavam as alterações. TAP e Status Report também ficavam desatualizados.
+
+### Causa raiz
+- `handleSaveOverride` persistia apenas âncoras (`schedule_anchor_dates`) no banco
+- Overrides não-âncora (edição manual de qualquer data de atividade) ficavam só no localStorage
+- `localStorage` é por navegador/usuário — não compartilhado
+
+### Correção (5 arquivos)
+1. **`entities/Project.json`** — Novo campo `schedule_overrides` (JSON object) armazena TODOS os overrides manuais/Pipedrive
+2. **`ScheduleTab.jsx`** — `handleSaveOverride` e `handleRemoveOverride` persistem no `Project.schedule_overrides`; loading lê do banco como fonte primária (localStorage como cache/fallback)
+3. **`buildProjectScheduleView.js`** — Camada de overrides: `manualOverrides` > `schedule_overrides` (DB) > `schedule_anchor_dates` (legado)
+4. **`TAPTab.jsx`** — `buildScheduleSnapshotFromDB` lê `project.schedule_overrides` como fonte primária
+5. **`StatusReportTab.jsx`** — `handleUpdate` lê `project.schedule_overrides` como fonte primária
+6. **`schedulePdfExport.js`** — Camada de overrides consistente com buildProjectScheduleView
+
+### Resultado
+Qualquer edição de data no Cronograma é imediatamente visível para TODOS os usuários. TAP (após "Atualizar dados automáticos") e Status Report refletem as mesmas datas.
+
+---
+
 ## 6.1 TAP — ARQUITETURA v6.5 (CORRIGIDA — 2026-06-17)
 
 ### Diagnóstico e Correção (v6.5)
