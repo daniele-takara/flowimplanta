@@ -284,8 +284,13 @@ export function generateScopePDF(project, questionsData, contractedModules, orig
 <body>
 
 <div class="doc-header">
-  <div class="doc-title">Escopo Técnico do Projeto</div>
-  <div class="doc-subtitle">Documento de parametrização e definição técnica — Pontotel</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+    <div>
+      <div class="doc-title">Escopo Técnico do Projeto</div>
+      <div class="doc-subtitle">Documento de parametrização e definição técnica — Pontotel</div>
+    </div>
+    <img src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/8e48c145a_LogoPontotel_AmarelaePreta.png" style="height:45px" alt="Pontotel" />
+  </div>
   <div class="project-meta">
     <div class="meta-item">
       <div class="meta-label">Projeto</div>
