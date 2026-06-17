@@ -166,12 +166,66 @@ function DateCell({ value, onChange, readOnly }) {
     : <input type="date" className={`${cellBase} text-[10px] min-w-[90px]`} value={value || ""} onChange={e => onChange(e.target.value)} />;
 }
 
+function ResponsibleCell({ value, onChange, suggestions, readOnly }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  if (readOnly) {
+    return <span className="text-[11px] text-slate-600 block px-1 py-1 truncate">{value || "—"}</span>;
+  }
+
+  const filtered = suggestions.filter(s => s && s !== value && s.toLowerCase().includes((value || "").toLowerCase()));
+
+  return (
+    <div ref={ref} className="relative flex items-center">
+      <input
+        className={cellBase + " pr-5"}
+        value={value || ""}
+        onChange={e => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder="Digite ou selecione..."
+      />
+      <button
+        type="button"
+        className="absolute right-0.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
+        onClick={() => setOpen(o => !o)}
+      >
+        <ChevronDown className="w-3 h-3" />
+      </button>
+      {open && filtered.length > 0 && (
+        <div className="absolute top-full left-0 z-50 mt-0.5 bg-white border border-slate-200 rounded-lg shadow-lg min-w-[160px] max-h-[140px] overflow-y-auto">
+          {filtered.map((s, i) => (
+            <button
+              key={i}
+              type="button"
+              className="block w-full text-left text-[11px] px-2.5 py-1.5 hover:bg-blue-50 text-slate-600"
+              onClick={() => { onChange(s); setOpen(false); }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Linha da Tabela ─────────────────────────────────────────────────────────
 
-function TableRow({ item, onFieldSave, readOnly }) {
+function TableRow({ item, onFieldSave, readOnly, project }) {
   const [expanded, setExpanded] = useState(false);
   const [local, setLocal] = useState({ ...item });
   const saveTimer = useRef(null);
+
+  // suggestions from project contacts
+  const pontotelSuggestions = [project?.pontotel_manager_name, project?.pontotel_analyst_name].filter(Boolean);
+  const clientSuggestions = [project?.project_leader_name, project?.sponsor_name, project?.operation_name, project?.ti_client_name].filter(Boolean);
 
   // sync external changes
   useEffect(() => { setLocal({ ...item }); }, [item]);
@@ -208,14 +262,14 @@ function TableRow({ item, onFieldSave, readOnly }) {
         <td className="p-0.5 min-w-[70px]">
           <SelectCell value={local.impact} onChange={v => saveNow("impact", v)} options={IMPACTS} colorMap={IMPACT_COLORS} readOnly={readOnly} />
         </td>
-        <td className="p-0.5 min-w-[100px]"><TextCell value={local.responsible_pontotel} onChange={v => save("responsible_pontotel", v)} readOnly={readOnly} /></td>
+        <td className="p-0.5 min-w-[110px]"><ResponsibleCell value={local.responsible_pontotel} onChange={v => save("responsible_pontotel", v)} suggestions={pontotelSuggestions} readOnly={readOnly} /></td>
         <td className="p-0.5 min-w-[120px]">
           <SelectCell value={local.status_pontotel} onChange={v => saveNow("status_pontotel", v)} options={STATUS_PONTOTEL} colorMap={STATUS_P_COLORS} readOnly={readOnly} />
         </td>
         <td className="p-0.5 min-w-[100px]">
           <SelectCell value={local.status_client} onChange={v => saveNow("status_client", v)} options={STATUS_CLIENT} colorMap={STATUS_C_COLORS} readOnly={readOnly} />
         </td>
-        <td className="p-0.5 min-w-[100px]"><TextCell value={local.responsible_client} onChange={v => save("responsible_client", v)} readOnly={readOnly} /></td>
+        <td className="p-0.5 min-w-[110px]"><ResponsibleCell value={local.responsible_client} onChange={v => save("responsible_client", v)} suggestions={clientSuggestions} readOnly={readOnly} /></td>
         <td className="p-0.5 min-w-[95px]"><DateCell value={local.request_date} onChange={v => saveNow("request_date", v)} readOnly={readOnly} /></td>
         <td className="p-0.5 min-w-[95px]"><DateCell value={local.deadline_date} onChange={v => saveNow("deadline_date", v)} readOnly={readOnly} /></td>
         <td className="p-0.5 min-w-[95px]"><DateCell value={local.rollout_start} onChange={v => saveNow("rollout_start", v)} readOnly={readOnly} /></td>
@@ -269,9 +323,12 @@ const EMPTY_ITEM = {
   deadline_date: "", rollout_start: "", rollout_end: "", solution_date: "", new_solution_date: "", history: ""
 };
 
-function NewItemModal({ projectId, onClose, onSave }) {
+function NewItemModal({ projectId, project, onClose, onSave }) {
   const [form, setForm] = useState({ ...EMPTY_ITEM });
   const [saving, setSaving] = useState(false);
+
+  const pontotelSuggestions = [project?.pontotel_manager_name, project?.pontotel_analyst_name].filter(Boolean);
+  const clientSuggestions = [project?.project_leader_name, project?.sponsor_name, project?.operation_name, project?.ti_client_name].filter(Boolean);
 
   const handleSave = async () => {
     if (!form.theme || !form.issue) return;
@@ -323,7 +380,11 @@ function NewItemModal({ projectId, onClose, onSave }) {
           </div>
           <div>
             <label className={labelCls}>Resp. Pontotel</label>
-            <input className={inputCls} value={form.responsible_pontotel} onChange={e => setForm(f => ({ ...f, responsible_pontotel: e.target.value }))} />
+            <input className={inputCls} value={form.responsible_pontotel} onChange={e => setForm(f => ({ ...f, responsible_pontotel: e.target.value }))}
+              list="pontotel-suggestions" placeholder="Digite ou selecione..." />
+            <datalist id="pontotel-suggestions">
+              {pontotelSuggestions.map((s, i) => <option key={i} value={s} />)}
+            </datalist>
           </div>
           <div>
             <label className={labelCls}>Status Pontotel</label>
@@ -335,7 +396,11 @@ function NewItemModal({ projectId, onClose, onSave }) {
           </div>
           <div>
             <label className={labelCls}>Resp. Cliente</label>
-            <input className={inputCls} value={form.responsible_client} onChange={e => setForm(f => ({ ...f, responsible_client: e.target.value }))} />
+            <input className={inputCls} value={form.responsible_client} onChange={e => setForm(f => ({ ...f, responsible_client: e.target.value }))}
+              list="client-suggestions" placeholder="Digite ou selecione..." />
+            <datalist id="client-suggestions">
+              {clientSuggestions.map((s, i) => <option key={i} value={s} />)}
+            </datalist>
           </div>
           <div><label className={labelCls}>Data Solicitação</label><input type="date" className={inputCls} value={form.request_date || ""} onChange={e => setForm(f => ({ ...f, request_date: e.target.value }))} /></div>
           <div><label className={labelCls}>Prazo</label><input type="date" className={inputCls} value={form.deadline_date || ""} onChange={e => setForm(f => ({ ...f, deadline_date: e.target.value }))} /></div>
@@ -468,7 +533,7 @@ export default function ActionPlanTab({ actions = [], projectId, project, onRefr
               </thead>
               <tbody>
                 {filtered.map(item => (
-                  <TableRow key={item.id} item={item} onFieldSave={handleFieldSave} readOnly={readOnly} />
+                  <TableRow key={item.id} item={item} onFieldSave={handleFieldSave} readOnly={readOnly} project={project} />
                 ))}
               </tbody>
             </table>
@@ -478,7 +543,7 @@ export default function ActionPlanTab({ actions = [], projectId, project, onRefr
 
       {/* Modal apenas para novo item */}
       {showNewModal && (
-        <NewItemModal projectId={projectId} onClose={() => setShowNewModal(false)} onSave={handleNewSaved} />
+        <NewItemModal projectId={projectId} project={project} onClose={() => setShowNewModal(false)} onSave={handleNewSaved} />
       )}
     </div>
   );
