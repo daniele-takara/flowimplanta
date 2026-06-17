@@ -180,7 +180,7 @@ function ResponsibleCell({ value, onChange, suggestions, readOnly }) {
     return <span className="text-[11px] text-slate-600 block px-1 py-1 truncate">{value || "—"}</span>;
   }
 
-  const filtered = suggestions.filter(s => s && s !== value && s.toLowerCase().includes((value || "").toLowerCase()));
+  const filtered = suggestions.filter(s => s && s.toLowerCase().includes((value || "").toLowerCase()));
 
   return (
     <div ref={ref} className="relative flex items-center">
@@ -199,12 +199,12 @@ function ResponsibleCell({ value, onChange, suggestions, readOnly }) {
         <ChevronDown className="w-3 h-3" />
       </button>
       {open && filtered.length > 0 && (
-        <div className="absolute top-full left-0 z-50 mt-0.5 bg-white border border-slate-200 rounded-lg shadow-lg min-w-[160px] max-h-[140px] overflow-y-auto">
+        <div className="absolute top-full left-0 z-50 mt-0.5 bg-white border border-slate-200 rounded-lg shadow-lg min-w-[200px] max-h-[220px] overflow-y-auto">
           {filtered.map((s, i) => (
             <button
               key={i}
               type="button"
-              className="block w-full text-left text-[11px] px-2.5 py-1.5 hover:bg-blue-50 text-slate-600"
+              className="block w-full text-left text-[12px] px-3 py-2 hover:bg-blue-50 text-slate-700 border-b border-slate-50 last:border-0"
               onClick={() => { onChange(s); setOpen(false); }}
             >
               {s}
@@ -272,75 +272,70 @@ function TableRow({ item, onFieldSave, readOnly, project }) {
         </td>
       </tr>
       {expanded && (
-        <tr className="bg-slate-50/80">
-          <td colSpan={8} className="px-3 py-3">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px]">
-              {/* Col 1: Códigos */}
-              <div className="space-y-2">
+        <tr className="bg-slate-50/90">
+          <td colSpan={8} className="px-4 py-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-[12px]">
+              <div className="space-y-3">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Cod. Ticket</span>
-                  {readOnly ? <span className="text-slate-600">{local.ticket_code || "—"}</span> : <input className={cellBase} value={local.ticket_code || ""} onChange={e => save("ticket_code", e.target.value)} />}
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Cod. Ticket</span>
+                  {readOnly ? <span className="text-slate-700">{local.ticket_code || "—"}</span> : <input className={cellBase} value={local.ticket_code || ""} onChange={e => save("ticket_code", e.target.value)} />}
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Chamado Técnico</span>
-                  {readOnly ? <span className="text-slate-600">{local.technical_call_code || "—"}</span> : <input className={cellBase} value={local.technical_call_code || ""} onChange={e => save("technical_call_code", e.target.value)} />}
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Chamado Técnico</span>
+                  {readOnly ? <span className="text-slate-700">{local.technical_call_code || "—"}</span> : <input className={cellBase} value={local.technical_call_code || ""} onChange={e => save("technical_call_code", e.target.value)} />}
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Data Solicitação</span>
-                  {readOnly ? <span className="text-slate-500">{fmt(local.request_date)}</span> : <input type="date" className={cellBase} value={local.request_date || ""} onChange={e => saveNow("request_date", e.target.value)} />}
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Data Solicitação</span>
+                  {readOnly ? <span className="text-slate-600">{fmt(local.request_date)}</span> : <input type="date" className={cellBase} value={local.request_date || ""} onChange={e => saveNow("request_date", e.target.value)} />}
                 </div>
               </div>
-              {/* Col 2: Status e Resp. Cliente */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Status Cliente</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Status Cliente</span>
                   <SelectCell value={local.status_client} onChange={v => saveNow("status_client", v)} options={STATUS_CLIENT} colorMap={STATUS_C_COLORS} readOnly={readOnly} />
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Resp. Cliente</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Resp. Cliente</span>
                   <ResponsibleCell value={local.responsible_client} onChange={v => save("responsible_client", v)} suggestions={clientSuggestions} readOnly={readOnly} />
                 </div>
               </div>
-              {/* Col 3: Rollout */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Rollout Início</span>
-                  {readOnly ? <span className="text-slate-500">{fmt(local.rollout_start)}</span> : <input type="date" className={cellBase} value={local.rollout_start || ""} onChange={e => saveNow("rollout_start", e.target.value)} />}
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Rollout Início</span>
+                  {readOnly ? <span className="text-slate-600">{fmt(local.rollout_start)}</span> : <input type="date" className={cellBase} value={local.rollout_start || ""} onChange={e => saveNow("rollout_start", e.target.value)} />}
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Rollout Fim</span>
-                  {readOnly ? <span className="text-slate-500">{fmt(local.rollout_end)}</span> : <input type="date" className={cellBase} value={local.rollout_end || ""} onChange={e => saveNow("rollout_end", e.target.value)} />}
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Rollout Fim</span>
+                  {readOnly ? <span className="text-slate-600">{fmt(local.rollout_end)}</span> : <input type="date" className={cellBase} value={local.rollout_end || ""} onChange={e => saveNow("rollout_end", e.target.value)} />}
                 </div>
               </div>
-              {/* Col 4: Solução */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Data Solução</span>
-                  {readOnly ? <span className="text-slate-500">{fmt(local.solution_date)}</span> : <input type="date" className={cellBase} value={local.solution_date || ""} onChange={e => saveNow("solution_date", e.target.value)} />}
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Data Solução</span>
+                  {readOnly ? <span className="text-slate-600">{fmt(local.solution_date)}</span> : <input type="date" className={cellBase} value={local.solution_date || ""} onChange={e => saveNow("solution_date", e.target.value)} />}
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Nova Data Solução</span>
-                  {readOnly ? <span className="text-slate-500">{fmt(local.new_solution_date)}</span> : <input type="date" className={cellBase} value={local.new_solution_date || ""} onChange={e => saveNow("new_solution_date", e.target.value)} />}
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Nova Data Solução</span>
+                  {readOnly ? <span className="text-slate-600">{fmt(local.new_solution_date)}</span> : <input type="date" className={cellBase} value={local.new_solution_date || ""} onChange={e => saveNow("new_solution_date", e.target.value)} />}
                 </div>
               </div>
             </div>
-            {/* Descrição + Histórico */}
             {(local.issue_description || !readOnly) && (
-              <div className="mt-3 pt-3 border-t border-slate-200">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Descrição da Ocorrência</span>
+              <div className="mt-4 pt-4 border-t border-slate-200">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Descrição da Ocorrência</span>
                 {readOnly ? (
-                  <p className="text-[11px] text-slate-600 whitespace-pre-wrap">{local.issue_description || "—"}</p>
+                  <p className="text-[12px] text-slate-700 whitespace-pre-wrap leading-relaxed">{local.issue_description || "—"}</p>
                 ) : (
-                  <textarea className="w-full text-[11px] border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" rows={2} value={local.issue_description || ""} onChange={e => setLocal(l => ({ ...l, issue_description: e.target.value }))} onBlur={() => { if (local.issue_description !== item.issue_description) onFieldSave(item.id, "issue_description", local.issue_description); }} />
+                  <textarea className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" rows={2} value={local.issue_description || ""} onChange={e => setLocal(l => ({ ...l, issue_description: e.target.value }))} onBlur={() => { if (local.issue_description !== item.issue_description) onFieldSave(item.id, "issue_description", local.issue_description); }} />
                 )}
               </div>
             )}
-            <div className="mt-3 pt-3 border-t border-slate-200">
-              <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Histórico</span>
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Histórico</span>
               {readOnly ? (
-                <p className="text-[11px] text-slate-600 whitespace-pre-wrap leading-relaxed">{local.history || "—"}</p>
+                <p className="text-[12px] text-slate-700 whitespace-pre-wrap leading-relaxed">{local.history || "—"}</p>
               ) : (
-                <textarea className="w-full text-[11px] border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" rows={3} value={local.history || ""} onChange={e => setLocal(l => ({ ...l, history: e.target.value }))} onBlur={() => { if (local.history !== item.history) onFieldSave(item.id, "history", local.history); }} placeholder="Registro de ações / atualizações..." />
+                <textarea className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" rows={3} value={local.history || ""} onChange={e => setLocal(l => ({ ...l, history: e.target.value }))} onBlur={() => { if (local.history !== item.history) onFieldSave(item.id, "history", local.history); }} placeholder="Registro de ações / atualizações..." />
               )}
             </div>
           </td>
