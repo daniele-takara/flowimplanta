@@ -65,6 +65,7 @@ export const SCHEDULE_PDF_COLUMNS = [
   { key: "actual_end",      label: "Fim Executado",     group: "Datas", default: true },
   { key: "status",          label: "Status",            group: "Status", default: true },
   { key: "responsible_general", label: "Resp. Geral",   group: "Responsáveis", default: true },
+  { key: "responsible_leader",  label: "Resp. Líder",   group: "Responsáveis", default: true },
   { key: "observations",    label: "Observações",       group: "Outros", default: false },
 ];
 
@@ -228,7 +229,7 @@ export async function generateSchedulePDF({
 
   // ---- Colunas dinâmicas ----
   const tableW = pageW - margin * 2;
-  const colWidths = { activity: 60, planned_start: 28, planned_end: 28, actual_start: 28, actual_end: 28, status: 28, responsible_general: 25, observations: 55 };
+  const colWidths = { activity: 56, planned_start: 26, planned_end: 26, actual_start: 26, actual_end: 26, status: 26, responsible_general: 22, responsible_leader: 22, observations: 48 };
   const colPositions = {};
   let cx = margin;
   cols.forEach(c => {
@@ -285,7 +286,7 @@ export async function generateSchedulePDF({
     doc.setFontSize(6.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(100);
-    const headerLabels = { activity: "Atividade", planned_start: "Inicio Plan.", planned_end: "Fim Plan.", actual_start: "Inicio Exec.", actual_end: "Fim Exec.", status: "Status", responsible_general: "Resp. Geral", observations: "Obs." };
+    const headerLabels = { activity: "Atividade", planned_start: "Inicio Plan.", planned_end: "Fim Plan.", actual_start: "Inicio Exec.", actual_end: "Fim Exec.", status: "Status", responsible_general: "Resp. Geral", responsible_leader: "Resp. Lider", observations: "Obs." };
     cols.forEach(c => { doc.text(headerLabels[c.key] || c.label, colPositions[c.key], y); });
     y += 4;
 
@@ -318,14 +319,15 @@ export async function generateSchedulePDF({
       doc.setTextColor(40);
 
       const rowVals = {
-        activity: task.activity.substring(0, 55),
+        activity: task.activity.substring(0, 50),
         planned_start: fmtDate(pStart),
         planned_end: fmtDate(pEnd),
         actual_start: fmtDate(aStart),
         actual_end: fmtDate(aEnd),
         status: status,
-        responsible_general: respGeneral.substring(0, 18),
-        observations: obs ? obs.substring(0, 28) : "—",
+        responsible_general: respGeneral.substring(0, 16),
+        responsible_leader: respLeader.substring(0, 16),
+        observations: obs ? obs.substring(0, 26) : "—",
       };
       cols.forEach(c => { doc.text(rowVals[c.key] || "", colPositions[c.key], y); });
       y += 3.5;
@@ -342,14 +344,15 @@ export async function generateSchedulePDF({
       doc.setTextColor(40);
 
       const localRowVals = {
-        activity: act.activity_name.substring(0, 55),
+        activity: act.activity_name.substring(0, 50),
         planned_start: fmtDate(act.planned_start),
         planned_end: fmtDate(act.planned_end),
         actual_start: fmtDate(act.actual_start),
         actual_end: fmtDate(act.actual_end),
         status: act.status || "Nao iniciado",
-        responsible_general: (act.responsible_general || "").substring(0, 18),
-        observations: (act.history_observations || "").substring(0, 28) || "—",
+        responsible_general: (act.responsible_general || "").substring(0, 16),
+        responsible_leader: (act.responsible_leader || "").substring(0, 16),
+        observations: (act.history_observations || "").substring(0, 26) || "—",
       };
       cols.forEach(c => { doc.text(localRowVals[c.key] || "", colPositions[c.key], y); });
       y += 3.5;
