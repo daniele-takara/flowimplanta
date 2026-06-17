@@ -54,6 +54,7 @@ export async function generateSchedulePDF({
   phaseOverrides = {},
   manualOverrides = {},
   templateConfig = {},
+  includeObservations = true,
 }) {
   const answersMap = {};
   (scopeItems || []).forEach(item => {
@@ -254,7 +255,7 @@ export async function generateSchedulePDF({
     doc.text("Fim Exec.", colAE, y);
     doc.text("Status", colStatus, y);
     doc.text("Resp. Geral", colResp, y);
-    doc.text("Obs.", colObs, y);
+    if (includeObservations) doc.text("Obs.", colObs, y);
     y += 4;
 
     // Linha separadora
@@ -292,7 +293,7 @@ export async function generateSchedulePDF({
       doc.text(fmtDate(aEnd), colAE, y);
       doc.text(status, colStatus, y);
       doc.text(respGeneral.substring(0, 18), colResp, y);
-      doc.text(obs ? obs.substring(0, 28) : "—", colObs, y);
+      if (includeObservations) doc.text(obs ? obs.substring(0, 28) : "—", colObs, y);
       y += 3.5;
     });
 
@@ -313,7 +314,7 @@ export async function generateSchedulePDF({
       doc.text(fmtDate(act.actual_end), colAE, y);
       doc.text(act.status || "Nao iniciado", colStatus, y);
       doc.text((act.responsible_general || "").substring(0, 18), colResp, y);
-      doc.text((act.history_observations || "").substring(0, 28) || "—", colObs, y);
+      if (includeObservations) doc.text((act.history_observations || "").substring(0, 28) || "—", colObs, y);
       y += 3.5;
     });
 
