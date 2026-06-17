@@ -791,6 +791,32 @@ export default function ScheduleTab({
       .sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
   }, [localPhases, showInactive]);
 
+  // ── Lista unificada de fases (template + locais) ordenada por posição ──
+  const unifiedPhases = useMemo(() => {
+    const items = [];
+    // Fases do template
+    phases.forEach(ph => {
+      items.push({
+        key: `tmpl-${ph}`,
+        type: 'template',
+        phaseName: ph,
+        order: PHASE_ORDER.indexOf(ph),
+        tasks: tasksByPhase[ph] || [],
+        phaseOverride: phaseOverrides[ph],
+      });
+    });
+    // Fases locais (já ordenadas por visibleLocalPhases)
+    visibleLocalPhases.forEach(phase => {
+      items.push({
+        key: `local-${phase.id}`,
+        type: 'local',
+        phase: phase,
+        order: phase.order ?? 99,
+      });
+    });
+    return items.sort((a, b) => a.order - b.order);
+  }, [phases, visibleLocalPhases, tasksByPhase, phaseOverrides]);
+
   const handleSaveOverride = useCallback(async (taskId, payload) => {
     // 1. Atualiza estado imediatamente (UI responsiva)
     let nextOverrides = {};
@@ -1095,63 +1121,65 @@ export default function ScheduleTab({
         </div>
       )}
 
-      {/* Fases do template */}
-      {phases.map(ph => (
-        <PhaseSection
-          key={ph} phaseName={ph} tasks={tasksByPhase[ph] || []}
-          computedDates={computedDates} manualOverrides={manualOverrides}
-          activitiesByTask={activitiesByTask} localActivities={localActivities}
-          onSaveOverride={readOnly ? () => {} : handleSaveOverride}
-          onRemoveOverride={readOnly ? () => {} : handleRemoveOverride}
-          onSaveActivity={readOnly ? () => {} : handleSaveActivity}
-          onInactivateTask={readOnly ? null : handleInactivateTemplateActivity}
-          onCompletePhase={(readOnly || !canCompletePhase) ? () => {} : handleCompleteAsTasks}
-          onAddActivity={(phase) => { setAddModalPhase(phase); setShowAddModal(true); }}
-          onActivityUpdated={(act) => setSavedActivities(prev => prev.map(a => a.id === act.id ? act : a))}
-          onActivityRemoved={(id) => setSavedActivities(prev => prev.filter(a => a.id !== id))}
-          project={project} templateConfig={templateConfig}
-          readOnly={readOnly} canCompletePhase={canCompletePhase}
-          canEditPlanned={canEditPlanned} canEditExecuted={canEditExecuted}
-          canAddActivity={canAddActivity && !readOnly}
-          canEditActivity={!readOnly}
-          canExcluirActivity={!readOnly && canExcluirActivity}
-          showInactive={showInactive}
-          phaseOverride={phaseOverrides[ph]}
-          onEditOverride={(phaseName) => { setOverrideModalPhase(phaseName); setShowOverrideModal(true); }}
-          onInactivate={handleInactivateTemplatePhase}
-          onReactivate={handleReactivateTemplatePhase}
-          canEditPhase={canEditPhase && !readOnly}
-          canExcluirPhase={canExcluirPhase && !readOnly}
-        />
-      ))}
-
-      {phases.length === 0 && visibleLocalPhases.length === 0 && (
+      {/* Fases unificadas (template + locais) ordenadas por posição */}
+      {unifiedPhases.length === 0 ? (
         <div className="text-center py-12 text-slate-400 text-sm">
           Nenhuma fase visível. Verifique os módulos contratados e o Escopo Técnico.
         </div>
+      ) : (
+        unifiedPhases.map(item => {
+          if (item.type === 'template') {
+            return (
+              <PhaseSection
+                key={item.key} phaseName={item.phaseName} tasks={item.tasks}
+                computedDates={computedDates} manualOverrides={manualOverrides}
+                activitiesByTask={activitiesByTask} localActivities={localActivities}
+                onSaveOverride={readOnly ? () => {} : handleSaveOverride}
+                onRemoveOverride={readOnly ? () => {} : handleRemoveOverride}
+                onSaveActivity={readOnly ? () => {} : handleSaveActivity}
+                onInactivateTask={readOnly ? null : handleInactivateTemplateActivity}
+                onCompletePhase={(readOnly || !canCompletePhase) ? () => {} : handleCompleteAsTasks}
+                onAddActivity={(phase) => { setAddModalPhase(phase); setShowAddModal(true); }}
+                onActivityUpdated={(act) => setSavedActivities(prev => prev.map(a => a.id === act.id ? act : a))}
+                onActivityRemoved={(id) => setSavedActivities(prev => prev.filter(a => a.id !== id))}
+                project={project} templateConfig={templateConfig}
+                readOnly={readOnly} canCompletePhase={canCompletePhase}
+                canEditPlanned={canEditPlanned} canEditExecuted={canEditExecuted}
+                canAddActivity={canAddActivity && !readOnly}
+                canEditActivity={!readOnly}
+                canExcluirActivity={!readOnly && canExcluirActivity}
+                showInactive={showInactive}
+                phaseOverride={item.phaseOverride}
+                onEditOverride={(phaseName) => { setOverrideModalPhase(phaseName); setShowOverrideModal(true); }}
+                onInactivate={handleInactivateTemplatePhase}
+                onReactivate={handleReactivateTemplatePhase}
+                canEditPhase={canEditPhase && !readOnly}
+                canExcluirPhase={canExcluirPhase && !readOnly}
+              />
+            );
+          }
+          return (
+            <LocalPhaseSection
+              key={item.key}
+              phase={item.phase}
+              localActivities={localActivities}
+              onEditPhase={(ph) => { setEditingPhase(ph); setShowAddPhaseModal(true); }}
+              onPhaseInactivated={(id) => setLocalPhases(prev => prev.map(p => p.id === id ? { ...p, is_active: false } : p))}
+              onPhaseRemoved={(id) => setLocalPhases(prev => prev.filter(p => p.id !== id))}
+              onAddActivity={(phaseName) => { setAddModalPhase(phaseName); setShowAddModal(true); }}
+              onActivityUpdated={(act) => setSavedActivities(prev => prev.map(a => a.id === act.id ? act : a))}
+              onActivityRemoved={(id) => setSavedActivities(prev => prev.filter(a => a.id !== id))}
+              readOnly={readOnly}
+              canEditPhase={canEditPhase}
+              canExcluirPhase={canExcluirPhase}
+              canAddActivity={canAddActivity && !readOnly}
+              canEditActivity={!readOnly && canEditExecuted}
+              canExcluirActivity={!readOnly && canExcluirActivity}
+              showInactive={showInactive}
+            />
+          );
+        })
       )}
-
-      {/* Fases/marcos locais */}
-      {visibleLocalPhases.map(phase => (
-        <LocalPhaseSection
-          key={phase.id}
-          phase={phase}
-          localActivities={localActivities}
-          onEditPhase={(ph) => { setEditingPhase(ph); setShowAddPhaseModal(true); }}
-          onPhaseInactivated={(id) => setLocalPhases(prev => prev.map(p => p.id === id ? { ...p, is_active: false } : p))}
-          onPhaseRemoved={(id) => setLocalPhases(prev => prev.filter(p => p.id !== id))}
-          onAddActivity={(phaseName) => { setAddModalPhase(phaseName); setShowAddModal(true); }}
-          onActivityUpdated={(act) => setSavedActivities(prev => prev.map(a => a.id === act.id ? act : a))}
-          onActivityRemoved={(id) => setSavedActivities(prev => prev.filter(a => a.id !== id))}
-          readOnly={readOnly}
-          canEditPhase={canEditPhase}
-          canExcluirPhase={canExcluirPhase}
-          canAddActivity={canAddActivity && !readOnly}
-          canEditActivity={!readOnly && canEditExecuted}
-          canExcluirActivity={!readOnly && canExcluirActivity}
-          showInactive={showInactive}
-        />
-      ))}
 
       {/* Modal adicionar atividade */}
       {showAddModal && (

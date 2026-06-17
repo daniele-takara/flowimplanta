@@ -1,6 +1,6 @@
-# Flowimplanta — Documentação Técnica v5.0
-**Última atualização:** 2026-06-16  
-**Status:** Validado (Pipedrive como Fonte de Verdade + Regras de Cálculo)
+# Flowimplanta — Documentação Técnica v6.4
+**Última atualização:** 2026-06-17  
+**Status:** Validado (Pipedrive como Fonte de Verdade + Regras de Cálculo + Cronograma Unificado)
 
 ---
 
@@ -455,13 +455,22 @@ Verificada em IntegrationLog.event_type antes de processar.
 
 ---
 
-## 5. MOTOR DE CRONOGRAMA (Frontend)
+## 5. MOTOR DE CRONOGRAMA (Frontend) — v6.4
 
 ### Arquivos
 - `lib/scheduleTasks.js` — 76 tasks + PHASE_ORDER + ANCHOR_IDS (NÃO ALTERAR — template global)
 - `lib/scheduleEngine.js` — computeSchedule, workday, evaluateCondition
 - `lib/scheduleReportEngine.js` — computeMacroSchedule para StatusReport
 - **`lib/buildProjectScheduleView.js`** — ⭐ **FONTE ÚNICA** da visão consolidada do cronograma por projeto
+
+### Renderização unificada de fases (v6.4 — 2026-06-17)
+
+A partir da v6.4, fases do template e fases/marcos locais são renderizadas em uma **lista única ordenada**, não mais em seções separadas. Isso corrige o problema em que todo marco novo ia para o final do cronograma independentemente da posição selecionada no modal.
+
+- **Template:** posição = índice em `PHASE_ORDER` (0-8)
+- **Local:** posição = campo `order` calculado pelo `AddPhaseModal` (relativo à fase de referência)
+- Ambas são mescladas em `unifiedPhases` e ordenadas por posição crescente
+- Um marco local posicionado "antes de Cadastros" aparece **entre** Integração e Cadastros, não ao final
 
 ### Fonte única: `buildProjectScheduleView`
 
@@ -498,8 +507,19 @@ buildProjectScheduleView({
 | Fase inativa (`is_active=false`) | Oculta em TAP e Status Report (a menos que `includeInactive=true`) |
 | Fase local ativa | Aparece em TAP e Status Report com seu próprio nome |
 | Nome customizado | Exibido nos três lugares (Cronograma, TAP, Status Report) |
-| Ordem das fases | Template segue PHASE_ORDER; fases locais aparecem ao final |
+| Ordem das fases (v6.4) | Template e fases locais são intercalados via `unifiedPhases` — não mais separados |
 | Fase do template sem conteúdo visível | Omitida automaticamente |
+
+### Visibilidade da Fase Integração (v6.4 — corrigido)
+
+**Problema anterior:** A fase Integração dependia de `q006 == "Sim"`, mas q006 só é visível se `q004 == "Sim"`. Se q004 não era respondida, q006 não existia e toda a fase sumia, mesmo em projetos Sankhya.
+
+**Correção:** Todas as 9 tarefas da fase Integração agora verificam `q004 == "Sim"` (pergunta raiz sobre Sankhya, sempre presente no escopo). Isso elimina a dependência circular.
+
+| Tarefa | Condição anterior | Condição nova |
+|--------|-------------------|---------------|
+| 8 tarefas Integração + 1 Cadastros Sankhya | `q006 == "Sim"` | `q004 == "Sim"` |
+| 2 tarefas I05 (envio/importação) | `q006 == "Não"` | `q004 notContains "Sim"` (aparece por padrão quando NÃO é Sankhya) |
 
 ### Tipos de Data
 | Tipo | Comportamento |
@@ -535,11 +555,13 @@ Fases/marcos criados manualmente em um projeto específico, sem afetar o templat
 |-------|-----------|
 | `project_id` | Projeto ao qual a fase pertence |
 | `phase_name` | Nome da fase local |
-| `order` | Ordem de exibição (fases locais aparecem após as do template) |
+| `order` | Ordem de exibição — **calculada dinamicamente** com base na posição relativa (antes/depois de fase existente ou início/fim). Fases locais são **intercaladas** com fases do template na renderização (v6.4). |
 | `is_local` | Sempre `true` |
 | `is_active` | `false` = inativada (dados preservados, fase oculta) |
 | `planned_start/end` | Datas planejadas |
 | `status` | Status da fase |
+
+**Ordenação (v6.4):** O `AddPhaseModal` calcula `order` baseado na posição relativa escolhida (primeiro, último, antes de X, depois de X). A renderização usa `unifiedPhases` que mescla fases do template e fases locais em uma única lista ordenada.
 
 **Inativação:** Ao inativar uma fase local, ela é ocultada do Cronograma, TAP e Status Report. Os dados são preservados no banco.
 
