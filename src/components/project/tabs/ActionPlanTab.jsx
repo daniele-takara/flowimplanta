@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Download, X, ChevronDown, ChevronUp, Search, FileText } from "lucide-react";
+import { Plus, Download, X, ChevronDown, ChevronUp, Search } from "lucide-react";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -223,20 +223,16 @@ function TableRow({ item, onFieldSave, readOnly, project }) {
   const [local, setLocal] = useState({ ...item });
   const saveTimer = useRef(null);
 
-  // suggestions from project contacts
   const pontotelSuggestions = [project?.pontotel_manager_name, project?.pontotel_analyst_name].filter(Boolean);
   const clientSuggestions = [project?.project_leader_name, project?.sponsor_name, project?.operation_name, project?.ti_client_name].filter(Boolean);
 
-  // sync external changes
   useEffect(() => { setLocal({ ...item }); }, [item]);
 
   const save = useCallback((field, value) => {
     const updated = { ...local, [field]: value };
     setLocal(updated);
     clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      onFieldSave(item.id, field, value);
-    }, 400);
+    saveTimer.current = setTimeout(() => onFieldSave(item.id, field, value), 400);
   }, [item.id, local, onFieldSave]);
 
   const saveNow = useCallback((field, value) => {
@@ -246,65 +242,105 @@ function TableRow({ item, onFieldSave, readOnly, project }) {
     onFieldSave(item.id, field, value);
   }, [item.id, local, onFieldSave]);
 
-  // Cleanup timer on unmount
   useEffect(() => () => clearTimeout(saveTimer.current), []);
+  const hasDetail = local.ticket_code || local.technical_call_code || local.status_client !== "Aberto" || local.responsible_client || local.request_date || local.rollout_start || local.rollout_end || local.solution_date || local.new_solution_date || local.history || local.issue_description;
 
   return (
     <>
       <tr className="border-b border-slate-100 hover:bg-slate-50/30 group">
-        <td className="p-0.5 min-w-[80px]"><TextCell value={local.ticket_code} onChange={v => save("ticket_code", v)} readOnly={readOnly} /></td>
-        <td className="p-0.5 min-w-[85px]"><TextCell value={local.technical_call_code} onChange={v => save("technical_call_code", v)} readOnly={readOnly} /></td>
-        <td className="p-0.5 min-w-[90px]"><TextCell value={local.theme} onChange={v => save("theme", v)} readOnly={readOnly} /></td>
-        <td className="p-0.5 min-w-[140px]"><TextCell value={local.issue} onChange={v => save("issue", v)} readOnly={readOnly} /></td>
-        <td className="p-0.5 min-w-[90px]">
+        <td className="p-0.5"><TextCell value={local.theme} onChange={v => save("theme", v)} readOnly={readOnly} placeholder="Tema" /></td>
+        <td className="p-0.5"><TextCell value={local.issue} onChange={v => save("issue", v)} readOnly={readOnly} placeholder="Ocorrência" /></td>
+        <td className="p-0.5">
           <SelectCell value={local.type} onChange={v => saveNow("type", v)} options={TYPES} colorMap={TYPE_COLORS} readOnly={readOnly} />
         </td>
-        <td className="p-0.5 min-w-[70px]">
+        <td className="p-0.5">
           <SelectCell value={local.impact} onChange={v => saveNow("impact", v)} options={IMPACTS} colorMap={IMPACT_COLORS} readOnly={readOnly} />
         </td>
-        <td className="p-0.5 min-w-[110px]"><ResponsibleCell value={local.responsible_pontotel} onChange={v => save("responsible_pontotel", v)} suggestions={pontotelSuggestions} readOnly={readOnly} /></td>
-        <td className="p-0.5 min-w-[120px]">
+        <td className="p-0.5"><ResponsibleCell value={local.responsible_pontotel} onChange={v => save("responsible_pontotel", v)} suggestions={pontotelSuggestions} readOnly={readOnly} /></td>
+        <td className="p-0.5">
           <SelectCell value={local.status_pontotel} onChange={v => saveNow("status_pontotel", v)} options={STATUS_PONTOTEL} colorMap={STATUS_P_COLORS} readOnly={readOnly} />
         </td>
-        <td className="p-0.5 min-w-[100px]">
-          <SelectCell value={local.status_client} onChange={v => saveNow("status_client", v)} options={STATUS_CLIENT} colorMap={STATUS_C_COLORS} readOnly={readOnly} />
-        </td>
-        <td className="p-0.5 min-w-[110px]"><ResponsibleCell value={local.responsible_client} onChange={v => save("responsible_client", v)} suggestions={clientSuggestions} readOnly={readOnly} /></td>
-        <td className="p-0.5 min-w-[95px]"><DateCell value={local.request_date} onChange={v => saveNow("request_date", v)} readOnly={readOnly} /></td>
-        <td className="p-0.5 min-w-[95px]"><DateCell value={local.deadline_date} onChange={v => saveNow("deadline_date", v)} readOnly={readOnly} /></td>
-        <td className="p-0.5 min-w-[95px]"><DateCell value={local.rollout_start} onChange={v => saveNow("rollout_start", v)} readOnly={readOnly} /></td>
-        <td className="p-0.5 min-w-[95px]"><DateCell value={local.rollout_end} onChange={v => saveNow("rollout_end", v)} readOnly={readOnly} /></td>
-        <td className="p-0.5 min-w-[95px]"><DateCell value={local.solution_date} onChange={v => saveNow("solution_date", v)} readOnly={readOnly} /></td>
-        <td className="p-0.5 min-w-[100px]"><DateCell value={local.new_solution_date} onChange={v => saveNow("new_solution_date", v)} readOnly={readOnly} /></td>
-        <td className="p-0.5 min-w-[60px]">
-          {readOnly ? (
-            <span className="text-[11px] text-slate-400 px-1">{local.history ? "✓" : "—"}</span>
-          ) : local.history ? (
-            <button onClick={() => setExpanded(e => !e)} className="flex items-center gap-0.5 text-[10px] text-blue-600 hover:text-blue-800 px-1">
-              <FileText className="w-3 h-3" />
-              {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            </button>
-          ) : (
-            <button onClick={() => setExpanded(true)} className="text-[10px] text-slate-300 hover:text-blue-500 px-1">+</button>
-          )}
+        <td className="p-0.5"><DateCell value={local.deadline_date} onChange={v => saveNow("deadline_date", v)} readOnly={readOnly} /></td>
+        <td className="p-0.5 text-center">
+          <button
+            onClick={() => setExpanded(e => !e)}
+            className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded ${hasDetail ? "text-blue-600 hover:bg-blue-50" : "text-slate-300 hover:text-blue-500"}`}
+          >
+            {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            <span className="hidden sm:inline">{expanded ? "Recolher" : "Detalhes"}</span>
+          </button>
         </td>
       </tr>
       {expanded && (
         <tr className="bg-slate-50/80">
-          <td colSpan={17} className="px-3 py-2">
-            <div className="flex gap-3 items-start">
-              <span className="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap mt-1">Histórico:</span>
+          <td colSpan={8} className="px-3 py-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px]">
+              {/* Col 1: Códigos */}
+              <div className="space-y-2">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Cod. Ticket</span>
+                  {readOnly ? <span className="text-slate-600">{local.ticket_code || "—"}</span> : <input className={cellBase} value={local.ticket_code || ""} onChange={e => save("ticket_code", e.target.value)} />}
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Chamado Técnico</span>
+                  {readOnly ? <span className="text-slate-600">{local.technical_call_code || "—"}</span> : <input className={cellBase} value={local.technical_call_code || ""} onChange={e => save("technical_call_code", e.target.value)} />}
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Data Solicitação</span>
+                  {readOnly ? <span className="text-slate-500">{fmt(local.request_date)}</span> : <input type="date" className={cellBase} value={local.request_date || ""} onChange={e => saveNow("request_date", e.target.value)} />}
+                </div>
+              </div>
+              {/* Col 2: Status e Resp. Cliente */}
+              <div className="space-y-2">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Status Cliente</span>
+                  <SelectCell value={local.status_client} onChange={v => saveNow("status_client", v)} options={STATUS_CLIENT} colorMap={STATUS_C_COLORS} readOnly={readOnly} />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Resp. Cliente</span>
+                  <ResponsibleCell value={local.responsible_client} onChange={v => save("responsible_client", v)} suggestions={clientSuggestions} readOnly={readOnly} />
+                </div>
+              </div>
+              {/* Col 3: Rollout */}
+              <div className="space-y-2">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Rollout Início</span>
+                  {readOnly ? <span className="text-slate-500">{fmt(local.rollout_start)}</span> : <input type="date" className={cellBase} value={local.rollout_start || ""} onChange={e => saveNow("rollout_start", e.target.value)} />}
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Rollout Fim</span>
+                  {readOnly ? <span className="text-slate-500">{fmt(local.rollout_end)}</span> : <input type="date" className={cellBase} value={local.rollout_end || ""} onChange={e => saveNow("rollout_end", e.target.value)} />}
+                </div>
+              </div>
+              {/* Col 4: Solução */}
+              <div className="space-y-2">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Data Solução</span>
+                  {readOnly ? <span className="text-slate-500">{fmt(local.solution_date)}</span> : <input type="date" className={cellBase} value={local.solution_date || ""} onChange={e => saveNow("solution_date", e.target.value)} />}
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Nova Data Solução</span>
+                  {readOnly ? <span className="text-slate-500">{fmt(local.new_solution_date)}</span> : <input type="date" className={cellBase} value={local.new_solution_date || ""} onChange={e => saveNow("new_solution_date", e.target.value)} />}
+                </div>
+              </div>
+            </div>
+            {/* Descrição + Histórico */}
+            {(local.issue_description || !readOnly) && (
+              <div className="mt-3 pt-3 border-t border-slate-200">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Descrição da Ocorrência</span>
+                {readOnly ? (
+                  <p className="text-[11px] text-slate-600 whitespace-pre-wrap">{local.issue_description || "—"}</p>
+                ) : (
+                  <textarea className="w-full text-[11px] border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" rows={2} value={local.issue_description || ""} onChange={e => setLocal(l => ({ ...l, issue_description: e.target.value }))} onBlur={() => { if (local.issue_description !== item.issue_description) onFieldSave(item.id, "issue_description", local.issue_description); }} />
+                )}
+              </div>
+            )}
+            <div className="mt-3 pt-3 border-t border-slate-200">
+              <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Histórico</span>
               {readOnly ? (
-                <p className="text-[11px] text-slate-600 whitespace-pre-wrap leading-relaxed flex-1">{local.history}</p>
+                <p className="text-[11px] text-slate-600 whitespace-pre-wrap leading-relaxed">{local.history || "—"}</p>
               ) : (
-                <textarea
-                  className="flex-1 text-[11px] border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
-                  rows={3}
-                  value={local.history || ""}
-                  onChange={e => setLocal(l => ({ ...l, history: e.target.value }))}
-                  onBlur={() => { const v = local.history; if (v !== item.history) onFieldSave(item.id, "history", v); }}
-                  placeholder="Registro de ações / atualizações..."
-                />
+                <textarea className="w-full text-[11px] border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" rows={3} value={local.history || ""} onChange={e => setLocal(l => ({ ...l, history: e.target.value }))} onBlur={() => { if (local.history !== item.history) onFieldSave(item.id, "history", local.history); }} placeholder="Registro de ações / atualizações..." />
               )}
             </div>
           </td>
@@ -427,8 +463,8 @@ function NewItemModal({ projectId, project, onClose, onSave }) {
 
 // ─── Componente Principal ────────────────────────────────────────────────────
 
-// colgroup widths (%): compact but readable
-const COL_W = ["5%","5%","6%","11%","6%","5%","7%","8%","7%","7%","6%","6%","6%","6%","6%","6%","4%"];
+// colgroup widths (%): 8 colunas visíveis — sem scroll horizontal
+const COL_W = ["13%","22%","8%","7%","13%","11%","9%","8%"];
 
 export default function ActionPlanTab({ actions = [], projectId, project, onRefresh, readOnly = false }) {
   const [showNewModal, setShowNewModal] = useState(false);
@@ -506,29 +542,20 @@ export default function ActionPlanTab({ actions = [], projectId, project, onRefr
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full" style={{ minWidth: 1100 }}>
+            <table className="w-full">
               <colgroup>
                 {COL_W.map((w, i) => <col key={i} style={{ width: w }} />)}
               </colgroup>
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Cod. Ticket</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Chamado Técnico</th>
                   <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Tema</th>
                   <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Ocorrência</th>
                   <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Tipo</th>
                   <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Impacto</th>
                   <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Resp. Pontotel</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Status Pontotel</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Status Cliente</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Resp. Cliente</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Data Solic.</th>
+                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Status</th>
                   <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Prazo</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Rollout Ini.</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Rollout Fim</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Data Solução</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Nova Data Sol.</th>
-                  <th className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2">Hist.</th>
+                  <th className="text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 py-2"></th>
                 </tr>
               </thead>
               <tbody>
