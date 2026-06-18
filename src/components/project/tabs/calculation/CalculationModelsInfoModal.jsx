@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X } from "lucide-react";
+import { X, Info } from "lucide-react";
 import ImageExpandModal from "@/components/project/tabs/ImageExpandModal";
 
 export default function CalculationModelsInfoModal({ onClose }) {
@@ -151,9 +151,49 @@ export default function CalculationModelsInfoModal({ onClose }) {
             </div>
           </div>
         </div>
-      </div>
 
-      {expandedImg && (
+        {/* Horas Extras */}
+        <div className="border border-slate-200 rounded-xl p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-7 h-7 bg-purple-700 rounded-full flex items-center justify-center text-white shrink-0">
+              <Info className="w-4 h-4" />
+            </div>
+            <h3 className="text-lg font-semibold text-purple-800">Horas extras</h3>
+          </div>
+
+          <div className="bg-purple-50/50 rounded-lg p-4 space-y-3">
+            <h4 className="text-sm font-bold text-slate-800">Funcionamento das Horas Extras</h4>
+            <p className="text-sm text-slate-700 leading-relaxed">
+              Entenda como as porcentagens de horas extras são aplicadas
+            </p>
+            <p className="text-sm text-slate-700 leading-relaxed">
+              As porcentagens de horas extras são utilizadas para que sejam aplicadas a forma de pagamento em dias comuns de trabalho, folgas e feriados.
+            </p>
+          </div>
+
+          {/* Examples */}
+          <div className="mt-4 grid grid-cols-1 gap-6">
+            {[
+              { src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/59fa3a42d_HoraExtra50.png", alt: "Hora extra 50%", label: "Hora extra 50%" },
+              { src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/ece2e6bb4_HoraExtraExtraordinria100.png", alt: "Hora extraordinária 100%", label: "Hora extraordinária 100%" },
+              { src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/b33de4db3_HoraExtraEspecial150.png", alt: "Hora extra especial 150%", label: "Hora extra especial 150%" },
+            ].map((img) => (
+              <div key={img.src}>
+                <img 
+                  src={img.src} 
+                  alt={img.alt}
+                  onClick={() => setExpandedImg(img)}
+                  className="w-full rounded-lg border border-slate-200 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all shadow-sm"
+                  title="Clique para ampliar"
+                />
+                <p className="text-xs text-slate-400 mt-1.5 text-center">{img.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        </div>
+
+        {expandedImg && (
         <ImageExpandModal 
           src={expandedImg.src} 
           alt={expandedImg.alt} 
