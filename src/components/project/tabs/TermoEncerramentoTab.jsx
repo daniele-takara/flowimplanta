@@ -114,19 +114,22 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
     <h1>Termo de Encerramento do Projeto</h1>
     <div class="meta">${esc(project?.client_name)} · ${esc(project?.implantation_type)} · Emitido em ${today}</div>
   </div>
-  <div style="display:flex;align-items:center;gap:20px">
-    <img src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/7182abf05_LogoPontotel_AmarelaePreta.png" style="height:40px" alt="Pontotel" />
-    ${versionLabel ? `<div class="version-badge">${esc(versionLabel)}</div>` : ""}
-  </div>
+  <img src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/7182abf05_LogoPontotel_AmarelaePreta.png" style="height:40px" alt="Pontotel" />
 </div>
 
 <div class="section">
   <div class="section-title">IDENTIFICAÇÃO DO PROJETO</div>
   <table>
-    <tr><td class="lbl">Cliente</td><td>${esc(project?.client_name)}</td><td class="lbl">Tipo de Implantação</td><td>${esc(project?.implantation_type)}</td></tr>
-    <tr><td class="lbl">Gerente Pontotel</td><td>${esc(project?.pontotel_manager_name)}</td><td class="lbl">Analista</td><td>${esc(project?.pontotel_analyst_name)}</td></tr>
-    <tr><td class="lbl">Líder do Projeto (Cliente)</td><td>${esc(project?.project_leader_name)}</td><td class="lbl">Patrocinador</td><td>${esc(project?.sponsor_name)}</td></tr>
-    <tr><td class="lbl">Data de Início</td><td>${fmtDate(project?.start_date)}</td><td class="lbl">Data de Encerramento</td><td>${fmtDate(project?.aligned_end_date || project?.planned_end_date)}</td></tr>
+    ${[
+      [["Cliente", project?.client_name], ["Tipo de Implantação", project?.implantation_type]],
+      [["Gerente Pontotel", project?.pontotel_manager_name], ["Analista", project?.pontotel_analyst_name]],
+      [["Líder do Projeto (Cliente)", project?.project_leader_name], ["Patrocinador", project?.sponsor_name]],
+      [["Data de Início", project?.start_date ? fmtDate(project.start_date) : null], ["Data de Encerramento", project?.aligned_end_date ? fmtDate(project.aligned_end_date) : project?.planned_end_date ? fmtDate(project.planned_end_date) : null]],
+    ].filter(row => row[0][1] || row[1][1]).map(row => {
+      const left = row[0][1] ? `<td class="lbl">${esc(row[0][0])}</td><td>${esc(row[0][1])}</td>` : "<td></td><td></td>";
+      const right = row[1][1] ? `<td class="lbl">${esc(row[1][0])}</td><td>${esc(row[1][1])}</td>` : "<td></td><td></td>";
+      return `<tr>${left}${right}</tr>`;
+    }).join("")}
   </table>
 </div>
 
@@ -134,10 +137,12 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
   <div class="section-title">RESUMO DO PROJETO</div>
   <div class="card">
     <table>
-      <tr><td class="lbl">Funcionários Contratados</td><td>${contracted.toLocaleString("pt-BR")}</td></tr>
-      <tr><td class="lbl">Funcionários Cadastrados</td><td>${cadastrados.toLocaleString("pt-BR")}</td></tr>
-      <tr><td class="lbl">Aderência ao Registro de Ponto</td><td><strong>${aderencia}%</strong></td></tr>
-      <tr><td class="lbl">Progresso Geral</td><td>${esc(project?.progress_percent || 0)}%</td></tr>
+      ${[
+        ["Funcionários Contratados", contracted ? contracted.toLocaleString("pt-BR") : null],
+        ["Funcionários Cadastrados", cadastrados ? cadastrados.toLocaleString("pt-BR") : null],
+        ["Aderência ao Registro de Ponto", contracted > 0 ? `<strong>${aderencia}%</strong>` : null],
+        ["Progresso Geral do Projeto", (project?.progress_percent || project?.progress_percent === 0) ? `${project.progress_percent}%` : null],
+      ].filter(r => r[1]).map(r => `<tr><td class="lbl">${esc(r[0])}</td><td>${r[1]}</td></tr>`).join("")}
     </table>
   </div>
 </div>
