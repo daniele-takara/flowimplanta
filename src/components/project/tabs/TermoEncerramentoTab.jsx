@@ -391,11 +391,18 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
 
   const saveSectionOverrides = useCallback(async (overrides) => {
     if (!current?.id || isLocked) return;
+    setSaveStatus("saving");
     try {
       const payload = { section_overrides: JSON.stringify(overrides) };
       await base44.entities.TermoEncerramento.update(current.id, payload);
       setCurrent(c => c ? { ...c, ...payload } : c);
-    } catch (e) { console.warn("[TermoEncerramentoTab] Erro ao salvar section_overrides:", e); }
+      setSaveStatus("saved");
+      clearTimeout(savedTimer.current);
+      savedTimer.current = setTimeout(() => setSaveStatus(null), 2500);
+    } catch (e) {
+      console.warn("[TermoEncerramentoTab] Erro ao salvar section_overrides:", e);
+      setSaveStatus(null);
+    }
   }, [current, isLocked]);
 
   const handleBlurSave = useCallback(() => {
