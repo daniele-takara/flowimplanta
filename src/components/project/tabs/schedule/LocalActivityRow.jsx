@@ -97,7 +97,7 @@ export default function LocalActivityRow({ activity, onUpdated, onRemoved, readO
   return (
     <>
       <tr className={rowClass}>
-        <td className="px-4 py-2.5 text-sm text-slate-700 max-w-[280px]">
+        <td className="px-2 py-2.5 text-sm text-slate-700 max-w-[280px]">
           <div className="flex flex-col gap-0.5">
             {editing
               ? <input value={form.activity_name} onChange={e => setForm(f => ({ ...f, activity_name: e.target.value }))} className={inputClass} />
@@ -109,31 +109,31 @@ export default function LocalActivityRow({ activity, onUpdated, onRemoved, readO
             </div>
           </div>
         </td>
-        <td className="px-3 py-2.5 whitespace-nowrap">
+        <td className="px-1 py-2.5">
           {editing ? <input type="date" value={form.planned_start} onChange={e => setForm(f => ({ ...f, planned_start: e.target.value }))} className={inputClass} />
             : <span className="text-xs text-slate-600">{fmtDate(form.planned_start)}</span>}
         </td>
-        <td className="px-3 py-2.5 whitespace-nowrap">
+        <td className="px-1 py-2.5">
           {editing ? <input type="date" value={form.planned_end} onChange={e => setForm(f => ({ ...f, planned_end: e.target.value }))} className={inputClass} />
             : <span className="text-xs text-slate-600">{fmtDate(form.planned_end)}</span>}
         </td>
-        <td className="px-3 py-2.5 whitespace-nowrap">
+        <td className="px-1 py-2.5">
           {editing ? <input type="date" value={form.actual_start} onChange={e => setForm(f => ({ ...f, actual_start: e.target.value }))} className={inputClass} />
             : <span className="text-xs text-slate-500">{fmtDate(form.actual_start)}</span>}
         </td>
-        <td className="px-3 py-2.5 whitespace-nowrap">
+        <td className="px-1 py-2.5">
           {editing ? <input type="date" value={form.actual_end} onChange={e => setForm(f => ({ ...f, actual_end: e.target.value }))} className={inputClass} />
             : <span className="text-xs text-slate-500">{fmtDate(form.actual_end)}</span>}
         </td>
-        <td className="px-3 py-2.5 max-w-[120px]">
+        <td className="px-1 py-2.5 max-w-[120px]">
           {editing ? <input value={form.responsible_general} onChange={e => setForm(f => ({ ...f, responsible_general: e.target.value }))} className={inputClass} />
             : <span className="text-xs text-slate-500 truncate block">{form.responsible_general || "—"}</span>}
         </td>
-        <td className="px-3 py-2.5 max-w-[120px]">
+        <td className="px-1 py-2.5 max-w-[120px]">
           {editing ? <input value={form.responsible_leader} onChange={e => setForm(f => ({ ...f, responsible_leader: e.target.value }))} className={inputClass} />
             : <span className="text-xs text-slate-500 truncate block">{form.responsible_leader || "—"}</span>}
         </td>
-        <td className="px-3 py-2.5">
+        <td className="px-1 py-2.5">
           {editing
             ? <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
                 {STATUS_OPTIONS.map(s => <option key={s}>{s}</option>)}
@@ -141,11 +141,11 @@ export default function LocalActivityRow({ activity, onUpdated, onRemoved, readO
             : <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[form.status] || STATUS_COLORS["Não iniciado"]}`}>{form.status}</span>
           }
         </td>
-        <td className="px-3 py-2.5 max-w-[140px]">
+        <td className="px-1 py-2.5 max-w-[140px]">
           {editing ? <input value={form.history_observations} onChange={e => setForm(f => ({ ...f, history_observations: e.target.value }))} className={inputClass} />
             : <span className="text-xs text-slate-400 truncate block">{form.history_observations || "—"}</span>}
         </td>
-        <td className="px-3 py-2.5">
+        <td className="px-1 py-2.5">
           {!readOnly && !isInactive && (
             editing ? (
               <div className="flex gap-1">

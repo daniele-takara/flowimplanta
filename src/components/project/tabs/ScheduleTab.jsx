@@ -200,7 +200,7 @@ function TaskRow({
   return (
     <>
       <tr className={`border-b border-slate-50 transition-colors ${isInactive ? "bg-slate-50/60 opacity-60" : "hover:bg-slate-50/80"}`}>
-        <td className="px-4 py-2.5 text-sm text-slate-700 max-w-[280px]">
+        <td className="px-2 py-2.5 text-sm text-slate-700 max-w-[280px]">
           <div>
             <span className={`leading-snug ${isInactive ? "line-through text-slate-400" : ""}`}>{task.activity}</span>
             <div className="flex items-center gap-1 mt-0.5 flex-wrap">
@@ -218,7 +218,7 @@ function TaskRow({
           </div>
         </td>
 
-        <td className="px-3 py-2.5 whitespace-nowrap min-w-[130px]">
+        <td className="px-1 py-2.5">
           <div className="space-y-1">
             {editing && canEditPlanned
               ? <input type="date" value={form.planned_start} onChange={e => setForm(f => ({ ...f, planned_start: e.target.value }))} className={inputClass} />
@@ -235,7 +235,7 @@ function TaskRow({
           </div>
         </td>
 
-        <td className="px-3 py-2.5 whitespace-nowrap min-w-[130px]">
+        <td className="px-1 py-2.5">
           <div className="space-y-1">
             {editing && canEditPlanned
               ? <input type="date" value={form.planned_end} onChange={e => setForm(f => ({ ...f, planned_end: e.target.value }))} className={inputClass} />
@@ -252,28 +252,28 @@ function TaskRow({
           </div>
         </td>
 
-        <td className="px-3 py-2.5 whitespace-nowrap">
+        <td className="px-1 py-2.5">
           {editing && canEditExecuted
             ? <input type="date" value={form.actual_start} onChange={e => handleActualChange("actual_start", e.target.value)} className={inputClass} />
             : <span className="text-xs text-slate-500">{form.actual_start ? fmtDate(form.actual_start) : <span className="text-slate-300">—</span>}</span>
           }
         </td>
 
-        <td className="px-3 py-2.5 whitespace-nowrap">
+        <td className="px-1 py-2.5">
           {editing && canEditExecuted
             ? <input type="date" value={form.actual_end} onChange={e => handleActualChange("actual_end", e.target.value)} className={inputClass} />
             : <span className="text-xs text-slate-500">{form.actual_end ? fmtDate(form.actual_end) : <span className="text-slate-300">—</span>}</span>
           }
         </td>
 
-        <td className="px-3 py-2.5 max-w-[120px]">
+        <td className="px-1 py-2.5 max-w-[120px]">
           {editing
             ? <input value={form.responsible_general} onChange={e => setForm(f => ({ ...f, responsible_general: e.target.value }))} className={inputClass} placeholder="Responsável" />
             : <span className="text-xs text-slate-500 truncate block">{resolvedGeneralName || form.responsible_general || "—"}</span>
           }
         </td>
 
-        <td className="px-3 py-2.5 max-w-[120px]">
+        <td className="px-1 py-2.5 max-w-[120px]">
           {editing
             ? <input value={form.responsible_leader} onChange={e => setForm(f => ({ ...f, responsible_leader: e.target.value }))} className={inputClass} placeholder="Líder" />
             : resolvedRoleName
@@ -285,7 +285,7 @@ function TaskRow({
           }
         </td>
 
-        <td className="px-3 py-2.5">
+        <td className="px-1 py-2.5">
           {editing
             ? <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
                 {STATUS_OPTIONS.map(s => <option key={s}>{s}</option>)}
@@ -294,14 +294,14 @@ function TaskRow({
           }
         </td>
 
-        <td className="px-3 py-2.5 max-w-[140px]">
+        <td className="px-1 py-2.5 max-w-[140px]">
           {editing
             ? <input value={form.history_observations} onChange={e => setForm(f => ({ ...f, history_observations: e.target.value }))} className={inputClass} placeholder="Obs..." />
             : <span className="text-xs text-slate-400 truncate block">{form.history_observations || "—"}</span>
           }
         </td>
 
-        <td className="px-3 py-2.5">
+        <td className="px-1 py-2.5">
           {editing ? (
             <div className="flex gap-1">
               <button onClick={handleSave} disabled={saving} className="p-1.5 text-green-600 hover:bg-green-50 rounded">
@@ -523,20 +523,32 @@ function PhaseSection({
       )}
 
       {open && (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px]">
+        <div>
+          <table className="w-full">
+            <colgroup>
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "7%" }} />
+              <col style={{ width: "9%" }} />
+              <col style={{ width: "4%" }} />
+            </colgroup>
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-2.5 min-w-[250px]">Atividade</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5 whitespace-nowrap min-w-[130px]">Início Planejado</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5 whitespace-nowrap min-w-[130px]">Fim Planejado</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5 whitespace-nowrap">Início Executado</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5 whitespace-nowrap">Fim Executado</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5">Resp. Geral</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5">Resp. Líder</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5">Status</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5">Obs. Internas</th>
-                <th className="px-3 py-2.5 w-24 text-xs font-semibold text-slate-500">Ações</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-2 py-2.5">Atividade</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-1 py-2.5">Início Plan.</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-1 py-2.5">Fim Plan.</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-1 py-2.5">Início Exec.</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-1 py-2.5">Fim Exec.</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-1 py-2.5">Resp. Geral</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-1 py-2.5">Resp. Líder</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-1 py-2.5">Status</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-1 py-2.5">Obs.</th>
+                <th className="text-center text-xs font-semibold text-slate-500 px-1 py-2.5">Ações</th>
               </tr>
             </thead>
             <tbody>

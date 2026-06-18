@@ -171,8 +171,8 @@ export default function ProjectDetail() {
         </div>
       )}
 
-      <div className={`flex-1 bg-slate-50 ${activeTab === "actions" ? "p-4" : "p-8"}`}>
-        <div className={activeTab === "actions" ? "" : "max-w-6xl mx-auto"}>
+      <div className={`flex-1 bg-slate-50 ${(activeTab === "actions" || activeTab === "schedule") ? "p-4" : "p-8"}`}>
+        <div className={(activeTab === "actions" || activeTab === "schedule") ? "" : "max-w-6xl mx-auto"}>
           {activeTab === "overview" && <OverviewTab project={project} phases={phases} canSyncPipedrive={perms.canSyncPipedriveDados} onEditDadosIniciais={(!isMock && perms.canEditProject) ? () => setShowEditModal(true) : null} onProjectUpdated={async (updated) => {
             if (!updated) return;
             // NUNCA fazer merge parcial — sempre recarregar do banco para garantir

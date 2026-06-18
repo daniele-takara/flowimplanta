@@ -207,20 +207,32 @@ export default function LocalPhaseSection({
 
       {/* Tabela de atividades */}
       {open && (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px]">
+        <div>
+          <table className="w-full">
+            <colgroup>
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "7%" }} />
+              <col style={{ width: "9%" }} />
+              <col style={{ width: "4%" }} />
+            </colgroup>
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-2.5 min-w-[250px]">Atividade</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5 whitespace-nowrap">Início Plan.</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5 whitespace-nowrap">Fim Plan.</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5 whitespace-nowrap">Início Exec.</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5 whitespace-nowrap">Fim Exec.</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5">Resp. Geral</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5">Resp. Líder</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5">Status</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5">Obs.</th>
-                <th className="px-3 py-2.5 w-24 text-xs font-semibold text-slate-500">Ações</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-2 py-2.5">Atividade</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-1 py-2.5">Início Plan.</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-1 py-2.5">Fim Plan.</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-1 py-2.5">Início Exec.</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-1 py-2.5">Fim Exec.</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-1 py-2.5">Resp. Geral</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-1 py-2.5">Resp. Líder</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-1 py-2.5">Status</th>
+                <th className="text-left text-xs font-semibold text-slate-500 px-1 py-2.5">Obs.</th>
+                <th className="text-center text-xs font-semibold text-slate-500 px-1 py-2.5">Ações</th>
               </tr>
             </thead>
             <tbody>
