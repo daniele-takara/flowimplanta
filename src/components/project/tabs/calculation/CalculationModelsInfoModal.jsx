@@ -131,6 +131,25 @@ export default function CalculationModelsInfoModal({ onClose }) {
                 Ideal para empresas que precisam de um equilíbrio entre controle rígido e flexibilidade operacional.
               </p>
             </div>
+
+            {/* Examples */}
+            <div className="mt-4 grid grid-cols-1 gap-6">
+              {[
+                { src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/851546ecf_Clculohbridocomjanelade60minutosforadajanelacomportando-secomoclculofixo.png", alt: "Cálculo híbrido fora da janela — comporta-se como fixo", label: "Fora da janela de 60 min — comporta-se como cálculo fixo" },
+                { src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/47a58bc76_Clculohbridocomjanelade60minutosdentrodajanelacomportando-secomoclculoflexvel.png", alt: "Cálculo híbrido dentro da janela — comporta-se como flexível", label: "Dentro da janela de 60 min — comporta-se como cálculo flexível" },
+              ].map((img) => (
+                <div key={img.src}>
+                  <img 
+                    src={img.src} 
+                    alt={img.alt}
+                    onClick={() => setExpandedImg(img)}
+                    className="w-full rounded-lg border border-slate-200 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all shadow-sm"
+                    title="Clique para ampliar"
+                  />
+                  <p className="text-xs text-slate-400 mt-1.5 text-center">{img.label}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
