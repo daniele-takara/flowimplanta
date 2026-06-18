@@ -115,20 +115,19 @@ export default function CalculationModelsInfoModal({ onClose }) {
               <div className="w-7 h-7 bg-purple-700 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
                 3
               </div>
-              <h3 className="text-lg font-semibold text-purple-800">Modelo Híbrido</h3>
+              <h3 className="text-lg font-semibold text-purple-800">Modelo Híbrido: Por duração da jornada com janela de tolerância</h3>
             </div>
 
             <div className="bg-purple-50/50 rounded-lg p-4 space-y-3">
               <p className="text-sm text-slate-700 leading-relaxed">
-                O modelo híbrido <strong>combina características dos modelos Fixo e Flexível</strong>. 
-                Funciona com tolerâncias definidas e compensação automática dentro dos limites configurados.
+                Nesse tipo de regra também é feita a <strong>compensação automática</strong>. 
+                Caso haja atraso e hora extra na mesma jornada, uma compensará a outra, porém o funcionário terá uma janela de tolerância para que o sistema entenda se o dia será calculado como fixo ou flexível.
               </p>
               <p className="text-sm text-slate-700 leading-relaxed">
-                Atrasos dentro da tolerância são compensados automaticamente. O que ultrapassar a tolerância gera apontamento de atraso. 
-                Horas extras que excederem a janela de compensação geram apontamento de hora extra.
+                Neste tipo de cálculo, está sendo levado em consideração tanto o cálculo fixo como o cálculo flexível.
               </p>
               <p className="text-sm text-slate-500 italic">
-                Ideal para empresas que precisam de um equilíbrio entre controle rígido e flexibilidade operacional.
+                No exemplo abaixo, utilizamos uma janela de 60 minutos de tolerância para trás e para frente para calcular os atrasos e horas extras geradas.
               </p>
             </div>
 
