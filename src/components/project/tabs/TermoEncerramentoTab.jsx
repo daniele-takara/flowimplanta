@@ -60,9 +60,9 @@ function getPdfValue(key, autoRaw, overrides) {
 function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, finalConsiderations, selectedAdendosData, scopeItems, version, coordenadora, liderImpl, gerente, sectionOverrides = {} }) {
   const answersMap = buildAnswersMap(scopeItems);
   const contracted = getPdfValue("contracted_employees", project?.contracted_employees, sectionOverrides) || "0";
-  const cadastrados = getPdfValue("registered_employees", usabilitySnap?.numero_funcionarios, sectionOverrides) || "0";
+  const cadastrados = getPdfValue("registered_employees", usabilitySnap?.registered_employees, sectionOverrides) || "0";
   const aderenciaOverride = getPdfValue("adherence", null, sectionOverrides);
-  const aderencia = aderenciaOverride || (parseInt(contracted) > 0 ? Math.round((parseInt(getPdfValue("recording_employees", usabilitySnap?.empregados_batendo_ponto_ultimos_15_dias, sectionOverrides) || "0") / parseInt(contracted)) * 100) : 0);
+  const aderencia = aderenciaOverride || (parseInt(contracted) > 0 ? Math.round((parseInt(getPdfValue("recording_employees", usabilitySnap?.recording_employees, sectionOverrides) || "0") / parseInt(contracted)) * 100) : 0);
   const versionLabel = version ? `v${version.version_number} · ${version.status}` : "";
   const today = new Date().toLocaleDateString("pt-BR");
   const clientName = getPdfValue("client_name", project?.client_name, sectionOverrides);
@@ -616,10 +616,10 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
           <Section title="RESUMO DO PROJETO">
             <div className="bg-slate-50 rounded-lg p-4 mt-2">
               <EditableAutoField label="Funcionários Contratados" fieldKey="contracted_employees" autoValue={project?.contracted_employees} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
-              <EditableAutoField label="Funcionários Cadastrados" fieldKey="registered_employees" autoValue={usabilitySnap?.numero_funcionarios} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Funcionários Cadastrados" fieldKey="registered_employees" autoValue={usabilitySnap?.registered_employees} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
               <EditableAutoField label="Aderência ao Registro de Ponto" fieldKey="adherence" autoValue={
                 project?.contracted_employees && usabilitySnap
-                  ? `${Math.round((usabilitySnap.empregados_batendo_ponto_ultimos_15_dias / project.contracted_employees) * 100)}%`
+                  ? `${Math.round((usabilitySnap.recording_employees / project.contracted_employees) * 100)}%`
                   : "—"
               } sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
               <EditableAutoField label="Progresso Geral do Projeto" fieldKey="progress_percent" autoValue={project?.progress_percent} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
