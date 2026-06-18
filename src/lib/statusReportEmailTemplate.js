@@ -33,13 +33,14 @@ function badge(status) {
 function progressBar(pct, status) {
   const color = status === "Atrasado" ? "#ef4444" : "#22c55e";
   const barPx = Math.round((pct || 0) * 0.8);
+  const barTd = barPx > 0 ? `<td width="${barPx}" style="background:${color};height:6px;"></td>` : '';
   return `
     <table width="100%" cellpadding="0" cellspacing="0" border="0">
       <tr>
         <td style="padding-right:8px;">
           <table width="80" cellpadding="0" cellspacing="0" border="0" style="border-radius:4px;overflow:hidden;background:#e2e8f0;height:6px;">
             <tr>
-              <td width="${barPx}" style="background:${color};height:6px;"></td>
+              ${barTd}
               <td></td>
             </tr>
           </table>
