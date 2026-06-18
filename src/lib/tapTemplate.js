@@ -9,15 +9,23 @@ export function getAnswer(answersMap, questionId) {
   return answersMap?.[questionId] || "";
 }
 
+// Formata contato (email/phone) — prefere campos novos, fallback para _contact legado
+function fmtContact(project, prefix) {
+  const email = project[`${prefix}_email`] || "";
+  const phone = project[`${prefix}_phone`] || "";
+  if (email || phone) return [email, phone].filter(Boolean).join(" / ");
+  return project[`${prefix}_contact`] || "";
+}
+
 // Gera lista de participantes estruturada
 export function buildParticipants(project) {
   const parts = [];
-  if (project.sponsor_name) parts.push({ role: "Patrocinador (Cliente)", name: project.sponsor_name, contact: project.sponsor_contact });
-  if (project.project_leader_name) parts.push({ role: "Líder do Projeto (Cliente)", name: project.project_leader_name, contact: project.project_leader_contact });
-  if (project.operation_name) parts.push({ role: "Operação (Cliente)", name: project.operation_name, contact: project.operation_contact });
-  if (project.ti_client_name) parts.push({ role: "TI (Cliente)", name: project.ti_client_name, contact: project.ti_client_contact });
-  if (project.pontotel_manager_name) parts.push({ role: "Gerente de Projeto (Pontotel)", name: project.pontotel_manager_name, contact: project.pontotel_manager_contact });
-  if (project.pontotel_analyst_name) parts.push({ role: "Analista de Implantação (Pontotel)", name: project.pontotel_analyst_name, contact: project.pontotel_analyst_contact });
+  if (project.sponsor_name) parts.push({ role: "Patrocinador (Cliente)", name: project.sponsor_name, contact: fmtContact(project, "sponsor") });
+  if (project.project_leader_name) parts.push({ role: "Líder do Projeto (Cliente)", name: project.project_leader_name, contact: fmtContact(project, "project_leader") });
+  if (project.operation_name) parts.push({ role: "Operação (Cliente)", name: project.operation_name, contact: fmtContact(project, "operation") });
+  if (project.ti_client_name) parts.push({ role: "TI (Cliente)", name: project.ti_client_name, contact: fmtContact(project, "ti_client") });
+  if (project.pontotel_manager_name) parts.push({ role: "Gerente de Projeto (Pontotel)", name: project.pontotel_manager_name, contact: fmtContact(project, "pontotel_manager") });
+  if (project.pontotel_analyst_name) parts.push({ role: "Analista de Implantação (Pontotel)", name: project.pontotel_analyst_name, contact: fmtContact(project, "pontotel_analyst") });
   return parts;
 }
 

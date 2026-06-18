@@ -1,0 +1,39 @@
+{
+  "name": "ProjectTeamMember",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "ID do projeto"
+    },
+    "team": {
+      "type": "string",
+      "enum": [
+        "pontotel",
+        "cliente"
+      ],
+      "description": "Equipe: Pontotel ou Cliente"
+    },
+    "name": {
+      "type": "string",
+      "description": "Nome do membro"
+    },
+    "role": {
+      "type": "string",
+      "description": "Fun\u00e7\u00e3o/cargo do membro (ex: Consultor, Suporte, etc.)"
+    },
+    "email": {
+      "type": "string",
+      "description": "E-mail do membro"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Telefone do membro"
+    }
+  },
+  "required": [
+    "project_id",
+    "team",
+    "name"
+  ]
+}

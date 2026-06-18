@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { formatDate } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import StatusBadge from "@/components/ui/StatusBadge";
@@ -14,12 +14,18 @@ function InfoRow({ label, value }) {
   );
 }
 
-function ParticipantCard({ role, name, contact }) {
+function ParticipantCard({ role, name, email, phone, legacyContact }) {
+  const displayEmail = email || "";
+  const displayPhone = phone || "";
+  const displayContact = legacyContact || "";
   return (
     <div className="p-4 bg-slate-50 rounded-lg">
       <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-1">{role}</p>
       <p className="text-sm font-semibold text-slate-800">{name || "—"}</p>
-      {contact && <p className="text-xs text-slate-500 mt-0.5">{contact}</p>}
+      {displayEmail && <p className="text-xs text-slate-500 mt-0.5">{displayEmail}</p>}
+      {displayPhone && <p className="text-xs text-slate-400">{displayPhone}</p>}
+      {!displayEmail && !displayPhone && displayContact && <p className="text-xs text-slate-500 mt-0.5">{displayContact}</p>}
+      {!displayEmail && !displayPhone && !displayContact && !name && <p className="text-xs text-slate-400 italic">Não informado</p>}
     </div>
   );
 }
@@ -27,6 +33,18 @@ function ParticipantCard({ role, name, contact }) {
 export default function OverviewTab({ project, phases, onEditDadosIniciais, onProjectUpdated, canSyncPipedrive = true }) {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [membersLoaded, setMembersLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!project?.id || membersLoaded) return;
+    base44.entities.ProjectTeamMember.filter({ project_id: project.id })
+      .then(list => { setTeamMembers(list || []); setMembersLoaded(true); })
+      .catch(() => setMembersLoaded(true));
+  }, [project?.id, membersLoaded]);
+
+  const pontotelMembers = teamMembers.filter(m => m.team === "pontotel");
+  const clienteMembers = teamMembers.filter(m => m.team === "cliente");
 
   const handleSyncPipedrive = async () => {
     if (!project?.pipedrive_deal_id) {
@@ -218,18 +236,24 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">Equipe Pontotel</h3>
           <div className="space-y-3">
-            <ParticipantCard role="Gerente de Projeto" name={project.pontotel_manager_name} contact={project.pontotel_manager_contact} />
-            <ParticipantCard role="Analista de Implantação" name={project.pontotel_analyst_name} contact={project.pontotel_analyst_contact} />
+            <ParticipantCard role="Gerente de Projeto" name={project.pontotel_manager_name} email={project.pontotel_manager_email} phone={project.pontotel_manager_phone} legacyContact={project.pontotel_manager_contact} />
+            <ParticipantCard role="Analista de Implantação" name={project.pontotel_analyst_name} email={project.pontotel_analyst_email} phone={project.pontotel_analyst_phone} legacyContact={project.pontotel_analyst_contact} />
+            {pontotelMembers.map((m, i) => (
+              <ParticipantCard key={i} role={m.role || "Membro Pontotel"} name={m.name} email={m.email} phone={m.phone} />
+            ))}
           </div>
         </div>
 
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">Equipe Cliente</h3>
           <div className="space-y-3">
-            <ParticipantCard role="Patrocinador" name={project.sponsor_name} contact={project.sponsor_contact} />
-            <ParticipantCard role="Líder do Projeto" name={project.project_leader_name} contact={project.project_leader_contact} />
-            <ParticipantCard role="Operação" name={project.operation_name} contact={project.operation_contact} />
-            <ParticipantCard role="TI" name={project.ti_client_name} contact={project.ti_client_contact} />
+            <ParticipantCard role="Patrocinador" name={project.sponsor_name} email={project.sponsor_email} phone={project.sponsor_phone} legacyContact={project.sponsor_contact} />
+            <ParticipantCard role="Líder do Projeto" name={project.project_leader_name} email={project.project_leader_email} phone={project.project_leader_phone} legacyContact={project.project_leader_contact} />
+            <ParticipantCard role="Operação" name={project.operation_name} email={project.operation_email} phone={project.operation_phone} legacyContact={project.operation_contact} />
+            <ParticipantCard role="TI" name={project.ti_client_name} email={project.ti_client_email} phone={project.ti_client_phone} legacyContact={project.ti_client_contact} />
+            {clienteMembers.map((m, i) => (
+              <ParticipantCard key={i} role={m.role || "Membro Cliente"} name={m.name} email={m.email} phone={m.phone} />
+            ))}
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { X, Save } from "lucide-react";
+import { X, Save, Plus, Trash2 } from "lucide-react";
 import { CONTRACTED_MODULES_OPTIONS } from "@/lib/scopeTemplate";
 
 const ALL_SERVICES = [
@@ -60,6 +60,21 @@ function CheckGroup({ label, options, selected, onChange }) {
 }
 
 export default function EditProjectModal({ project, onClose, onSaved }) {
+  // Extrai email/phone do _contact legado (fallback para projetos que ainda não têm campos novos)
+  const extractContact = (contact) => {
+    if (!contact) return { email: "", phone: "" };
+    const parts = contact.split("/").map(s => s.trim());
+    const email = parts.find(p => p.includes("@")) || "";
+    const phone = parts.find(p => !p.includes("@")) || "";
+    return { email, phone };
+  };
+  const sponsorLegacy = extractContact(project?.sponsor_contact);
+  const projectLeaderLegacy = extractContact(project?.project_leader_contact);
+  const operationLegacy = extractContact(project?.operation_contact);
+  const tiClientLegacy = extractContact(project?.ti_client_contact);
+  const pontotelManagerLegacy = extractContact(project?.pontotel_manager_contact);
+  const pontotelAnalystLegacy = extractContact(project?.pontotel_analyst_contact);
+
   const [form, setForm] = useState({
     name: project?.name || "",
     client_name: project?.client_name || "",
@@ -70,35 +85,100 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
     aligned_end_date: project?.aligned_end_date || "",
     contracted_employees: project?.contracted_employees || "",
     sponsor_name: project?.sponsor_name || "",
-    sponsor_contact: project?.sponsor_contact || "",
+    sponsor_email: project?.sponsor_email || sponsorLegacy.email,
+    sponsor_phone: project?.sponsor_phone || sponsorLegacy.phone,
     project_leader_name: project?.project_leader_name || "",
-    project_leader_contact: project?.project_leader_contact || "",
+    project_leader_email: project?.project_leader_email || projectLeaderLegacy.email,
+    project_leader_phone: project?.project_leader_phone || projectLeaderLegacy.phone,
     operation_name: project?.operation_name || "",
-    operation_contact: project?.operation_contact || "",
+    operation_email: project?.operation_email || operationLegacy.email,
+    operation_phone: project?.operation_phone || operationLegacy.phone,
     ti_client_name: project?.ti_client_name || "",
-    ti_client_contact: project?.ti_client_contact || "",
+    ti_client_email: project?.ti_client_email || tiClientLegacy.email,
+    ti_client_phone: project?.ti_client_phone || tiClientLegacy.phone,
     pontotel_manager_name: project?.pontotel_manager_name || "",
-    pontotel_manager_contact: project?.pontotel_manager_contact || "",
+    pontotel_manager_email: project?.pontotel_manager_email || pontotelManagerLegacy.email,
+    pontotel_manager_phone: project?.pontotel_manager_phone || pontotelManagerLegacy.phone,
     pontotel_analyst_name: project?.pontotel_analyst_name || "",
-    pontotel_analyst_contact: project?.pontotel_analyst_contact || "",
+    pontotel_analyst_email: project?.pontotel_analyst_email || pontotelAnalystLegacy.email,
+    pontotel_analyst_phone: project?.pontotel_analyst_phone || pontotelAnalystLegacy.phone,
     contracted_modules: project?.contracted_modules || [],
     contracted_services: project?.contracted_services || [],
     observations: project?.observations || "",
   });
   const [saving, setSaving] = useState(false);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [membersLoaded, setMembersLoaded] = useState(false);
+
+  // Carrega membros dinâmicos
+  useEffect(() => {
+    if (!project?.id || membersLoaded) return;
+    base44.entities.ProjectTeamMember.filter({ project_id: project.id })
+      .then(list => { setTeamMembers(list || []); setMembersLoaded(true); })
+      .catch(() => setMembersLoaded(true));
+  }, [project?.id, membersLoaded]);
+
+  const addMember = (team) => {
+    setTeamMembers(prev => [...prev, { team, name: "", role: "", email: "", phone: "", _new: true }]);
+  };
+  const updateMember = (idx, field, value) => {
+    setTeamMembers(prev => prev.map((m, i) => i === idx ? { ...m, [field]: value } : m));
+  };
+  const removeMember = (idx) => {
+    setTeamMembers(prev => {
+      const m = prev[idx];
+      // Membros existentes (com id): marca como _deleted para deletar do banco no save
+      if (m?.id && !m._new) return prev.map((x, i) => i === idx ? { ...x, _deleted: true } : x);
+      // Membros novos (sem id): remove do estado
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
 
   const handleSave = async () => {
     setSaving(true);
-    await base44.entities.Project.update(project.id, {
+    // Popula _contact legado para manter compatibilidade com código existente
+    const buildContact = (email, phone) => [email, phone].filter(Boolean).join(" / ") || "";
+    const payload = {
       ...form,
       mrr: form.mrr ? Number(form.mrr) : null,
       contracted_employees: form.contracted_employees ? Number(form.contracted_employees) : null,
-    });
+      sponsor_contact: buildContact(form.sponsor_email, form.sponsor_phone),
+      project_leader_contact: buildContact(form.project_leader_email, form.project_leader_phone),
+      operation_contact: buildContact(form.operation_email, form.operation_phone),
+      ti_client_contact: buildContact(form.ti_client_email, form.ti_client_phone),
+      pontotel_manager_contact: buildContact(form.pontotel_manager_email, form.pontotel_manager_phone),
+      pontotel_analyst_contact: buildContact(form.pontotel_analyst_email, form.pontotel_analyst_phone),
+    };
+    await base44.entities.Project.update(project.id, payload);
+
+    // Salvar membros dinâmicos — deleta existentes e recria
+    if (membersLoaded && teamMembers.length > 0) {
+      const existing = teamMembers.filter(m => m.id);
+      const toDelete = teamMembers.filter(m => m._deleted && m.id);
+      const toCreate = teamMembers.filter(m => m._new || !m.id).filter(m => m.name?.trim());
+
+      // Deleta removidos
+      for (const m of toDelete) {
+        await base44.entities.ProjectTeamMember.delete(m.id).catch(() => {});
+      }
+      // Cria novos
+      for (const m of toCreate) {
+        await base44.entities.ProjectTeamMember.create({
+          project_id: project.id, team: m.team, name: m.name.trim(),
+          role: m.role || "", email: m.email || "", phone: m.phone || "",
+        });
+      }
+      // Atualiza existentes
+      for (const m of existing) {
+        await base44.entities.ProjectTeamMember.update(m.id, {
+          name: m.name, role: m.role, email: m.email, phone: m.phone,
+        });
+      }
+    }
+
     setSaving(false);
-    // Fecha ANTES de chamar onSaved para evitar que o modal fique aberto
-    // durante o reload. onSaved (loadData) roda em background e atualiza o state.
     onClose();
     onSaved();
   };
@@ -148,45 +228,111 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
           </div>
 
           <div className="border-t border-slate-100 pt-4">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Participantes do Projeto</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="Patrocinador — Nome">
-                <input value={form.sponsor_name} onChange={set("sponsor_name")} className={inputClass} />
-              </Field>
-              <Field label="Patrocinador — Contato">
-                <input value={form.sponsor_contact} onChange={set("sponsor_contact")} className={inputClass} />
-              </Field>
-              <Field label="Líder do projeto (cliente) — Nome">
-                <input value={form.project_leader_name} onChange={set("project_leader_name")} className={inputClass} />
-              </Field>
-              <Field label="Líder do projeto — Contato">
-                <input value={form.project_leader_contact} onChange={set("project_leader_contact")} className={inputClass} />
-              </Field>
-              <Field label="Operação — Nome">
-                <input value={form.operation_name} onChange={set("operation_name")} className={inputClass} />
-              </Field>
-              <Field label="Operação — Contato">
-                <input value={form.operation_contact} onChange={set("operation_contact")} className={inputClass} />
-              </Field>
-              <Field label="TI Cliente — Nome">
-                <input value={form.ti_client_name} onChange={set("ti_client_name")} className={inputClass} />
-              </Field>
-              <Field label="TI Cliente — Contato">
-                <input value={form.ti_client_contact} onChange={set("ti_client_contact")} className={inputClass} />
-              </Field>
-              <Field label="Gerente Pontotel — Nome">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Equipe Pontotel</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Field label="Gerente — Nome">
                 <input value={form.pontotel_manager_name} onChange={set("pontotel_manager_name")} className={inputClass} />
               </Field>
-              <Field label="Gerente Pontotel — Contato">
-                <input value={form.pontotel_manager_contact} onChange={set("pontotel_manager_contact")} className={inputClass} />
+              <Field label="Gerente — E-mail">
+                <input type="email" value={form.pontotel_manager_email} onChange={set("pontotel_manager_email")} className={inputClass} />
+              </Field>
+              <Field label="Gerente — Telefone">
+                <input value={form.pontotel_manager_phone} onChange={set("pontotel_manager_phone")} className={inputClass} />
               </Field>
               <Field label="Analista de Implantação — Nome">
                 <input value={form.pontotel_analyst_name} onChange={set("pontotel_analyst_name")} className={inputClass} />
               </Field>
-              <Field label="Analista de Implantação — Contato">
-                <input value={form.pontotel_analyst_contact} onChange={set("pontotel_analyst_contact")} className={inputClass} />
+              <Field label="Analista — E-mail">
+                <input type="email" value={form.pontotel_analyst_email} onChange={set("pontotel_analyst_email")} className={inputClass} />
+              </Field>
+              <Field label="Analista — Telefone">
+                <input value={form.pontotel_analyst_phone} onChange={set("pontotel_analyst_phone")} className={inputClass} />
               </Field>
             </div>
+            {/* Membros adicionais Pontotel */}
+            {teamMembers.filter(m => m.team === "pontotel" && !m._deleted).map((m, i) => (
+              <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3 p-3 bg-purple-50/50 rounded-lg border border-purple-100">
+                <Field label="Função">
+                  <input value={m.role} onChange={e => updateMember(i, "role", e.target.value)} className={inputClass} placeholder="Ex: Consultor" />
+                </Field>
+                <Field label="Nome">
+                  <input value={m.name} onChange={e => updateMember(i, "name", e.target.value)} className={inputClass} />
+                </Field>
+                <Field label="E-mail">
+                  <input type="email" value={m.email} onChange={e => updateMember(i, "email", e.target.value)} className={inputClass} />
+                </Field>
+                <div className="flex items-end gap-2">
+                  <div className="flex-1"><Field label="Telefone"><input value={m.phone} onChange={e => updateMember(i, "phone", e.target.value)} className={inputClass} /></Field></div>
+                  <button onClick={() => removeMember(i)} className="p-2 text-slate-400 hover:text-red-500 mb-0.5"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              </div>
+            ))}
+            <button onClick={() => addMember("pontotel")} className="mt-3 flex items-center gap-1.5 text-xs font-medium text-purple-600 hover:text-purple-700">
+              <Plus className="w-3.5 h-3.5" /> Adicionar membro Pontotel
+            </button>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Equipe Cliente</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Field label="Patrocinador — Nome">
+                <input value={form.sponsor_name} onChange={set("sponsor_name")} className={inputClass} />
+              </Field>
+              <Field label="Patrocinador — E-mail">
+                <input type="email" value={form.sponsor_email} onChange={set("sponsor_email")} className={inputClass} />
+              </Field>
+              <Field label="Patrocinador — Telefone">
+                <input value={form.sponsor_phone} onChange={set("sponsor_phone")} className={inputClass} />
+              </Field>
+              <Field label="Líder do Projeto — Nome">
+                <input value={form.project_leader_name} onChange={set("project_leader_name")} className={inputClass} />
+              </Field>
+              <Field label="Líder — E-mail">
+                <input type="email" value={form.project_leader_email} onChange={set("project_leader_email")} className={inputClass} />
+              </Field>
+              <Field label="Líder — Telefone">
+                <input value={form.project_leader_phone} onChange={set("project_leader_phone")} className={inputClass} />
+              </Field>
+              <Field label="Operação — Nome">
+                <input value={form.operation_name} onChange={set("operation_name")} className={inputClass} />
+              </Field>
+              <Field label="Operação — E-mail">
+                <input type="email" value={form.operation_email} onChange={set("operation_email")} className={inputClass} />
+              </Field>
+              <Field label="Operação — Telefone">
+                <input value={form.operation_phone} onChange={set("operation_phone")} className={inputClass} />
+              </Field>
+              <Field label="TI Cliente — Nome">
+                <input value={form.ti_client_name} onChange={set("ti_client_name")} className={inputClass} />
+              </Field>
+              <Field label="TI — E-mail">
+                <input type="email" value={form.ti_client_email} onChange={set("ti_client_email")} className={inputClass} />
+              </Field>
+              <Field label="TI — Telefone">
+                <input value={form.ti_client_phone} onChange={set("ti_client_phone")} className={inputClass} />
+              </Field>
+            </div>
+            {/* Membros adicionais Cliente */}
+            {teamMembers.filter(m => m.team === "cliente" && !m._deleted).map((m, i) => (
+              <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
+                <Field label="Função">
+                  <input value={m.role} onChange={e => updateMember(i, "role", e.target.value)} className={inputClass} placeholder="Ex: RH" />
+                </Field>
+                <Field label="Nome">
+                  <input value={m.name} onChange={e => updateMember(i, "name", e.target.value)} className={inputClass} />
+                </Field>
+                <Field label="E-mail">
+                  <input type="email" value={m.email} onChange={e => updateMember(i, "email", e.target.value)} className={inputClass} />
+                </Field>
+                <div className="flex items-end gap-2">
+                  <div className="flex-1"><Field label="Telefone"><input value={m.phone} onChange={e => updateMember(i, "phone", e.target.value)} className={inputClass} /></Field></div>
+                  <button onClick={() => removeMember(i)} className="p-2 text-slate-400 hover:text-red-500 mb-0.5"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              </div>
+            ))}
+            <button onClick={() => addMember("cliente")} className="mt-3 flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700">
+              <Plus className="w-3.5 h-3.5" /> Adicionar membro Cliente
+            </button>
           </div>
 
           <div className="border-t border-slate-100 pt-4 space-y-4">
