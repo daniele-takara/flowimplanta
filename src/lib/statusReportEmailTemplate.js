@@ -30,8 +30,8 @@ function badge(status) {
   return `<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${c.bg};color:${c.text};border:1px solid ${c.border}">${status || "—"}</span>`;
 }
 
-function progressBar(pct) {
-  const color = pct >= 80 ? "#22c55e" : pct >= 50 ? "#f97316" : "#ef4444";
+function progressBar(pct, status) {
+  const color = status === "Atrasado" ? "#ef4444" : "#22c55e";
   return `
     <table width="100%" cellpadding="0" cellspacing="0" border="0">
       <tr>
@@ -76,7 +76,7 @@ export function generateStatusReportEmail({ project, form, macroPhases, overallP
         <td style="padding:10px 12px;font-size:13px;font-weight:600;color:#334155;">${ph.phase}</td>
         <td style="padding:10px 12px;font-size:12px;color:#64748b;">${fmtDate(ph.plannedStart) || "—"}</td>
         <td style="padding:10px 12px;font-size:12px;color:#64748b;">${fmtDate(ph.plannedEnd) || "—"}</td>
-        <td style="padding:10px 12px;">${progressBar(ph.progress || 0)}</td>
+        <td style="padding:10px 12px;">${progressBar(ph.progress || 0, ph.status)}</td>
         <td style="padding:10px 12px;">${badge(ph.status)}</td>
       </tr>`;
   }).join("") : "";
