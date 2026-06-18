@@ -96,9 +96,10 @@ export function computeMacroSchedule(
       };
     });
 
-    // % geral do projeto = média do progresso das fases macro
-    const overallProgress = macroPhases.length > 0
-      ? Math.round(macroPhases.reduce((sum, p) => sum + p.progress, 0) / macroPhases.length)
+    // % geral do projeto = média do progresso das fases macro (exclui Encerramento)
+    const progressPhases = macroPhases.filter(p => p.phase !== "Encerramento de projeto");
+    const overallProgress = progressPhases.length > 0
+      ? Math.round(progressPhases.reduce((sum, p) => sum + p.progress, 0) / progressPhases.length)
       : 0;
 
     return { macroPhases, overallProgress };
@@ -162,8 +163,9 @@ function _legacyComputeMacroSchedule(overrides, answersMap, project, savedActivi
       return { phase, plannedStart, plannedEnd, actualStart, actualEnd, totalTasks: total, completedTasks: completed, progress, status };
     });
 
-  const overallProgress = macroPhases.length > 0
-    ? Math.round(macroPhases.reduce((sum, p) => sum + p.progress, 0) / macroPhases.length)
+  const progressPhases = macroPhases.filter(p => p.phase !== "Encerramento de projeto");
+  const overallProgress = progressPhases.length > 0
+    ? Math.round(progressPhases.reduce((sum, p) => sum + p.progress, 0) / progressPhases.length)
     : 0;
   return { macroPhases, overallProgress };
 }
