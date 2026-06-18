@@ -158,7 +158,7 @@ function MacroScheduleTable({ macroPhases }) {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-function StatusReportDashboard({ report, project, macroPhases, overallProgress, kpiData, form, setForm, readOnly }) {
+function StatusReportDashboard({ report, project, macroPhases, overallProgress, kpiData, form, setForm, readOnly, onSaveField }) {
   const today = new Date().toLocaleDateString("pt-BR");
   const periodStart = project?.start_date;
   const periodEnd = project?.aligned_end_date || project?.planned_end_date;
@@ -249,6 +249,7 @@ function StatusReportDashboard({ report, project, macroPhases, overallProgress, 
               className="w-full px-3 py-2 text-sm border border-purple-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400"
               value={form.next_agenda || ""}
               onChange={e => !readOnly && setForm(f => ({ ...f, next_agenda: e.target.value }))}
+              onBlur={e => onSaveField && onSaveField("next_agenda", e.target.value)}
               placeholder="Assunto da próxima agenda..."
               readOnly={readOnly}
             />
@@ -257,6 +258,7 @@ function StatusReportDashboard({ report, project, macroPhases, overallProgress, 
               className="w-full px-3 py-2 text-sm border border-purple-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400"
               value={form.next_agenda_date || ""}
               onChange={e => !readOnly && setForm(f => ({ ...f, next_agenda_date: e.target.value }))}
+              onBlur={e => onSaveField && onSaveField("next_agenda_date", e.target.value)}
               readOnly={readOnly}
             />
           </div>
@@ -272,6 +274,7 @@ function StatusReportDashboard({ report, project, macroPhases, overallProgress, 
             rows={3}
             value={form.executive_summary || ""}
             onChange={e => !readOnly && setForm(f => ({ ...f, executive_summary: e.target.value }))}
+            onBlur={e => onSaveField && onSaveField("executive_summary", e.target.value)}
             placeholder="Situação executiva atual do projeto..."
             readOnly={readOnly}
           />
@@ -595,6 +598,30 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
     }
   }, [project, projectId, form, report, savedActivities, answersMap]);
 
+  // Salvar um campo individual — autosave onBlur (sem precisar do botão)
+  const handleSaveField = useCallback(async (field, value) => {
+    const currentReport = reportRef.current;
+    try {
+      if (currentReport?.id) {
+        const payload = { [field]: value };
+        await base44.entities.StatusReport.update(currentReport.id, payload);
+        reportRef.current = { ...currentReport, ...payload };
+        setReport(prev => prev ? { ...prev, ...payload } : prev);
+      } else {
+        // Cria o report se ainda não existir
+        const saved = await base44.entities.StatusReport.create({
+          project_id: projectId,
+          report_date: new Date().toISOString().split("T")[0],
+          [field]: value,
+        });
+        reportRef.current = saved;
+        setReport(saved);
+      }
+    } catch (e) {
+      console.warn("[StatusReportTab] Erro ao salvar campo:", field, e);
+    }
+  }, [projectId]);
+
   // Salvar apenas campos manuais (sem recalcular indicadores)
   // Usa formRef.current para garantir leitura sempre atualizada (evita closure stale)
   const handleSaveManual = async () => {
@@ -755,6 +782,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         form={form}
         setForm={setForm}
         readOnly={readOnly}
+        onSaveField={handleSaveField}
       />
     </div>
   );
