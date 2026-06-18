@@ -244,6 +244,8 @@ Deno.serve(async (req) => {
       mrr: mrrRaw != null && mrrRaw > 0 ? mrrRaw : undefined,
       // Deal.people_count / campo customizado → contracted_employees (NOVO)
       contracted_employees: contractedEmployeesFromDeal != null ? contractedEmployeesFromDeal : undefined,
+      // Deal.818ba230... → drive_folder (NOVO: Pasta do Drive)
+      drive_folder: deal["818ba230f563236eb64f93c228328903a5376413"] || undefined,
     };
 
 

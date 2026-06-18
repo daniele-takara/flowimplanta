@@ -207,6 +207,10 @@
       "type": "string",
       "description": "Nome do pipeline Pipedrive de origem"
     },
+    "drive_folder": {
+      "type": "string",
+      "description": "Link da pasta do Google Drive do projeto"
+    },
     "schedule_anchor_dates": {
       "type": "object",
       "description": "Datas \u00e2ncora do cronograma",

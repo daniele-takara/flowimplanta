@@ -105,6 +105,7 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
     contracted_modules: project?.contracted_modules || [],
     contracted_services: project?.contracted_services || [],
     observations: project?.observations || "",
+    drive_folder: project?.drive_folder || "",
   });
   const [saving, setSaving] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
@@ -351,7 +352,10 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
             />
           </div>
 
-          <div className="border-t border-slate-100 pt-4">
+          <div className="border-t border-slate-100 pt-4 space-y-4">
+            <Field label="Pasta do Drive">
+              <input value={form.drive_folder} onChange={set("drive_folder")} className={inputClass} placeholder="https://drive.google.com/..." />
+            </Field>
             <Field label="Observações">
               <textarea value={form.observations} onChange={set("observations")} className={`${inputClass} resize-none`} rows={3} />
             </Field>

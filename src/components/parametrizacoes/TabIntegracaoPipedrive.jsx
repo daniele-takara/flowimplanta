@@ -554,6 +554,16 @@ export default function TabIntegracaoPipedrive() {
           </div>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+          {/* Documentação do campo Pasta do Drive */}
+          <div className="flex items-start gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-xs text-green-800">
+            <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <div>
+              <strong>Novo campo — Pasta do Drive:</strong>{" "}
+              Mapeado do Deal Pipedrive (campo <code className="bg-green-100 px-1 rounded text-xs">818ba230f563236eb64f93c228328903a5376413</code>){" "}
+              → <code className="bg-green-100 px-1 rounded text-xs">drive_folder</code> no Base44.{" "}
+              Editável manualmente nos Dados Iniciais do projeto e visível no Overview.
+            </div>
+          </div>
           <CopyBox label="URL do Webhook" value={WEBHOOK_URL} />
           <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
             <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />

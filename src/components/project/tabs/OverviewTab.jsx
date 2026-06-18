@@ -3,7 +3,7 @@ import { formatDate } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ProgressBar from "@/components/ui/ProgressBar";
-import { Pencil, RefreshCw, CheckCircle2, AlertCircle, AlertTriangle, Link2 } from "lucide-react";
+import { Pencil, RefreshCw, CheckCircle2, AlertCircle, AlertTriangle, Link2, ExternalLink } from "lucide-react";
 
 function InfoRow({ label, value }) {
   return (
@@ -196,6 +196,7 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
           <InfoRow label="MRR" value={project.mrr ? `R$ ${Number(project.mrr).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : null} />
           <InfoRow label="ID Deal Pipedrive" value={project.pipedrive_deal_id ? `#${project.pipedrive_deal_id}` : null} />
           <InfoRow label="Lar21" value={project.lar21} />
+          <InfoRow label="Pasta do Drive" value={project.drive_folder ? <a href={project.drive_folder} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1"><Link2 className="w-3 h-3" />Abrir pasta</a> : null} />
           <InfoRow label="Observações" value={project.observations} />
         </div>
 
