@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { computeMacroSchedule } from "@/lib/scheduleReportEngine.js";
 import { generateStatusReportEmail } from "@/lib/statusReportEmailTemplate.js";
@@ -343,6 +343,7 @@ function computeKpiFromReport(report, project) {
 
 export default function StatusReportTab({ reports, projectId, projectClientName, project, scopeItems, savedActivities, onRefresh, readOnly = false, canUpdate = true, canGenerateEmail = true, canSyncPipedrive = true }) {
   const [report, setReport]             = useState(reports?.[0] || null);
+  const prevReportsRef = useRef(reports);
   const [form, setForm]                 = useState(() => {
     const r = reports?.[0];
     if (!r) return { ...DEFAULT_FORM };
@@ -356,6 +357,31 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
       integration_items: r.integration_items || [],
     };
   });
+
+  // Sincroniza report quando reports prop muda (ex: após onRefresh do parent)
+  useEffect(() => {
+    const prevLen = prevReportsRef.current?.length || 0;
+    const currLen = reports?.length || 0;
+    const prevFirstId = prevReportsRef.current?.[0]?.id;
+    const currFirstId = reports?.[0]?.id;
+    prevReportsRef.current = reports;
+    
+    // Se reports mudou (novo registro ou atualização), sincroniza report
+    if (currLen > 0 && (currLen !== prevLen || currFirstId !== prevFirstId)) {
+      const freshReport = reports[0];
+      setReport(freshReport);
+      // Atualiza também o form com dados frescos do banco (campos manuais)
+      setForm(f => ({
+        next_agenda:      freshReport.next_agenda      ?? f.next_agenda,
+        next_agenda_date: freshReport.next_agenda_date ?? f.next_agenda_date,
+        executive_summary: freshReport.executive_summary ?? f.executive_summary,
+        client_pending:   freshReport.client_pending   || f.client_pending,
+        internal_pending: freshReport.internal_pending || f.internal_pending,
+        risks:            freshReport.risks            || f.risks,
+        integration_items: freshReport.integration_items || f.integration_items,
+      }));
+    }
+  }, [reports]);
 
   // Cronograma macro: inicializa do snapshot persistido; atualizado via botão
   const [macroPhases, setMacroPhases]       = useState(() => {
@@ -373,6 +399,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
 
   const [updating, setUpdating]           = useState(false);
   const [saving, setSaving]               = useState(false);
+  const [saveError, setSaveError]         = useState(null);
   const [showEmailPreview, setShowEmailPreview] = useState(false);
   const [emailHtml, setEmailHtml]         = useState("");
   const [showConfirm, setShowConfirm]     = useState(false);
@@ -578,20 +605,28 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
   // Salvar apenas campos manuais (sem recalcular indicadores)
   const handleSaveManual = async () => {
     setSaving(true);
-    const payload = {
-      next_agenda: form.next_agenda, next_agenda_date: form.next_agenda_date,
-      executive_summary: form.executive_summary, client_pending: form.client_pending,
-      internal_pending: form.internal_pending, risks: form.risks, integration_items: form.integration_items || [],
-    };
-    if (report?.id) {
-      await base44.entities.StatusReport.update(report.id, payload);
-      setReport(r => ({ ...r, ...payload }));
-    } else {
-      const created = await base44.entities.StatusReport.create({
-        project_id: projectId, report_date: new Date().toISOString().split("T")[0],
-        overall_progress: overallProgress, ...payload,
-      });
-      setReport(created);
+    setSaveError(null);
+    try {
+      const payload = {
+        next_agenda: form.next_agenda, next_agenda_date: form.next_agenda_date,
+        executive_summary: form.executive_summary, client_pending: form.client_pending,
+        internal_pending: form.internal_pending, risks: form.risks, integration_items: form.integration_items || [],
+      };
+      let saved;
+      if (report?.id) {
+        saved = await base44.entities.StatusReport.update(report.id, payload);
+        setReport(r => ({ ...r, ...saved }));
+      } else {
+        saved = await base44.entities.StatusReport.create({
+          project_id: projectId, report_date: new Date().toISOString().split("T")[0],
+          overall_progress: overallProgress, ...payload,
+        });
+        setReport(saved);
+      }
+      // Notifica o parent para recarregar dados frescos
+      if (onRefresh) onRefresh();
+    } catch (e) {
+      setSaveError(e?.message || "Erro ao salvar. Verifique suas permissões ou tente novamente.");
     }
     setSaving(false);
   };
@@ -645,6 +680,13 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
                 <Save className="w-4 h-4" />
                 {saving ? "Salvando..." : "Salvar campos manuais"}
               </button>
+            )}
+            {saveError && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                {saveError}
+                <button onClick={() => setSaveError(null)} className="ml-1 text-red-400 hover:text-red-600">✕</button>
+              </div>
             )}
             {canGenerateEmail && (
               <button
