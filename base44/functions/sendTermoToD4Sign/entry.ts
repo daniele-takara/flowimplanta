@@ -39,17 +39,28 @@ Deno.serve(async (req) => {
     // 1. Cofre "Implantação" — UUID fixo
     const safeUuid = "50caeed5-ab5d-4ddf-9cf1-4d668009d561";
 
-    // 2. Generate PDF
+    // 2. Load logo
+    let logoDataUrl = null;
+    const logoUrl = "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/7182abf05_LogoPontotel_AmarelaePreta.png";
+    try {
+      const logoResp = await fetch(logoUrl);
+      if (logoResp.ok) {
+        const logoBuf = await logoResp.arrayBuffer();
+        logoDataUrl = `data:image/png;base64,${arrayBufferToBase64(logoBuf)}`;
+      }
+    } catch (_) { /* ignora erro de carregamento do logo */ }
+
+    // 3. Generate PDF
     const clientName = sectionOverrides?.client_name || project?.client_name || "Cliente";
     const today = new Date().toLocaleDateString("pt-BR");
-    const pdfBytes = await generatePDF({
+    const pdfBytes = generatePDF({
       project, macroPhases, pendingItems, finalConsiderations,
       selectedAdendo, coordenadora, liderImpl, gerente, clienteSignatario,
-      sectionOverrides, usabilitySnap, clientName, today, versionLabel
+      sectionOverrides, usabilitySnap, clientName, today, versionLabel, logoDataUrl
     });
 
-    // 3. Upload PDF to d4sign as base64
-    const base64File = btoa(String.fromCharCode(...new Uint8Array(pdfBytes)));
+    // 4. Upload PDF to d4sign as base64
+    const base64File = arrayBufferToBase64(pdfBytes);
     const safeFileName = `Termo_Encerramento_${clientName.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
 
     const uploadResp = await fetch(
@@ -71,7 +82,7 @@ Deno.serve(async (req) => {
     }
     const docUuid = uploadData.uuid;
 
-    // 4. Register signers
+    // 5. Register signers
     const { signers, signerNames } = buildSigners(project, coordenadora, liderImpl, gerente, clienteSignatario);
     if (signers.length === 0) {
       return Response.json({ error: "Nenhum signatário definido" }, { status: 400 });
@@ -87,7 +98,7 @@ Deno.serve(async (req) => {
     );
     const signersData = await signersResp.json();
 
-    // 4b. Associar cada signatário à posição reservada via addinfo (key_signer + display_name)
+    // 5b. Associar cada signatário à posição reservada via addinfo (key_signer + display_name)
     for (const s of signers) {
       const displayName = signerNames[s.email] || "";
       await fetch(
@@ -104,7 +115,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 5. Send for signing
+    // 6. Send for signing
     const sendResp = await fetch(
       `${D4SIGN_BASE}/documents/${docUuid}/sendtosigner?${authParams}`,
       {
@@ -185,10 +196,10 @@ function buildSigners(project, coordenadora, liderImpl, gerente, clienteSignatar
 
 // ─── PDF Generation ───────────────────────────────────────────
 // Renderização manual com jsPDF + splitTextToSize em todo texto longo
-async function generatePDF({
+function generatePDF({
   project, macroPhases, pendingItems, finalConsiderations,
   selectedAdendo, coordenadora, liderImpl, gerente, clienteSignatario,
-  sectionOverrides, usabilitySnap, clientName, today, versionLabel
+  sectionOverrides, usabilitySnap, clientName, today, versionLabel, logoDataUrl
 }) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const M = 10;                      // margem esquerda
@@ -265,16 +276,9 @@ async function generatePDF({
   // HEADER
   // ═══════════════════════════════════════════════════════════════
   // Logo Pontotel (canto superior direito)
-  const logoUrl = "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/7182abf05_LogoPontotel_AmarelaePreta.png";
-  try {
-    const logoResp = await fetch(logoUrl);
-    if (logoResp.ok) {
-      const logoBuf = await logoResp.arrayBuffer();
-      const logoBase64 = btoa(String.fromCharCode(...new Uint8Array(logoBuf)));
-      const logoDataUrl = `data:image/png;base64,${logoBase64}`;
-      doc.addImage(logoDataUrl, "PNG", M + PW - 38, y - 2, 38, 14);
-    }
-  } catch (_) { /* ignora erro de carregamento do logo */ }
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, "PNG", M + PW - 38, y - 2, 38, 14);
+  }
 
   doc.setFontSize(18);
   doc.setTextColor(124, 58, 237);
@@ -457,4 +461,15 @@ async function generatePDF({
   y = sigY + sigH + 5;
 
   return doc.output("arraybuffer");
+}
+
+// ─── Helper: arrayBuffer → base64 (chunked, avoids stack overflow) ───
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.slice(i, i + chunkSize));
+  }
+  return btoa(binary);
 }
