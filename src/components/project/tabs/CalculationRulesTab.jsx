@@ -1038,6 +1038,7 @@ function RevisaoFinal({ companyData, allData, project }) {
 }
 
 // ── Componente Principal ─────────────────────────────────────────────────────
+
 export default function CalculationRulesTab({ projectId, project }) {
   const { record, loading, saving, save, getData, reload } = useWizardState(projectId);
   const perms = usePermissions();
