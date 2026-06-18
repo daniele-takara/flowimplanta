@@ -36,8 +36,8 @@ Deno.serve(async (req) => {
     const authParams = `tokenAPI=${encodeURIComponent(tokenAPI)}&cryptKey=${encodeURIComponent(cryptKey)}`;
 
     // 1. Get vault (safe) UUID — usa o primeiro cofre disponível
-    // As credenciais (tokenAPI/cryptKey) são do usuário daniele@pontotel.com.br
-    // e devem ter acesso ao cofre "Implantação"
+    // As credenciais (tokenAPI/cryptKey) devem pertencer a um usuário
+    // que tenha acesso ao cofre "Implantação" no D4Sign
     const safesResp = await fetch(`${D4SIGN_BASE}/safes?${authParams}`);
     const safesText = await safesResp.text();
     console.log("D4Sign safes status:", safesResp.status, "body:", safesText.substring(0, 500));
