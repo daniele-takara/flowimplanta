@@ -24,6 +24,7 @@ Deno.serve(async (req) => {
       usabilitySnap,
       scopeItems,
       versionLabel,
+      clienteSignatario,
     } = body;
 
     const tokenAPI = Deno.env.get("D4SIGN_TOKEN_API");
@@ -43,7 +44,7 @@ Deno.serve(async (req) => {
     const today = new Date().toLocaleDateString("pt-BR");
     const pdfBytes = generatePDF({
       project, macroPhases, pendingItems, finalConsiderations,
-      selectedAdendo, coordenadora, liderImpl, gerente,
+      selectedAdendo, coordenadora, liderImpl, gerente, clienteSignatario,
       sectionOverrides, usabilitySnap, clientName, today, versionLabel
     });
 
@@ -71,7 +72,7 @@ Deno.serve(async (req) => {
     const docUuid = uploadData.uuid;
 
     // 4. Register signers
-    const signers = buildSigners(project, coordenadora, liderImpl, gerente);
+    const signers = buildSigners(project, coordenadora, liderImpl, gerente, clienteSignatario);
     if (signers.length === 0) {
       return Response.json({ error: "Nenhum signatário definido" }, { status: 400 });
     }
@@ -128,44 +129,64 @@ Deno.serve(async (req) => {
 
 // ─── Build signers array ──────────────────────────────────────
 // Ordem de assinatura (sequencial):
-// 1. Coordenadora → testemunha (act=5)
-// 2. Líder de implantação → assinar (act=1)
-// 3. Gerente de Operações → assinar (act=1)
-// 4. Líder do Projeto (cliente) → assinar (act=1)
-function buildSigners(project, coordenadora, liderImpl, gerente) {
+// 1. Testemunha (act=5): Coordenadora (se selecionada) OU Gerente (se selecionado e sem coordenadora)
+// 2. Líder de implantação → act=1
+// 3. Gerente de Operações → act=1 (se não usado como testemunha)
+// 4. Cliente → act=1
+function buildSigners(project, coordenadora, liderImpl, gerente, clienteSignatario) {
   const list = [];
+  let usedWitness = false;
 
+  // 1. Testemunha (act=5): coordenadora OU gerente
   if (coordenadora?.email) {
     list.push({
       email: coordenadora.email,
-      act: "5", // Assinar como testemunha
+      act: "5",
       foreign: "0",
       certificadoicpbr: "0",
       assinatura_presencial: "0",
     });
+    usedWitness = true;
+  } else if (gerente?.email) {
+    list.push({
+      email: gerente.email,
+      act: "5",
+      foreign: "0",
+      certificadoicpbr: "0",
+      assinatura_presencial: "0",
+    });
+    usedWitness = true;
   }
+
+  // 2. Líder de implantação (act=1)
   if (liderImpl?.email) {
     list.push({
       email: liderImpl.email,
-      act: "1", // Assinar
+      act: "1",
       foreign: "0",
       certificadoicpbr: "0",
       assinatura_presencial: "0",
     });
   }
-  if (gerente?.email) {
+
+  // 3. Gerente (act=1) — apenas se não usado como testemunha
+  if (gerente?.email && !usedWitness) {
     list.push({
       email: gerente.email,
-      act: "1", // Assinar
+      act: "1",
       foreign: "0",
       certificadoicpbr: "0",
       assinatura_presencial: "0",
     });
   }
-  if (project?.project_leader_email) {
+
+  // 4. Cliente (act=1)
+  const clienteEmail = clienteSignatario?.email || project?.project_leader_email;
+  const clienteNome = clienteSignatario?.name || project?.project_leader_name;
+  if (clienteEmail) {
     list.push({
-      email: project.project_leader_email,
-      act: "1", // Assinar
+      email: clienteEmail,
+      act: "1",
       foreign: "0",
       certificadoicpbr: "0",
       assinatura_presencial: "0",
@@ -178,7 +199,7 @@ function buildSigners(project, coordenadora, liderImpl, gerente) {
 // ─── PDF Generation ───────────────────────────────────────────
 function generatePDF({
   project, macroPhases, pendingItems, finalConsiderations,
-  selectedAdendo, coordenadora, liderImpl, gerente,
+  selectedAdendo, coordenadora, liderImpl, gerente, clienteSignatario,
   sectionOverrides, usabilitySnap, clientName, today, versionLabel
 }) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -341,14 +362,23 @@ function generatePDF({
   doc.text(`Ao assinar este documento, as partes declaram estar de acordo com os termos e condições do encerramento do projeto de implantação da Pontotel para ${clientName}.`, margin, y, { maxWidth: pw });
   y += 12;
 
-  const sigW = (pw - 30) / 4;
-  const sigs = [
-    { name: coordenadora?.name || "Coordenadora", role: "Coordenadora de implantação (testemunha)" },
+  const clienteNome = clienteSignatario?.name || project?.project_leader_name || "Líder do Projeto";
+  const isWitnessCoordenadora = !!coordenadora?.email;
+  const witnessName = isWitnessCoordenadora ? coordenadora?.name : gerente?.name;
+  
+  const sigBoxes = [
+    { name: witnessName || "Testemunha", role: "Testemunha" },
     { name: liderImpl?.name || "Líder de Implantação", role: "Líder de implantação" },
-    { name: gerente?.name || "Gerente de Operações", role: "Gerente de Operações" },
-    { name: project?.project_leader_name || "Líder do Projeto", role: `${clientName} · Líder do Projeto` },
   ];
-  sigs.forEach((s, i) => {
+  // Gerente como signatário apenas se coordenadora é a testemunha e gerente também está selecionado
+  if (isWitnessCoordenadora && gerente?.email) {
+    sigBoxes.push({ name: gerente.name, role: "Gerente de Operações" });
+  }
+  sigBoxes.push({ name: clienteNome, role: `${clientName} · Líder do Projeto` });
+
+  const sigCount = sigBoxes.length;
+  const sigW = (pw - ((sigCount - 1) * 10)) / sigCount;
+  sigBoxes.forEach((s, i) => {
     const sx = margin + (i * (sigW + 10));
     doc.setDrawColor(203, 213, 225);
     doc.rect(sx, y, sigW, 30);

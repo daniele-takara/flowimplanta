@@ -83,6 +83,14 @@
       "type": "string",
       "description": "ID da Assinatura: Gerente de Opera\u00e7\u00f5es"
     },
+    "cliente_signatario_nome": {
+      "type": "string",
+      "description": "Nome do signat\u00e1rio do cliente"
+    },
+    "cliente_signatario_email": {
+      "type": "string",
+      "description": "E-mail do signat\u00e1rio do cliente"
+    },
     "section_overrides": {
       "type": "string",
       "description": "JSON: { fieldKey: value } \u2014 campos autom\u00e1ticos sobrescritos manualmente pelo time"

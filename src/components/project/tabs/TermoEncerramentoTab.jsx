@@ -57,7 +57,7 @@ function getPdfValue(key, autoRaw, overrides) {
   return autoRaw != null ? String(autoRaw) : "";
 }
 
-function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, finalConsiderations, selectedAdendosData, scopeItems, version, coordenadora, liderImpl, gerente, sectionOverrides = {} }) {
+function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, finalConsiderations, selectedAdendosData, scopeItems, version, coordenadora, liderImpl, gerente, clienteSignatario, sectionOverrides = {} }) {
   const answersMap = buildAnswersMap(scopeItems);
   const contracted = getPdfValue("contracted_employees", project?.contracted_employees, sectionOverrides) || "0";
   const cadastrados = getPdfValue("registered_employees", usabilitySnap?.registered_employees, sectionOverrides) || "0";
@@ -215,28 +215,28 @@ ${finalConsiderations ? `
   <div class="sig">
     <div class="sig-box">
       <div class="line"></div>
-      <strong>${esc(coordenadora?.name) || "Coordenadora de Implantação"}</strong><br>
-      <span style="font-size:10px;color:#64748b">Pontotel · Coordenadora de implantação</span>
-      ${coordenadora?.email ? `<br><span style="font-size:9px;color:#94a3b8">${esc(coordenadora.email)}</span>` : ""}
+      <strong>${esc(coordenadora?.name || gerente?.name) || "Testemunha"}</strong><br>
+      <span style="font-size:10px;color:#64748b">Pontotel · Testemunha</span>
+      ${(coordenadora?.email || gerente?.email) ? `<br><span style="font-size:9px;color:#94a3b8">${esc(coordenadora?.email || gerente?.email)}</span>` : ""}
     </div>
     <div class="sig-box">
       <div class="line"></div>
       <strong>${esc(liderImpl?.name) || "Líder de Implantação"}</strong><br>
-      <span style="font-size:10px;color:#64748b">Pontotel · Líder de implantação (testemunha)</span>
+      <span style="font-size:10px;color:#64748b">Pontotel · Líder de implantação</span>
       ${liderImpl?.email ? `<br><span style="font-size:9px;color:#94a3b8">${esc(liderImpl.email)}</span>` : ""}
     </div>
-    ${gerente ? `
+    ${gerente && coordenadora?.email ? `
     <div class="sig-box">
       <div class="line"></div>
       <strong>${esc(gerente.name) || "Gerente de Operações"}</strong><br>
       <span style="font-size:10px;color:#64748b">Pontotel · Gerente de Operações</span>
       ${gerente.email ? `<br><span style="font-size:9px;color:#94a3b8">${esc(gerente.email)}</span>` : ""}
     </div>` : ""}
-    <div class="sig-box">
+    <div class="sig-box" style="border-color:#86efac;background:#f0fdf4">
       <div class="line"></div>
-      <strong>${esc(project?.project_leader_name) || "Líder do Projeto"}</strong><br>
+      <strong>${esc(clienteSignatario?.name || project?.project_leader_name) || "Líder do Projeto"}</strong><br>
       <span style="font-size:10px;color:#64748b">${esc(project?.client_name)} · Líder do Projeto</span>
-      ${project?.project_leader_contact ? `<br><span style="font-size:9px;color:#94a3b8">${esc(project.project_leader_contact)}</span>` : ""}
+      ${(clienteSignatario?.email || project?.project_leader_contact) ? `<br><span style="font-size:9px;color:#94a3b8">${esc(clienteSignatario?.email || project?.project_leader_contact)}</span>` : ""}
     </div>
   </div>
 </div>
@@ -275,6 +275,8 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
     selected_coordenadora_id: "",
     selected_lider_id: "",
     selected_gerente_id: "",
+    cliente_signatario_nome: "",
+    cliente_signatario_email: "",
   });
 
   const answersMap = buildAnswersMap(scopeItems);
@@ -302,6 +304,8 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
         selected_coordenadora_id: curr.selected_coordenadora_id || "",
         selected_lider_id: curr.selected_lider_id || "",
         selected_gerente_id: curr.selected_gerente_id || "",
+        cliente_signatario_nome: curr.cliente_signatario_nome || "",
+        cliente_signatario_email: curr.cliente_signatario_email || "",
       });
       if (curr.macro_schedule_snapshot) {
         try { setMacroPhases(JSON.parse(curr.macro_schedule_snapshot)); } catch {}
@@ -328,6 +332,8 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
       selected_coordenadora_id: formData.selected_coordenadora_id,
       selected_lider_id: formData.selected_lider_id,
       selected_gerente_id: formData.selected_gerente_id,
+      cliente_signatario_nome: formData.cliente_signatario_nome,
+      cliente_signatario_email: formData.cliente_signatario_email,
       ...extra,
     };
     let saved;
@@ -480,6 +486,8 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
       selected_coordenadora_id: form.selected_coordenadora_id,
       selected_lider_id: form.selected_lider_id,
       selected_gerente_id: form.selected_gerente_id,
+      cliente_signatario_nome: form.cliente_signatario_nome,
+      cliente_signatario_email: form.cliente_signatario_email,
       macro_schedule_snapshot: JSON.stringify(macroPhases),
       section_overrides: JSON.stringify(sectionOverrides),
     });
@@ -505,6 +513,10 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
         coordenadora: coordenadora ? { name: coordenadora.name, email: coordenadora.email } : null,
         liderImpl: liderImpl ? { name: liderImpl.name, email: liderImpl.email } : null,
         gerente: gerente ? { name: gerente.name, email: gerente.email } : null,
+        clienteSignatario: (form.cliente_signatario_nome || form.cliente_signatario_email) ? {
+          name: form.cliente_signatario_nome,
+          email: form.cliente_signatario_email,
+        } : null,
         sectionOverrides,
         usabilitySnap,
         scopeItems,
@@ -616,7 +628,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
 
             {canGeneratePDF && (
               <button
-                onClick={() => generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems: form.pending_items, finalConsiderations: form.final_considerations, selectedAdendosData, scopeItems, version: current, coordenadora, liderImpl, gerente, sectionOverrides })}
+                onClick={() => generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems: form.pending_items, finalConsiderations: form.final_considerations, selectedAdendosData, scopeItems, version: current, coordenadora, liderImpl, gerente, clienteSignatario: { name: form.cliente_signatario_nome, email: form.cliente_signatario_email }, sectionOverrides })}
                 className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors">
                 <Download className="w-3.5 h-3.5" /> Gerar PDF
               </button>
@@ -900,42 +912,94 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
             </div>
 
             {!isLocked && !readOnly && (
-              <div className="grid grid-cols-3 gap-4 mb-5">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">Coordenadora de implantação *</label>
-                  <select
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                    value={form.selected_coordenadora_id}
-                    onChange={e => setField("selected_coordenadora_id", e.target.value)}
-                  >
-                    <option value="">— Selecionar —</option>
-                    {coordenadorasList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
-                  {coordenadorasList.length === 0 && <p className="text-xs text-amber-600 mt-1">Nenhuma coordenadora cadastrada em Parametrizações.</p>}
+              <div className="space-y-4 mb-5">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Testemunha (Coordenadora ou Gerente) *</label>
+                    <select
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                      value={form.selected_coordenadora_id}
+                      onChange={e => setField("selected_coordenadora_id", e.target.value)}
+                    >
+                      <option value="">— Selecionar —</option>
+                      {coordenadorasList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                    {coordenadorasList.length === 0 && <p className="text-xs text-amber-600 mt-1">Nenhuma coordenadora cadastrada em Parametrizações.</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Líder de implantação *</label>
+                    <select
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                      value={form.selected_lider_id}
+                      onChange={e => setField("selected_lider_id", e.target.value)}
+                    >
+                      <option value="">— Selecionar —</option>
+                      {liderList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                    {liderList.length === 0 && <p className="text-xs text-amber-600 mt-1">Nenhum líder cadastrado em Parametrizações.</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Gerente de Operações</label>
+                    <select
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                      value={form.selected_gerente_id}
+                      onChange={e => setField("selected_gerente_id", e.target.value)}
+                    >
+                      <option value="">— Selecionar —</option>
+                      {gerenteList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                    {gerenteList.length === 0 && <p className="text-xs text-amber-600 mt-1">Nenhum gerente cadastrado em Parametrizações.</p>}
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">Líder de implantação (testemunha) *</label>
-                  <select
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                    value={form.selected_lider_id}
-                    onChange={e => setField("selected_lider_id", e.target.value)}
-                  >
-                    <option value="">— Selecionar —</option>
-                    {liderList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
-                  {liderList.length === 0 && <p className="text-xs text-amber-600 mt-1">Nenhum líder cadastrado em Parametrizações.</p>}
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">Gerente de Operações</label>
-                  <select
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                    value={form.selected_gerente_id}
-                    onChange={e => setField("selected_gerente_id", e.target.value)}
-                  >
-                    <option value="">— Selecionar —</option>
-                    {gerenteList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
-                  {gerenteList.length === 0 && <p className="text-xs text-amber-600 mt-1">Nenhum gerente cadastrado em Parametrizações.</p>}
+
+                {/* Cliente signer selector */}
+                <div className="border-t border-slate-100 pt-4">
+                  <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Signatário do Cliente</p>
+                  <p className="text-xs text-slate-400 mb-3">Selecione um responsável do projeto para assinar como representante do cliente.</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">Nome</label>
+                      <select
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                        value={form.cliente_signatario_nome}
+                        onChange={e => {
+                          const nome = e.target.value;
+                          const contatos = [
+                            { nome: project?.project_leader_name, email: project?.project_leader_email },
+                            { nome: project?.sponsor_name, email: project?.sponsor_email },
+                            { nome: project?.operation_name, email: project?.operation_email },
+                            { nome: project?.ti_client_name, email: project?.ti_client_email },
+                          ];
+                          const match = contatos.find(c => c.nome === nome);
+                          setForm(f => ({
+                            ...f,
+                            cliente_signatario_nome: nome,
+                            cliente_signatario_email: match?.email || f.cliente_signatario_email,
+                          }));
+                        }}
+                      >
+                        <option value="">— Selecionar —</option>
+                        {[
+                          project?.project_leader_name,
+                          project?.sponsor_name,
+                          project?.operation_name,
+                          project?.ti_client_name,
+                        ].filter(Boolean).map(nome => (
+                          <option key={nome} value={nome}>{nome}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">E-mail</label>
+                      <input
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                        value={form.cliente_signatario_email}
+                        onChange={e => setForm(f => ({ ...f, cliente_signatario_email: e.target.value }))}
+                        onBlur={handleBlurSave}
+                        placeholder="email@cliente.com"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -945,33 +1009,47 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
             </p>
 
             <div className="grid grid-cols-4 gap-4">
-              {/* Coordenadora Pontotel */}
-              <div className="border border-slate-200 rounded-lg p-4 text-center">
-                <div className="h-10 border-b border-slate-300 mb-3" />
-                <p className="text-sm font-semibold text-slate-700">{coordenadora?.name || <span className="text-amber-500 italic">Não selecionada</span>}</p>
-                <p className="text-xs text-slate-400 mt-0.5">Pontotel · Coordenadora de implantação</p>
-                {coordenadora?.email && <p className="text-xs text-slate-300 mt-0.5">{coordenadora.email}</p>}
+              {/* Testemunha: Coordenadora OU Gerente */}
+              <div className="border border-purple-200 bg-purple-50 rounded-lg p-4 text-center">
+                <div className="h-10 border-b border-purple-300 mb-3" />
+                <p className="text-sm font-semibold text-slate-700">
+                  {coordenadora?.name || gerente?.name || <span className="text-amber-500 italic">Não selecionada</span>}
+                </p>
+                <p className="text-xs text-slate-400 mt-0.5">Pontotel · Testemunha</p>
+                {(coordenadora?.email || gerente?.email) && <p className="text-xs text-slate-300 mt-0.5">{coordenadora?.email || gerente?.email}</p>}
               </div>
-              {/* Líder de implantação (testemunha) */}
+              {/* Líder de implantação */}
               <div className="border border-slate-200 rounded-lg p-4 text-center">
                 <div className="h-10 border-b border-slate-300 mb-3" />
                 <p className="text-sm font-semibold text-slate-700">{liderImpl?.name || <span className="text-amber-500 italic">Não selecionado</span>}</p>
-                <p className="text-xs text-slate-400 mt-0.5">Pontotel · Líder de implantação (testemunha)</p>
+                <p className="text-xs text-slate-400 mt-0.5">Pontotel · Líder de implantação</p>
                 {liderImpl?.email && <p className="text-xs text-slate-300 mt-0.5">{liderImpl.email}</p>}
               </div>
-              {/* Gerente de Operações */}
+              {/* Gerente de Operações (se não usado como testemunha) */}
               <div className="border border-slate-200 rounded-lg p-4 text-center">
                 <div className="h-10 border-b border-slate-300 mb-3" />
-                <p className="text-sm font-semibold text-slate-700">{gerente?.name || <span className="text-slate-400 italic">Não selecionado</span>}</p>
+                <p className="text-sm font-semibold text-slate-700">
+                  {coordenadora?.email && gerente?.email ? (
+                    <>{gerente.name}</>
+                  ) : !coordenadora?.email && gerente?.email ? (
+                    <span className="text-slate-400 italic">Usado como testemunha</span>
+                  ) : (
+                    <span className="text-slate-400 italic">Não selecionado</span>
+                  )}
+                </p>
                 <p className="text-xs text-slate-400 mt-0.5">Pontotel · Gerente de Operações</p>
-                {gerente?.email && <p className="text-xs text-slate-300 mt-0.5">{gerente.email}</p>}
+                {coordenadora?.email && gerente?.email && <p className="text-xs text-slate-300 mt-0.5">{gerente.email}</p>}
               </div>
-              {/* Líder do Projeto - Cliente */}
+              {/* Cliente */}
               <div className="border border-green-200 bg-green-50 rounded-lg p-4 text-center">
                 <div className="h-10 border-b border-green-300 mb-3" />
-                <p className="text-sm font-semibold text-slate-700">{project?.project_leader_name || <span className="text-slate-400 italic">Não cadastrado</span>}</p>
+                <p className="text-sm font-semibold text-slate-700">
+                  {form.cliente_signatario_nome || project?.project_leader_name || <span className="text-slate-400 italic">Não definido</span>}
+                </p>
                 <p className="text-xs text-slate-400 mt-0.5">{project?.client_name} · Líder do Projeto</p>
-                {project?.project_leader_contact && <p className="text-xs text-slate-300 mt-0.5">{project.project_leader_contact}</p>}
+                {(form.cliente_signatario_email || project?.project_leader_email) && (
+                  <p className="text-xs text-slate-300 mt-0.5">{form.cliente_signatario_email || project?.project_leader_email}</p>
+                )}
               </div>
             </div>
           </Section>
