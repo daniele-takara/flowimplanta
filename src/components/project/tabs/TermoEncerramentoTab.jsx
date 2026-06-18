@@ -147,19 +147,12 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
   </div>
 </div>
 
+${((project?.contracted_modules || []).length > 0 || (project?.contracted_services || []).length > 0) ? `
 <div class="section">
   <div class="section-title">ESCOPO CONTRATADO</div>
-  <div class="card">
-    <strong style="font-size:10px">Módulos:</strong><br>
-    ${(project?.contracted_modules || []).map(m => `<span class="tag-ok">${esc(m)}</span>`).join("")}
-    ${(project?.contracted_modules || []).length === 0 ? "<span style='color:#94a3b8'>Nenhum</span>" : ""}
-  </div>
-  <div class="card" style="margin-top:6px">
-    <strong style="font-size:10px">Serviços:</strong><br>
-    ${(project?.contracted_services || []).map(s => `<span class="tag-ok">${esc(s)}</span>`).join("")}
-    ${(project?.contracted_services || []).length === 0 ? "<span style='color:#94a3b8'>Nenhum</span>" : ""}
-  </div>
-</div>
+  ${(project?.contracted_modules || []).length > 0 ? `<div class="card"><strong style="font-size:10px">Módulos:</strong><br>${(project.contracted_modules).map(m => `<span class="tag-ok">${esc(m)}</span>`).join("")}</div>` : ""}
+  ${(project?.contracted_services || []).length > 0 ? `<div class="card" style="margin-top:6px"><strong style="font-size:10px">Serviços:</strong><br>${(project.contracted_services).map(s => `<span class="tag-ok">${esc(s)}</span>`).join("")}</div>` : ""}
+</div>` : ""}
 
 <div class="section">
   <div class="section-title">CRONOGRAMA PLANEJADO VS REALIZADO</div>
@@ -169,23 +162,26 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
   </table>
 </div>
 
+${pendingItems && pendingItems.length > 0 ? `
 <div class="section">
   <div class="section-title">PENDÊNCIAS</div>
   <table>
     <tr><th>Pendência</th><th>Responsável</th><th>Prazo</th><th>Plano de Ação</th></tr>
     ${pendingRows}
   </table>
-</div>
+</div>` : ""}
 
+${selectedAdendosData && selectedAdendosData.length > 0 ? `
 <div class="section">
   <div class="section-title">ADENDOS</div>
   ${adendosHTML}
-</div>
+</div>` : ""}
 
+${finalConsiderations ? `
 <div class="section">
   <div class="section-title">CONSIDERAÇÕES FINAIS</div>
-  <div class="text-block">${esc(finalConsiderations) || "—"}</div>
-</div>
+  <div class="text-block">${esc(finalConsiderations)}</div>
+</div>` : ""}
 
 <div class="section">
   <div class="section-title">ACEITE FORMAL</div>
