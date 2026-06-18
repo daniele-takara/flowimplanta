@@ -215,17 +215,18 @@ ${finalConsiderations ? `
   <div class="sig">
     <div class="sig-box">
       <div class="line"></div>
-      <strong>${esc(coordenadora?.name || gerente?.name) || "Testemunha"}</strong><br>
-      <span style="font-size:10px;color:#64748b">Pontotel · Testemunha</span>
-      ${(coordenadora?.email || gerente?.email) ? `<br><span style="font-size:9px;color:#94a3b8">${esc(coordenadora?.email || gerente?.email)}</span>` : ""}
-    </div>
-    <div class="sig-box">
-      <div class="line"></div>
       <strong>${esc(liderImpl?.name) || "Líder de Implantação"}</strong><br>
-      <span style="font-size:10px;color:#64748b">Pontotel · Líder de implantação</span>
+      <span style="font-size:10px;color:#64748b">Pontotel · Testemunha</span>
       ${liderImpl?.email ? `<br><span style="font-size:9px;color:#94a3b8">${esc(liderImpl.email)}</span>` : ""}
     </div>
-    ${gerente && coordenadora?.email ? `
+    ${coordenadora?.email ? `
+    <div class="sig-box">
+      <div class="line"></div>
+      <strong>${esc(coordenadora.name) || "Coordenadora de Implantação"}</strong><br>
+      <span style="font-size:10px;color:#64748b">Pontotel · Coordenadora de implantação</span>
+      ${coordenadora.email ? `<br><span style="font-size:9px;color:#94a3b8">${esc(coordenadora.email)}</span>` : ""}
+    </div>` : ""}
+    ${gerente?.email ? `
     <div class="sig-box">
       <div class="line"></div>
       <strong>${esc(gerente.name) || "Gerente de Operações"}</strong><br>
@@ -915,19 +916,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
               <div className="space-y-4 mb-5">
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">Testemunha (Coordenadora ou Gerente) *</label>
-                    <select
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                      value={form.selected_coordenadora_id}
-                      onChange={e => setField("selected_coordenadora_id", e.target.value)}
-                    >
-                      <option value="">— Selecionar —</option>
-                      {coordenadorasList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                    </select>
-                    {coordenadorasList.length === 0 && <p className="text-xs text-amber-600 mt-1">Nenhuma coordenadora cadastrada em Parametrizações.</p>}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">Líder de implantação *</label>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Líder de implantação (Testemunha) *</label>
                     <select
                       className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
                       value={form.selected_lider_id}
@@ -937,6 +926,18 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
                       {liderList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                     </select>
                     {liderList.length === 0 && <p className="text-xs text-amber-600 mt-1">Nenhum líder cadastrado em Parametrizações.</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Coordenadora de implantação</label>
+                    <select
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                      value={form.selected_coordenadora_id}
+                      onChange={e => setField("selected_coordenadora_id", e.target.value)}
+                    >
+                      <option value="">— Selecionar —</option>
+                      {coordenadorasList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                    {coordenadorasList.length === 0 && <p className="text-xs text-amber-600 mt-1">Nenhuma coordenadora cadastrada em Parametrizações.</p>}
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 mb-1">Gerente de Operações</label>
@@ -1009,36 +1010,32 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
             </p>
 
             <div className="grid grid-cols-4 gap-4">
-              {/* Testemunha: Coordenadora OU Gerente */}
+              {/* Líder de implantação (Testemunha) */}
               <div className="border border-purple-200 bg-purple-50 rounded-lg p-4 text-center">
                 <div className="h-10 border-b border-purple-300 mb-3" />
                 <p className="text-sm font-semibold text-slate-700">
-                  {coordenadora?.name || gerente?.name || <span className="text-amber-500 italic">Não selecionada</span>}
+                  {liderImpl?.name || <span className="text-amber-500 italic">Não selecionado</span>}
                 </p>
                 <p className="text-xs text-slate-400 mt-0.5">Pontotel · Testemunha</p>
-                {(coordenadora?.email || gerente?.email) && <p className="text-xs text-slate-300 mt-0.5">{coordenadora?.email || gerente?.email}</p>}
-              </div>
-              {/* Líder de implantação */}
-              <div className="border border-slate-200 rounded-lg p-4 text-center">
-                <div className="h-10 border-b border-slate-300 mb-3" />
-                <p className="text-sm font-semibold text-slate-700">{liderImpl?.name || <span className="text-amber-500 italic">Não selecionado</span>}</p>
-                <p className="text-xs text-slate-400 mt-0.5">Pontotel · Líder de implantação</p>
                 {liderImpl?.email && <p className="text-xs text-slate-300 mt-0.5">{liderImpl.email}</p>}
               </div>
-              {/* Gerente de Operações (se não usado como testemunha) */}
+              {/* Coordenadora de implantação */}
               <div className="border border-slate-200 rounded-lg p-4 text-center">
                 <div className="h-10 border-b border-slate-300 mb-3" />
                 <p className="text-sm font-semibold text-slate-700">
-                  {coordenadora?.email && gerente?.email ? (
-                    <>{gerente.name}</>
-                  ) : !coordenadora?.email && gerente?.email ? (
-                    <span className="text-slate-400 italic">Usado como testemunha</span>
-                  ) : (
-                    <span className="text-slate-400 italic">Não selecionado</span>
-                  )}
+                  {coordenadora?.name || <span className="text-slate-400 italic">Não selecionada</span>}
+                </p>
+                <p className="text-xs text-slate-400 mt-0.5">Pontotel · Coordenadora de implantação</p>
+                {coordenadora?.email && <p className="text-xs text-slate-300 mt-0.5">{coordenadora.email}</p>}
+              </div>
+              {/* Gerente de Operações */}
+              <div className="border border-slate-200 rounded-lg p-4 text-center">
+                <div className="h-10 border-b border-slate-300 mb-3" />
+                <p className="text-sm font-semibold text-slate-700">
+                  {gerente?.name || <span className="text-slate-400 italic">Não selecionado</span>}
                 </p>
                 <p className="text-xs text-slate-400 mt-0.5">Pontotel · Gerente de Operações</p>
-                {coordenadora?.email && gerente?.email && <p className="text-xs text-slate-300 mt-0.5">{gerente.email}</p>}
+                {gerente?.email && <p className="text-xs text-slate-300 mt-0.5">{gerente.email}</p>}
               </div>
               {/* Cliente */}
               <div className="border border-green-200 bg-green-50 rounded-lg p-4 text-center">

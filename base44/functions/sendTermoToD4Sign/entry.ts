@@ -129,39 +129,28 @@ Deno.serve(async (req) => {
 
 // ─── Build signers array ──────────────────────────────────────
 // Ordem de assinatura (sequencial):
-// 1. Testemunha (act=5): Coordenadora (se selecionada) OU Gerente (se selecionado e sem coordenadora)
-// 2. Líder de implantação → act=1
-// 3. Gerente de Operações → act=1 (se não usado como testemunha)
+// 1. Testemunha (act=5): Líder de implantação
+// 2. Coordenadora de implantação → act=1
+// 3. Gerente de Operações → act=1
 // 4. Cliente → act=1
 function buildSigners(project, coordenadora, liderImpl, gerente, clienteSignatario) {
   const list = [];
-  let usedWitness = false;
 
-  // 1. Testemunha (act=5): coordenadora OU gerente
-  if (coordenadora?.email) {
-    list.push({
-      email: coordenadora.email,
-      act: "5",
-      foreign: "0",
-      certificadoicpbr: "0",
-      assinatura_presencial: "0",
-    });
-    usedWitness = true;
-  } else if (gerente?.email) {
-    list.push({
-      email: gerente.email,
-      act: "5",
-      foreign: "0",
-      certificadoicpbr: "0",
-      assinatura_presencial: "0",
-    });
-    usedWitness = true;
-  }
-
-  // 2. Líder de implantação (act=1)
+  // 1. Testemunha (act=5): Líder de implantação
   if (liderImpl?.email) {
     list.push({
       email: liderImpl.email,
+      act: "5",
+      foreign: "0",
+      certificadoicpbr: "0",
+      assinatura_presencial: "0",
+    });
+  }
+
+  // 2. Coordenadora de implantação (act=1)
+  if (coordenadora?.email) {
+    list.push({
+      email: coordenadora.email,
       act: "1",
       foreign: "0",
       certificadoicpbr: "0",
@@ -169,8 +158,8 @@ function buildSigners(project, coordenadora, liderImpl, gerente, clienteSignatar
     });
   }
 
-  // 3. Gerente (act=1) — apenas se não usado como testemunha
-  if (gerente?.email && !usedWitness) {
+  // 3. Gerente de Operações (act=1)
+  if (gerente?.email) {
     list.push({
       email: gerente.email,
       act: "1",
@@ -363,15 +352,14 @@ function generatePDF({
   y += 12;
 
   const clienteNome = clienteSignatario?.name || project?.project_leader_name || "Líder do Projeto";
-  const isWitnessCoordenadora = !!coordenadora?.email;
-  const witnessName = isWitnessCoordenadora ? coordenadora?.name : gerente?.name;
   
   const sigBoxes = [
-    { name: witnessName || "Testemunha", role: "Testemunha" },
-    { name: liderImpl?.name || "Líder de Implantação", role: "Líder de implantação" },
+    { name: liderImpl?.name || "Líder de Implantação", role: "Testemunha" },
   ];
-  // Gerente como signatário apenas se coordenadora é a testemunha e gerente também está selecionado
-  if (isWitnessCoordenadora && gerente?.email) {
+  if (coordenadora?.email) {
+    sigBoxes.push({ name: coordenadora.name, role: "Coordenadora de implantação" });
+  }
+  if (gerente?.email) {
     sigBoxes.push({ name: gerente.name, role: "Gerente de Operações" });
   }
   sigBoxes.push({ name: clienteNome, role: `${clientName} · Líder do Projeto` });
