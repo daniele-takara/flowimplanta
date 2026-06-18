@@ -1,11 +1,25 @@
 import { useState, useMemo } from "react";
 import { X, Save } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { RESPONSIBLE_ROLE_LABELS, RESPONSIBLE_ROLE_OPTIONS, resolveRoleToName } from "@/lib/resolveResponsibleRole.js";
 
 const STATUS_OPTIONS = ["Não iniciado", "Em andamento", "Concluído", "Atrasado", "Bloqueado", "Cancelado"];
 
 const inputClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";
 const labelClass = "block text-xs font-semibold text-slate-500 mb-1";
+
+const RESP_GERAL_OPTIONS = [
+  { value: "Pontotel", label: "Pontotel" },
+  { value: "Cliente", label: "Cliente" },
+  { value: "Pontotel e Cliente", label: "Pontotel e Cliente" },
+];
+
+function buildRoleOptions(project) {
+  return RESPONSIBLE_ROLE_OPTIONS.map(({ value: role, label }) => {
+    const name = resolveRoleToName(role, project);
+    return { value: role, label: name ? `${label}: ${name}` : label };
+  });
+}
 
 const positionOptions = [
   { value: "first", label: "No início" },
@@ -23,7 +37,7 @@ function Field({ label, children }) {
   );
 }
 
-export default function AddPhaseModal({ projectId, phase, existingPhases = [], onSave, onClose }) {
+export default function AddPhaseModal({ projectId, phase, existingPhases = [], onSave, onClose, project }) {
   const isEditing = !!phase?.id;
 
   const [form, setForm] = useState({
@@ -171,10 +185,16 @@ export default function AddPhaseModal({ projectId, phase, existingPhases = [], o
 
           <div className="grid grid-cols-2 gap-4">
             <Field label="Responsável geral">
-              <input value={form.responsible_general} onChange={set("responsible_general")} className={inputClass} placeholder="Nome ou equipe" />
+              <select value={form.responsible_general} onChange={set("responsible_general")} className={inputClass}>
+                <option value="">Selecione...</option>
+                {RESP_GERAL_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
             </Field>
             <Field label="Papel / Líder">
-              <input value={form.responsible_leader} onChange={set("responsible_leader")} className={inputClass} placeholder="Ex: Analista de Implantação" />
+              <select value={form.responsible_leader} onChange={set("responsible_leader")} className={inputClass}>
+                <option value="">Selecione...</option>
+                {buildRoleOptions(project).map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
             </Field>
           </div>
 

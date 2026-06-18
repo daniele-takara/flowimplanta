@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { SCHEDULE_TASKS, PHASE_ORDER } from "@/lib/scheduleTasks.js";
 import { computeSchedule } from "@/lib/scheduleEngine.js";
-import { resolveRoleToName, RESPONSIBLE_ROLE_LABELS, resolveGeneralResponsible } from "@/lib/resolveResponsibleRole.js";
+import { resolveRoleToName, RESPONSIBLE_ROLE_LABELS, RESPONSIBLE_ROLE_OPTIONS, resolveGeneralResponsible, RESPONSIBLE_GENERAL_TYPE_OPTIONS } from "@/lib/resolveResponsibleRole.js";
 import AddActivityModal from "./schedule/AddActivityModal.jsx";
 import LocalActivityRow from "./schedule/LocalActivityRow.jsx";
 import AddPhaseModal from "./schedule/AddPhaseModal.jsx";
@@ -35,6 +35,19 @@ function buildAnswersMap(scopeItems) {
 }
 
 const STATUS_OPTIONS = ["Não iniciado", "Em andamento", "Concluído", "Atrasado", "Bloqueado", "Cancelado"];
+
+const RESP_GERAL_OPTIONS = [
+  { value: "Pontotel", label: "Pontotel" },
+  { value: "Cliente", label: "Cliente" },
+  { value: "Pontotel e Cliente", label: "Pontotel e Cliente" },
+];
+
+function buildRoleOptions(project) {
+  return RESPONSIBLE_ROLE_OPTIONS.map(({ value: role, label }) => {
+    const name = resolveRoleToName(role, project);
+    return { value: role, label: name ? `${label}: ${name}` : label };
+  });
+}
 const STATUS_COLORS = {
   "Não iniciado": "bg-slate-100 text-slate-500",
   "Em andamento": "bg-blue-100 text-blue-700",
@@ -267,16 +280,26 @@ function TaskRow({
           }
         </td>
 
-        <td className="px-1 py-2.5 max-w-[120px]">
+        <td className="px-1 py-2.5 max-w-[140px]">
           {editing
-            ? <input value={form.responsible_general} onChange={e => setForm(f => ({ ...f, responsible_general: e.target.value }))} className={inputClass} placeholder="Responsável" />
+            ? (
+              <select value={form.responsible_general} onChange={e => setForm(f => ({ ...f, responsible_general: e.target.value }))} className={inputClass}>
+                <option value="">Selecione...</option>
+                {RESP_GERAL_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
+            )
             : <span className="text-xs text-slate-500 truncate block">{resolvedGeneralName || form.responsible_general || "—"}</span>
           }
         </td>
 
-        <td className="px-1 py-2.5 max-w-[120px]">
+        <td className="px-1 py-2.5 max-w-[140px]">
           {editing
-            ? <input value={form.responsible_leader} onChange={e => setForm(f => ({ ...f, responsible_leader: e.target.value }))} className={inputClass} placeholder="Líder" />
+            ? (
+              <select value={form.responsible_leader} onChange={e => setForm(f => ({ ...f, responsible_leader: e.target.value }))} className={inputClass}>
+                <option value="">Selecione...</option>
+                {buildRoleOptions(project).map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
+            )
             : resolvedRoleName
               ? <div>
                   <span className="text-xs font-medium text-slate-700 block truncate">{resolvedRoleName}</span>
@@ -1261,6 +1284,7 @@ export default function ScheduleTab({
       {/* Modal adicionar/editar fase */}
       {showAddPhaseModal && (
         <AddPhaseModal
+          project={project}
           projectId={projectId}
           phase={editingPhase}
           existingPhases={[...new Set([
