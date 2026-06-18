@@ -405,24 +405,52 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
   // Atualizar dados automáticos
   const handleRefresh = async () => {
     setRefreshing(true);
-    const overrides = (() => { try { return JSON.parse(localStorage.getItem(`schedule_overrides_${projectId}`) || "{}"); } catch { return {}; } })();
-    const { macroPhases: phases } = computeMacroSchedule(overrides, answersMap, project, savedActivities || []);
-    setMacroPhases(phases);
+    try {
+      // Carregar overrides do banco (fonte de verdade) e localStorage (fallback)
+      const dbOverrides = project?.schedule_overrides && typeof project.schedule_overrides === "object" && !Array.isArray(project.schedule_overrides)
+        ? project.schedule_overrides : {};
+      let localOverrides = {};
+      try { localOverrides = JSON.parse(localStorage.getItem(`schedule_overrides_${projectId}`) || "{}"); } catch {}
+      const mergedOverrides = { ...dbOverrides };
+      Object.entries(localOverrides).forEach(([k, v]) => { mergedOverrides[k] = { ...(mergedOverrides[k] || {}), ...v }; });
 
-    // Buscar usabilidade do último report
-    const latestReport = reports?.[0];
-    let usability = null;
-    if (latestReport?.usability_snapshot) {
-      try { usability = JSON.parse(latestReport.usability_snapshot); } catch {}
+      // Carregar phaseOverrides (inativações de fases do template) e fases locais
+      let phaseOverridesMap = {};
+      let localPhasesList = [];
+      try {
+        const [phaseOverrideList, localPhaseList] = await Promise.all([
+          base44.entities.SchedulePhaseOverride.filter({ project_id: projectId }),
+          base44.entities.LocalSchedulePhase.filter({ project_id: projectId }),
+        ]);
+        (phaseOverrideList || []).forEach(o => { phaseOverridesMap[o.phase_name] = o; });
+        localPhasesList = localPhaseList || [];
+      } catch (e) {
+        console.warn("[TermoEncerramentoTab] Erro ao carregar overrides de fase:", e);
+      }
+
+      const { macroPhases: phases } = computeMacroSchedule(
+        mergedOverrides, answersMap, project, savedActivities || [],
+        phaseOverridesMap, localPhasesList, mergedOverrides
+      );
+      setMacroPhases(phases);
+
+      // Buscar usabilidade do último report
+      const latestReport = reports?.[0];
+      let usability = null;
+      if (latestReport?.usability_snapshot) {
+        try { usability = JSON.parse(latestReport.usability_snapshot); } catch {}
+      }
+      setUsabilitySnap(usability);
+
+      const autoSnapshot = JSON.stringify({ usability });
+      await save(form, {
+        macro_schedule_snapshot: JSON.stringify(phases),
+        auto_data_snapshot: autoSnapshot,
+        last_auto_update: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.error("[TermoEncerramentoTab] Erro ao atualizar:", e);
     }
-    setUsabilitySnap(usability);
-
-    const autoSnapshot = JSON.stringify({ usability });
-    await save(form, {
-      macro_schedule_snapshot: JSON.stringify(phases),
-      auto_data_snapshot: autoSnapshot,
-      last_auto_update: new Date().toISOString(),
-    });
     setRefreshing(false);
   };
 
