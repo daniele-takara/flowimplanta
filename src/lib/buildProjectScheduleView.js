@@ -121,13 +121,17 @@ export function buildProjectScheduleView({
       if (task.type !== "task") return;
       if (!visible.has(task.id)) return;
 
+      const act = activityByTaskId[task.id] || {};
+      // Pular atividades inativadas neste projeto — não contam para progresso
+      const isInactivated = act.status === "Cancelado" && (act.history_observations || "").includes("[INATIVADO]");
+      if (isInactivated) return;
+
       const phaseName = task.phase;
       if (!templatePhaseData[phaseName]) {
         templatePhaseData[phaseName] = { tasks: [] };
       }
 
       const d = computedDates[task.id] || {};
-      const act = activityByTaskId[task.id] || {};
 
       templatePhaseData[phaseName].tasks.push({
         taskId: task.id,
@@ -219,9 +223,11 @@ export function buildProjectScheduleView({
     const localPhaseViews = sortedLocalPhases.map((phase, idx) => {
       const isActive = phase.is_active !== false;
 
-      // Atividades locais desta fase (sem correspondência no template)
+      // Atividades locais desta fase (sem correspondência no template, excluindo inativadas)
       const phaseActivities = savedActivities.filter(a => {
         if (a.phase_name !== phase.phase_name) return false;
+        // Pular atividades inativadas
+        if (a.status === "Cancelado" && (a.history_observations || "").includes("[INATIVADO]")) return false;
         const normA = norm(a.activity_name || "");
         const inTemplate = SCHEDULE_TASKS.some(t => {
           const nt = norm(t.activity);

@@ -130,6 +130,9 @@ function _legacyComputeMacroSchedule(overrides, answersMap, project, savedActivi
     if (!groups[macroPhase]) groups[macroPhase] = [];
     const taskDates = dates[task.id] || {};
     const saved = activityByName[task.activity] || {};
+    // Pular atividades inativadas neste projeto
+    const isInactivated = saved.status === "Cancelado" && (saved.history_observations || "").includes("[INATIVADO]");
+    if (isInactivated) return;
     groups[macroPhase].push({
       plannedStart: taskDates.plannedStart || null,
       plannedEnd: taskDates.plannedEnd || null,

@@ -1116,7 +1116,12 @@ export default function ScheduleTab({
           )}
           {!readOnly && canRecalculate && (
             <CompleteProjectButton onComplete={async () => {
-              const all = SCHEDULE_TASKS.filter(t => t.type === "task" && visible.has(t.id));
+              const all = SCHEDULE_TASKS.filter(t => {
+                if (t.type !== "task" || !visible.has(t.id)) return false;
+                const act = activitiesByTask[t.id];
+                const isInactivated = act?.status === "Cancelado" && (act?.history_observations || "").includes("[INATIVADO]");
+                return !isInactivated;
+              });
               await handleCompleteAsTasks(all);
             }} />
           )}
