@@ -127,13 +127,18 @@ Deno.serve(async (req) => {
 });
 
 // ─── Build signers array ──────────────────────────────────────
+// Ordem de assinatura (sequencial):
+// 1. Coordenadora → testemunha (act=5)
+// 2. Líder de implantação → assinar (act=1)
+// 3. Gerente de Operações → assinar (act=1)
+// 4. Líder do Projeto (cliente) → assinar (act=1)
 function buildSigners(project, coordenadora, liderImpl, gerente) {
   const list = [];
 
   if (coordenadora?.email) {
     list.push({
       email: coordenadora.email,
-      act: "1",
+      act: "5", // Assinar como testemunha
       foreign: "0",
       certificadoicpbr: "0",
       assinatura_presencial: "0",
@@ -142,7 +147,7 @@ function buildSigners(project, coordenadora, liderImpl, gerente) {
   if (liderImpl?.email) {
     list.push({
       email: liderImpl.email,
-      act: "1",
+      act: "1", // Assinar
       foreign: "0",
       certificadoicpbr: "0",
       assinatura_presencial: "0",
@@ -151,7 +156,7 @@ function buildSigners(project, coordenadora, liderImpl, gerente) {
   if (gerente?.email) {
     list.push({
       email: gerente.email,
-      act: "1",
+      act: "1", // Assinar
       foreign: "0",
       certificadoicpbr: "0",
       assinatura_presencial: "0",
@@ -160,7 +165,7 @@ function buildSigners(project, coordenadora, liderImpl, gerente) {
   if (project?.project_leader_email) {
     list.push({
       email: project.project_leader_email,
-      act: "1",
+      act: "1", // Assinar
       foreign: "0",
       certificadoicpbr: "0",
       assinatura_presencial: "0",
@@ -336,10 +341,11 @@ function generatePDF({
   doc.text(`Ao assinar este documento, as partes declaram estar de acordo com os termos e condições do encerramento do projeto de implantação da Pontotel para ${clientName}.`, margin, y, { maxWidth: pw });
   y += 12;
 
-  const sigW = (pw - 20) / 3;
+  const sigW = (pw - 30) / 4;
   const sigs = [
-    { name: coordenadora?.name || "Coordenadora", role: "Coordenadora de implantação" },
-    { name: liderImpl?.name || "Líder de Implantação", role: "Líder de implantação (testemunha)" },
+    { name: coordenadora?.name || "Coordenadora", role: "Coordenadora de implantação (testemunha)" },
+    { name: liderImpl?.name || "Líder de Implantação", role: "Líder de implantação" },
+    { name: gerente?.name || "Gerente de Operações", role: "Gerente de Operações" },
     { name: project?.project_leader_name || "Líder do Projeto", role: `${clientName} · Líder do Projeto` },
   ];
   sigs.forEach((s, i) => {
