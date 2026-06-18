@@ -1050,6 +1050,9 @@ export default function ScheduleTab({
 
   const anchors = SCHEDULE_TASKS.filter(t => t.plannedStart?.type === "anchor");
   const anchorsSavedInDB = project?.schedule_anchor_dates && Object.values(project.schedule_anchor_dates).some(Boolean);
+
+  // Estado local para edição silenciosa das âncoras (blur-based save)
+  const [anchorEditValues, setAnchorEditValues] = useState({});
   const inactiveLocalCount = localPhases.filter(p => p.is_active === false).length;
   const inactiveTemplatePhaseCount = Object.values(phaseOverrides).filter(o => o.is_active === false).length;
   const inactiveActivityCount = savedActivities.filter(a =>
@@ -1159,14 +1162,30 @@ export default function ScheduleTab({
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {anchors.map(anchor => {
-            const currentVal = manualOverrides[anchor.id]?.plannedStart || computedDates[anchor.id]?.plannedStart || "";
+            const persistedVal = manualOverrides[anchor.id]?.plannedStart || computedDates[anchor.id]?.plannedStart || "";
+            const displayVal = anchorEditValues[anchor.id] !== undefined ? anchorEditValues[anchor.id] : persistedVal;
             return (
               <div key={anchor.id} className="bg-white rounded-lg p-3 border border-amber-200">
                 <p className="text-xs font-semibold text-amber-700 mb-1 leading-tight">{anchor.activity}</p>
                 <input
                   type="date"
-                  value={currentVal}
-                  onChange={e => { if (!readOnly && canEditPlanned) handleSaveOverride(anchor.id, { plannedStart: e.target.value, _origin: { plannedStart: "manual" } }); }}
+                  value={displayVal}
+                  onChange={e => {
+                    if (readOnly || !canEditPlanned) return;
+                    setAnchorEditValues(prev => ({ ...prev, [anchor.id]: e.target.value }));
+                  }}
+                  onBlur={e => {
+                    if (readOnly || !canEditPlanned) return;
+                    const newVal = e.target.value;
+                    if (newVal !== persistedVal) {
+                      handleSaveOverride(anchor.id, { plannedStart: newVal, _origin: { plannedStart: "manual" } });
+                    }
+                    setAnchorEditValues(prev => {
+                      const next = { ...prev };
+                      delete next[anchor.id];
+                      return next;
+                    });
+                  }}
                   readOnly={readOnly || !canEditPlanned}
                   disabled={readOnly || !canEditPlanned}
                   className={`w-full px-2 py-1 text-xs border border-amber-200 rounded focus:outline-none focus:ring-1 focus:ring-amber-400 ${(readOnly || !canEditPlanned) ? "bg-slate-50 cursor-not-allowed opacity-70" : "bg-white"}`}
