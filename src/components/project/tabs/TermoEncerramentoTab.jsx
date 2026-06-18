@@ -239,7 +239,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
   const [refreshing, setRefreshing] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
   const savedTimer = useRef(null);
-  const formRef = useRef(form);
+  const formRef = useRef(null);
 
   const [form, setForm] = useState({
     pending_items: [],
