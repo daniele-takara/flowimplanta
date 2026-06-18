@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     const docUuid = uploadData.uuid;
 
     // 4. Register signers
-    const signers = buildSigners(project, coordenadora, liderImpl, gerente, clienteSignatario);
+    const { signers, signerNames } = buildSigners(project, coordenadora, liderImpl, gerente, clienteSignatario);
     if (signers.length === 0) {
       return Response.json({ error: "Nenhum signatário definido" }, { status: 400 });
     }
@@ -86,7 +86,23 @@ Deno.serve(async (req) => {
       }
     );
     const signersData = await signersResp.json();
-    // createlist returns message on success
+
+    // 4b. Associar cada signatário à posição reservada via addinfo (key_signer + display_name)
+    for (const s of signers) {
+      const displayName = signerNames[s.email] || "";
+      await fetch(
+        `${D4SIGN_BASE}/documents/${docUuid}/addinfo?${authParams}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            key_signer: s.email,
+            email: s.email,
+            display_name: displayName,
+          }),
+        }
+      );
+    }
 
     // 5. Send for signing
     const sendResp = await fetch(
@@ -136,12 +152,14 @@ Deno.serve(async (req) => {
 function buildSigners(project, coordenadora, liderImpl, gerente, clienteSignatario) {
   const list = [];
   const seen = new Set();
+  const names = {}; // email → display_name
 
-  const addSigner = (email, act) => {
+  const addSigner = (email, act, displayName) => {
     if (!email) return;
     const key = String(email).trim().toLowerCase();
     if (!key || seen.has(key)) return; // evita e-mail duplicado
     seen.add(key);
+    names[key] = displayName || "";
     list.push({
       email: key,
       act,
@@ -152,15 +170,17 @@ function buildSigners(project, coordenadora, liderImpl, gerente, clienteSignatar
   };
 
   // 1. Testemunha (act=5): Líder de implantação
-  addSigner(liderImpl?.email, "5");
+  addSigner(liderImpl?.email, "5", liderImpl?.name);
   // 2. Coordenadora de implantação (act=1)
-  addSigner(coordenadora?.email, "1");
+  addSigner(coordenadora?.email, "1", coordenadora?.name);
   // 3. Gerente de Operações (act=1)
-  addSigner(gerente?.email, "1");
+  addSigner(gerente?.email, "1", gerente?.name);
   // 4. Cliente (act=1)
-  addSigner(clienteSignatario?.email || project?.project_leader_email, "1");
+  const cliEmail = clienteSignatario?.email || project?.project_leader_email;
+  const cliName = clienteSignatario?.name || project?.project_leader_name;
+  addSigner(cliEmail, "1", cliName);
 
-  return list;
+  return { signers: list, signerNames: names };
 }
 
 // ─── PDF Generation ───────────────────────────────────────────
