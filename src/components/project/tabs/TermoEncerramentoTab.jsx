@@ -114,11 +114,14 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
     <h1>Termo de Encerramento do Projeto</h1>
     <div class="meta">${esc(project?.client_name)} · ${esc(project?.implantation_type)} · Emitido em ${today}</div>
   </div>
-  ${versionLabel ? `<div class="version-badge">${esc(versionLabel)}</div>` : ""}
+  <div style="display:flex;align-items:center;gap:20px">
+    <img src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/7182abf05_LogoPontotel_AmarelaePreta.png" style="height:40px" alt="Pontotel" />
+    ${versionLabel ? `<div class="version-badge">${esc(versionLabel)}</div>` : ""}
+  </div>
 </div>
 
 <div class="section">
-  <div class="section-title"><span class="section-num">1</span>IDENTIFICAÇÃO DO PROJETO</div>
+  <div class="section-title">IDENTIFICAÇÃO DO PROJETO</div>
   <table>
     <tr><td class="lbl">Cliente</td><td>${esc(project?.client_name)}</td><td class="lbl">Tipo de Implantação</td><td>${esc(project?.implantation_type)}</td></tr>
     <tr><td class="lbl">Gerente Pontotel</td><td>${esc(project?.pontotel_manager_name)}</td><td class="lbl">Analista</td><td>${esc(project?.pontotel_analyst_name)}</td></tr>
@@ -128,7 +131,7 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
 </div>
 
 <div class="section">
-  <div class="section-title"><span class="section-num">2</span>RESUMO DO PROJETO</div>
+  <div class="section-title">RESUMO DO PROJETO</div>
   <div class="card">
     <table>
       <tr><td class="lbl">Funcionários Contratados</td><td>${contracted.toLocaleString("pt-BR")}</td></tr>
@@ -140,7 +143,7 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
 </div>
 
 <div class="section">
-  <div class="section-title"><span class="section-num">3</span>ESCOPO CONTRATADO</div>
+  <div class="section-title">ESCOPO CONTRATADO</div>
   <div class="card">
     <strong style="font-size:10px">Módulos:</strong><br>
     ${(project?.contracted_modules || []).map(m => `<span class="tag-ok">${esc(m)}</span>`).join("")}
@@ -154,7 +157,7 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
 </div>
 
 <div class="section">
-  <div class="section-title"><span class="section-num">4</span>CRONOGRAMA PLANEJADO VS REALIZADO</div>
+  <div class="section-title">CRONOGRAMA PLANEJADO VS REALIZADO</div>
   <table>
     <tr><th>Etapa</th><th>Início Plan.</th><th>Fim Plan.</th><th>Início Real.</th><th>Fim Real.</th><th>Status</th><th>%</th></tr>
     ${scheduleRows || `<tr><td colspan="7" style="color:#94a3b8;text-align:center">Nenhuma fase calculada</td></tr>`}
@@ -162,17 +165,7 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
 </div>
 
 <div class="section">
-  <div class="section-title"><span class="section-num">5</span>INDICADORES DO PROJETO</div>
-  <table>
-    <tr><td class="lbl">Aderência ao Registro de Ponto</td><td><strong>${aderencia}%</strong> (${batendo.toLocaleString("pt-BR")} de ${contracted.toLocaleString("pt-BR")} funcionários)</td></tr>
-    <tr><td class="lbl">Funcionários Ativos no Sistema</td><td>${(usabilitySnap?.numero_funcionarios_ativos || 0).toLocaleString("pt-BR")}</td></tr>
-    <tr><td class="lbl">Regras de Cálculo Configuradas</td><td>${usabilitySnap?.numero_regras_de_calculo || "—"}</td></tr>
-    <tr><td class="lbl">Último Acesso ao Sistema</td><td>${esc(usabilitySnap?.data_ultimo_acesso || "—")}</td></tr>
-  </table>
-</div>
-
-<div class="section">
-  <div class="section-title"><span class="section-num">6</span>PENDÊNCIAS</div>
+  <div class="section-title">PENDÊNCIAS</div>
   <table>
     <tr><th>Pendência</th><th>Responsável</th><th>Prazo</th><th>Plano de Ação</th></tr>
     ${pendingRows}
@@ -180,17 +173,17 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
 </div>
 
 <div class="section">
-  <div class="section-title"><span class="section-num">7</span>ADENDOS</div>
+  <div class="section-title">ADENDOS</div>
   ${adendosHTML}
 </div>
 
 <div class="section">
-  <div class="section-title"><span class="section-num">8</span>CONSIDERAÇÕES FINAIS</div>
+  <div class="section-title">CONSIDERAÇÕES FINAIS</div>
   <div class="text-block">${esc(finalConsiderations) || "—"}</div>
 </div>
 
 <div class="section">
-  <div class="section-title"><span class="section-num">9</span>ACEITE FORMAL</div>
+  <div class="section-title">ACEITE FORMAL</div>
   <p style="margin-bottom:16px;font-size:11px;color:#334155">
     Ao assinar este documento, as partes declaram estar de acordo com os termos e condições do encerramento do projeto de implantação da Pontotel para ${esc(project?.client_name)}, confirmando que todas as atividades previstas foram concluídas conforme acordado.
   </p>
@@ -528,7 +521,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
         <div className="p-8 space-y-10">
 
           {/* 1. Identificação */}
-          <Section number="1" title="IDENTIFICAÇÃO DO PROJETO">
+          <Section title="IDENTIFICAÇÃO DO PROJETO">
             <AutoBadge />
             <div className="bg-slate-50 rounded-lg p-4 mt-2 grid grid-cols-2 gap-x-8">
               <AutoRow label="Cliente" value={project?.client_name} />
@@ -543,7 +536,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
           </Section>
 
           {/* 2. Resumo */}
-          <Section number="2" title="RESUMO DO PROJETO">
+          <Section title="RESUMO DO PROJETO">
             <AutoBadge />
             <div className="bg-slate-50 rounded-lg p-4 mt-2">
               <AutoRow label="Funcionários Contratados" value={project?.contracted_employees?.toLocaleString("pt-BR") || "—"} />
@@ -558,7 +551,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
           </Section>
 
           {/* 3. Escopo */}
-          <Section number="3" title="ESCOPO CONTRATADO">
+          <Section title="ESCOPO CONTRATADO">
             <AutoBadge />
             <div className="mt-2 space-y-3">
               <div>
@@ -583,7 +576,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
           </Section>
 
           {/* 4. Cronograma */}
-          <Section number="4" title="CRONOGRAMA PLANEJADO VS REALIZADO">
+          <Section title="CRONOGRAMA PLANEJADO VS REALIZADO">
             <div className="flex items-center gap-2 mb-3">
               <AutoBadge />
               <span className="text-xs text-slate-400">
@@ -628,23 +621,8 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
             )}
           </Section>
 
-          {/* 5. Indicadores */}
-          <Section number="5" title="INDICADORES DO PROJETO">
-            <AutoBadge />
-            <div className="bg-slate-50 rounded-lg p-4 mt-2 grid grid-cols-2 gap-x-8">
-              <AutoRow label="Aderência ao Ponto" value={
-                project?.contracted_employees && usabilitySnap
-                  ? `${Math.round((usabilitySnap.empregados_batendo_ponto_ultimos_15_dias / project.contracted_employees) * 100)}%`
-                  : "—"
-              } />
-              <AutoRow label="Funcionários Ativos" value={usabilitySnap?.numero_funcionarios_ativos?.toLocaleString("pt-BR") || "—"} />
-              <AutoRow label="Regras de Cálculo" value={usabilitySnap?.numero_regras_de_calculo || "—"} />
-              <AutoRow label="Último Acesso" value={usabilitySnap?.data_ultimo_acesso || "—"} />
-            </div>
-          </Section>
-
-          {/* 6. Pendências */}
-          <Section number="6" title="PENDÊNCIAS">
+          {/* Pendências */}
+          <Section title="PENDÊNCIAS">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xs text-emerald-600 font-medium bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">✎ Editável</span>
             </div>
@@ -700,7 +678,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
           </Section>
 
           {/* 7. Adendos */}
-          <Section number="7" title="ADENDOS">
+          <Section title="ADENDOS">
             {!isLocked && !readOnly && (
               <div className="mb-4">
                 <p className="text-xs text-slate-500 mb-2">Selecione os adendos a incluir (a ordem de seleção define a ordem no documento):</p>
@@ -745,7 +723,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
           </Section>
 
           {/* 8. Considerações finais */}
-          <Section number="8" title="CONSIDERAÇÕES FINAIS">
+          <Section title="CONSIDERAÇÕES FINAIS">
             <div className="mb-2 flex items-center gap-2">
               <span className="text-xs text-emerald-600 font-medium bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">✎ Editável</span>
             </div>
@@ -764,7 +742,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
           </Section>
 
           {/* 9. Assinaturas */}
-          <Section number="9" title="ACEITE E ASSINATURAS">
+          <Section title="ACEITE E ASSINATURAS">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xs text-emerald-600 font-medium bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">✎ Editável</span>
               <span className="text-xs text-slate-400">Selecione os signatários Pontotel</span>
@@ -833,11 +811,10 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
   );
 }
 
-function Section({ number, title, children }) {
+function Section({ title, children }) {
   return (
     <section>
       <div className="flex items-center gap-3 mb-4">
-        <span className="w-7 h-7 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">{number}</span>
         <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide">{title}</h2>
         <div className="h-px flex-1 bg-slate-200" />
       </div>
