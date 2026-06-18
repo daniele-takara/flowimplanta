@@ -135,52 +135,30 @@ Deno.serve(async (req) => {
 // 4. Cliente → act=1
 function buildSigners(project, coordenadora, liderImpl, gerente, clienteSignatario) {
   const list = [];
+  const seen = new Set();
+
+  const addSigner = (email, act) => {
+    if (!email) return;
+    const key = String(email).trim().toLowerCase();
+    if (!key || seen.has(key)) return; // evita e-mail duplicado
+    seen.add(key);
+    list.push({
+      email: key,
+      act,
+      foreign: "0",
+      certificadoicpbr: "0",
+      assinatura_presencial: "0",
+    });
+  };
 
   // 1. Testemunha (act=5): Líder de implantação
-  if (liderImpl?.email) {
-    list.push({
-      email: liderImpl.email,
-      act: "5",
-      foreign: "0",
-      certificadoicpbr: "0",
-      assinatura_presencial: "0",
-    });
-  }
-
+  addSigner(liderImpl?.email, "5");
   // 2. Coordenadora de implantação (act=1)
-  if (coordenadora?.email) {
-    list.push({
-      email: coordenadora.email,
-      act: "1",
-      foreign: "0",
-      certificadoicpbr: "0",
-      assinatura_presencial: "0",
-    });
-  }
-
+  addSigner(coordenadora?.email, "1");
   // 3. Gerente de Operações (act=1)
-  if (gerente?.email) {
-    list.push({
-      email: gerente.email,
-      act: "1",
-      foreign: "0",
-      certificadoicpbr: "0",
-      assinatura_presencial: "0",
-    });
-  }
-
+  addSigner(gerente?.email, "1");
   // 4. Cliente (act=1)
-  const clienteEmail = clienteSignatario?.email || project?.project_leader_email;
-  const clienteNome = clienteSignatario?.name || project?.project_leader_name;
-  if (clienteEmail) {
-    list.push({
-      email: clienteEmail,
-      act: "1",
-      foreign: "0",
-      certificadoicpbr: "0",
-      assinatura_presencial: "0",
-    });
-  }
+  addSigner(clienteSignatario?.email || project?.project_leader_email, "1");
 
   return list;
 }
