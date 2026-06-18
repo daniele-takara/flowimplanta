@@ -1196,7 +1196,7 @@ export default function CalculationRulesTab({ projectId, project }) {
       <div className="bg-white rounded-xl border border-slate-200 p-6 mb-5 min-h-[300px]">
         <div className="flex items-center gap-2 mb-1">
           <h3 className="text-lg font-semibold text-slate-800">{step?.title}</h3>
-          {step?.id === 2 && (
+          {(step?.id === 2 || step?.id === 3) && (
             <button
               onClick={() => setShowCalcModelsModal(true)}
               className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"
