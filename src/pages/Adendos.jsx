@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Pencil, Trash2, CheckCircle, XCircle, Filter, FileText, Scale, Settings, DollarSign, Database, Zap, Hash, Calendar, Users } from "lucide-react";
-import { ADENDO_VARIABLES, CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/adendoVariables";
+import { Plus, Pencil, Trash2, CheckCircle, XCircle, Filter, FileText, Scale, Settings, DollarSign, Zap, GripVertical, X, Type, Database } from "lucide-react";
+import { ADENDO_VARIABLES, CATEGORY_LABELS } from "@/lib/adendoVariables";
 
 const TYPE_COLORS = {
   "Jurídico": "bg-purple-50 text-purple-700 border-purple-200",
@@ -15,60 +15,96 @@ const TYPE_ICONS = {
   "Comercial": DollarSign,
 };
 
-const CATEGORY_ICONS = {
-  projeto: Database,
-  metricas: Hash,
-  datas: Calendar,
-  time: Users,
-};
+// ─── AdendoForm com builder de blocos ─────────────────────────────────────────
 
 function AdendoForm({ adendo, onSave, onCancel }) {
   const [form, setForm] = useState({
     title: adendo?.title || "",
     type: adendo?.type || "Técnico",
     description: adendo?.description || "",
-    content: adendo?.content || "",
+    blocks: adendo?.blocks ? (() => { try { return JSON.parse(adendo.blocks); } catch { return []; } })() : [{ type: "text", value: "" }],
     active: adendo?.active !== false,
   });
   const [saving, setSaving] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
+  const [showFieldPicker, setShowFieldPicker] = useState(null); // index do bloco que quer adicionar campo após
+
+  const addTextBlock = () => {
+    setForm(f => ({ ...f, blocks: [...f.blocks, { type: "text", value: "" }] }));
+  };
+
+  const addFieldBlock = (variableKey) => {
+    setForm(f => ({ ...f, blocks: [...f.blocks, { type: "field", value: variableKey }] }));
+    setShowFieldPicker(null);
+  };
+
+  const removeBlock = (idx) => {
+    setForm(f => ({ ...f, blocks: f.blocks.filter((_, i) => i !== idx) }));
+  };
+
+  const updateBlock = (idx, value) => {
+    setForm(f => {
+      const blocks = [...f.blocks];
+      blocks[idx] = { ...blocks[idx], value };
+      return { ...f, blocks };
+    });
+  };
+
+  const moveBlock = (idx, dir) => {
+    setForm(f => {
+      const blocks = [...f.blocks];
+      const newIdx = idx + dir;
+      if (newIdx < 0 || newIdx >= blocks.length) return f;
+      [blocks[idx], blocks[newIdx]] = [blocks[newIdx], blocks[idx]];
+      return { ...f, blocks };
+    });
+  };
+
+  const buildContent = (blocks) => {
+    return blocks.map(b => {
+      if (b.type === "field") return b.value; // ex: {{client_name}}
+      return b.value;
+    }).join("");
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    await onSave(form);
+    const content = buildContent(form.blocks);
+    await onSave({
+      ...form,
+      content,
+      blocks: JSON.stringify(form.blocks),
+    });
     setSaving(false);
   };
 
-  const insertVariable = (key) => {
-    setForm(f => ({ ...f, content: f.content + key }));
-  };
-
-  const previewContent = ADENDO_VARIABLES.reduce((text, v) => {
-    return text.replace(new RegExp(v.key.replace(/[{}]/g, "\\$&"), "g"), v.example);
-  }, form.content);
+  // Preview
+  const previewContent = form.blocks.map(b => {
+    if (b.type === "field") {
+      const v = ADENDO_VARIABLES.find(x => x.key === b.value);
+      return v ? v.example : b.value;
+    }
+    return b.value;
+  }).join("");
 
   const inputClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";
+  const textareaClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white resize-none";
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 pt-8 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-4">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10 rounded-t-2xl">
           <h2 className="text-base font-bold text-slate-800">{adendo ? "Editar Adendo" : "Novo Adendo"}</h2>
-          <button
-            type="button"
-            onClick={() => setShowPreview(p => !p)}
-            className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${showPreview ? "bg-blue-600 text-white border-blue-600" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
-          >
-            {showPreview ? "Editar" : "Pré-visualizar"}
-          </button>
+          <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 p-1"><X className="w-5 h-5" /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">Título *</label>
-            <input className={inputClass} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required placeholder="Título do adendo" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* Campos básicos */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2">
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Título *</label>
+              <input className={inputClass} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required placeholder="Título do adendo" />
+            </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1">Tipo *</label>
               <select className={inputClass} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
@@ -77,85 +113,162 @@ function AdendoForm({ adendo, onSave, onCancel }) {
                 <option>Comercial</option>
               </select>
             </div>
-            <div className="flex items-end pb-0.5">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <div
-                  onClick={() => setForm(f => ({ ...f, active: !f.active }))}
-                  className={`w-10 h-5 rounded-full transition-colors cursor-pointer ${form.active ? "bg-green-500" : "bg-slate-300"}`}
-                >
-                  <div className={`w-4 h-4 bg-white rounded-full shadow mt-0.5 transition-transform ${form.active ? "translate-x-5" : "translate-x-0.5"}`} />
-                </div>
-                <span className="text-sm text-slate-600">{form.active ? "Ativo" : "Inativo"}</span>
-              </label>
-            </div>
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1">Descrição resumida</label>
             <input className={inputClass} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Breve descrição do adendo" />
           </div>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <div onClick={() => setForm(f => ({ ...f, active: !f.active }))} className={`w-10 h-5 rounded-full transition-colors cursor-pointer ${form.active ? "bg-green-500" : "bg-slate-300"}`}>
+                <div className={`w-4 h-4 bg-white rounded-full shadow mt-0.5 transition-transform ${form.active ? "translate-x-5" : "translate-x-0.5"}`} />
+              </div>
+              <span className="text-sm text-slate-600">{form.active ? "Ativo" : "Inativo"}</span>
+            </label>
+          </div>
+
+          {/* ─── Builder de blocos ─── */}
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-semibold text-slate-500">Texto do adendo *</label>
-              <span className="text-xs text-slate-400">Use variáveis dinâmicas para dados do projeto</span>
-            </div>
-            {/* Painel de variáveis — agrupado por categoria com fonte do dado */}
-            <div className="mb-2 border border-slate-200 rounded-xl overflow-hidden">
-              <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center gap-2">
-                <Zap className="w-4 h-4 text-amber-500" />
-                <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Variáveis do Projeto</span>
-                <span className="text-xs text-slate-400 ml-auto">Clique para inserir no texto</span>
-              </div>
-              <div className="p-3 space-y-3 max-h-[280px] overflow-y-auto">
-                {Object.entries(CATEGORY_LABELS).map(([catKey, catLabel]) => {
-                  const vars = ADENDO_VARIABLES.filter(v => v.category === catKey);
-                  if (vars.length === 0) return null;
-                  const CatIcon = CATEGORY_ICONS[catKey] || Database;
-                  return (
-                    <div key={catKey}>
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <CatIcon className="w-3 h-3 text-slate-400" />
-                        <span className="text-xs font-semibold text-slate-500 uppercase">{catLabel}</span>
-                      </div>
-                      <div className="space-y-1.5">
-                        {vars.map(v => (
-                          <button
-                            key={v.key}
-                            type="button"
-                            onClick={() => insertVariable(v.key)}
-                            className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg border border-slate-100 bg-white hover:border-blue-300 hover:bg-blue-50/50 transition-all group"
-                          >
-                            <code className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded shrink-0 group-hover:bg-blue-100">{v.key}</code>
-                            <div className="flex-1 min-w-0">
-                              <span className="text-xs font-medium text-slate-700 block">{v.label}</span>
-                              <span className="text-[10px] text-slate-400 block truncate">{v.source}</span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Conteúdo do Adendo (blocos)</label>
+              <span className="text-xs text-slate-400">{form.blocks.length} bloco(s)</span>
             </div>
 
-            {showPreview ? (
-              <div className="w-full min-h-[200px] px-3 py-2 text-sm border border-blue-200 rounded-lg bg-blue-50 whitespace-pre-wrap leading-relaxed text-slate-700">
-                {previewContent || <span className="text-slate-400 italic">Sem conteúdo</span>}
+            <div className="space-y-3 mb-4">
+              {form.blocks.map((block, idx) => (
+                <div key={idx} className="relative flex items-start gap-2 group">
+                  {/* Controles de ordem */}
+                  <div className="flex flex-col gap-0.5 pt-1.5 shrink-0">
+                    <button type="button" onClick={() => moveBlock(idx, -1)} disabled={idx === 0}
+                      className="text-slate-300 hover:text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed">
+                      <svg className="w-4 h-4 rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </button>
+                    <button type="button" onClick={() => moveBlock(idx, 1)} disabled={idx === form.blocks.length - 1}
+                      className="text-slate-300 hover:text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </button>
+                  </div>
+
+                  {/* Bloco */}
+                  <div className={`flex-1 rounded-xl border-2 transition-all ${
+                    block.type === "field"
+                      ? "border-blue-200 bg-blue-50/30"
+                      : "border-slate-200 bg-white"
+                  }`}>
+                    <div className="flex items-center gap-2 px-2 py-1 border-b border-slate-100">
+                      <span className={`text-xs font-semibold uppercase tracking-wider flex items-center gap-1 ${
+                        block.type === "field" ? "text-blue-600" : "text-slate-500"
+                      }`}>
+                        {block.type === "field"
+                          ? <><Database className="w-3 h-3" /> Campo do projeto</>
+                          : <><Type className="w-3 h-3" /> Texto</>
+                        }
+                      </span>
+                      <span className="flex-1" />
+                      <button type="button" onClick={() => removeBlock(idx)}
+                        className="text-slate-300 hover:text-red-400 p-0.5" title="Remover bloco">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="p-2">
+                      {block.type === "field" ? (
+                        <select
+                          className={inputClass}
+                          value={block.value}
+                          onChange={e => updateBlock(idx, e.target.value)}
+                        >
+                          <option value="">— Selecionar campo —</option>
+                          {ADENDO_VARIABLES.map(v => (
+                            <option key={v.key} value={v.key}>{v.label} ({v.key})</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <textarea
+                          className={textareaClass}
+                          rows={2}
+                          value={block.value}
+                          onChange={e => updateBlock(idx, e.target.value)}
+                          placeholder="Digite o texto do adendo aqui..."
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Botões de adicionar bloco */}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={addTextBlock}
+                className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-2 border-dashed border-slate-300 rounded-xl text-slate-500 hover:border-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-all"
+              >
+                <Type className="w-4 h-4" /> Adicionar bloco de texto
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowFieldPicker(showFieldPicker === null ? true : null)}
+                className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-2 border-dashed border-blue-300 rounded-xl text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all"
+              >
+                <Database className="w-4 h-4" /> Adicionar campo do projeto
+              </button>
+            </div>
+
+            {/* Seletor de campo (dropdown) */}
+            {showFieldPicker && (
+              <div className="mt-3 border border-blue-200 rounded-xl overflow-hidden bg-blue-50/30">
+                <div className="bg-blue-50 px-4 py-2.5 border-b border-blue-200 flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-blue-500" />
+                  <span className="text-xs font-bold text-blue-700 uppercase">Selecionar campo do projeto</span>
+                  <button type="button" onClick={() => setShowFieldPicker(null)} className="ml-auto text-blue-400 hover:text-blue-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="p-3 space-y-3 max-h-[300px] overflow-y-auto">
+                  {Object.entries(CATEGORY_LABELS).map(([catKey, catLabel]) => {
+                    const vars = ADENDO_VARIABLES.filter(v => v.category === catKey);
+                    if (vars.length === 0) return null;
+                    return (
+                      <div key={catKey}>
+                        <span className="text-xs font-semibold text-slate-500 uppercase block mb-2">{catLabel}</span>
+                        <div className="space-y-1">
+                          {vars.map(v => (
+                            <button
+                              key={v.key}
+                              type="button"
+                              onClick={() => addFieldBlock(v.key)}
+                              className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg border border-slate-100 bg-white hover:border-blue-300 hover:bg-blue-50/50 transition-all group cursor-pointer"
+                            >
+                              <code className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded shrink-0">{v.key}</code>
+                              <div className="flex-1 min-w-0">
+                                <span className="text-xs font-medium text-slate-700 block">{v.label}</span>
+                                <span className="text-[10px] text-slate-400 block truncate">{v.source}</span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            ) : (
-              <textarea
-                className={`${inputClass} resize-none`}
-                rows={10}
-                value={form.content}
-                onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
-                required
-                placeholder="Texto completo do adendo. Use {{client_name}}, {{closure_date}}, etc. para inserir dados dinâmicos do projeto..."
-              />
             )}
           </div>
-          <div className="flex justify-end gap-2 pt-2">
+
+          {/* Preview */}
+          {form.blocks.length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-2">Pré-visualização</label>
+              <div className="p-4 border border-blue-200 rounded-xl bg-blue-50/30 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed min-h-[60px]">
+                {previewContent || <span className="text-slate-400 italic">Adicione blocos de texto e campos para montar o adendo...</span>}
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
             <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Cancelar</button>
-            <button type="submit" disabled={saving} className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
+            <button type="submit" disabled={saving || !form.title} className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
               {saving ? "Salvando..." : "Salvar"}
             </button>
           </div>
@@ -164,6 +277,8 @@ function AdendoForm({ adendo, onSave, onCancel }) {
     </div>
   );
 }
+
+// ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function Adendos() {
   const [adendos, setAdendos] = useState([]);
@@ -183,11 +298,11 @@ export default function Adendos() {
 
   useEffect(() => { load(); }, []);
 
-  const handleSave = async (form) => {
+  const handleSave = async (formData) => {
     if (editing) {
-      await base44.entities.Adendo.update(editing.id, form);
+      await base44.entities.Adendo.update(editing.id, formData);
     } else {
-      await base44.entities.Adendo.create(form);
+      await base44.entities.Adendo.create(formData);
     }
     setShowForm(false);
     setEditing(null);
@@ -211,6 +326,19 @@ export default function Adendos() {
     if (filterActive === "Inativos" && a.active) return false;
     return true;
   });
+
+  // Preview helper: renderiza blocos como preview resumido
+  const renderBlocksPreview = (adendo) => {
+    let blocks = [];
+    try { blocks = JSON.parse(adendo.blocks || "[]"); } catch { return adendo.content || ""; }
+    return blocks.map(b => {
+      if (b.type === "field") {
+        const v = ADENDO_VARIABLES.find(x => x.key === b.value);
+        return v ? v.label : b.value;
+      }
+      return b.value?.substring(0, 80) + (b.value?.length > 80 ? "..." : "");
+    }).join(" ");
+  };
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
@@ -275,7 +403,7 @@ export default function Adendos() {
                     {!adendo.active && <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">Inativo</span>}
                   </div>
                   {adendo.description && <p className="text-xs text-slate-500 mt-0.5">{adendo.description}</p>}
-                  <p className="text-xs text-slate-400 mt-1.5 line-clamp-2">{adendo.content}</p>
+                  <p className="text-xs text-slate-400 mt-1.5 line-clamp-2">{renderBlocksPreview(adendo)}</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => handleToggleActive(adendo)} title={adendo.active ? "Desativar" : "Ativar"}
