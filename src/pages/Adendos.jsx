@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Pencil, Trash2, CheckCircle, XCircle, Filter, FileText, Scale, Settings, DollarSign } from "lucide-react";
+import { Plus, Pencil, Trash2, CheckCircle, XCircle, Filter, FileText, Scale, Settings, DollarSign, Database, Zap, Hash, Calendar, Users } from "lucide-react";
+import { ADENDO_VARIABLES, CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/adendoVariables";
 
 const TYPE_COLORS = {
   "Jurídico": "bg-purple-50 text-purple-700 border-purple-200",
@@ -14,13 +15,12 @@ const TYPE_ICONS = {
   "Comercial": DollarSign,
 };
 
-// Variáveis suportadas nos templates de adendo
-const TEMPLATE_VARIABLES = [
-  { key: "{{client_name}}", label: "Nome do cliente", example: "Empresa XYZ" },
-  { key: "{{closure_date}}", label: "Data de encerramento", example: "01/10/2026" },
-  { key: "{{aderencia_percent}}", label: "% de aderência ao ponto", example: "85%" },
-  { key: "{{registered_employees}}", label: "Funcionários cadastrados", example: "164" },
-];
+const CATEGORY_ICONS = {
+  projeto: Database,
+  metricas: Hash,
+  datas: Calendar,
+  time: Users,
+};
 
 function AdendoForm({ adendo, onSave, onCancel }) {
   const [form, setForm] = useState({
@@ -44,11 +44,9 @@ function AdendoForm({ adendo, onSave, onCancel }) {
     setForm(f => ({ ...f, content: f.content + key }));
   };
 
-  const previewContent = form.content
-    .replace(/{{client_name}}/g, "Empresa XYZ")
-    .replace(/{{closure_date}}/g, "01/10/2026")
-    .replace(/{{aderencia_percent}}/g, "85%")
-    .replace(/{{registered_employees}}/g, "164");
+  const previewContent = ADENDO_VARIABLES.reduce((text, v) => {
+    return text.replace(new RegExp(v.key.replace(/[{}]/g, "\\$&"), "g"), v.example);
+  }, form.content);
 
   const inputClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";
 
@@ -100,21 +98,44 @@ function AdendoForm({ adendo, onSave, onCancel }) {
               <label className="block text-xs font-semibold text-slate-500">Texto do adendo *</label>
               <span className="text-xs text-slate-400">Use variáveis dinâmicas para dados do projeto</span>
             </div>
-            {/* Variáveis */}
-            <div className="flex flex-wrap gap-1.5 mb-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <span className="text-xs font-semibold text-amber-700 w-full mb-1">Inserir variável dinâmica:</span>
-              {TEMPLATE_VARIABLES.map(v => (
-                <button
-                  key={v.key}
-                  type="button"
-                  onClick={() => insertVariable(v.key)}
-                  title={`Exemplo: ${v.example}`}
-                  className="text-xs px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded border border-amber-300 font-mono transition-colors"
-                >
-                  {v.key}
-                  <span className="ml-1 text-amber-600 font-sans font-normal">({v.label})</span>
-                </button>
-              ))}
+            {/* Painel de variáveis — agrupado por categoria com fonte do dado */}
+            <div className="mb-2 border border-slate-200 rounded-xl overflow-hidden">
+              <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center gap-2">
+                <Zap className="w-4 h-4 text-amber-500" />
+                <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Variáveis do Projeto</span>
+                <span className="text-xs text-slate-400 ml-auto">Clique para inserir no texto</span>
+              </div>
+              <div className="p-3 space-y-3 max-h-[280px] overflow-y-auto">
+                {Object.entries(CATEGORY_LABELS).map(([catKey, catLabel]) => {
+                  const vars = ADENDO_VARIABLES.filter(v => v.category === catKey);
+                  if (vars.length === 0) return null;
+                  const CatIcon = CATEGORY_ICONS[catKey] || Database;
+                  return (
+                    <div key={catKey}>
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <CatIcon className="w-3 h-3 text-slate-400" />
+                        <span className="text-xs font-semibold text-slate-500 uppercase">{catLabel}</span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {vars.map(v => (
+                          <button
+                            key={v.key}
+                            type="button"
+                            onClick={() => insertVariable(v.key)}
+                            className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg border border-slate-100 bg-white hover:border-blue-300 hover:bg-blue-50/50 transition-all group"
+                          >
+                            <code className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded shrink-0 group-hover:bg-blue-100">{v.key}</code>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-xs font-medium text-slate-700 block">{v.label}</span>
+                              <span className="text-[10px] text-slate-400 block truncate">{v.source}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {showPreview ? (

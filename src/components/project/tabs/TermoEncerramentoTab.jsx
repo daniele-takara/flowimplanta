@@ -10,6 +10,7 @@ import {
   FileSignature, Zap
 } from "lucide-react";
 import { logAudit } from "@/lib/auditLog";
+import { resolveAdendoVariables } from "@/lib/adendoVariables";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -46,18 +47,9 @@ function SaveStatus({ status }) {
 
 function esc(s) { return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"); }
 
+// resolveAdendoContent agora usa a lib compartilhada adendoVariables.js
 function resolveAdendoContent(content, project, usabilitySnap) {
-  const contracted = project?.contracted_employees || 0;
-  const batendo = usabilitySnap?.empregados_batendo_ponto_ultimos_15_dias || 0;
-  const aderencia = contracted > 0 ? Math.round((batendo / contracted) * 100) : 0;
-  const cadastrados = usabilitySnap?.numero_funcionarios || 0;
-  const closureDate = project?.aligned_end_date || project?.planned_end_date;
-  const formattedDate = closureDate ? fmtDate(closureDate) : "—";
-  return (content || "")
-    .replace(/{{client_name}}/g, project?.client_name || "")
-    .replace(/{{closure_date}}/g, formattedDate)
-    .replace(/{{aderencia_percent}}/g, `${aderencia}%`)
-    .replace(/{{registered_employees}}/g, String(cadastrados));
+  return resolveAdendoVariables(content, project, usabilitySnap);
 }
 
 function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, finalConsiderations, selectedAdendosData, scopeItems, version, coordenadora, liderImpl }) {
