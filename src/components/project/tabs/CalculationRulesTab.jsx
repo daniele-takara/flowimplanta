@@ -291,6 +291,44 @@ function HorasExtrasForm({ companyData, data, onChange }) {
 
   return (
     <div className="space-y-6">
+      {/* Info: Funcionamento das Horas Extras */}
+      <div className="border border-purple-200 rounded-xl p-6 bg-purple-50/30">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-7 h-7 bg-purple-700 rounded-full flex items-center justify-center text-white shrink-0">
+            <Info className="w-4 h-4" />
+          </div>
+          <h3 className="text-lg font-semibold text-purple-800">Horas extras</h3>
+        </div>
+
+        <div className="bg-purple-50/50 rounded-lg p-4 space-y-3">
+          <h4 className="text-sm font-bold text-slate-800">Funcionamento das Horas Extras</h4>
+          <p className="text-sm text-slate-700 leading-relaxed">
+            Entenda como as porcentagens de horas extras são aplicadas
+          </p>
+          <p className="text-sm text-slate-700 leading-relaxed">
+            As porcentagens de horas extras são utilizadas para que sejam aplicadas a forma de pagamento em dias comuns de trabalho, folgas e feriados.
+          </p>
+        </div>
+
+        {/* Examples */}
+        <div className="mt-4 grid grid-cols-1 gap-6">
+          {[
+            { src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/59fa3a42d_HoraExtra50.png", alt: "Hora extra 50%", label: "Hora extra 50%" },
+            { src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/ece2e6bb4_HoraExtraExtraordinria100.png", alt: "Hora extraordinária 100%", label: "Hora extraordinária 100%" },
+            { src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/b33de4db3_HoraExtraEspecial150.png", alt: "Hora extra especial 150%", label: "Hora extra especial 150%" },
+          ].map((img) => (
+            <div key={img.src}>
+              <img 
+                src={img.src} 
+                alt={img.alt}
+                className="w-full rounded-lg border border-slate-200 shadow-sm"
+              />
+              <p className="text-xs text-slate-400 mt-1.5 text-center">{img.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
         <p className="font-semibold mb-1">Percentuais de Hora Extra</p>
         <p>Configure os percentuais para cada tipo de dia. Os valores padrão seguem a CLT.</p>
@@ -1196,7 +1234,7 @@ export default function CalculationRulesTab({ projectId, project }) {
       <div className="bg-white rounded-xl border border-slate-200 p-6 mb-5 min-h-[300px]">
         <div className="flex items-center gap-2 mb-1">
           <h3 className="text-lg font-semibold text-slate-800">{step?.title}</h3>
-          {(step?.id === 2 || step?.id === 3) && (
+          {step?.id === 2 && (
             <button
               onClick={() => setShowCalcModelsModal(true)}
               className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"
