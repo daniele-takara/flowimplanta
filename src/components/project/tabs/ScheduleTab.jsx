@@ -15,6 +15,7 @@ import LocalPhaseSection from "./schedule/LocalPhaseSection.jsx";
 import PhaseOverrideModal from "./schedule/PhaseOverrideModal.jsx";
 import { generateSchedulePDF } from "@/lib/schedulePdfExport.js";
 import SchedulePDFColumnModal from "./schedule/SchedulePDFColumnModal.jsx";
+import { logAudit } from "@/lib/auditLog";
 
 function fmtDate(d) {
   if (!d) return "—";
@@ -915,11 +916,13 @@ export default function ScheduleTab({
     if (existing) {
       await base44.entities.ScheduleActivity.update(existing.id, payload);
       setSavedActivities(prev => prev.map(a => a.id === existing.id ? { ...a, ...payload } : a));
+      logAudit({ project_id: projectId, screen: "Cronograma", field: `Atividade: ${task.activity}`, old_value: existing.status || "", new_value: payload.status });
     } else {
       const created = await base44.entities.ScheduleActivity.create({
         project_id: projectId, phase_name: task.phase, activity_name: task.activity, order: task.row, ...payload
       });
       setSavedActivities(prev => [...prev, created]);
+      logAudit({ project_id: projectId, screen: "Cronograma", field: `Atividade (criada): ${task.activity}`, new_value: payload.status });
     }
   }, [activitiesByTask, projectId]);
 

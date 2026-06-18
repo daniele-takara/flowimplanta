@@ -10,6 +10,7 @@ import {
 } from "@/lib/tapTemplate";
 import { CONTRACTED_MODULES_OPTIONS } from "@/lib/scopeTemplate";
 import { buildProjectScheduleView } from "@/lib/buildProjectScheduleView.js";
+import { logAudit } from "@/lib/auditLog";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -572,6 +573,14 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
       if (currentVersion && !isLocked) {
         await base44.entities.TAPVersion.update(currentVersion.id, payload);
         console.log("[TAPTab] saveVersion — versão ATUALIZADA no banco");
+        // Auditoria em campos alterados
+        ["objetivo", "formato_expansao", "expectativa_inicio_expansao", "conclusao"].forEach(field => {
+          const oldVal = currentVersion?.[field] || "";
+          const newVal = formData[field] || "";
+          if (String(oldVal).substring(0, 200) !== String(newVal).substring(0, 200)) {
+            logAudit({ project_id: projectId, screen: "TAP", field, old_value: oldVal, new_value: newVal });
+          }
+        });
         setCurrentVersion(cv => ({ ...cv, ...payload }));
       } else if (!currentVersion) {
         const user = await base44.auth.me();

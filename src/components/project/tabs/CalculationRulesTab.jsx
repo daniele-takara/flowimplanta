@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Save, CheckCircle, Loader2, FileDown, Rotate
 import { usePermissions } from "@/lib/usePermissions";
 import CopyFromRule from "@/components/project/tabs/calculation/CopyFromRule";
 import CalculationModelsInfoModal from "@/components/project/tabs/calculation/CalculationModelsInfoModal";
+import { logAudit } from "@/lib/auditLog";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const STEPS = [
@@ -47,9 +48,15 @@ function useWizardState(projectId) {
     if (record?.id) {
       await base44.entities.CalculationRule.update(record.id, payload);
       setRecord(prev => ({ ...prev, ...payload }));
+      // Auditoria dos campos alterados (apenas os nomes dos campos, valores são JSON complexos)
+      const changedKeys = Object.keys(payload).filter(k => k !== "current_step");
+      if (changedKeys.length > 0) {
+        logAudit({ project_id: projectId, screen: "Regras de Cálculo", field: changedKeys.join(", "), new_value: "Atualizado" });
+      }
     } else {
       const created = await base44.entities.CalculationRule.create({ project_id: projectId, ...payload });
       setRecord(created);
+      logAudit({ project_id: projectId, screen: "Regras de Cálculo", field: "Criação", new_value: "Wizard iniciado" });
     }
     setSaving(false);
   }, [record, projectId]);

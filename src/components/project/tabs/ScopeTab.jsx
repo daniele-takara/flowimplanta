@@ -5,6 +5,7 @@ import { generateScopePDF } from "@/lib/scopePdfExport";
 import ScopeItemRow from "@/components/project/tabs/ScopeItemRow";
 import { ChevronLeft, ChevronRight, Plus, Minus, FileDown, Check, LayoutList, RefreshCw } from "lucide-react";
 import ScopeSyncModal from "@/components/project/tabs/ScopeSyncModal.jsx";
+import { logAudit } from "@/lib/auditLog";
 
 // Aplica overrides do banco sobre uma lista de perguntas do template estático.
 // Retorna novas perguntas com prompt/description/type/options/etc. do override quando existir.
@@ -234,8 +235,13 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
 
     if (existing) {
       console.log("[ScopeTab] handleSave — UPDATE", { id: existing.id, answer, observations });
+      const oldAnswer = existing.answer || "";
+      const oldObs = existing.observations || "";
       await base44.entities.ScopeItem.update(existing.id, { answer, observations });
       console.log("[ScopeTab] handleSave — UPDATE OK", { id: existing.id });
+      if (oldAnswer !== (answer || "") || oldObs !== (observations || "")) {
+        logAudit({ project_id: projectId, screen: "Escopo Técnico", field: `Pergunta ${questionId}`, old_value: oldAnswer, new_value: answer });
+      }
       // Atualiza o ref IMEDIATAMENTE com os novos valores para evitar
       // que um reloadScopeItems subsequente traga dados stale e sobrescreva
       scopeItemsRef.current = scopeItemsRef.current.map(s =>
@@ -250,8 +256,13 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
         const match = dbExisting[0];
         const tsAlt = new Date().toISOString().substr(11, 12);
         console.log(`[ScopeTab] ⏱ ${tsAlt} handleSave — UPDATE (via DB lookup, item não estava no ref)`, { id: match.id, answer, observations });
-        await base44.entities.ScopeItem.update(match.id, { answer, observations });
-        scopeItemsRef.current = scopeItemsRef.current.map(s =>
+        const oldAnswer2 = match.answer || "";
+      const oldObs2 = match.observations || "";
+      await base44.entities.ScopeItem.update(match.id, { answer, observations });
+      if (oldAnswer2 !== (answer || "") || oldObs2 !== (observations || "")) {
+        logAudit({ project_id: projectId, screen: "Escopo Técnico", field: `Pergunta ${questionId}`, old_value: oldAnswer2, new_value: answer });
+      }
+      scopeItemsRef.current = scopeItemsRef.current.map(s =>
           s.id === match.id ? { ...s, answer, observations } : s
         );
         lastSavedAt.current[questionId] = Date.now();
@@ -287,6 +298,7 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
         field_type: foundQ?.type || "text",
         is_required: foundQ?.is_required || false
       });
+      logAudit({ project_id: projectId, screen: "Escopo Técnico", field: `Pergunta ${questionId} (criada)`, new_value: answer });
       console.log("[ScopeTab] handleSave — CREATE OK", { id: created?.id, question_id: created?.question_id, order_number: created?.order_number });
       // Add to ref so subsequent saves find the record
       if (created?.id) {

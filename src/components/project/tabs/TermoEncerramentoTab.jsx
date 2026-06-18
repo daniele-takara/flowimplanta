@@ -296,6 +296,14 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
     if (current && !isLocked) {
       saved = await base44.entities.TermoEncerramento.update(current.id, payload);
       setCurrent(c => ({ ...c, ...payload }));
+      // Auditoria de campos alterados
+      ["final_considerations", "pending_items", "selected_adendos"].forEach(field => {
+        const oldVal = current?.[field] ? (typeof current[field] === "string" ? current[field] : JSON.stringify(current[field])) : "";
+        const newVal = payload[field] ? (typeof payload[field] === "string" ? payload[field] : JSON.stringify(payload[field])) : "";
+        if (oldVal !== newVal) {
+          logAudit({ project_id: projectId, screen: "Termo de Encerramento", field, old_value: oldVal.substring(0, 200), new_value: newVal.substring(0, 200) });
+        }
+      });
     } else if (!current) {
       const user = await base44.auth.me().catch(() => null);
       saved = await base44.entities.TermoEncerramento.create({
