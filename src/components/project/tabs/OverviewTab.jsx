@@ -3,7 +3,7 @@ import { formatDate } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ProgressBar from "@/components/ui/ProgressBar";
-import { Pencil, RefreshCw, CheckCircle2, AlertCircle, AlertTriangle, Link2, ExternalLink } from "lucide-react";
+import { Pencil, Link2 } from "lucide-react";
 
 function InfoRow({ label, value }) {
   return (
@@ -30,9 +30,7 @@ function ParticipantCard({ role, name, email, phone, legacyContact }) {
   );
 }
 
-export default function OverviewTab({ project, phases, onEditDadosIniciais, onProjectUpdated, canSyncPipedrive = true }) {
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState(null);
+export default function OverviewTab({ project, phases, onEditDadosIniciais, onProjectUpdated }) {
   const [teamMembers, setTeamMembers] = useState([]);
   const [membersLoaded, setMembersLoaded] = useState(false);
 
@@ -45,37 +43,6 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
 
   const pontotelMembers = teamMembers.filter(m => m.team === "pontotel");
   const clienteMembers = teamMembers.filter(m => m.team === "cliente");
-
-  const handleSyncPipedrive = async () => {
-    if (!project?.pipedrive_deal_id) {
-      setSyncResult({ error: "Informe o ID Deal Pipedrive para integrar os dados" });
-      return;
-    }
-    setSyncing(true);
-    setSyncResult(null);
-    try {
-      const res = await base44.functions.invoke("syncPipedriveData", {
-        project_id: project.id,
-        deal_id: project.pipedrive_deal_id,
-      });
-      if (res.data?.success) {
-        setSyncResult({
-          success: true,
-          deal_id: project.pipedrive_deal_id,
-          deal_name: res.data.project?.name,
-          fields: res.data.updated_fields || [],
-          module_alerts: res.data.module_alerts || [],
-        });
-        if (onProjectUpdated) onProjectUpdated(res.data.project);
-      } else {
-        setSyncResult({ error: res.data?.error || "Erro ao sincronizar", deal_id: project.pipedrive_deal_id });
-      }
-    } catch (e) {
-      const msg = e.response?.data?.error || e.message;
-      setSyncResult({ error: msg, deal_id: project.pipedrive_deal_id });
-    }
-    setSyncing(false);
-  };
 
   return (
     <div className="grid grid-cols-3 gap-6">
@@ -102,15 +69,6 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Dados do Projeto</h3>
             <div className="flex items-center gap-2">
-              {canSyncPipedrive && <button
-                onClick={handleSyncPipedrive}
-                disabled={syncing}
-                title={project?.pipedrive_deal_id ? `Sincronizar com deal #${project.pipedrive_deal_id}` : "Informe o ID Deal Pipedrive"}
-                className="flex items-center gap-1.5 text-xs text-orange-600 hover:text-orange-700 font-medium disabled:opacity-50 border border-orange-200 bg-orange-50 hover:bg-orange-100 rounded-lg px-2.5 py-1 transition-colors"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
-                {syncing ? "Sincronizando..." : "Atualizar dados do Pipedrive"}
-              </button>}
               {onEditDadosIniciais && (
                 <button
                   onClick={onEditDadosIniciais}
@@ -122,67 +80,6 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
             </div>
           </div>
 
-          {/* Relatório de sincronização */}
-          {syncResult && (
-            <div className="mb-3 space-y-2">
-              {/* Status principal */}
-              <div className={`rounded-lg text-xs border ${
-                syncResult.success ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-700"
-              }`}>
-                <div className="flex items-center gap-2 px-3 py-2 border-b border-inherit">
-                  {syncResult.success
-                    ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                    : <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                  }
-                  <span className="font-semibold">
-                    {syncResult.success ? "Sincronização concluída" : "Erro na sincronização"}
-                    {syncResult.success && syncResult.module_alerts?.length > 0 && (
-                      <span className="ml-1 font-normal text-amber-700">— com alertas de módulos</span>
-                    )}
-                  </span>
-                </div>
-                <div className="px-3 py-2 space-y-0.5">
-                  {syncResult.deal_id && <p>Deal Pipedrive: <strong>#{syncResult.deal_id}</strong></p>}
-                  {syncResult.deal_name && <p>Nome encontrado: <strong>{syncResult.deal_name}</strong></p>}
-                  {syncResult.success && syncResult.fields.length > 0 && (
-                    <p>Campos atualizados: <strong>{syncResult.fields.join(", ")}</strong></p>
-                  )}
-                  {syncResult.error && <p>{syncResult.error}</p>}
-                </div>
-              </div>
-
-              {/* Alertas de módulos divergentes */}
-              {syncResult.module_alerts?.length > 0 && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 text-xs text-amber-800 overflow-hidden">
-                  <div className="flex items-center gap-2 px-3 py-2 bg-amber-100 border-b border-amber-200">
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-600" />
-                    <span className="font-semibold">
-                      {syncResult.module_alerts.length} módulo(s) com cadastro fora do padrão no Pipedrive
-                    </span>
-                  </div>
-                  <div className="px-3 py-2 space-y-2">
-                    {syncResult.module_alerts.map((alert, i) => (
-                      <div key={i} className={`flex items-start gap-2 ${alert.severity === "error" ? "text-red-700" : "text-amber-800"}`}>
-                        {alert.severity === "error"
-                          ? <AlertCircle className="w-3 h-3 mt-0.5 shrink-0 text-red-500" />
-                          : <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0 text-amber-500" />
-                        }
-                        <div>
-                          <p>{alert.message}</p>
-                          {alert.severity === "error" && (
-                            <p className="mt-0.5 font-semibold">Este módulo NÃO foi importado. Corrija no Pipedrive.</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    <p className="pt-1 text-amber-600 border-t border-amber-200">
-                      Acesse o Pipedrive → Organização → campo Módulos e corrija para os nomes oficiais.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
           <InfoRow label="Cliente" value={project.client_name} />
           <InfoRow label="ID da Empresa" value={project.empresa_id} />
           <InfoRow label="Origem" value={project.origin} />

@@ -1,6 +1,6 @@
-# Flowimplanta — Documentação Técnica v6.5
-**Última atualização:** 2026-06-17  
-**Status:** Validado (Pipedrive como Fonte de Verdade + Regras de Cálculo + Cronograma Unificado + PDF do Cronograma + Correção Overrides Calculados v6.7)
+# Flowimplanta — Documentação Técnica v6.8
+**Última atualização:** 2026-06-18  
+**Status:** Validado (Novo sistema de status de projeto + Remoção botão Integrar Pipedrive + Seletor de status no header)
 
 ---
 
@@ -39,7 +39,7 @@ Google Sheets ──OAuth──────► savePipedriveRules (Deno)
 | Campo | Tipo | Uso |
 |-------|------|-----|
 | `pipedrive_deal_id` | number | Vínculo Pipedrive — chave de matching do webhook |
-| `status` | enum | Planejamento → Cancelado |
+| `status` | enum | Em aberto → Em andamento → Concluído → Perdido → Pausado |
 | `current_phase` | enum | Fase atual do projeto |
 | `contracted_modules` | array | Controla visibilidade no Escopo e Cronograma |
 | `contracted_services` | array | Serviços adicionais |
@@ -1605,3 +1605,83 @@ A aba **Regras de Cálculo** dentro do projeto do cliente permite configurar as 
 | 8 | Reload mantém os dados | ✅ |
 | 9 | Usuário sem permissão não acessa a aba | ✅ |
 | 10 | Nenhuma outra aba do projeto quebra | ✅ |
+
+---
+
+## 18. SISTEMA DE STATUS DO PROJETO (v6.8 — 2026-06-18)
+
+### Novos status
+
+O enum de status do projeto foi alterado de `Planejamento / Em andamento / Concluído / Cancelado / Em risco / Atrasado` para:
+
+| Status | Cor | Significado |
+|--------|-----|-------------|
+| **Em aberto** | Azul | Projeto criado, aguardando início ou em fase inicial |
+| **Em andamento** | Índigo | Projeto ativo, implantação em curso |
+| **Concluído** | Verde | Projeto finalizado com sucesso |
+| **Perdido** | Vermelho | Projeto perdido/não convertido |
+| **Pausado** | Âmbar | Projeto temporariamente suspenso |
+
+### Seletor de status no header do projeto
+
+O botão "Editar Dados Iniciais" no canto superior direito do `ProjectHeader` foi removido (a função de editar permanece disponível no botão "Editar" dentro da aba **Dados Iniciais**).
+
+No lugar, foi adicionado um **dropdown seletor de status** que permite ao usuário alterar o status do projeto a qualquer momento.
+
+**Funcionamento:**
+- Clique no botão com o status atual → abre dropdown com os 5 status
+- Status atual exibido com ✓ verde
+- Cada opção tem um indicador de cor correspondente
+- Ao selecionar um novo status, o projeto é atualizado no banco imediatamente
+
+**Auditoria:** Toda mudança de status é registrada no `AuditLog` com:
+- `screen`: "Dados Iniciais"
+- `field`: "status"
+- `old_value` / `new_value`: status anterior e novo
+- `user_email`: e-mail do usuário que fez a alteração
+
+Visível na aba **Histórico** do projeto.
+
+### Migração de dados existentes
+
+Todos os 86 projetos que estavam com status "Planejamento" foram migrados automaticamente para "Em aberto".
+
+### Arquivos alterados
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `entities/Project.json` | Enum de status atualizado |
+| `components/project/ProjectHeader` | Botão "Editar Dados Iniciais" substituído por seletor de status |
+| `pages/ProjectDetail` | Adicionado handler `onChangeStatus` com persistência e auditoria |
+| `pages/ProjectList` | Filtro de status atualizado com novas opções |
+| `pages/Dashboard` | Cards de estatísticas e filtros atualizados |
+| `lib/utils.js` | Função `statusColor` atualizada com cores dos novos status |
+| `components/ui/StatusBadge` | Cores dos badges atualizadas |
+| `pages/NewProject` | Status inicial alterado para "Em aberto" |
+| `components/project/PipedriveModal` | Status inicial alterado para "Em aberto" |
+| `lib/mockData.js` | Status dos projetos mock atualizados |
+
+---
+
+## 19. REMOÇÃO DO BOTÃO "INTEGRAR COM PIPEDRIVE" (v6.8 — 2026-06-18)
+
+### O que foi removido
+
+O botão laranja **"Integrar com Pipedrive"** da tela de listagem de projetos (`ProjectList`) foi removido. Este botão abria o `PipedriveModal` para importar novos deals do Pipedrive.
+
+**Arquivos removidos:**
+- `components/project/PipedriveModal` — deletado
+
+**Arquivos alterados:**
+- `pages/ProjectList` — removido botão, import, estado `showPipedrive`, `existingDealIds`, `handleImported`, e modal
+
+### O que foi mantido
+
+- **Sincronização de dados**: O botão "Atualizar dados do Pipedrive" dentro da aba Dados Iniciais do projeto **também foi removido** (OverviewTab).
+- **Backend**: Todas as funções de backend (`syncPipedriveData`, `pipedriveWebhook`, `syncScheduleFromPipedrive`, etc.) permanecem intactas.
+- **Vinculação Pipedrive**: Projetos já vinculados a deals Pipedrive continuam exibindo o banner de vínculo e o ID do deal.
+- **Importação manual**: Para importar novos projetos, use o botão "Novo Projeto" e preencha o ID Deal Pipedrive manualmente nos Dados Iniciais.
+
+### Motivo
+
+Simplificar a interface e reduzir a superfície de integração exposta a todos os usuários. A importação de projetos agora é feita exclusivamente via criação manual com vínculo de deal.

@@ -3,9 +3,8 @@ import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import ProjectCard from "@/components/dashboard/ProjectCard";
-import PipedriveModal from "@/components/project/PipedriveModal";
 import DeleteProjectDialog from "@/components/project/DeleteProjectDialog";
-import { FolderKanban, Plus, Search, LayoutGrid, List, X, User, TrendingUp, Trash2 } from "lucide-react";
+import { FolderKanban, Plus, Search, LayoutGrid, List, X, User, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { usePermissions } from "@/lib/usePermissions";
@@ -24,7 +23,6 @@ export default function ProjectList() {
   const [viewMode, setViewMode] = useState("grid");
   const [allProjects, setAllProjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showPipedrive, setShowPipedrive] = useState(false);
   const [deleteProject, setDeleteProject] = useState(null);
 
   const loadProjects = () => {
@@ -35,12 +33,6 @@ export default function ProjectList() {
   };
 
   useEffect(() => { loadProjects(); }, []);
-
-  // IDs de deals já importados (para bloquear duplicidade)
-  const existingDealIds = useMemo(() =>
-    allProjects.map(p => p.pipedrive_deal_id).filter(Boolean),
-    [allProjects]
-  );
 
   const managerOptions = useMemo(() => {
     const names = allProjects.map(p => p.pontotel_manager_name).filter(Boolean);
@@ -85,10 +77,6 @@ export default function ProjectList() {
     setMyProjects(false);
   };
 
-  const handleImported = (newProject) => {
-    setAllProjects(prev => [newProject, ...prev]);
-  };
-
   const handleDeleted = (projectId) => {
     setAllProjects(prev => prev.filter(p => p.id !== projectId));
   };
@@ -106,16 +94,6 @@ export default function ProjectList() {
           <p className="text-slate-400 text-sm mt-1">{filtered.length} de {allProjects.length} projetos</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Botão Integrar com Pipedrive — visível para quem pode criar projetos */}
-          {canCreateProject && (
-            <button
-              onClick={() => setShowPipedrive(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
-            >
-              <TrendingUp className="w-4 h-4" />
-              Integrar com Pipedrive
-            </button>
-          )}
           {canCreateProject && (
             <Link
               to="/projects/new"
@@ -354,13 +332,6 @@ export default function ProjectList() {
       )}
 
       {/* Modals */}
-      {showPipedrive && (
-        <PipedriveModal
-          onClose={() => setShowPipedrive(false)}
-          onImported={handleImported}
-          existingDealIds={existingDealIds}
-        />
-      )}
       {deleteProject && (
         <DeleteProjectDialog
           project={deleteProject}
