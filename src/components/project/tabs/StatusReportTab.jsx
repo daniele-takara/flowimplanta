@@ -6,8 +6,11 @@ import EmailPreviewModal from "@/components/project/EmailPreviewModal.jsx";
 import {
   RefreshCw, Mail, Clock, CheckCircle2, AlertTriangle,
   AlertCircle, Users, Activity, Calendar,
-  Save, Plus, Trash2
+  Plus, Trash2
 } from "lucide-react";
+
+// Cache de campos salvos — sobrevive a unmount/remount do componente
+const savedFieldsCache = new Map(); // projectId -> { lastSaved, fields: {...} }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -53,7 +56,7 @@ function KpiCard({ label, value, sub, icon: KpiIcon, colorClass = "text-purple-6
 
 // ─── Seção de itens editáveis ─────────────────────────────────────────────────
 
-function ManualSection({ title, icon: SectionIcon, items, onAdd, onRemove, onEdit, fields, color = "purple" }) {
+function ManualSection({ title, icon: SectionIcon, items, onAdd, onRemove, onEdit, fields, color = "purple", onSaveSection, readOnly }) {
   const colorMap = {
     purple: "text-purple-600 border-purple-200 bg-purple-50",
     orange: "text-orange-600 border-orange-200 bg-orange-50",
@@ -70,12 +73,14 @@ function ManualSection({ title, icon: SectionIcon, items, onAdd, onRemove, onEdi
           {SectionIcon && <SectionIcon className={`w-4 h-4 ${cls.split(" ")[0]}`} />}
           <h3 className="text-sm font-bold text-slate-700">{title}</h3>
         </div>
-        <button
-          onClick={onAdd}
-          className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border ${cls} transition-colors hover:opacity-80`}
-        >
-          <Plus className="w-3 h-3" /> Adicionar
-        </button>
+        {!readOnly && (
+          <button
+            onClick={onAdd}
+            className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border ${cls} transition-colors hover:opacity-80`}
+          >
+            <Plus className="w-3 h-3" /> Adicionar
+          </button>
+        )}
       </div>
       {items.length === 0 && <p className="text-xs text-slate-400 italic">Nenhum item adicionado.</p>}
       <div className="space-y-2">
@@ -87,13 +92,17 @@ function ManualSection({ title, icon: SectionIcon, items, onAdd, onRemove, onEdi
                 className={`${inputBase} ${f.flex ? `flex-${f.flex}` : ""}`}
                 value={item[f.key] || ""}
                 onChange={e => onEdit(i, f.key, e.target.value)}
+                onBlur={() => !readOnly && onSaveSection && onSaveSection()}
                 placeholder={f.label}
                 type={f.type || "text"}
+                readOnly={readOnly}
               />
             ))}
-            <button onClick={() => onRemove(i)} className="text-slate-300 hover:text-red-400 mt-1.5 shrink-0">
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {!readOnly && (
+              <button onClick={() => onRemove(i)} className="text-slate-300 hover:text-red-400 mt-1.5 shrink-0">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -158,7 +167,7 @@ function MacroScheduleTable({ macroPhases }) {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-function StatusReportDashboard({ report, project, macroPhases, overallProgress, kpiData, form, setForm, readOnly, onSaveField }) {
+function StatusReportDashboard({ report, project, macroPhases, overallProgress, kpiData, form, setForm, readOnly, onSaveField, onSaveSection }) {
   const today = new Date().toLocaleDateString("pt-BR");
   const periodStart = project?.start_date;
   const periodEnd = project?.aligned_end_date || project?.planned_end_date;
@@ -288,16 +297,20 @@ function StatusReportDashboard({ report, project, macroPhases, overallProgress, 
           items={form.client_pending || []}
           fields={[{ key: "item", label: "Item pendente", flex: 2 }, { key: "deadline", label: "Prazo", type: "date" }, { key: "responsible", label: "Responsável" }]}
           onAdd={() => addItem("client_pending", { item: "", deadline: "", responsible: "" })}
-          onRemove={i => removeItem("client_pending", i)}
+          onRemove={i => { removeItem("client_pending", i); onSaveSection && onSaveSection("client_pending"); }}
           onEdit={(i, k, v) => editItem("client_pending", i, k, v)}
+          onSaveSection={() => onSaveSection && onSaveSection("client_pending")}
+          readOnly={readOnly}
         />
         <ManualSection
           title="Pendências Pontotel" icon={CheckCircle2} color="blue"
           items={form.internal_pending || []}
           fields={[{ key: "item", label: "Item pendente", flex: 2 }, { key: "deadline", label: "Prazo", type: "date" }, { key: "responsible", label: "Responsável" }]}
           onAdd={() => addItem("internal_pending", { item: "", deadline: "", responsible: "" })}
-          onRemove={i => removeItem("internal_pending", i)}
+          onRemove={i => { removeItem("internal_pending", i); onSaveSection && onSaveSection("internal_pending"); }}
           onEdit={(i, k, v) => editItem("internal_pending", i, k, v)}
+          onSaveSection={() => onSaveSection && onSaveSection("internal_pending")}
+          readOnly={readOnly}
         />
       </div>
 
@@ -307,16 +320,20 @@ function StatusReportDashboard({ report, project, macroPhases, overallProgress, 
           items={form.integration_items || []}
           fields={[{ key: "item", label: "Item de integração", flex: 2 }, { key: "status", label: "Status" }]}
           onAdd={() => addItem("integration_items", { item: "", status: "" })}
-          onRemove={i => removeItem("integration_items", i)}
+          onRemove={i => { removeItem("integration_items", i); onSaveSection && onSaveSection("integration_items"); }}
           onEdit={(i, k, v) => editItem("integration_items", i, k, v)}
+          onSaveSection={() => onSaveSection && onSaveSection("integration_items")}
+          readOnly={readOnly}
         />
         <ManualSection
           title="Riscos" icon={AlertTriangle} color="red"
           items={form.risks || []}
           fields={[{ key: "description", label: "Descrição do risco", flex: 2 }, { key: "impact", label: "Impacto" }, { key: "mitigation", label: "Mitigação" }]}
           onAdd={() => addItem("risks", { description: "", impact: "Médio", mitigation: "" })}
-          onRemove={i => removeItem("risks", i)}
+          onRemove={i => { removeItem("risks", i); onSaveSection && onSaveSection("risks"); }}
           onEdit={(i, k, v) => editItem("risks", i, k, v)}
+          onSaveSection={() => onSaveSection && onSaveSection("risks")}
+          readOnly={readOnly}
         />
       </div>
     </div>
@@ -351,8 +368,8 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
   const [report, setReport] = useState(reports?.[0] || null);
   const [form, setForm] = useState(() => {
     const r = reports?.[0];
-    if (!r) return { ...DEFAULT_FORM };
-    return {
+    const cached = savedFieldsCache.get(projectId);
+    const baseForm = r ? {
       next_agenda:      r.next_agenda      || "",
       next_agenda_date: r.next_agenda_date || "",
       executive_summary: r.executive_summary || "",
@@ -360,7 +377,12 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
       internal_pending: r.internal_pending || [],
       risks:            r.risks            || [],
       integration_items: r.integration_items || [],
-    };
+    } : { ...DEFAULT_FORM };
+    // Mescla campos salvos no cache (mais recentes que o DB) para sobreviver a troca de abas
+    if (cached?.fields) {
+      return { ...baseForm, ...cached.fields };
+    }
+    return baseForm;
   });
 
   // Sincroniza report quando reports prop muda (ex: após onRefresh do parent)
@@ -389,8 +411,6 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
   const [lastUpdatedBy, setLastUpdatedBy] = useState(reports?.[0]?.updated_by_name || null);
 
   const [updating, setUpdating]           = useState(false);
-  const [saving, setSaving]               = useState(false);
-  const [saveError, setSaveError]         = useState(null);
   const [showEmailPreview, setShowEmailPreview] = useState(false);
   const [emailHtml, setEmailHtml]         = useState("");
   const [showConfirm, setShowConfirm]     = useState(false);
@@ -598,9 +618,8 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
     }
   }, [project, projectId, form, report, savedActivities, answersMap]);
 
-  // Salvar um campo individual — autosave onBlur (sem precisar do botão)
-  // Após salvar, chama onRefresh para manter o prop reports atualizado no pai,
-  // evitando perda de dados ao trocar de aba e voltar.
+  // Salvar um campo individual — autosave onBlur (silencioso, sem refresh)
+  // Usa cache de módulo para sobreviver a unmount/remount (troca de abas)
   const handleSaveField = useCallback(async (field, value) => {
     const currentReport = reportRef.current;
     try {
@@ -618,44 +637,43 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         reportRef.current = saved;
         setReport(saved);
       }
-      // Atualiza o pai silenciosamente para que reports fique sincronizado com o DB
-      if (onRefresh) onRefresh();
+      // Atualiza cache silencioso para sobreviver a troca de abas
+      const entry = savedFieldsCache.get(projectId) || { fields: {} };
+      entry.fields[field] = value;
+      entry.lastSaved = Date.now();
+      savedFieldsCache.set(projectId, entry);
     } catch (e) {
       console.warn("[StatusReportTab] Erro ao salvar campo:", field, e);
     }
-  }, [projectId, onRefresh]);
+  }, [projectId]);
 
-  // Salvar apenas campos manuais (sem recalcular indicadores)
-  // Usa formRef.current para garantir leitura sempre atualizada (evita closure stale)
-  const handleSaveManual = async () => {
-    setSaving(true);
-    setSaveError(null);
+  // Salvar seção de array (pendências, riscos, integração) — autosave onBlur
+  const handleSaveSectionArray = useCallback(async (field) => {
+    const currentReport = reportRef.current;
     const f = formRef.current || form;
     try {
-      const payload = {
-        next_agenda: f.next_agenda, next_agenda_date: f.next_agenda_date,
-        executive_summary: f.executive_summary, client_pending: f.client_pending,
-        internal_pending: f.internal_pending, risks: f.risks, integration_items: f.integration_items || [],
-      };
-      const currentReport = reportRef.current;
-      let saved;
+      const payload = { [field]: f[field] };
       if (currentReport?.id) {
-        saved = await base44.entities.StatusReport.update(currentReport.id, payload);
+        await base44.entities.StatusReport.update(currentReport.id, payload);
+        reportRef.current = { ...currentReport, ...payload };
+        setReport(prev => prev ? { ...prev, ...payload } : prev);
       } else {
-        saved = await base44.entities.StatusReport.create({
-          project_id: projectId, report_date: new Date().toISOString().split("T")[0],
-          overall_progress: overallProgress, ...payload,
+        const saved = await base44.entities.StatusReport.create({
+          project_id: projectId,
+          report_date: new Date().toISOString().split("T")[0],
+          ...payload,
         });
+        reportRef.current = saved;
+        setReport(saved);
       }
-      const merged = { ...(currentReport || {}), ...payload, id: saved?.id || currentReport?.id };
-      reportRef.current = merged;
-      setReport(merged);
-      setSaveError(null);
+      const entry = savedFieldsCache.get(projectId) || { fields: {} };
+      entry.fields[field] = f[field];
+      entry.lastSaved = Date.now();
+      savedFieldsCache.set(projectId, entry);
     } catch (e) {
-      setSaveError(e?.message || "Erro ao salvar. Verifique suas permissões ou tente novamente.");
+      console.warn("[StatusReportTab] Erro ao salvar seção:", field, e);
     }
-    setSaving(false);
-  };
+  }, [projectId]);
 
   // Gerar e-mail — usa exatamente os mesmos dados exibidos na UI
   const handleGenerateEmail = () => {
@@ -696,13 +714,6 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
                 <RefreshCw className={`w-4 h-4 ${updating ? "animate-spin" : ""}`} />
                 {updating ? "Atualizando..." : "Atualizar Status Report"}
               </button>
-            )}
-            {saveError && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                {saveError}
-                <button onClick={() => setSaveError(null)} className="ml-1 text-red-400 hover:text-red-600">✕</button>
-              </div>
             )}
             {canGenerateEmail && (
               <button
@@ -776,6 +787,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         setForm={setForm}
         readOnly={readOnly}
         onSaveField={handleSaveField}
+        onSaveSection={handleSaveSectionArray}
       />
     </div>
   );
