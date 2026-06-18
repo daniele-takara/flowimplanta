@@ -95,6 +95,18 @@ export default function CalculationModelsInfoModal({ onClose }) {
                 Exemplo: com janela de 30 minutos antes e depois, atrasos de até 30 minutos são compensados automaticamente.
               </p>
             </div>
+
+            {/* Example */}
+            <div className="mt-4">
+              <img 
+                src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/c0e2c3271_Exemplodejornadaflexvelcomcompensao.png" 
+                alt="Exemplo de jornada flexível com compensação"
+                onClick={() => setExpandedImg({ src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/c0e2c3271_Exemplodejornadaflexvelcomcompensao.png", alt: "Exemplo de jornada flexível com compensação" })}
+                className="w-full rounded-lg border border-slate-200 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all shadow-sm"
+                title="Clique para ampliar"
+              />
+              <p className="text-xs text-slate-400 mt-1.5 text-center">Exemplo de jornada flexível com compensação</p>
+            </div>
           </div>
 
           {/* Modelo 3: Híbrido */}
