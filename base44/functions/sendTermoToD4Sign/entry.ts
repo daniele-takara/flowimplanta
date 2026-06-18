@@ -164,14 +164,16 @@ function buildSigners(project, coordenadora, liderImpl, gerente, clienteSignatar
 }
 
 // ─── PDF Generation ───────────────────────────────────────────
+// Renderização manual com jsPDF + splitTextToSize em todo texto longo
 function generatePDF({
   project, macroPhases, pendingItems, finalConsiderations,
   selectedAdendo, coordenadora, liderImpl, gerente, clienteSignatario,
   sectionOverrides, usabilitySnap, clientName, today, versionLabel
 }) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const pw = 190; // page width - margins
-  const margin = 10;
+  const M = 10;                      // margem esquerda
+  const PW = 190;                    // largura útil
+  const PAGE_H = 287;                // altura antes de quebrar página
   let y = 15;
 
   function getVal(key, autoRaw) {
@@ -179,206 +181,248 @@ function generatePDF({
     return autoRaw != null ? String(autoRaw) : "";
   }
 
-  function fmtDate(d) {
-    if (!d) return "—";
-    return d.substring(8, 10) + "/" + d.substring(5, 7) + "/" + d.substring(0, 4);
+  function fmt(d) { if (!d) return "—"; return d.substring(8, 10) + "/" + d.substring(5, 7) + "/" + d.substring(0, 4); }
+
+  // Check page overflow and add new page if needed
+  function checkPage(need = 8) {
+    if (y + need > PAGE_H) { doc.addPage(); y = 15; }
   }
 
-  function addLine(text, size = 10, bold = false, color = [30, 41, 59]) {
-    doc.setFontSize(size);
-    doc.setTextColor(...color);
-    if (bold) doc.setFont("helvetica", "bold");
-    else doc.setFont("helvetica", "normal");
-    doc.text(text, margin, y);
-    y += size * 0.45;
-  }
-
-  function addSectionTitle(title) {
-    y += 4;
-    doc.setFontSize(10);
+  // Draw a section title bar and advance Y
+  function sectionTitle(text) {
+    y += 3;
+    checkPage(10);
+    doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
     doc.setFont("helvetica", "bold");
-    doc.text(title.toUpperCase(), margin, y);
+    doc.text(text, M, y);
     doc.setDrawColor(226, 232, 240);
-    doc.line(margin + 62, y - 1, margin + pw, y - 1);
-    y += 8;
+    doc.line(M + 55, y + 0.5, M + PW, y + 0.5);
+    y += 7;
   }
 
-  // Header
+  // Draw a label: value row. Returns number of extra lines used by wrapped value.
+  function addRow(label, value, fontSize = 9, labelW = 52) {
+    checkPage(5);
+    doc.setFontSize(fontSize);
+    doc.setTextColor(100, 116, 139);
+    doc.setFont("helvetica", "normal");
+    doc.text(label, M, y);
+    doc.setTextColor(30, 41, 59);
+    const txt = String(value || "—");
+    const maxW = PW - labelW;
+    const lines = doc.splitTextToSize(txt, maxW);
+    doc.text(lines[0], M + labelW, y);
+    const extra = Math.max(0, lines.length - 1);
+    if (extra > 0) {
+      for (let i = 1; i < lines.length; i++) {
+        y += fontSize * 0.42;
+        checkPage(5);
+        doc.text(lines[i], M + labelW, y);
+      }
+    }
+    y += fontSize * 0.52;
+    return extra;
+  }
+
+  // Draw a multi-line block (returns total Y consumed)
+  function addBlock(text, fontSize = 9, color = [30, 41, 59], indent = 0) {
+    if (!text) return;
+    checkPage(5);
+    doc.setFontSize(fontSize);
+    doc.setTextColor(...color);
+    doc.setFont("helvetica", "normal");
+    const lines = doc.splitTextToSize(String(text), PW - indent);
+    for (const ln of lines) {
+      checkPage(5);
+      doc.text(ln, M + indent, y);
+      y += fontSize * 0.45;
+    }
+    y += 2;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // HEADER
+  // ═══════════════════════════════════════════════════════════════
   doc.setFontSize(18);
   doc.setTextColor(124, 58, 237);
   doc.setFont("helvetica", "bold");
-  doc.text("Termo de Encerramento do Projeto", margin, y);
-  y += 8;
-  doc.setFontSize(9);
+  doc.text("Termo de Encerramento do Projeto", M, y);
+  y += 7;
+  doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
   doc.setFont("helvetica", "normal");
-  doc.text(`${clientName} · ${getVal("implantation_type", project?.implantation_type)} · ${today}`, margin, y);
-  if (versionLabel) doc.text(versionLabel, margin + pw - 30, y);
-  y += 12;
+  const headerMeta = `${clientName} · ${getVal("implantation_type", project?.implantation_type)} · ${today}`;
+  doc.text(headerMeta, M, y);
+  if (versionLabel) doc.text(versionLabel, M + PW - 25, y);
+  y += 3;
+  // header divider
+  doc.setDrawColor(124, 58, 237);
+  doc.setLineWidth(0.8);
+  doc.line(M, y, M + PW, y);
+  doc.setLineWidth(0.2);
+  y += 6;
 
-  // 1. Identificação
-  addSectionTitle("IDENTIFICAÇÃO DO PROJETO");
-  addRow(doc, y, "Cliente", getVal("client_name", project?.client_name)); y += 6;
-  addRow(doc, y, "Tipo de Implantação", getVal("implantation_type", project?.implantation_type)); y += 6;
-  addRow(doc, y, "Gerente Pontotel", getVal("pontotel_manager_name", project?.pontotel_manager_name)); y += 6;
-  addRow(doc, y, "Analista", getVal("pontotel_analyst_name", project?.pontotel_analyst_name)); y += 6;
-  addRow(doc, y, "Líder do Projeto (Cliente)", getVal("project_leader_name", project?.project_leader_name)); y += 6;
-  addRow(doc, y, "Patrocinador", getVal("sponsor_name", project?.sponsor_name)); y += 6;
-  addRow(doc, y, "Data de Início", fmtDate(getVal("start_date", project?.start_date))); y += 6;
-  addRow(doc, y, "Data de Encerramento", fmtDate(getVal("end_date", project?.aligned_end_date || project?.planned_end_date))); y += 10;
+  // ═══════════════════════════════════════════════════════════════
+  // 1. IDENTIFICAÇÃO
+  // ═══════════════════════════════════════════════════════════════
+  sectionTitle("IDENTIFICAÇÃO DO PROJETO");
+  addRow("Cliente", getVal("client_name", project?.client_name));
+  addRow("Tipo de Implantação", getVal("implantation_type", project?.implantation_type));
+  addRow("Gerente Pontotel", getVal("pontotel_manager_name", project?.pontotel_manager_name));
+  addRow("Analista", getVal("pontotel_analyst_name", project?.pontotel_analyst_name));
+  addRow("Líder do Projeto (Cliente)", getVal("project_leader_name", project?.project_leader_name));
+  addRow("Patrocinador", getVal("sponsor_name", project?.sponsor_name));
+  addRow("Data de Início", fmt(getVal("start_date", project?.start_date)));
+  addRow("Data de Encerramento", fmt(getVal("end_date", project?.aligned_end_date || project?.planned_end_date)));
+  y += 4;
 
-  // 2. Resumo
-  addSectionTitle("RESUMO DO PROJETO");
+  // ═══════════════════════════════════════════════════════════════
+  // 2. RESUMO
+  // ═══════════════════════════════════════════════════════════════
+  sectionTitle("RESUMO DO PROJETO");
   const contracted = parseInt(getVal("contracted_employees", project?.contracted_employees) || "0");
   const cadastrados = parseInt(getVal("registered_employees", usabilitySnap?.registered_employees) || "0");
   const aderencia = contracted > 0 ? Math.round((parseInt(getVal("recording_employees", usabilitySnap?.recording_employees) || "0") / contracted) * 100) : 0;
-  addRow(doc, y, "Funcionários Contratados", contracted.toLocaleString("pt-BR")); y += 6;
-  addRow(doc, y, "Funcionários Cadastrados", cadastrados.toLocaleString("pt-BR")); y += 6;
-  if (contracted > 0) { addRow(doc, y, "Aderência ao Registro de Ponto", `${aderencia}%`); y += 6; }
-  addRow(doc, y, "Progresso Geral", getVal("progress_percent", project?.progress_percent) + "%"); y += 10;
+  addRow("Funcionários Contratados", contracted.toLocaleString("pt-BR"));
+  addRow("Funcionários Cadastrados", cadastrados.toLocaleString("pt-BR"));
+  if (contracted > 0) addRow("Aderência ao Registro de Ponto", `${aderencia}%`);
+  addRow("Progresso Geral do Projeto", getVal("progress_percent", project?.progress_percent) + "%");
+  y += 4;
 
-  // 3. Cronograma
-  addSectionTitle("CRONOGRAMA");
+  // ═══════════════════════════════════════════════════════════════
+  // 3. CRONOGRAMA
+  // ═══════════════════════════════════════════════════════════════
+  sectionTitle("CRONOGRAMA PLANEJADO VS REALIZADO");
   if (macroPhases?.length) {
-    const colX = [margin, 55, 80, 105, 130, 155];
-    const headerY = y;
+    const cols = [M, 53, 77, 101, 125, 149];
+    checkPage(6);
     doc.setFontSize(7);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(100, 116, 139);
-    doc.text("Etapa", colX[0], headerY);
-    doc.text("Início Plan.", colX[1], headerY);
-    doc.text("Fim Plan.", colX[2], headerY);
-    doc.text("Início Real.", colX[3], headerY);
-    doc.text("Fim Real.", colX[4], headerY);
-    doc.text("Status", colX[5], headerY);
-    y += 5;
-
+    doc.text("Etapa", cols[0], y);
+    doc.text("Início Plan.", cols[1], y);
+    doc.text("Fim Plan.", cols[2], y);
+    doc.text("Início Real.", cols[3], y);
+    doc.text("Fim Real.", cols[4], y);
+    doc.text("Status", cols[5], y);
+    y += 4.5;
     doc.setFont("helvetica", "normal");
     for (const ph of macroPhases) {
-      if (y > 270) { doc.addPage(); y = 15; }
+      checkPage(4.5);
       doc.setFontSize(7);
       doc.setTextColor(30, 41, 59);
-      doc.text((ph.phase || "").substring(0, 28), colX[0], y);
-      doc.text(fmtDate(ph.plannedStart), colX[1], y);
-      doc.text(fmtDate(ph.plannedEnd), colX[2], y);
-      doc.text(fmtDate(ph.actualStart), colX[3], y);
-      doc.text(fmtDate(ph.actualEnd), colX[4], y);
-      const statusColor = ph.status === "Concluído" ? [22, 101, 52] : ph.status === "Em andamento" ? [109, 40, 217] : ph.status === "Atrasado" ? [153, 27, 27] : [100, 116, 139];
-      doc.setTextColor(...statusColor);
-      doc.text(ph.status || "—", colX[5], y);
+      doc.text((ph.phase || "").substring(0, 27), cols[0], y);
+      doc.text(fmt(ph.plannedStart), cols[1], y);
+      doc.text(fmt(ph.plannedEnd), cols[2], y);
+      doc.text(fmt(ph.actualStart), cols[3], y);
+      doc.text(fmt(ph.actualEnd), cols[4], y);
+      const sc = ph.status === "Concluído" ? [22, 101, 52] : ph.status === "Em andamento" ? [109, 40, 217] : ph.status === "Atrasado" ? [153, 27, 27] : [100, 116, 139];
+      doc.setTextColor(...sc);
+      doc.text(ph.status || "—", cols[5], y);
       y += 4.5;
     }
-    y += 6;
+    y += 4;
   } else {
-    doc.setFontSize(9);
-    doc.setTextColor(148, 163, 184);
-    doc.text("Nenhuma fase calculada", margin, y);
-    y += 10;
-  }
-
-  // 4. Pendências
-  if (pendingItems?.length) {
-    addSectionTitle("PENDÊNCIAS");
-    for (const p of pendingItems) {
-      if (y > 270) { doc.addPage(); y = 15; }
-      doc.setFontSize(9);
-      doc.setTextColor(30, 41, 59);
-      doc.setFont("helvetica", "normal");
-      doc.text(`• ${p.item || "—"} — ${p.responsible || "—"} (prazo: ${fmtDate(p.deadline)})`, margin, y, { maxWidth: pw });
-      y += 5;
-    }
-    y += 6;
-  }
-
-  // 5. Adendo
-  if (selectedAdendo) {
-    addSectionTitle("ADENDO");
-    doc.setFontSize(9);
-    doc.setTextColor(30, 41, 59);
-    doc.setFont("helvetica", "bold");
-    doc.text(`${selectedAdendo.title} [${selectedAdendo.type}]`, margin, y);
-    y += 6;
-    doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    const content = (selectedAdendo.content || "").substring(0, 500);
-    doc.text(content, margin, y, { maxWidth: pw });
-    y += 10;
-  }
-
-  // 6. Considerações finais
-  if (finalConsiderations) {
-    addSectionTitle("CONSIDERAÇÕES FINAIS");
-    doc.setFontSize(9);
-    doc.setTextColor(30, 41, 59);
-    doc.setFont("helvetica", "normal");
-    const lines = doc.splitTextToSize(finalConsiderations, pw);
-    for (const line of lines) {
-      if (y > 270) { doc.addPage(); y = 15; }
-      doc.text(line, margin, y);
-      y += 4.5;
-    }
+    doc.setTextColor(148, 163, 184);
+    doc.text("Nenhuma fase calculada", M, y);
     y += 8;
   }
 
-  // 7. Assinaturas
-  addSectionTitle("ACEITE E ASSINATURAS");
-  doc.setFontSize(9);
-  doc.setTextColor(51, 65, 85);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Ao assinar este documento, as partes declaram estar de acordo com os termos e condições do encerramento do projeto de implantação da Pontotel para ${clientName}.`, margin, y, { maxWidth: pw });
-  y += 12;
+  // ═══════════════════════════════════════════════════════════════
+  // 4. PENDÊNCIAS
+  // ═══════════════════════════════════════════════════════════════
+  if (pendingItems?.length) {
+    sectionTitle("PENDÊNCIAS");
+    const pCols = [M, 100, 140];
+    checkPage(5);
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(100, 116, 139);
+    doc.text("Pendência", pCols[0], y);
+    doc.text("Responsável", pCols[1], y);
+    doc.text("Prazo", pCols[2], y);
+    y += 4;
+    doc.setFont("helvetica", "normal");
+    for (const p of pendingItems) {
+      checkPage(4);
+      doc.setFontSize(8);
+      doc.setTextColor(30, 41, 59);
+      doc.text((p.item || "—").substring(0, 38), pCols[0], y);
+      doc.text((p.responsible || "—").substring(0, 20), pCols[1], y);
+      doc.text(fmt(p.deadline), pCols[2], y);
+      y += 4;
+    }
+    y += 4;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 5. ADENDO
+  // ═══════════════════════════════════════════════════════════════
+  if (selectedAdendo) {
+    sectionTitle("ADENDO");
+    checkPage(6);
+    // Título
+    doc.setFontSize(9);
+    doc.setTextColor(30, 41, 59);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${selectedAdendo.title}  [${selectedAdendo.type}]`, M, y);
+    y += 5;
+    // Conteúdo — usa addBlock que já faz splitTextToSize
+    addBlock(selectedAdendo.content, 8, [30, 41, 59]);
+    y += 2;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 6. CONSIDERAÇÕES FINAIS
+  // ═══════════════════════════════════════════════════════════════
+  if (finalConsiderations) {
+    sectionTitle("CONSIDERAÇÕES FINAIS");
+    addBlock(finalConsiderations, 9, [30, 41, 59]);
+    y += 2;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 7. ASSINATURAS
+  // ═══════════════════════════════════════════════════════════════
+  sectionTitle("ACEITE E ASSINATURAS");
+  addBlock(`Ao assinar este documento, as partes declaram estar de acordo com os termos e condições do encerramento do projeto de implantação da Pontotel para ${clientName}, confirmando que todas as atividades previstas foram concluídas conforme acordado.`, 9, [51, 65, 85]);
+  y += 2;
 
   const clienteNome = clienteSignatario?.name || project?.project_leader_name || "Líder do Projeto";
-  
   const sigBoxes = [
-    { name: liderImpl?.name || "Líder de Implantação", role: "Testemunha" },
+    { name: liderImpl?.name || "Líder de Implantação", role: "Pontotel · Testemunha", email: liderImpl?.email || "" },
   ];
-  if (coordenadora?.email) {
-    sigBoxes.push({ name: coordenadora.name, role: "Coordenadora de implantação" });
-  }
-  if (gerente?.email) {
-    sigBoxes.push({ name: gerente.name, role: "Gerente de Operações" });
-  }
-  sigBoxes.push({ name: clienteNome, role: `${clientName} · Líder do Projeto` });
+  if (coordenadora?.email) sigBoxes.push({ name: coordenadora.name || "Coordenadora de Implantação", role: "Pontotel · Coordenadora de implantação", email: coordenadora.email });
+  if (gerente?.email) sigBoxes.push({ name: gerente.name || "Gerente de Operações", role: "Pontotel · Gerente de Operações", email: gerente.email });
+  sigBoxes.push({ name: clienteNome, role: `${clientName} · Líder do Projeto`, email: clienteSignatario?.email || project?.project_leader_contact || "" });
 
   const sigCount = sigBoxes.length;
-  const gap = 8;
-  const sigH = 32;
-  const sigW = (pw - ((sigCount - 1) * gap)) / sigCount;
-  const cx = (sx) => sx + sigW / 2;
+  const gap = 6;
+  const sigW = (PW - ((sigCount - 1) * gap)) / sigCount;
+  const sigH = 30;
+  checkPage(sigH + 5);
+  const sigY = y;
   sigBoxes.forEach((s, i) => {
-    const sx = margin + (i * (sigW + gap));
+    const sx = M + (i * (sigW + gap));
+    const cx = sx + sigW / 2;
     doc.setDrawColor(203, 213, 225);
-    doc.rect(sx, y, sigW, sigH);
-    // Nome (quebra dentro da caixa)
+    doc.rect(sx, sigY, sigW, sigH);
+    // Nome
     doc.setFontSize(8);
     doc.setTextColor(30, 41, 59);
     doc.setFont("helvetica", "bold");
-    const nameLines = doc.splitTextToSize(s.name || "—", sigW - 4);
-    nameLines.slice(0, 2).forEach((ln, li) => {
-      doc.text(ln, cx(sx), y + 16 + li * 4, { align: "center" });
-    });
-    // Cargo (quebra dentro da caixa)
+    const nameLn = doc.splitTextToSize(s.name || "—", sigW - 4);
+    nameLn.slice(0, 2).forEach((ln, li) => doc.text(ln, cx, sigY + 14 + li * 3.5, { align: "center" }));
+    // Cargo
     doc.setFontSize(6.5);
     doc.setTextColor(100, 116, 139);
     doc.setFont("helvetica", "normal");
-    const roleLines = doc.splitTextToSize(s.role || "", sigW - 4);
-    roleLines.slice(0, 2).forEach((ln, li) => {
-      doc.text(ln, cx(sx), y + 24 + li * 3.5, { align: "center" });
-    });
+    const roleLn = doc.splitTextToSize(s.role || "", sigW - 4);
+    roleLn.slice(0, 2).forEach((ln, li) => doc.text(ln, cx, sigY + 22 + li * 3, { align: "center" }));
   });
+  y = sigY + sigH + 5;
 
   return doc.output("arraybuffer");
-}
-
-function addRow(doc, y, label, value) {
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(100, 116, 139);
-  doc.text(label, 10, y);
-  doc.setTextColor(30, 41, 59);
-  // Limita largura do valor para não estourar a página (margem direita ~200mm)
-  const valLines = doc.splitTextToSize(String(value || "—"), 145);
-  doc.text(valLines[0], 55, y);
 }
