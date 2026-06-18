@@ -46,6 +46,20 @@ function SaveStatus({ status }) {
 
 function esc(s) { return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"); }
 
+function resolveAdendoContent(content, project, usabilitySnap) {
+  const contracted = project?.contracted_employees || 0;
+  const batendo = usabilitySnap?.empregados_batendo_ponto_ultimos_15_dias || 0;
+  const aderencia = contracted > 0 ? Math.round((batendo / contracted) * 100) : 0;
+  const cadastrados = usabilitySnap?.numero_funcionarios || 0;
+  const closureDate = project?.aligned_end_date || project?.planned_end_date;
+  const formattedDate = closureDate ? fmtDate(closureDate) : "—";
+  return (content || "")
+    .replace(/{{client_name}}/g, project?.client_name || "")
+    .replace(/{{closure_date}}/g, formattedDate)
+    .replace(/{{aderencia_percent}}/g, `${aderencia}%`)
+    .replace(/{{registered_employees}}/g, String(cadastrados));
+}
+
 function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, finalConsiderations, selectedAdendosData, scopeItems, version, coordenadora, liderImpl }) {
   const answersMap = buildAnswersMap(scopeItems);
   const contracted = project?.contracted_employees || 0;
@@ -74,14 +88,17 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
     : `<tr><td colspan="4" style="text-align:center;color:#64748b;font-style:italic">Não há pendências registradas</td></tr>`;
 
   const adendosHTML = selectedAdendosData && selectedAdendosData.length > 0
-    ? selectedAdendosData.map((a, i) => `
+    ? selectedAdendosData.map((a, i) => {
+        const resolvedContent = resolveAdendoContent(a.content, project, usabilitySnap);
+        return `
       <div style="margin-bottom:18px;page-break-inside:avoid">
         <div style="background:#f8fafc;border-left:4px solid #1e40af;padding:10px 14px;border-radius:0 6px 6px 0;margin-bottom:6px">
-          <strong>${i + 1}. ${esc(a.title)}</strong>
+          <strong>${esc(a.title)}</strong>
           <span style="margin-left:8px;font-size:10px;color:#64748b">[${esc(a.type)}]</span>
         </div>
-        <p style="font-size:11px;color:#334155;line-height:1.7;padding-left:18px">${esc(a.content)}</p>
-      </div>`).join("")
+        <p style="font-size:11px;color:#334155;line-height:1.7;padding-left:18px">${esc(resolvedContent)}</p>
+      </div>`;
+      }).join("")
     : `<p style="color:#64748b;font-style:italic">Nenhum adendo selecionado.</p>`;
 
   const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
@@ -238,7 +255,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
   const [form, setForm] = useState({
     pending_items: [],
     final_considerations: "",
-    selected_adendos: [],
+    selected_adendo_id: "",
     selected_coordenadora_id: "",
     selected_lider_id: "",
   });
@@ -262,7 +279,8 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
       setForm({
         pending_items: curr.pending_items || [],
         final_considerations: curr.final_considerations || "",
-        selected_adendos: curr.selected_adendos || [],
+        // Compatibilidade: usa selected_adendo_id novo ou migra do array antigo
+        selected_adendo_id: curr.selected_adendo_id || (curr.selected_adendos?.[0] || ""),
         selected_coordenadora_id: curr.selected_coordenadora_id || "",
         selected_lider_id: curr.selected_lider_id || "",
       });
@@ -287,7 +305,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
       project_id: projectId,
       pending_items: formData.pending_items,
       final_considerations: formData.final_considerations,
-      selected_adendos: formData.selected_adendos,
+      selected_adendo_id: formData.selected_adendo_id,
       selected_coordenadora_id: formData.selected_coordenadora_id,
       selected_lider_id: formData.selected_lider_id,
       ...extra,
@@ -297,7 +315,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
       saved = await base44.entities.TermoEncerramento.update(current.id, payload);
       setCurrent(c => ({ ...c, ...payload }));
       // Auditoria de campos alterados
-      ["final_considerations", "pending_items", "selected_adendos"].forEach(field => {
+      ["final_considerations", "pending_items", "selected_adendo_id"].forEach(field => {
         const oldVal = current?.[field] ? (typeof current[field] === "string" ? current[field] : JSON.stringify(current[field])) : "";
         const newVal = payload[field] ? (typeof payload[field] === "string" ? payload[field] : JSON.stringify(payload[field])) : "";
         if (oldVal !== newVal) {
@@ -373,7 +391,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
       last_auto_update: new Date().toISOString(),
       pending_items: form.pending_items,
       final_considerations: form.final_considerations,
-      selected_adendos: form.selected_adendos,
+      selected_adendo_id: form.selected_adendo_id,
       selected_coordenadora_id: form.selected_coordenadora_id,
       selected_lider_id: form.selected_lider_id,
       macro_schedule_snapshot: JSON.stringify(macroPhases),
@@ -389,19 +407,17 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
     setTermos(ts => ts.map(t => t.id === current.id ? { ...t, status } : t));
   };
 
-  const selectedAdendosData = (form.selected_adendos || [])
-    .map(id => adendosAll.find(a => a.id === id))
-    .filter(Boolean);
+  const selectedAdendo = form.selected_adendo_id ? adendosAll.find(a => a.id === form.selected_adendo_id) || null : null;
+  // Mantém compatibilidade com PDF que espera array
+  const selectedAdendosData = selectedAdendo ? [selectedAdendo] : [];
 
   const coordenadora = assinaturasAll.find(a => a.id === form.selected_coordenadora_id) || null;
   const liderImpl = assinaturasAll.find(a => a.id === form.selected_lider_id) || null;
   const coordenadorasList = assinaturasAll.filter(a => a.role === "Coordenadora de implantação");
   const liderList = assinaturasAll.filter(a => a.role === "Líder de implantação");
 
-  const toggleAdendo = (id) => {
-    const sel = form.selected_adendos || [];
-    const next = sel.includes(id) ? sel.filter(x => x !== id) : [...sel, id];
-    setField("selected_adendos", next);
+  const selectAdendo = (id) => {
+    setField("selected_adendo_id", form.selected_adendo_id === id ? "" : id);
   };
 
   const inputClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white";
@@ -690,19 +706,28 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
           <Section title="ADENDOS">
             {!isLocked && !readOnly && (
               <div className="mb-4">
-                <p className="text-xs text-slate-500 mb-2">Selecione os adendos a incluir (a ordem de seleção define a ordem no documento):</p>
+                <p className="text-xs text-slate-500 mb-2">Selecione <strong>1 adendo</strong> para incluir no documento:</p>
                 {adendosAll.length === 0 ? (
                   <div className="text-xs text-slate-400 italic">Nenhum adendo ativo disponível. Crie adendos na seção "Adendos" do menu lateral.</div>
                 ) : (
                   <div className="space-y-2">
+                    {/* Opção "nenhum" */}
+                    <div
+                      onClick={() => selectAdendo("")}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${!form.selected_adendo_id ? "border-slate-400 bg-slate-100" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                    >
+                      <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${!form.selected_adendo_id ? "border-slate-500 bg-slate-500" : "border-slate-300"}`}>
+                        {!form.selected_adendo_id && <div className="w-2 h-2 rounded-full bg-white" />}
+                      </div>
+                      <span className="text-sm text-slate-500 italic">Sem adendo</span>
+                    </div>
                     {adendosAll.map(a => {
-                      const selected = (form.selected_adendos || []).includes(a.id);
-                      const pos = (form.selected_adendos || []).indexOf(a.id) + 1;
+                      const selected = form.selected_adendo_id === a.id;
                       return (
-                        <div key={a.id} onClick={() => toggleAdendo(a.id)}
-                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selected ? "border-green-300 bg-green-50" : "border-slate-200 bg-slate-50 hover:border-slate-300"}`}>
-                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 text-xs font-bold ${selected ? "border-green-500 bg-green-500 text-white" : "border-slate-300"}`}>
-                            {selected ? pos : ""}
+                        <div key={a.id} onClick={() => selectAdendo(a.id)}
+                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selected ? "border-green-300 bg-green-50" : "border-slate-200 bg-white hover:border-slate-300"}`}>
+                          <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${selected ? "border-green-500 bg-green-500" : "border-slate-300"}`}>
+                            {selected && <div className="w-2 h-2 rounded-full bg-white" />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-slate-700">{a.title}</p>
@@ -715,18 +740,15 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
                 )}
               </div>
             )}
-            {selectedAdendosData.length > 0 ? (
-              <div className="space-y-4 mt-2">
-                {selectedAdendosData.map((a, i) => (
-                  <div key={a.id} className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="w-5 h-5 bg-green-600 text-white rounded-full text-xs font-bold flex items-center justify-center">{i + 1}</span>
-                      <span className="text-sm font-bold text-slate-700">{a.title}</span>
-                      <span className="text-xs text-slate-400">[{a.type}]</span>
-                    </div>
-                    <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{a.content}</p>
-                  </div>
-                ))}
+            {selectedAdendo ? (
+              <div className="bg-slate-50 rounded-lg p-4 border border-slate-100 mt-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm font-bold text-slate-700">{selectedAdendo.title}</span>
+                  <span className="text-xs text-slate-400">[{selectedAdendo.type}]</span>
+                </div>
+                <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">
+                  {resolveAdendoContent(selectedAdendo.content, project, usabilitySnap)}
+                </p>
               </div>
             ) : <p className="text-sm text-slate-400 italic">Nenhum adendo selecionado.</p>}
           </Section>

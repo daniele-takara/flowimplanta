@@ -14,6 +14,14 @@ const TYPE_ICONS = {
   "Comercial": DollarSign,
 };
 
+// Variáveis suportadas nos templates de adendo
+const TEMPLATE_VARIABLES = [
+  { key: "{{client_name}}", label: "Nome do cliente", example: "Empresa XYZ" },
+  { key: "{{closure_date}}", label: "Data de encerramento", example: "01/10/2026" },
+  { key: "{{aderencia_percent}}", label: "% de aderência ao ponto", example: "85%" },
+  { key: "{{registered_employees}}", label: "Funcionários cadastrados", example: "164" },
+];
+
 function AdendoForm({ adendo, onSave, onCancel }) {
   const [form, setForm] = useState({
     title: adendo?.title || "",
@@ -23,6 +31,7 @@ function AdendoForm({ adendo, onSave, onCancel }) {
     active: adendo?.active !== false,
   });
   const [saving, setSaving] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,13 +40,30 @@ function AdendoForm({ adendo, onSave, onCancel }) {
     setSaving(false);
   };
 
+  const insertVariable = (key) => {
+    setForm(f => ({ ...f, content: f.content + key }));
+  };
+
+  const previewContent = form.content
+    .replace(/{{client_name}}/g, "Empresa XYZ")
+    .replace(/{{closure_date}}/g, "01/10/2026")
+    .replace(/{{aderencia_percent}}/g, "85%")
+    .replace(/{{registered_employees}}/g, "164");
+
   const inputClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="px-6 py-4 border-b border-slate-100">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h2 className="text-base font-bold text-slate-800">{adendo ? "Editar Adendo" : "Novo Adendo"}</h2>
+          <button
+            type="button"
+            onClick={() => setShowPreview(p => !p)}
+            className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${showPreview ? "bg-blue-600 text-white border-blue-600" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+          >
+            {showPreview ? "Editar" : "Pré-visualizar"}
+          </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
@@ -70,15 +96,41 @@ function AdendoForm({ adendo, onSave, onCancel }) {
             <input className={inputClass} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Breve descrição do adendo" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">Texto do adendo *</label>
-            <textarea
-              className={`${inputClass} resize-none`}
-              rows={8}
-              value={form.content}
-              onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
-              required
-              placeholder="Texto completo do adendo..."
-            />
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-slate-500">Texto do adendo *</label>
+              <span className="text-xs text-slate-400">Use variáveis dinâmicas para dados do projeto</span>
+            </div>
+            {/* Variáveis */}
+            <div className="flex flex-wrap gap-1.5 mb-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <span className="text-xs font-semibold text-amber-700 w-full mb-1">Inserir variável dinâmica:</span>
+              {TEMPLATE_VARIABLES.map(v => (
+                <button
+                  key={v.key}
+                  type="button"
+                  onClick={() => insertVariable(v.key)}
+                  title={`Exemplo: ${v.example}`}
+                  className="text-xs px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded border border-amber-300 font-mono transition-colors"
+                >
+                  {v.key}
+                  <span className="ml-1 text-amber-600 font-sans font-normal">({v.label})</span>
+                </button>
+              ))}
+            </div>
+
+            {showPreview ? (
+              <div className="w-full min-h-[200px] px-3 py-2 text-sm border border-blue-200 rounded-lg bg-blue-50 whitespace-pre-wrap leading-relaxed text-slate-700">
+                {previewContent || <span className="text-slate-400 italic">Sem conteúdo</span>}
+              </div>
+            ) : (
+              <textarea
+                className={`${inputClass} resize-none`}
+                rows={10}
+                value={form.content}
+                onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
+                required
+                placeholder="Texto completo do adendo. Use {{client_name}}, {{closure_date}}, etc. para inserir dados dinâmicos do projeto..."
+              />
+            )}
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Cancelar</button>

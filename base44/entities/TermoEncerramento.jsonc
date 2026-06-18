@@ -60,12 +60,16 @@
     "final_considerations": {
       "type": "string"
     },
+    "selected_adendo_id": {
+      "type": "string",
+      "description": "ID do adendo selecionado (sele\u00e7\u00e3o \u00fanica)"
+    },
     "selected_adendos": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "IDs dos adendos selecionados (em ordem)"
+      "description": "Legado: IDs dos adendos selecionados (mantido para compatibilidade)"
     },
     "selected_coordenadora_id": {
       "type": "string",
