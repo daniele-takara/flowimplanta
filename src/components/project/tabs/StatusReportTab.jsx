@@ -100,7 +100,7 @@ function ManualSection({ title, icon: SectionIcon, items, onAdd, onRemove, onEdi
               />
             ))}
             {!readOnly && (
-              <button onClick={() => onRemove(i)} className="text-slate-300 hover:text-red-400 mt-1.5 shrink-0">
+              <button onMouseDown={() => onRemove(i)} className="text-slate-300 hover:text-red-400 mt-1.5 shrink-0">
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
@@ -183,7 +183,6 @@ function StatusReportDashboard({ report, project, macroPhases, overallProgress, 
 
   const editItem   = (field, i, key, val) => { if (readOnly) return; setForm(f => ({ ...f, [field]: f[field].map((x, idx) => idx === i ? { ...x, [key]: val } : x) })); };
   const addItem    = (field, empty)        => { if (readOnly) return; setForm(f => ({ ...f, [field]: [...(f[field] || []), empty] })); };
-  const removeItem = (field, i)            => { if (readOnly) return; setForm(f => ({ ...f, [field]: f[field].filter((_, idx) => idx !== i) })); };
 
   return (
     <div className="space-y-6">
@@ -298,7 +297,7 @@ function StatusReportDashboard({ report, project, macroPhases, overallProgress, 
           items={form.client_pending || []}
           fields={[{ key: "item", label: "Item pendente", flex: 2 }, { key: "deadline", label: "Prazo", type: "date" }, { key: "responsible", label: "Responsável" }]}
           onAdd={() => addItem("client_pending", { item: "", deadline: "", responsible: "" })}
-          onRemove={i => { removeItem("client_pending", i); onSaveSection && onSaveSection("client_pending"); }}
+          onRemove={i => { const filtered = (form.client_pending || []).filter((_, idx) => idx !== i); setForm(f => ({ ...f, client_pending: filtered })); onSaveSection && onSaveSection("client_pending", filtered); }}
           onEdit={(i, k, v) => editItem("client_pending", i, k, v)}
           onSaveSection={() => onSaveSection && onSaveSection("client_pending")}
           readOnly={readOnly}
@@ -308,7 +307,7 @@ function StatusReportDashboard({ report, project, macroPhases, overallProgress, 
           items={form.internal_pending || []}
           fields={[{ key: "item", label: "Item pendente", flex: 2 }, { key: "deadline", label: "Prazo", type: "date" }, { key: "responsible", label: "Responsável" }]}
           onAdd={() => addItem("internal_pending", { item: "", deadline: "", responsible: "" })}
-          onRemove={i => { removeItem("internal_pending", i); onSaveSection && onSaveSection("internal_pending"); }}
+          onRemove={i => { const filtered = (form.internal_pending || []).filter((_, idx) => idx !== i); setForm(f => ({ ...f, internal_pending: filtered })); onSaveSection && onSaveSection("internal_pending", filtered); }}
           onEdit={(i, k, v) => editItem("internal_pending", i, k, v)}
           onSaveSection={() => onSaveSection && onSaveSection("internal_pending")}
           readOnly={readOnly}
@@ -321,7 +320,7 @@ function StatusReportDashboard({ report, project, macroPhases, overallProgress, 
           items={form.integration_items || []}
           fields={[{ key: "item", label: "Item de integração", flex: 2 }, { key: "status", label: "Status" }]}
           onAdd={() => addItem("integration_items", { item: "", status: "" })}
-          onRemove={i => { removeItem("integration_items", i); onSaveSection && onSaveSection("integration_items"); }}
+          onRemove={i => { const filtered = (form.integration_items || []).filter((_, idx) => idx !== i); setForm(f => ({ ...f, integration_items: filtered })); onSaveSection && onSaveSection("integration_items", filtered); }}
           onEdit={(i, k, v) => editItem("integration_items", i, k, v)}
           onSaveSection={() => onSaveSection && onSaveSection("integration_items")}
           readOnly={readOnly}
@@ -331,7 +330,7 @@ function StatusReportDashboard({ report, project, macroPhases, overallProgress, 
           items={form.risks || []}
           fields={[{ key: "description", label: "Descrição do risco", flex: 2 }, { key: "impact", label: "Impacto" }, { key: "mitigation", label: "Mitigação" }]}
           onAdd={() => addItem("risks", { description: "", impact: "Médio", mitigation: "" })}
-          onRemove={i => { removeItem("risks", i); onSaveSection && onSaveSection("risks"); }}
+          onRemove={i => { const filtered = (form.risks || []).filter((_, idx) => idx !== i); setForm(f => ({ ...f, risks: filtered })); onSaveSection && onSaveSection("risks", filtered); }}
           onEdit={(i, k, v) => editItem("risks", i, k, v)}
           onSaveSection={() => onSaveSection && onSaveSection("risks")}
           readOnly={readOnly}
@@ -651,11 +650,14 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
   }, [projectId]);
 
   // Salvar seção de array (pendências, riscos, integração) — autosave onBlur
-  const handleSaveSectionArray = useCallback(async (field) => {
+  // valueOverride: usado pelo removeItem para passar o array já filtrado,
+  // evitando race condition entre setForm (assíncrono) e leitura do formRef (síncrona)
+  const handleSaveSectionArray = useCallback(async (field, valueOverride) => {
     const currentReport = reportRef.current;
     const f = formRef.current || form;
+    const value = valueOverride !== undefined ? valueOverride : (f[field] || []);
     try {
-      const payload = { [field]: f[field] };
+      const payload = { [field]: value };
       if (currentReport?.id) {
         await base44.entities.StatusReport.update(currentReport.id, payload);
         reportRef.current = { ...currentReport, ...payload };
@@ -670,9 +672,9 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         setReport(saved);
       }
       // Auditoria (seção de array)
-      logAudit({ project_id: projectId, screen: "Status Report", field, old_value: JSON.stringify(currentReport?.[field] || []), new_value: JSON.stringify(f[field] || []) });
+      logAudit({ project_id: projectId, screen: "Status Report", field, old_value: JSON.stringify(currentReport?.[field] || []), new_value: JSON.stringify(value || []) });
       const entry = savedFieldsCache.get(projectId) || { fields: {} };
-      entry.fields[field] = f[field];
+      entry.fields[field] = value;
       entry.lastSaved = Date.now();
       savedFieldsCache.set(projectId, entry);
     } catch (e) {
