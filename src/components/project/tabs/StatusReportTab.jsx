@@ -342,8 +342,9 @@ function computeKpiFromReport(report, project) {
 }
 
 export default function StatusReportTab({ reports, projectId, projectClientName, project, scopeItems, savedActivities, onRefresh, readOnly = false, canUpdate = true, canGenerateEmail = true, canSyncPipedrive = true }) {
-  // reportRef mantém referência estável ao report mais recente para evitar race conditions
+  // refs estáveis para evitar race conditions e closures stale
   const reportRef = useRef(reports?.[0] || null);
+  const formRef = useRef(null);
   const [report, setReport] = useState(reports?.[0] || null);
   const [form, setForm] = useState(() => {
     const r = reports?.[0];
@@ -391,6 +392,9 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
   const [emailHtml, setEmailHtml]         = useState("");
   const [showConfirm, setShowConfirm]     = useState(false);
   const [updateResult, setUpdateResult]   = useState(null);
+
+  // Mantém formRef sempre atualizado com o form mais recente (evita closure stale)
+  formRef.current = form;
 
   // answersMap para o motor de cronograma
   const answersMap = {};
@@ -527,10 +531,11 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         }
       }
 
-      // Aplicar patch do Pipedrive no form atual
+      // Aplicar patch do Pipedrive no form atual (usa formRef para evitar stale closure)
+      const latestForm = formRef.current || form;
       const currentForm = Object.keys(pipedriveFormPatch).length > 0
-        ? { ...form, ...pipedriveFormPatch }
-        : form;
+        ? { ...latestForm, ...pipedriveFormPatch }
+        : latestForm;
       if (Object.keys(pipedriveFormPatch).length > 0) setForm(currentForm);
 
       // 5. Persistir tudo
@@ -591,15 +596,16 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
   }, [project, projectId, form, report, savedActivities, answersMap]);
 
   // Salvar apenas campos manuais (sem recalcular indicadores)
-  // NÃO chama onRefresh() — o estado local é suficiente e evita desmontar/remontar o componente
+  // Usa formRef.current para garantir leitura sempre atualizada (evita closure stale)
   const handleSaveManual = async () => {
     setSaving(true);
     setSaveError(null);
+    const f = formRef.current || form;
     try {
       const payload = {
-        next_agenda: form.next_agenda, next_agenda_date: form.next_agenda_date,
-        executive_summary: form.executive_summary, client_pending: form.client_pending,
-        internal_pending: form.internal_pending, risks: form.risks, integration_items: form.integration_items || [],
+        next_agenda: f.next_agenda, next_agenda_date: f.next_agenda_date,
+        executive_summary: f.executive_summary, client_pending: f.client_pending,
+        internal_pending: f.internal_pending, risks: f.risks, integration_items: f.integration_items || [],
       };
       const currentReport = reportRef.current;
       let saved;
