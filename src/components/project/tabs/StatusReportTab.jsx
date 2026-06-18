@@ -599,6 +599,8 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
   }, [project, projectId, form, report, savedActivities, answersMap]);
 
   // Salvar um campo individual — autosave onBlur (sem precisar do botão)
+  // Após salvar, chama onRefresh para manter o prop reports atualizado no pai,
+  // evitando perda de dados ao trocar de aba e voltar.
   const handleSaveField = useCallback(async (field, value) => {
     const currentReport = reportRef.current;
     try {
@@ -608,7 +610,6 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         reportRef.current = { ...currentReport, ...payload };
         setReport(prev => prev ? { ...prev, ...payload } : prev);
       } else {
-        // Cria o report se ainda não existir
         const saved = await base44.entities.StatusReport.create({
           project_id: projectId,
           report_date: new Date().toISOString().split("T")[0],
@@ -617,10 +618,12 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         reportRef.current = saved;
         setReport(saved);
       }
+      // Atualiza o pai silenciosamente para que reports fique sincronizado com o DB
+      if (onRefresh) onRefresh();
     } catch (e) {
       console.warn("[StatusReportTab] Erro ao salvar campo:", field, e);
     }
-  }, [projectId]);
+  }, [projectId, onRefresh]);
 
   // Salvar apenas campos manuais (sem recalcular indicadores)
   // Usa formRef.current para garantir leitura sempre atualizada (evita closure stale)
@@ -692,16 +695,6 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
               >
                 <RefreshCw className={`w-4 h-4 ${updating ? "animate-spin" : ""}`} />
                 {updating ? "Atualizando..." : "Atualizar Status Report"}
-              </button>
-            )}
-            {!readOnly && (
-              <button
-                onClick={handleSaveManual}
-                disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-purple-200 bg-purple-50 text-purple-700 rounded-xl hover:bg-purple-100 transition-colors disabled:opacity-50"
-              >
-                <Save className="w-4 h-4" />
-                {saving ? "Salvando..." : "Salvar campos manuais"}
               </button>
             )}
             {saveError && (
