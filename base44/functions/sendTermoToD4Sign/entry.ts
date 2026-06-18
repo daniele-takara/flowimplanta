@@ -365,19 +365,30 @@ function generatePDF({
   sigBoxes.push({ name: clienteNome, role: `${clientName} · Líder do Projeto` });
 
   const sigCount = sigBoxes.length;
-  const sigW = (pw - ((sigCount - 1) * 10)) / sigCount;
+  const gap = 8;
+  const sigH = 32;
+  const sigW = (pw - ((sigCount - 1) * gap)) / sigCount;
+  const cx = (sx) => sx + sigW / 2;
   sigBoxes.forEach((s, i) => {
-    const sx = margin + (i * (sigW + 10));
+    const sx = margin + (i * (sigW + gap));
     doc.setDrawColor(203, 213, 225);
-    doc.rect(sx, y, sigW, 30);
-    doc.setFontSize(9);
+    doc.rect(sx, y, sigW, sigH);
+    // Nome (quebra dentro da caixa)
+    doc.setFontSize(8);
     doc.setTextColor(30, 41, 59);
     doc.setFont("helvetica", "bold");
-    doc.text(s.name, sx + sigW / 2, y + 16, { align: "center" });
-    doc.setFontSize(7);
+    const nameLines = doc.splitTextToSize(s.name || "—", sigW - 4);
+    nameLines.slice(0, 2).forEach((ln, li) => {
+      doc.text(ln, cx(sx), y + 16 + li * 4, { align: "center" });
+    });
+    // Cargo (quebra dentro da caixa)
+    doc.setFontSize(6.5);
     doc.setTextColor(100, 116, 139);
     doc.setFont("helvetica", "normal");
-    doc.text(s.role, sx + sigW / 2, y + 22, { align: "center" });
+    const roleLines = doc.splitTextToSize(s.role || "", sigW - 4);
+    roleLines.slice(0, 2).forEach((ln, li) => {
+      doc.text(ln, cx(sx), y + 24 + li * 3.5, { align: "center" });
+    });
   });
 
   return doc.output("arraybuffer");
@@ -389,5 +400,7 @@ function addRow(doc, y, label, value) {
   doc.setTextColor(100, 116, 139);
   doc.text(label, 10, y);
   doc.setTextColor(30, 41, 59);
-  doc.text(value || "—", 55, y);
+  // Limita largura do valor para não estourar a página (margem direita ~200mm)
+  const valLines = doc.splitTextToSize(String(value || "—"), 145);
+  doc.text(valLines[0], 55, y);
 }
