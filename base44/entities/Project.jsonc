@@ -32,14 +32,13 @@
     "status": {
       "type": "string",
       "enum": [
-        "Planejamento",
+        "Em aberto",
         "Em andamento",
-        "Em risco",
-        "Atrasado",
         "Conclu\u00eddo",
-        "Cancelado"
+        "Perdido",
+        "Pausado"
       ],
-      "default": "Planejamento"
+      "default": "Em aberto"
     },
     "current_phase": {
       "type": "string",

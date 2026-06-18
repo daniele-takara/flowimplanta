@@ -26,12 +26,11 @@ export function calcDaysLeft(endDate) {
 
 export function statusColor(status) {
   const map = {
-    "Em andamento": "bg-blue-100 text-blue-700",
+    "Em aberto": "bg-blue-100 text-blue-700",
+    "Em andamento": "bg-indigo-100 text-indigo-700",
     "Concluído": "bg-green-100 text-green-700",
-    "Atrasado": "bg-red-100 text-red-700",
-    "Em risco": "bg-orange-100 text-orange-700",
-    "Planejamento": "bg-slate-100 text-slate-600",
-    "Cancelado": "bg-slate-100 text-slate-500",
+    "Perdido": "bg-red-100 text-red-700",
+    "Pausado": "bg-amber-100 text-amber-700",
     "Não iniciado": "bg-slate-100 text-slate-500",
     "Bloqueado": "bg-purple-100 text-purple-700",
     "No prazo": "bg-green-100 text-green-700"

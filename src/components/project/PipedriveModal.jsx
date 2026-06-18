@@ -66,7 +66,7 @@ export default function PipedriveModal({ onClose, onImported, existingDealIds = 
         // Campos obrigatórios
         name: selected.title,
         client_name: selected.org_name || selected.title,
-        status: "Planejamento",
+        status: "Em aberto",
         current_phase: "Abertura de projeto",
         // Vínculo Pipedrive
         pipedrive_deal_id: selected.id,

@@ -36,14 +36,14 @@ export default function Dashboard() {
     total: projects.length,
     inProgress: projects.filter(p => p.status === "Em andamento").length,
     completed: projects.filter(p => p.status === "Concluído").length,
-    delayed: projects.filter(p => p.status === "Atrasado").length,
-    atRisk: projects.filter(p => p.status === "Em risco").length,
+    lost: projects.filter(p => p.status === "Perdido").length,
+    paused: projects.filter(p => p.status === "Pausado").length,
     totalMRR: projects.reduce((acc, p) => acc + (p.mrr || 0), 0),
     totalEmployees: projects.reduce((acc, p) => acc + (p.contracted_employees || 0), 0)
   };
 
   const managers = ["Todos", ...new Set(projects.map(p => p.pontotel_manager_name).filter(Boolean))];
-  const statuses = ["Todos", "Em andamento", "Em risco", "Atrasado", "Concluído", "Planejamento"];
+  const statuses = ["Todos", "Em aberto", "Em andamento", "Concluído", "Perdido", "Pausado"];
 
   const filtered = projects.filter(p => {
     const matchStatus = filterStatus === "Todos" || p.status === filterStatus;
@@ -77,7 +77,7 @@ export default function Dashboard() {
         <StatsCard title="Total de Projetos" value={stats.total} icon={FolderKanban} color="blue" subtitle={`${formatCurrency(stats.totalMRR)} MRR total`} />
         <StatsCard title="Em Andamento" value={stats.inProgress} icon={Clock} color="blue" subtitle={`${Math.round(stats.inProgress / stats.total * 100)}% do portfólio`} />
         <StatsCard title="Concluídos" value={stats.completed} icon={CheckCircle2} color="green" subtitle="No período atual" />
-        <StatsCard title="Atrasados / Em Risco" value={stats.delayed + stats.atRisk} icon={AlertTriangle} color="red" subtitle={`${stats.delayed} atrasados · ${stats.atRisk} em risco`} />
+        <StatsCard title="Perdidos / Pausados" value={stats.lost + stats.paused} icon={AlertTriangle} color="red" subtitle={`${stats.lost} perdidos · ${stats.paused} pausados`} />
       </div>
 
       {/* Secondary stats */}

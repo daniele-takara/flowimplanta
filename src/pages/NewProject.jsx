@@ -29,7 +29,7 @@ export default function NewProject() {
         name: `Projeto #${numId}`,
         client_name: "—",
         pipedrive_deal_id: numId,
-        status: "Planejamento",
+        status: "Em aberto",
         current_phase: "Abertura de projeto",
         progress_percent: 0,
       });

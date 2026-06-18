@@ -10,7 +10,7 @@ import { formatDate } from "@/lib/utils";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { usePermissions } from "@/lib/usePermissions";
 
-const STATUS_OPTIONS = ["Todos", "Planejamento", "Em andamento", "Em risco", "Atrasado", "Concluído", "Cancelado"];
+const STATUS_OPTIONS = ["Todos", "Em aberto", "Em andamento", "Concluído", "Perdido", "Pausado"];
 
 export default function ProjectList() {
   const { user } = useAuth();
