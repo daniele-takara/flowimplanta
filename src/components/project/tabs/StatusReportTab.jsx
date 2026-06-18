@@ -147,8 +147,8 @@ function MacroScheduleTable({ macroPhases }) {
                       <div
                         className={`h-full rounded-full ${
                           ph.status === "Concluído" ? "bg-green-500" :
-                          ph.status === "Em andamento" ? "bg-purple-500" :
-                          ph.status === "Atrasado" ? "bg-red-500" : "bg-slate-300"
+                          ph.status === "Atrasado" ? "bg-red-500" :
+                          ph.status === "Em andamento" ? "bg-green-500" : "bg-slate-300"
                         }`}
                         style={{ width: `${ph.progress}%` }}
                       />
