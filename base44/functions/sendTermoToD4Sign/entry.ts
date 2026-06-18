@@ -35,11 +35,23 @@ Deno.serve(async (req) => {
 
     const authParams = `tokenAPI=${encodeURIComponent(tokenAPI)}&cryptKey=${encodeURIComponent(cryptKey)}`;
 
-    // 1. Get vault (safe) UUID
+    // 1. Get vault (safe) UUID — usa o primeiro cofre disponível
+    // As credenciais (tokenAPI/cryptKey) são do usuário daniele@pontotel.com.br
+    // e devem ter acesso ao cofre "Implantação"
     const safesResp = await fetch(`${D4SIGN_BASE}/safes?${authParams}`);
-    const safesData = await safesResp.json();
-    if (!safesData?.length) return Response.json({ error: "Nenhum cofre D4Sign encontrado" }, { status: 500 });
-    const safeUuid = safesData[0].uuid_safe || safesData[0].uuidSafe;
+    const safesText = await safesResp.text();
+    console.log("D4Sign safes status:", safesResp.status, "body:", safesText.substring(0, 500));
+    
+    let safesData;
+    try { safesData = JSON.parse(safesText); } catch { safesData = []; }
+    
+    if (!safesData?.length) return Response.json({ 
+      error: "Nenhum cofre D4Sign encontrado", 
+      status: safesResp.status,
+      raw: safesText.substring(0, 300)
+    }, { status: 500 });
+    
+    const safeUuid = typeof safesData[0] === "string" ? safesData[0] : (safesData[0].uuid_safe || safesData[0].uuidSafe);
     if (!safeUuid) return Response.json({ error: "UUID do cofre não encontrado" }, { status: 500 });
 
     // 2. Generate PDF
