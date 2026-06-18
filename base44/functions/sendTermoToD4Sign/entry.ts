@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     // 2. Generate PDF
     const clientName = sectionOverrides?.client_name || project?.client_name || "Cliente";
     const today = new Date().toLocaleDateString("pt-BR");
-    const pdfBytes = generatePDF({
+    const pdfBytes = await generatePDF({
       project, macroPhases, pendingItems, finalConsiderations,
       selectedAdendo, coordenadora, liderImpl, gerente, clienteSignatario,
       sectionOverrides, usabilitySnap, clientName, today, versionLabel
@@ -185,7 +185,7 @@ function buildSigners(project, coordenadora, liderImpl, gerente, clienteSignatar
 
 // ─── PDF Generation ───────────────────────────────────────────
 // Renderização manual com jsPDF + splitTextToSize em todo texto longo
-function generatePDF({
+async function generatePDF({
   project, macroPhases, pendingItems, finalConsiderations,
   selectedAdendo, coordenadora, liderImpl, gerente, clienteSignatario,
   sectionOverrides, usabilitySnap, clientName, today, versionLabel
@@ -264,6 +264,18 @@ function generatePDF({
   // ═══════════════════════════════════════════════════════════════
   // HEADER
   // ═══════════════════════════════════════════════════════════════
+  // Logo Pontotel (canto superior direito)
+  const logoUrl = "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/7182abf05_LogoPontotel_AmarelaePreta.png";
+  try {
+    const logoResp = await fetch(logoUrl);
+    if (logoResp.ok) {
+      const logoBuf = await logoResp.arrayBuffer();
+      const logoBase64 = btoa(String.fromCharCode(...new Uint8Array(logoBuf)));
+      const logoDataUrl = `data:image/png;base64,${logoBase64}`;
+      doc.addImage(logoDataUrl, "PNG", M + PW - 38, y - 2, 38, 14);
+    }
+  } catch (_) { /* ignora erro de carregamento do logo */ }
+
   doc.setFontSize(18);
   doc.setTextColor(124, 58, 237);
   doc.setFont("helvetica", "bold");
