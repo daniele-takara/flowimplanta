@@ -957,19 +957,29 @@ function AutoRow({ label, value }) {
 }
 
 function EditableAutoField({ label, fieldKey, autoValue, sectionOverrides, isLocked, readOnly, canEditAutoFields, onBlur }) {
-  const inputValue = sectionOverrides[fieldKey] !== undefined ? sectionOverrides[fieldKey] : (autoValue != null ? String(autoValue) : "");
+  const resolvedValue = sectionOverrides[fieldKey] !== undefined ? sectionOverrides[fieldKey] : (autoValue != null ? String(autoValue) : "");
   const manual = sectionOverrides[fieldKey] !== undefined;
   const disabled = isLocked || readOnly || !canEditAutoFields;
   const inputClass = "flex-1 px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white";
   const isDate = fieldKey.includes("date");
+
+  // Estado local: permite digitação livre; salva apenas no onBlur (evita input controlado bloqueado)
+  const [localValue, setLocalValue] = useState(resolvedValue);
+
+  // Sincroniza quando o valor de origem muda externamente (ex: refresh de dados automáticos)
+  useEffect(() => { setLocalValue(resolvedValue); }, [resolvedValue]);
+
+  const handleBlur = (e) => {
+    onBlur(fieldKey, autoValue, e);
+  };
 
   return (
     <div className="flex items-start py-1.5 border-b border-slate-100 last:border-0 gap-3">
       <span className="text-xs font-medium text-slate-400 w-48 shrink-0 pt-1.5">{label}</span>
       <div className="flex items-center gap-2 flex-1">
         {isDate
-          ? <input type="date" className={`${inputClass} max-w-[200px]`} value={inputValue} onChange={() => {}} onBlur={e => onBlur(fieldKey, autoValue, e)} readOnly={disabled} />
-          : <input type="text" className={inputClass} value={inputValue} onChange={() => {}} onBlur={e => onBlur(fieldKey, autoValue, e)} readOnly={disabled} />
+          ? <input type="date" className={`${inputClass} max-w-[200px]`} value={localValue} onChange={e => setLocalValue(e.target.value)} onBlur={handleBlur} disabled={disabled} />
+          : <input type="text" className={inputClass} value={localValue} onChange={e => setLocalValue(e.target.value)} onBlur={handleBlur} disabled={disabled} />
         }
         <FieldOriginBadge manual={manual} />
       </div>
