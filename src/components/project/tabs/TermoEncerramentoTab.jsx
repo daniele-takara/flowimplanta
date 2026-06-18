@@ -52,7 +52,7 @@ function resolveAdendoContent(content, project, usabilitySnap) {
   return resolveAdendoVariables(content, project, usabilitySnap);
 }
 
-function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, finalConsiderations, selectedAdendosData, scopeItems, version, coordenadora, liderImpl }) {
+function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, finalConsiderations, selectedAdendosData, scopeItems, version, coordenadora, liderImpl, gerente }) {
   const answersMap = buildAnswersMap(scopeItems);
   const contracted = project?.contracted_employees || 0;
   const batendo = usabilitySnap?.empregados_batendo_ponto_ultimos_15_dias || 0;
@@ -210,6 +210,13 @@ ${finalConsiderations ? `
       <span style="font-size:10px;color:#64748b">Pontotel · Líder de implantação (testemunha)</span>
       ${liderImpl?.email ? `<br><span style="font-size:9px;color:#94a3b8">${esc(liderImpl.email)}</span>` : ""}
     </div>
+    ${gerente ? `
+    <div class="sig-box">
+      <div class="line"></div>
+      <strong>${esc(gerente.name) || "Gerente de Operações"}</strong><br>
+      <span style="font-size:10px;color:#64748b">Pontotel · Gerente de Operações</span>
+      ${gerente.email ? `<br><span style="font-size:9px;color:#94a3b8">${esc(gerente.email)}</span>` : ""}
+    </div>` : ""}
     <div class="sig-box">
       <div class="line"></div>
       <strong>${esc(project?.project_leader_name) || "Líder do Projeto"}</strong><br>
@@ -250,6 +257,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
     selected_adendo_id: "",
     selected_coordenadora_id: "",
     selected_lider_id: "",
+    selected_gerente_id: "",
   });
 
   const answersMap = buildAnswersMap(scopeItems);
@@ -275,6 +283,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
         selected_adendo_id: curr.selected_adendo_id || (curr.selected_adendos?.[0] || ""),
         selected_coordenadora_id: curr.selected_coordenadora_id || "",
         selected_lider_id: curr.selected_lider_id || "",
+        selected_gerente_id: curr.selected_gerente_id || "",
       });
       if (curr.macro_schedule_snapshot) {
         try { setMacroPhases(JSON.parse(curr.macro_schedule_snapshot)); } catch {}
@@ -300,6 +309,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
       selected_adendo_id: formData.selected_adendo_id,
       selected_coordenadora_id: formData.selected_coordenadora_id,
       selected_lider_id: formData.selected_lider_id,
+      selected_gerente_id: formData.selected_gerente_id,
       ...extra,
     };
     let saved;
@@ -386,6 +396,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
       selected_adendo_id: form.selected_adendo_id,
       selected_coordenadora_id: form.selected_coordenadora_id,
       selected_lider_id: form.selected_lider_id,
+      selected_gerente_id: form.selected_gerente_id,
       macro_schedule_snapshot: JSON.stringify(macroPhases),
     });
     setCurrent(created);
@@ -405,8 +416,10 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
 
   const coordenadora = assinaturasAll.find(a => a.id === form.selected_coordenadora_id) || null;
   const liderImpl = assinaturasAll.find(a => a.id === form.selected_lider_id) || null;
+  const gerente = assinaturasAll.find(a => a.id === form.selected_gerente_id) || null;
   const coordenadorasList = assinaturasAll.filter(a => a.role === "Coordenadora de implantação");
   const liderList = assinaturasAll.filter(a => a.role === "Líder de implantação");
+  const gerenteList = assinaturasAll.filter(a => a.role === "Gerente de Operações");
 
   const selectAdendo = (id) => {
     setField("selected_adendo_id", form.selected_adendo_id === id ? "" : id);
@@ -474,7 +487,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
 
             {canGeneratePDF && (
               <button
-                onClick={() => generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems: form.pending_items, finalConsiderations: form.final_considerations, selectedAdendosData, scopeItems, version: current, coordenadora, liderImpl })}
+                onClick={() => generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems: form.pending_items, finalConsiderations: form.final_considerations, selectedAdendosData, scopeItems, version: current, coordenadora, liderImpl, gerente })}
                 className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors">
                 <Download className="w-3.5 h-3.5" /> Gerar PDF
               </button>
@@ -772,7 +785,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
             </div>
 
             {!isLocked && !readOnly && (
-              <div className="grid grid-cols-2 gap-4 mb-5">
+              <div className="grid grid-cols-3 gap-4 mb-5">
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Coordenadora de implantação *</label>
                   <select
@@ -797,6 +810,18 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
                   </select>
                   {liderList.length === 0 && <p className="text-xs text-amber-600 mt-1">Nenhum líder cadastrado em Parametrizações.</p>}
                 </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Gerente de Operações</label>
+                  <select
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    value={form.selected_gerente_id}
+                    onChange={e => setField("selected_gerente_id", e.target.value)}
+                  >
+                    <option value="">— Selecionar —</option>
+                    {gerenteList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                  {gerenteList.length === 0 && <p className="text-xs text-amber-600 mt-1">Nenhum gerente cadastrado em Parametrizações.</p>}
+                </div>
               </div>
             )}
 
@@ -804,7 +829,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
               Ao assinar este documento, as partes declaram estar de acordo com os termos e condições do encerramento do projeto de implantação da Pontotel para <strong>{project?.client_name}</strong>, confirmando que todas as atividades previstas foram concluídas conforme acordado.
             </p>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               {/* Coordenadora Pontotel */}
               <div className="border border-slate-200 rounded-lg p-4 text-center">
                 <div className="h-10 border-b border-slate-300 mb-3" />
@@ -818,6 +843,13 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
                 <p className="text-sm font-semibold text-slate-700">{liderImpl?.name || <span className="text-amber-500 italic">Não selecionado</span>}</p>
                 <p className="text-xs text-slate-400 mt-0.5">Pontotel · Líder de implantação (testemunha)</p>
                 {liderImpl?.email && <p className="text-xs text-slate-300 mt-0.5">{liderImpl.email}</p>}
+              </div>
+              {/* Gerente de Operações */}
+              <div className="border border-slate-200 rounded-lg p-4 text-center">
+                <div className="h-10 border-b border-slate-300 mb-3" />
+                <p className="text-sm font-semibold text-slate-700">{gerente?.name || <span className="text-slate-400 italic">Não selecionado</span>}</p>
+                <p className="text-xs text-slate-400 mt-0.5">Pontotel · Gerente de Operações</p>
+                {gerente?.email && <p className="text-xs text-slate-300 mt-0.5">{gerente.email}</p>}
               </div>
               {/* Líder do Projeto - Cliente */}
               <div className="border border-green-200 bg-green-50 rounded-lg p-4 text-center">
