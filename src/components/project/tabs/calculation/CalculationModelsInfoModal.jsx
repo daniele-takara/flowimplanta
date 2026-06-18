@@ -57,6 +57,7 @@ export default function CalculationModelsInfoModal({ onClose }) {
                 { src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/2ddf4e4d1_Atrasoehoraextraalmdatolernciade10minutos.png", alt: "Atraso e hora extra além da tolerância de 10 minutos", label: "Atraso e hora extra na mesma jornada" },
                 { src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/64ed06747_Atrasoalmdatolernciade10minutos.png", alt: "Atraso além da tolerância de 10 minutos", label: "Atraso além da tolerância de 10 minutos" },
                 { src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/8786a7dbb_Sadaantecipadaalmdatolernciade10minutos.png", alt: "Saída antecipada além da tolerância de 10 minutos", label: "Saída antecipada além da tolerância de 10 minutos" },
+                { src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/0ff8e3334_Horaextraalmdatolernciade10minutos.png", alt: "Hora extra além da tolerância de 10 minutos", label: "Hora extra além da tolerância de 10 minutos" },
               ].map((img) => (
                 <div key={img.src}>
                   <img 
