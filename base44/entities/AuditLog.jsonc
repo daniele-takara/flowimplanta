@@ -1,0 +1,36 @@
+{
+  "name": "AuditLog",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "ID do projeto"
+    },
+    "screen": {
+      "type": "string",
+      "description": "Tela/aba onde ocorreu a edi\u00e7\u00e3o (ex: Dados Iniciais, Escopo T\u00e9cnico, Cronograma, etc.)"
+    },
+    "field": {
+      "type": "string",
+      "description": "Campo que foi editado (ex: client_name, status, answer, etc.)"
+    },
+    "user_email": {
+      "type": "string",
+      "description": "E-mail do usu\u00e1rio que realizou a altera\u00e7\u00e3o"
+    },
+    "old_value": {
+      "type": "string",
+      "description": "Valor anterior (opcional, truncado se muito longo)"
+    },
+    "new_value": {
+      "type": "string",
+      "description": "Valor novo (opcional, truncado se muito longo)"
+    }
+  },
+  "required": [
+    "project_id",
+    "screen",
+    "field",
+    "user_email"
+  ]
+}

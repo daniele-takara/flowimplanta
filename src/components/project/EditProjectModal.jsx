@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { X, Save, Plus, Trash2 } from "lucide-react";
 import { CONTRACTED_MODULES_OPTIONS } from "@/lib/scopeTemplate";
+import { logAudit } from "@/lib/auditLog";
 
 const ALL_SERVICES = [
   "Parametrização e cálculo (1 vez na implantação)",
@@ -139,6 +140,38 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
 
   const handleSave = async () => {
     setSaving(true);
+    // Registra alterações no log de auditoria
+    const auditFields = [
+      "name", "client_name", "origin", "start_date", "planned_end_date", "aligned_end_date",
+      "contracted_employees", "mrr", "observations", "drive_folder",
+      "sponsor_name", "sponsor_email", "sponsor_phone",
+      "project_leader_name", "project_leader_email", "project_leader_phone",
+      "operation_name", "operation_email", "operation_phone",
+      "ti_client_name", "ti_client_email", "ti_client_phone",
+      "pontotel_manager_name", "pontotel_manager_email", "pontotel_manager_phone",
+      "pontotel_analyst_name", "pontotel_analyst_email", "pontotel_analyst_phone",
+    ];
+    for (const field of auditFields) {
+      const oldVal = project?.[field];
+      const newVal = form[field];
+      const oldStr = oldVal === undefined || oldVal === null ? "" : String(oldVal);
+      const newStr = newVal === undefined || newVal === null ? "" : String(newVal);
+      if (oldStr !== newStr) {
+        logAudit({ project_id: project.id, screen: "Dados Iniciais", field, old_value: oldStr, new_value: newStr });
+      }
+    }
+    // Audita módulos e serviços (arrays)
+    const oldModules = JSON.stringify((project?.contracted_modules || []).sort());
+    const newModules = JSON.stringify((form.contracted_modules || []).sort());
+    if (oldModules !== newModules) {
+      logAudit({ project_id: project.id, screen: "Dados Iniciais", field: "contracted_modules", old_value: oldModules, new_value: newModules });
+    }
+    const oldServices = JSON.stringify((project?.contracted_services || []).sort());
+    const newServices = JSON.stringify((form.contracted_services || []).sort());
+    if (oldServices !== newServices) {
+      logAudit({ project_id: project.id, screen: "Dados Iniciais", field: "contracted_services", old_value: oldServices, new_value: newServices });
+    }
+
     // Popula _contact legado para manter compatibilidade com código existente
     const buildContact = (email, phone) => [email, phone].filter(Boolean).join(" / ") || "";
     const payload = {

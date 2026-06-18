@@ -15,6 +15,7 @@ import TAPTab from "@/components/project/tabs/TAPTab.jsx";
 import ClosureTab from "@/components/project/tabs/ClosureTab.jsx";
 import TermoEncerramentoTab from "@/components/project/tabs/TermoEncerramentoTab";
 import CalculationRulesTab from "@/components/project/tabs/CalculationRulesTab.jsx";
+import AuditLogTab from "@/components/project/tabs/AuditLogTab.jsx";
 import EditProjectModal from "@/components/project/EditProjectModal";
 import { usePermissions } from "@/lib/usePermissions";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
@@ -28,6 +29,7 @@ const TABS = [
   { id: "actions",   label: "Plano de Ação" },
   { id: "termo",     label: "Termo de Encerramento" },
   { id: "calc",      label: "Regras de Cálculo" },
+  { id: "audit",     label: "Histórico" },
 ];
 
 export default function ProjectDetail() {
@@ -201,6 +203,7 @@ export default function ProjectDetail() {
             </ProtectedRoute>
           )}
           {activeTab === "closure" && <ClosureTab project={project} documents={documents} activities={activities} projectId={id} onRefresh={loadData} readOnly={!perms.canEditTermo} />}
+          {activeTab === "audit" && <AuditLogTab projectId={id} />}
         </div>
       </div>
     </div>

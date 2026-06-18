@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { computeMacroSchedule } from "@/lib/scheduleReportEngine.js";
 import { generateStatusReportEmail } from "@/lib/statusReportEmailTemplate.js";
 import EmailPreviewModal from "@/components/project/EmailPreviewModal.jsx";
+import { logAudit } from "@/lib/auditLog";
 import {
   RefreshCw, Mail, Clock, CheckCircle2, AlertTriangle,
   AlertCircle, Users, Activity, Calendar,
@@ -637,6 +638,8 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         reportRef.current = saved;
         setReport(saved);
       }
+      // Auditoria
+      logAudit({ project_id: projectId, screen: "Status Report", field, old_value: String(currentReport?.[field] || ""), new_value: String(value || "") });
       // Atualiza cache silencioso para sobreviver a troca de abas
       const entry = savedFieldsCache.get(projectId) || { fields: {} };
       entry.fields[field] = value;
@@ -666,6 +669,8 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         reportRef.current = saved;
         setReport(saved);
       }
+      // Auditoria (seção de array)
+      logAudit({ project_id: projectId, screen: "Status Report", field, old_value: JSON.stringify(currentReport?.[field] || []), new_value: JSON.stringify(f[field] || []) });
       const entry = savedFieldsCache.get(projectId) || { fields: {} };
       entry.fields[field] = f[field];
       entry.lastSaved = Date.now();

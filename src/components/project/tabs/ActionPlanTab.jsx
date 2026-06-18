@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, Download, X, ChevronDown, ChevronUp, Search, Trash2, Settings } from "lucide-react";
+import { logAudit } from "@/lib/auditLog";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -489,6 +490,8 @@ function NewItemModal({ projectId, project, onClose, onSave }) {
     if (!form.theme || !form.issue) return;
     setSaving(true);
     await base44.entities.ActionPlan.create({ ...form, project_id: projectId });
+    // Auditoria
+    logAudit({ project_id: projectId, screen: "Plano de Ação", field: "new_item", new_value: `${form.type} — ${form.theme}: ${form.issue.substring(0, 80)}` });
     setSaving(false);
     onSave();
   };
@@ -600,8 +603,14 @@ export default function ActionPlanTab({ actions = [], projectId, project, onRefr
   });
 
   const handleFieldSave = useCallback(async (id, field, value) => {
+    const oldItem = actions.find(a => a.id === id);
+    const oldVal = oldItem?.[field];
     await base44.entities.ActionPlan.update(id, { [field]: value });
-  }, []);
+    // Auditoria
+    if (String(oldVal ?? "") !== String(value ?? "")) {
+      logAudit({ project_id: projectId, screen: "Plano de Ação", field, old_value: String(oldVal ?? ""), new_value: String(value ?? "") });
+    }
+  }, [actions, projectId]);
 
   const handleNewSaved = useCallback(() => {
     setShowNewModal(false);
@@ -609,9 +618,14 @@ export default function ActionPlanTab({ actions = [], projectId, project, onRefr
   }, [onRefresh]);
 
   const handleDelete = useCallback(async (id) => {
+    const item = actions.find(a => a.id === id);
     await base44.entities.ActionPlan.delete(id);
+    // Auditoria
+    if (item) {
+      logAudit({ project_id: projectId, screen: "Plano de Ação", field: "delete_item", old_value: `${item.type} — ${item.theme}: ${item.issue?.substring(0, 80)}` });
+    }
     onRefresh();
-  }, [onRefresh]);
+  }, [onRefresh, actions, projectId]);
 
   const handlePDFGenerate = useCallback((selectedColumns) => {
     setShowPDFModal(false);
