@@ -7,7 +7,7 @@ import { computeSchedule } from "@/lib/scheduleEngine.js";
 import {
   RefreshCw, Download, Plus, Trash2, Save, Clock, CheckCircle2,
   XCircle, Lock, Send, History, ChevronDown, ChevronUp, AlertCircle,
-  FileSignature, Zap
+  FileSignature, Zap, Pencil
 } from "lucide-react";
 import { logAudit } from "@/lib/auditLog";
 import { resolveAdendoVariables } from "@/lib/adendoVariables";
@@ -52,14 +52,22 @@ function resolveAdendoContent(content, project, usabilitySnap) {
   return resolveAdendoVariables(content, project, usabilitySnap);
 }
 
-function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, finalConsiderations, selectedAdendosData, scopeItems, version, coordenadora, liderImpl, gerente }) {
+function getPdfValue(key, autoRaw, overrides) {
+  if (overrides?.[key] !== undefined) return overrides[key];
+  return autoRaw != null ? String(autoRaw) : "";
+}
+
+function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, finalConsiderations, selectedAdendosData, scopeItems, version, coordenadora, liderImpl, gerente, sectionOverrides = {} }) {
   const answersMap = buildAnswersMap(scopeItems);
-  const contracted = project?.contracted_employees || 0;
-  const batendo = usabilitySnap?.empregados_batendo_ponto_ultimos_15_dias || 0;
-  const cadastrados = usabilitySnap?.numero_funcionarios || 0;
-  const aderencia = contracted > 0 ? Math.round((batendo / contracted) * 100) : 0;
+  const contracted = getPdfValue("contracted_employees", project?.contracted_employees, sectionOverrides) || "0";
+  const cadastrados = getPdfValue("registered_employees", usabilitySnap?.numero_funcionarios, sectionOverrides) || "0";
+  const aderenciaOverride = getPdfValue("adherence", null, sectionOverrides);
+  const aderencia = aderenciaOverride || (parseInt(contracted) > 0 ? Math.round((parseInt(getPdfValue("recording_employees", usabilitySnap?.empregados_batendo_ponto_ultimos_15_dias, sectionOverrides) || "0") / parseInt(contracted)) * 100) : 0);
   const versionLabel = version ? `v${version.version_number} · ${version.status}` : "";
   const today = new Date().toLocaleDateString("pt-BR");
+  const clientName = getPdfValue("client_name", project?.client_name, sectionOverrides);
+  const implType = getPdfValue("implantation_type", project?.implantation_type, sectionOverrides);
+  const progress = getPdfValue("progress_percent", project?.progress_percent, sectionOverrides);
 
   const scheduleRows = (macroPhases || []).map(ph => {
     const fmt = d => { if (!d) return "—"; const [y, m, day] = d.substring(0, 10).split("-"); return `${day}/${m}/${y}`; };
@@ -94,7 +102,7 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
     : `<p style="color:#64748b;font-style:italic">Nenhum adendo selecionado.</p>`;
 
   const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>Termo de Encerramento – ${esc(project?.client_name)}</title>
+<title>Termo de Encerramento – ${esc(clientName)}</title>
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:Arial,sans-serif; font-size:11px; color:#1e293b; padding:40px; line-height:1.6; }
@@ -121,7 +129,7 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
 <div class="header">
   <div>
     <h1>Termo de Encerramento do Projeto</h1>
-    <div class="meta">${esc(project?.client_name)} · ${esc(project?.implantation_type)} · Emitido em ${today}</div>
+    <div class="meta">${esc(clientName)} · ${esc(implType)} · Emitido em ${today}</div>
   </div>
   <img src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/7182abf05_LogoPontotel_AmarelaePreta.png" style="height:40px" alt="Pontotel" />
 </div>
@@ -130,10 +138,10 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
   <div class="section-title">IDENTIFICAÇÃO DO PROJETO</div>
   <table>
     ${[
-      [["Cliente", project?.client_name], ["Tipo de Implantação", project?.implantation_type]],
-      [["Gerente Pontotel", project?.pontotel_manager_name], ["Analista", project?.pontotel_analyst_name]],
-      [["Líder do Projeto (Cliente)", project?.project_leader_name], ["Patrocinador", project?.sponsor_name]],
-      [["Data de Início", project?.start_date ? fmtDate(project.start_date) : null], ["Data de Encerramento", project?.aligned_end_date ? fmtDate(project.aligned_end_date) : project?.planned_end_date ? fmtDate(project.planned_end_date) : null]],
+      [["Cliente", getPdfValue("client_name", project?.client_name, sectionOverrides)], ["Tipo de Implantação", getPdfValue("implantation_type", project?.implantation_type, sectionOverrides)]],
+      [["Gerente Pontotel", getPdfValue("pontotel_manager_name", project?.pontotel_manager_name, sectionOverrides)], ["Analista", getPdfValue("pontotel_analyst_name", project?.pontotel_analyst_name, sectionOverrides)]],
+      [["Líder do Projeto (Cliente)", getPdfValue("project_leader_name", project?.project_leader_name, sectionOverrides)], ["Patrocinador", getPdfValue("sponsor_name", project?.sponsor_name, sectionOverrides)]],
+      [["Data de Início", getPdfValue("start_date", project?.start_date, sectionOverrides) ? fmtDate(getPdfValue("start_date", project?.start_date, sectionOverrides)) : null], ["Data de Encerramento", getPdfValue("end_date", project?.aligned_end_date || project?.planned_end_date, sectionOverrides) ? fmtDate(getPdfValue("end_date", project?.aligned_end_date || project?.planned_end_date, sectionOverrides)) : null]],
     ].filter(row => row[0][1] || row[1][1]).map(row => {
       const left = row[0][1] ? `<td class="lbl">${esc(row[0][0])}</td><td>${esc(row[0][1])}</td>` : "<td></td><td></td>";
       const right = row[1][1] ? `<td class="lbl">${esc(row[1][0])}</td><td>${esc(row[1][1])}</td>` : "<td></td><td></td>";
@@ -147,21 +155,28 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
   <div class="card">
     <table>
       ${[
-        ["Funcionários Contratados", contracted ? contracted.toLocaleString("pt-BR") : null],
-        ["Funcionários Cadastrados", cadastrados ? cadastrados.toLocaleString("pt-BR") : null],
+        ["Funcionários Contratados", contracted ? parseInt(contracted).toLocaleString("pt-BR") : null],
+        ["Funcionários Cadastrados", cadastrados ? parseInt(cadastrados).toLocaleString("pt-BR") : null],
         ["Aderência ao Registro de Ponto", contracted > 0 ? `<strong>${aderencia}%</strong>` : null],
-        ["Progresso Geral do Projeto", (project?.progress_percent || project?.progress_percent === 0) ? `${project.progress_percent}%` : null],
+        ["Progresso Geral do Projeto", progress ? `${progress}%` : null],
       ].filter(r => r[1]).map(r => `<tr><td class="lbl">${esc(r[0])}</td><td>${r[1]}</td></tr>`).join("")}
     </table>
   </div>
 </div>
 
-${((project?.contracted_modules || []).length > 0 || (project?.contracted_services || []).length > 0) ? `
+${(() => {
+  const modulesOverride = getPdfValue("contracted_modules", (project?.contracted_modules || []).join(", "), sectionOverrides);
+  const servicesOverride = getPdfValue("contracted_services", (project?.contracted_services || []).join(", "), sectionOverrides);
+  const modulesList = modulesOverride ? modulesOverride.split(",").map(s => s.trim()).filter(Boolean) : [];
+  const servicesList = servicesOverride ? servicesOverride.split(",").map(s => s.trim()).filter(Boolean) : [];
+  if (modulesList.length === 0 && servicesList.length === 0) return "";
+  return `
 <div class="section">
   <div class="section-title">ESCOPO CONTRATADO</div>
-  ${(project?.contracted_modules || []).length > 0 ? `<div class="card"><strong style="font-size:10px">Módulos:</strong><br>${(project.contracted_modules).map(m => `<span class="tag-ok">${esc(m)}</span>`).join("")}</div>` : ""}
-  ${(project?.contracted_services || []).length > 0 ? `<div class="card" style="margin-top:6px"><strong style="font-size:10px">Serviços:</strong><br>${(project.contracted_services).map(s => `<span class="tag-ok">${esc(s)}</span>`).join("")}</div>` : ""}
-</div>` : ""}
+  ${modulesList.length > 0 ? `<div class="card"><strong style="font-size:10px">Módulos:</strong><br>${modulesList.map(m => `<span class="tag-ok">${esc(m)}</span>`).join("")}</div>` : ""}
+  ${servicesList.length > 0 ? `<div class="card" style="margin-top:6px"><strong style="font-size:10px">Serviços:</strong><br>${servicesList.map(s => `<span class="tag-ok">${esc(s)}</span>`).join("")}</div>` : ""}
+</div>`;
+})()}
 
 <div class="section">
   <div class="section-title">CRONOGRAMA PLANEJADO VS REALIZADO</div>
@@ -195,7 +210,7 @@ ${finalConsiderations ? `
 <div class="section">
   <div class="section-title">ACEITE FORMAL</div>
   <p style="margin-bottom:16px;font-size:11px;color:#334155">
-    Ao assinar este documento, as partes declaram estar de acordo com os termos e condições do encerramento do projeto de implantação da Pontotel para ${esc(project?.client_name)}, confirmando que todas as atividades previstas foram concluídas conforme acordado.
+    Ao assinar este documento, as partes declaram estar de acordo com os termos e condições do encerramento do projeto de implantação da Pontotel para ${esc(clientName)}, confirmando que todas as atividades previstas foram concluídas conforme acordado.
   </p>
   <div class="sig">
     <div class="sig-box">
@@ -251,6 +266,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
   const savedTimer = useRef(null);
   const formRef = useRef(null);
 
+  const [sectionOverrides, setSectionOverrides] = useState({});
   const [form, setForm] = useState({
     pending_items: [],
     final_considerations: "",
@@ -276,6 +292,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
     const curr = ts.find(t => t.is_current) || ts[0] || null;
     if (curr) {
       setCurrent(curr);
+      try { setSectionOverrides(curr.section_overrides ? JSON.parse(curr.section_overrides) : {}); } catch {}
       setForm({
         pending_items: curr.pending_items || [],
         final_considerations: curr.final_considerations || "",
@@ -351,6 +368,36 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
     save(next);
   };
 
+  // ─── Helpers para campos automáticos editáveis ───────────────────────────────
+  const getAutoValue = (key, autoRaw) => sectionOverrides[key] !== undefined ? sectionOverrides[key] : (autoRaw != null ? String(autoRaw) : "");
+  const isFieldManual = (key) => sectionOverrides[key] !== undefined;
+
+  const handleOverrideBlur = (key, autoRaw, e) => {
+    if (isLocked || readOnly) return;
+    const newVal = e.target.value;
+    const autoStr = autoRaw != null ? String(autoRaw) : "";
+    if (newVal === autoStr) {
+      // Voltou ao valor automático → remove override
+      const next = { ...sectionOverrides };
+      delete next[key];
+      setSectionOverrides(next);
+      saveSectionOverrides(next);
+    } else {
+      const next = { ...sectionOverrides, [key]: newVal };
+      setSectionOverrides(next);
+      saveSectionOverrides(next);
+    }
+  };
+
+  const saveSectionOverrides = useCallback(async (overrides) => {
+    if (!current?.id || isLocked) return;
+    try {
+      const payload = { section_overrides: JSON.stringify(overrides) };
+      await base44.entities.TermoEncerramento.update(current.id, payload);
+      setCurrent(c => c ? { ...c, ...payload } : c);
+    } catch (e) { console.warn("[TermoEncerramentoTab] Erro ao salvar section_overrides:", e); }
+  }, [current, isLocked]);
+
   const handleBlurSave = useCallback(() => {
     save(formRef.current);
   }, [save]);
@@ -398,6 +445,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
       selected_lider_id: form.selected_lider_id,
       selected_gerente_id: form.selected_gerente_id,
       macro_schedule_snapshot: JSON.stringify(macroPhases),
+      section_overrides: JSON.stringify(sectionOverrides),
     });
     setCurrent(created);
     setTermos(ts => [created, ...ts.map(t => ({ ...t, is_current: false }))]);
@@ -487,7 +535,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
 
             {canGeneratePDF && (
               <button
-                onClick={() => generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems: form.pending_items, finalConsiderations: form.final_considerations, selectedAdendosData, scopeItems, version: current, coordenadora, liderImpl, gerente })}
+                onClick={() => generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems: form.pending_items, finalConsiderations: form.final_considerations, selectedAdendosData, scopeItems, version: current, coordenadora, liderImpl, gerente, sectionOverrides })}
                 className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors">
                 <Download className="w-3.5 h-3.5" /> Gerar PDF
               </button>
@@ -552,63 +600,43 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
 
           {/* 1. Identificação */}
           <Section title="IDENTIFICAÇÃO DO PROJETO">
-            <AutoBadge />
-            <div className="bg-slate-50 rounded-lg p-4 mt-2 grid grid-cols-2 gap-x-8">
-              <AutoRow label="Cliente" value={project?.client_name} />
-              <AutoRow label="Tipo de Implantação" value={project?.implantation_type} />
-              <AutoRow label="Gerente Pontotel" value={project?.pontotel_manager_name} />
-              <AutoRow label="Analista" value={project?.pontotel_analyst_name} />
-              <AutoRow label="Líder do Projeto (Cliente)" value={project?.project_leader_name} />
-              <AutoRow label="Patrocinador" value={project?.sponsor_name} />
-              <AutoRow label="Data de Início" value={formatDate(project?.start_date)} />
-              <AutoRow label="Data de Encerramento" value={formatDate(project?.aligned_end_date || project?.planned_end_date)} />
+            <div className="bg-slate-50 rounded-lg p-4 mt-2">
+              <EditableAutoField label="Cliente" fieldKey="client_name" autoValue={project?.client_name} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Tipo de Implantação" fieldKey="implantation_type" autoValue={project?.implantation_type} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Gerente Pontotel" fieldKey="pontotel_manager_name" autoValue={project?.pontotel_manager_name} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Analista" fieldKey="pontotel_analyst_name" autoValue={project?.pontotel_analyst_name} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Líder do Projeto (Cliente)" fieldKey="project_leader_name" autoValue={project?.project_leader_name} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Patrocinador" fieldKey="sponsor_name" autoValue={project?.sponsor_name} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Data de Início" fieldKey="start_date" autoValue={project?.start_date} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Data de Encerramento" fieldKey="end_date" autoValue={project?.aligned_end_date || project?.planned_end_date} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
             </div>
           </Section>
 
           {/* 2. Resumo */}
           <Section title="RESUMO DO PROJETO">
-            <AutoBadge />
             <div className="bg-slate-50 rounded-lg p-4 mt-2">
-              <AutoRow label="Funcionários Contratados" value={project?.contracted_employees?.toLocaleString("pt-BR") || "—"} />
-              <AutoRow label="Funcionários Cadastrados" value={usabilitySnap?.numero_funcionarios?.toLocaleString("pt-BR") || "—"} />
-              <AutoRow label="Aderência ao Registro de Ponto" value={
+              <EditableAutoField label="Funcionários Contratados" fieldKey="contracted_employees" autoValue={project?.contracted_employees} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Funcionários Cadastrados" fieldKey="registered_employees" autoValue={usabilitySnap?.numero_funcionarios} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Aderência ao Registro de Ponto" fieldKey="adherence" autoValue={
                 project?.contracted_employees && usabilitySnap
                   ? `${Math.round((usabilitySnap.empregados_batendo_ponto_ultimos_15_dias / project.contracted_employees) * 100)}%`
                   : "—"
-              } />
-              <AutoRow label="Progresso Geral do Projeto" value={`${project?.progress_percent || 0}%`} />
+              } sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Progresso Geral do Projeto" fieldKey="progress_percent" autoValue={project?.progress_percent} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
             </div>
           </Section>
 
           {/* 3. Escopo */}
           <Section title="ESCOPO CONTRATADO">
-            <AutoBadge />
-            <div className="mt-2 space-y-3">
-              <div>
-                <p className="text-xs font-semibold text-slate-500 mb-2">Módulos</p>
-                <div className="flex flex-wrap gap-2">
-                  {(project?.contracted_modules || []).map(m => (
-                    <span key={m} className="text-xs px-2.5 py-1 bg-green-50 text-green-700 rounded-full border border-green-200 font-medium">{m}</span>
-                  ))}
-                  {(project?.contracted_modules || []).length === 0 && <span className="text-xs text-slate-400">Nenhum módulo cadastrado</span>}
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 mb-2">Serviços</p>
-                <div className="flex flex-wrap gap-2">
-                  {(project?.contracted_services || []).map(s => (
-                    <span key={s} className="text-xs px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full border border-blue-200 font-medium">{s}</span>
-                  ))}
-                  {(project?.contracted_services || []).length === 0 && <span className="text-xs text-slate-400">Nenhum serviço cadastrado</span>}
-                </div>
-              </div>
+            <div className="mt-2 space-y-3 bg-slate-50 rounded-lg p-4">
+              <EditableAutoField label="Módulos" fieldKey="contracted_modules" autoValue={(project?.contracted_modules || []).join(", ")} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Serviços" fieldKey="contracted_services" autoValue={(project?.contracted_services || []).join(", ")} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
             </div>
           </Section>
 
           {/* 4. Cronograma */}
           <Section title="CRONOGRAMA PLANEJADO VS REALIZADO">
             <div className="flex items-center gap-2 mb-3">
-              <AutoBadge />
               <span className="text-xs text-slate-400">
                 {macroPhases.length > 0 ? `${macroPhases.length} fases calculadas` : 'Clique em "Atualizar dados automáticos" para carregar'}
               </span>
@@ -878,10 +906,15 @@ function Section({ title, children }) {
   );
 }
 
-function AutoBadge() {
+function FieldOriginBadge({ manual }) {
+  if (manual) return (
+    <span className="inline-flex items-center gap-0.5 text-xs bg-blue-50 text-blue-600 border border-blue-200 rounded px-1.5 py-0.5">
+      <Pencil className="w-2.5 h-2.5" /> Manual
+    </span>
+  );
   return (
-    <span className="inline-flex items-center gap-1 text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded px-1.5 py-0.5">
-      <Lock className="w-2.5 h-2.5" /> Dado automático
+    <span className="inline-flex items-center gap-0.5 text-xs bg-slate-100 text-slate-400 border border-slate-200 rounded px-1.5 py-0.5">
+      <Lock className="w-2.5 h-2.5" /> Auto
     </span>
   );
 }
@@ -891,6 +924,27 @@ function AutoRow({ label, value }) {
     <div className="flex items-start py-1.5 border-b border-slate-100 last:border-0">
       <span className="text-xs font-medium text-slate-400 w-48 shrink-0">{label}</span>
       <span className="text-sm text-slate-800">{value || "—"}</span>
+    </div>
+  );
+}
+
+function EditableAutoField({ label, fieldKey, autoValue, sectionOverrides, isLocked, readOnly, onBlur }) {
+  const inputValue = sectionOverrides[fieldKey] !== undefined ? sectionOverrides[fieldKey] : (autoValue != null ? String(autoValue) : "");
+  const manual = sectionOverrides[fieldKey] !== undefined;
+  const disabled = isLocked || readOnly;
+  const inputClass = "flex-1 px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white";
+  const isDate = fieldKey.includes("date");
+
+  return (
+    <div className="flex items-start py-1.5 border-b border-slate-100 last:border-0 gap-3">
+      <span className="text-xs font-medium text-slate-400 w-48 shrink-0 pt-1.5">{label}</span>
+      <div className="flex items-center gap-2 flex-1">
+        {isDate
+          ? <input type="date" className={`${inputClass} max-w-[200px]`} value={inputValue} onChange={() => {}} onBlur={e => onBlur(fieldKey, autoValue, e)} readOnly={disabled} />
+          : <input type="text" className={inputClass} value={inputValue} onChange={() => {}} onBlur={e => onBlur(fieldKey, autoValue, e)} readOnly={disabled} />
+        }
+        <FieldOriginBadge manual={manual} />
+      </div>
     </div>
   );
 }

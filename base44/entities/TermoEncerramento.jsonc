@@ -83,6 +83,10 @@
       "type": "string",
       "description": "ID da Assinatura: Gerente de Opera\u00e7\u00f5es"
     },
+    "section_overrides": {
+      "type": "string",
+      "description": "JSON: { fieldKey: value } \u2014 campos autom\u00e1ticos sobrescritos manualmente pelo time"
+    },
     "d4sign_document_id": {
       "type": "string"
     },
