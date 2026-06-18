@@ -342,9 +342,10 @@ function computeKpiFromReport(report, project) {
 }
 
 export default function StatusReportTab({ reports, projectId, projectClientName, project, scopeItems, savedActivities, onRefresh, readOnly = false, canUpdate = true, canGenerateEmail = true, canSyncPipedrive = true }) {
-  const [report, setReport]             = useState(reports?.[0] || null);
-  const prevReportsRef = useRef(reports);
-  const [form, setForm]                 = useState(() => {
+  // reportRef mantém referência estável ao report mais recente para evitar race conditions
+  const reportRef = useRef(reports?.[0] || null);
+  const [report, setReport] = useState(reports?.[0] || null);
+  const [form, setForm] = useState(() => {
     const r = reports?.[0];
     if (!r) return { ...DEFAULT_FORM };
     return {
@@ -359,28 +360,14 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
   });
 
   // Sincroniza report quando reports prop muda (ex: após onRefresh do parent)
+  // IMPORTANTE: NÃO sincroniza form para evitar sobrescrever edições do usuário
   useEffect(() => {
-    const prevLen = prevReportsRef.current?.length || 0;
-    const currLen = reports?.length || 0;
-    const prevFirstId = prevReportsRef.current?.[0]?.id;
     const currFirstId = reports?.[0]?.id;
-    prevReportsRef.current = reports;
-    
-    // Se reports mudou (novo registro ou atualização), sincroniza report
-    if (currLen > 0 && (currLen !== prevLen || currFirstId !== prevFirstId)) {
-      const freshReport = reports[0];
-      setReport(freshReport);
-      // Atualiza também o form com dados frescos do banco (campos manuais)
-      setForm(f => ({
-        next_agenda:      freshReport.next_agenda      ?? f.next_agenda,
-        next_agenda_date: freshReport.next_agenda_date ?? f.next_agenda_date,
-        executive_summary: freshReport.executive_summary ?? f.executive_summary,
-        client_pending:   freshReport.client_pending   || f.client_pending,
-        internal_pending: freshReport.internal_pending || f.internal_pending,
-        risks:            freshReport.risks            || f.risks,
-        integration_items: freshReport.integration_items || f.integration_items,
-      }));
+    const prevFirstId = reportRef.current?.id;
+    if (currFirstId && currFirstId !== prevFirstId) {
+      setReport(reports[0]);
     }
+    reportRef.current = reports?.[0] || null;
   }, [reports]);
 
   // Cronograma macro: inicializa do snapshot persistido; atualizado via botão
@@ -444,7 +431,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
             registeredEmployees = d.registered_employees;
             recordingEmployees  = d.recording_employees;
             sheetFound = true;
-            if (d.report) setReport(prev => ({ ...(prev || {}), ...d.report }));
+            if (d.report) { const merged = { ...(reportRef.current || {}), ...d.report }; reportRef.current = merged; setReport(merged); }
           } else if (d?.lar21_not_found) {
             setUpdateResult({ error: `Lar21 não encontrado na aba "Mais recente" da planilha. (Lar21: ${project.lar21})` });
           } else if (d?.lar21_duplicate) {
@@ -572,8 +559,8 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         integration_items: currentForm.integration_items,
       };
 
-      // Garante que usamos o report mais atualizado (pode ter sido atualizado pelo updateReportFromSheet acima)
-      const currentReport = report;
+      // Garante que usamos o report mais atualizado
+      const currentReport = reportRef.current;
       let savedReport;
       if (currentReport?.id) {
         await base44.entities.StatusReport.update(currentReport.id, payload);
@@ -581,6 +568,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
       } else {
         savedReport = await base44.entities.StatusReport.create(payload);
       }
+      reportRef.current = savedReport;
       setReport(savedReport);
       setLastUpdate(now);
       setLastUpdatedBy(userName);
@@ -603,6 +591,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
   }, [project, projectId, form, report, savedActivities, answersMap]);
 
   // Salvar apenas campos manuais (sem recalcular indicadores)
+  // NÃO chama onRefresh() — o estado local é suficiente e evita desmontar/remontar o componente
   const handleSaveManual = async () => {
     setSaving(true);
     setSaveError(null);
@@ -612,19 +601,20 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         executive_summary: form.executive_summary, client_pending: form.client_pending,
         internal_pending: form.internal_pending, risks: form.risks, integration_items: form.integration_items || [],
       };
+      const currentReport = reportRef.current;
       let saved;
-      if (report?.id) {
-        saved = await base44.entities.StatusReport.update(report.id, payload);
-        setReport(r => ({ ...r, ...saved }));
+      if (currentReport?.id) {
+        saved = await base44.entities.StatusReport.update(currentReport.id, payload);
       } else {
         saved = await base44.entities.StatusReport.create({
           project_id: projectId, report_date: new Date().toISOString().split("T")[0],
           overall_progress: overallProgress, ...payload,
         });
-        setReport(saved);
       }
-      // Notifica o parent para recarregar dados frescos
-      if (onRefresh) onRefresh();
+      const merged = { ...(currentReport || {}), ...payload, id: saved?.id || currentReport?.id };
+      reportRef.current = merged;
+      setReport(merged);
+      setSaveError(null);
     } catch (e) {
       setSaveError(e?.message || "Erro ao salvar. Verifique suas permissões ou tente novamente.");
     }
