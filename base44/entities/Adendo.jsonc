@@ -21,7 +21,11 @@
     },
     "content": {
       "type": "string",
-      "description": "Texto completo do adendo"
+      "description": "Texto completo do adendo (gerado a partir dos blocos)"
+    },
+    "blocks": {
+      "type": "string",
+      "description": "JSON: array de blocos [{type: 'text'|'field', value: string}]"
     },
     "active": {
       "type": "boolean",
