@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import {
-  FileText, Users, LayoutTemplate, Plus, Pencil, Trash2,
+  FileText, Users, LayoutTemplate, Plus, Pencil, Trash2, Copy,
   CheckCircle, XCircle, Filter, Scale, Settings, DollarSign,
   Mail, ChevronRight, Shield, Zap, Type, Database, GripVertical, X
 } from "lucide-react";
@@ -233,7 +233,7 @@ function TabAdendos() {
   useEffect(() => { load(); }, []);
 
   const handleSave = async (form) => {
-    if (editing) await base44.entities.Adendo.update(editing.id, form);
+    if (editing?.id) await base44.entities.Adendo.update(editing.id, form);
     else await base44.entities.Adendo.create(form);
     setShowForm(false); setEditing(null); load();
   };
@@ -296,6 +296,7 @@ function TabAdendos() {
                     <button onClick={() => base44.entities.Adendo.update(adendo.id, { active: !adendo.active }).then(load)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
                       {adendo.active ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-slate-400" />}
                     </button>
+                    <button onClick={() => { setEditing({ ...adendo, id: undefined }); setShowForm(true); }} title="Duplicar" className="p-1.5 rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"><Copy className="w-4 h-4" /></button>
                     <button onClick={() => { setEditing(adendo); setShowForm(true); }} className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600"><Pencil className="w-4 h-4" /></button>
                     <button onClick={() => setDeleteConfirm(adendo.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                   </div>
