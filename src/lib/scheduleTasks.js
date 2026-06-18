@@ -359,13 +359,7 @@ export const SCHEDULE_TASKS = [
     plannedEnd: { type: "calculated", formula: "workday(plannedStart, 1)" },
     visibleWhen: { source: "dados_iniciais.modulos_contratados", contains: "Timesheet" }
   },
-  {
-    id: "treinamento_fluxo_gestao", row: 59, type: "task",
-    phase: "Treinamento e Validações", activity: "Reunião para explicar o uso e validação do fluxo de gestão",
-    plannedStart: { type: "calculated", formula: "curso_ead_universidade.plannedEnd" },
-    plannedEnd: { type: "calculated", formula: "workday(plannedStart, 7)" },
-    visibleWhen: "always"
-  },
+
   {
     id: "material_importacao_afd", row: 60, type: "task",
     phase: "Treinamento e Validações", activity: "Enviar material orientando em como fazer a importação do arquivo AFD",
