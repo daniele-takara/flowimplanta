@@ -35,24 +35,8 @@ Deno.serve(async (req) => {
 
     const authParams = `tokenAPI=${encodeURIComponent(tokenAPI)}&cryptKey=${encodeURIComponent(cryptKey)}`;
 
-    // 1. Get vault (safe) UUID — usa o primeiro cofre disponível
-    // As credenciais (tokenAPI/cryptKey) devem pertencer a um usuário
-    // que tenha acesso ao cofre "Implantação" no D4Sign
-    const safesResp = await fetch(`${D4SIGN_BASE}/safes?${authParams}`);
-    const safesText = await safesResp.text();
-    console.log("D4Sign safes status:", safesResp.status, "body:", safesText.substring(0, 500));
-    
-    let safesData;
-    try { safesData = JSON.parse(safesText); } catch { safesData = []; }
-    
-    if (!safesData?.length) return Response.json({ 
-      error: "Nenhum cofre D4Sign encontrado", 
-      status: safesResp.status,
-      raw: safesText.substring(0, 300)
-    }, { status: 500 });
-    
-    const safeUuid = typeof safesData[0] === "string" ? safesData[0] : (safesData[0].uuid_safe || safesData[0].uuidSafe);
-    if (!safeUuid) return Response.json({ error: "UUID do cofre não encontrado" }, { status: 500 });
+    // 1. Cofre "Implantação" — UUID fixo
+    const safeUuid = "50caeed5-ab5d-4ddf-9cf1-4d668009d561";
 
     // 2. Generate PDF
     const clientName = sectionOverrides?.client_name || project?.client_name || "Cliente";
