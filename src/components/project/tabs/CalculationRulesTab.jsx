@@ -331,9 +331,9 @@ function HorasExtrasForm({ companyData, data, onChange }) {
               ))}
             </div>
 
-            {/* Códigos de verba e envio FOPAG */}
+            {/* Códigos de verba e envio E02 */}
             <div className="border-t pt-4 mb-4">
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Códigos de Verba</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Códigos de Verba e Envio E02</p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   { label: "Dias Comuns", codigoKey: "codigoVerbaDiasComuns", envioKey: "envioE02DiasComuns" },
@@ -346,7 +346,7 @@ function HorasExtrasForm({ companyData, data, onChange }) {
                     <input value={val[p.codigoKey] || ""} onChange={e => updateRule(name, p.codigoKey, e.target.value)} className={`${inputClass} mb-2`} placeholder="Cód. verba" />
                     <label className="flex items-center gap-2 text-xs text-slate-500">
                       <input type="checkbox" checked={!!val[p.envioKey]} onChange={e => updateRule(name, p.envioKey, e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
-                      Enviar ao arquivo de exportação para FOPAG
+                      Envio E02
                     </label>
                   </div>
                 ))}
@@ -382,7 +382,7 @@ function HorasExtrasForm({ companyData, data, onChange }) {
                     <input value={rate.explanation || ""} onChange={e => updateAdditionalRate(name, i, "explanation", e.target.value)} className={`${inputClass} flex-1`} placeholder="Justificativa do percentual" />
                     <label className="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap">
                       <input type="checkbox" checked={!!rate.envioE02} onChange={e => updateAdditionalRate(name, i, "envioE02", e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
-                      Enviar ao arquivo de exportação para FOPAG
+                      E02
                     </label>
                   </div>
                 </div>
@@ -525,7 +525,7 @@ function IntervalosForm({ companyData, data, onChange }) {
                 <input value={val.codigoVerba || ""} onChange={e => updateRule(name, "codigoVerba", e.target.value)} className={`${inputClass} max-w-[200px]`} placeholder="Cód. verba" />
                 <label className="flex items-center gap-2 text-xs text-slate-500">
                   <input type="checkbox" checked={!!val.envioE02} onChange={e => updateRule(name, "envioE02", e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
-                  Enviar ao arquivo de exportação para FOPAG
+                  Envio E02
                 </label>
               </div>
             </div>
@@ -635,7 +635,7 @@ function AdicionalNoturnoForm({ companyData, data, onChange }) {
                 <input value={val.codigoVerba || ""} onChange={e => updateRule(name, "codigoVerba", e.target.value)} className={`${inputClass} max-w-[200px]`} placeholder="Cód. verba" />
                 <label className="flex items-center gap-2 text-xs text-slate-500">
                   <input type="checkbox" checked={!!val.envioE02} onChange={e => updateRule(name, "envioE02", e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
-                  Enviar ao arquivo de exportação para FOPAG
+                  Envio E02
                 </label>
               </div>
             </div>
@@ -859,7 +859,7 @@ function BancoHorasForm({ companyData, data, onChange }) {
               </div>
               <label className="flex items-center gap-2 text-xs text-slate-500 mt-3">
                 <input type="checkbox" checked={!!val.envioE02} onChange={e => updateRule(name, "envioE02", e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
-                Enviar ao arquivo de exportação para FOPAG
+                Envio E02
               </label>
             </div>
             </>
