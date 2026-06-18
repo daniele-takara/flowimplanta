@@ -263,6 +263,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
   const [showHistory, setShowHistory] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
+  const [sendingToD4Sign, setSendingToD4Sign] = useState(false);
   const savedTimer = useRef(null);
   const formRef = useRef(null);
 
@@ -486,6 +487,51 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
     setTermos(ts => [created, ...ts.map(t => ({ ...t, is_current: false }))]);
   };
 
+  const handleSendToD4Sign = async () => {
+    if (!current) return;
+    setSendingToD4Sign(true);
+    try {
+      const result = await base44.functions.invoke("sendTermoToD4Sign", {
+        projectId,
+        project,
+        macroPhases,
+        pendingItems: form.pending_items,
+        finalConsiderations: form.final_considerations,
+        selectedAdendo: selectedAdendo ? {
+          title: selectedAdendo.title,
+          type: selectedAdendo.type,
+          content: selectedAdendo.content
+        } : null,
+        coordenadora: coordenadora ? { name: coordenadora.name, email: coordenadora.email } : null,
+        liderImpl: liderImpl ? { name: liderImpl.name, email: liderImpl.email } : null,
+        gerente: gerente ? { name: gerente.name, email: gerente.email } : null,
+        sectionOverrides,
+        usabilitySnap,
+        scopeItems,
+        versionLabel: current ? `v${current.version_number} · ${current.status}` : "",
+      });
+      if (result?.data?.success) {
+        const docUuid = result.data.doc_uuid;
+        await base44.entities.TermoEncerramento.update(current.id, {
+          status: "Enviado",
+          d4sign_doc_uuid: docUuid,
+          d4sign_status: "enviado",
+          d4sign_sent_at: new Date().toISOString(),
+          status_assinatura: "enviado",
+          data_envio_assinatura: new Date().toISOString(),
+        });
+        setCurrent(c => ({ ...c, status: "Enviado", d4sign_doc_uuid: docUuid, d4sign_status: "enviado", d4sign_sent_at: new Date().toISOString(), status_assinatura: "enviado", data_envio_assinatura: new Date().toISOString() }));
+        setTermos(ts => ts.map(t => t.id === current.id ? { ...t, status: "Enviado" } : t));
+        alert("Documento enviado para assinatura com sucesso!");
+      } else {
+        alert("Erro ao enviar: " + (result?.data?.error || "Erro desconhecido"));
+      }
+    } catch (e) {
+      alert("Erro ao conectar com D4Sign: " + (e?.message || e));
+    }
+    setSendingToD4Sign(false);
+  };
+
   const handleMarkStatus = async (status) => {
     if (!current) return;
     await base44.entities.TermoEncerramento.update(current.id, { status });
@@ -576,13 +622,16 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
               </button>
             )}
 
-            {/* Botão D4Sign - inativo */}
-            <button
-              onClick={() => alert("Funcionalidade será ativada com integração D4Sign")}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed transition-colors"
-              title="Será ativado com integração D4Sign">
-              <Zap className="w-3.5 h-3.5" /> Enviar para assinatura
-            </button>
+            {/* Botão D4Sign */}
+            {current?.status !== "Assinado" && (
+              <button
+                onClick={handleSendToD4Sign}
+                disabled={sendingToD4Sign}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-50"
+                title="Enviar para assinatura via D4Sign">
+                <Zap className={`w-3.5 h-3.5 ${sendingToD4Sign ? "animate-pulse text-amber-500" : "text-slate-400"}`} /> {sendingToD4Sign ? "Enviando..." : "Enviar para assinatura"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -594,11 +643,14 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
         )}
 
         {/* Status D4Sign */}
-        {current?.status_assinatura && current.status_assinatura !== "rascunho" && (
-          <div className="mt-3 flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700">
+        {current?.d4sign_doc_uuid && (
+          <div className="mt-3 flex items-center gap-2 p-2 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-700">
             <FileSignature className="w-3.5 h-3.5 shrink-0" />
-            D4Sign: {current.status_assinatura}
-            {current.data_assinatura && ` · Assinado em ${new Date(current.data_assinatura).toLocaleDateString("pt-BR")}`}
+            D4Sign: {current.d4sign_status || "enviado"}
+            {current.d4sign_sent_at && ` · Enviado em ${new Date(current.d4sign_sent_at).toLocaleDateString("pt-BR")}`}
+            {current.d4sign_doc_uuid && (
+              <a href={`https://secure.d4sign.com.br/documents/${current.d4sign_doc_uuid}`} target="_blank" rel="noopener noreferrer" className="underline hover:text-purple-900 ml-2">Ver no D4Sign</a>
+            )}
           </div>
         )}
       </div>

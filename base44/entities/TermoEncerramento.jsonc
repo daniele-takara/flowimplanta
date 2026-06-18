@@ -87,8 +87,17 @@
       "type": "string",
       "description": "JSON: { fieldKey: value } \u2014 campos autom\u00e1ticos sobrescritos manualmente pelo time"
     },
-    "d4sign_document_id": {
-      "type": "string"
+    "d4sign_doc_uuid": {
+      "type": "string",
+      "description": "UUID do documento no D4Sign"
+    },
+    "d4sign_status": {
+      "type": "string",
+      "description": "Status da assinatura no D4Sign (enviado, assinado, cancelado)"
+    },
+    "d4sign_sent_at": {
+      "type": "string",
+      "description": "ISO datetime de quando foi enviado para assinatura"
     },
     "status_assinatura": {
       "type": "string",
