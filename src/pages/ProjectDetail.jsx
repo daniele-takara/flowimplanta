@@ -25,11 +25,11 @@ const TABS = [
   { id: "overview",  label: "Dados Iniciais" },
   { id: "scope",     label: "Escopo Técnico" },
   { id: "tap",       label: "TAP" },
+  { id: "calc",      label: "Regras de Cálculo" },
   { id: "schedule",  label: "Cronograma" },
   { id: "status",    label: "Status Report" },
   { id: "actions",   label: "Plano de Ação" },
   { id: "termo",     label: "Termo de Encerramento" },
-  { id: "calc",      label: "Regras de Cálculo" },
   { id: "audit",     label: "Histórico" },
 ];
 
