@@ -181,31 +181,7 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
           <InfoRow label="Observações" value={project.observations} />
         </div>
 
-        {/* Phases progress */}
-        {phases && phases.length > 0 && (
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">Progresso por Fase</h3>
-            <div className="space-y-4">
-              {phases.map(phase => (
-                <div key={phase.id || phase.phase_name}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-sm font-medium text-slate-700">{phase.phase_name}</span>
-                    <div className="flex items-center gap-3">
-                      <StatusBadge status={phase.status} />
-                      <span className="text-sm font-semibold text-slate-600">{phase.progress_percent}%</span>
-                    </div>
-                  </div>
-                  <ProgressBar value={phase.progress_percent} showLabel={false} />
-                  {(phase.planned_start || phase.planned_end) && (
-                    <p className="text-xs text-slate-400 mt-1">
-                      {formatDate(phase.planned_start)} → {formatDate(phase.planned_end)}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+
 
         {/* Modules & Services */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
