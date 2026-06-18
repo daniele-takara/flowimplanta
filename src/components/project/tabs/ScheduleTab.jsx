@@ -723,9 +723,9 @@ export default function ScheduleTab({
       localOverrides = JSON.parse(localStorage.getItem(`schedule_overrides_${projectId}`) || "{}");
     } catch {}
     
-    // 3. Mescla: localStorage sobrepõe DB (localStorage tem prioridade para o usuário atual)
-    const merged = { ...dbOverrides };
-    Object.entries(localOverrides).forEach(([taskId, override]) => {
+    // 3. Mescla: DB como fonte primária, localStorage apenas preenche lacunas
+    const merged = { ...localOverrides };
+    Object.entries(dbOverrides).forEach(([taskId, override]) => {
       if (override && typeof override === "object") {
         merged[taskId] = { ...(merged[taskId] || {}), ...override };
       }
