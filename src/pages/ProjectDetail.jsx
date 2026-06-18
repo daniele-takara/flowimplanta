@@ -18,6 +18,7 @@ import CalculationRulesTab from "@/components/project/tabs/CalculationRulesTab.j
 import AuditLogTab from "@/components/project/tabs/AuditLogTab.jsx";
 import EditProjectModal from "@/components/project/EditProjectModal";
 import { usePermissions } from "@/lib/usePermissions";
+import { logAudit } from "@/lib/auditLog";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
 
 const TABS = [
@@ -140,7 +141,21 @@ export default function ProjectDetail() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <ProjectHeader project={project} onEditDadosIniciais={!isMock ? () => setShowEditModal(true) : null} />
+      <ProjectHeader
+        project={project}
+        onChangeStatus={!isMock ? async (newStatus) => {
+          const oldStatus = project.status;
+          setProject(prev => ({ ...prev, status: newStatus }));
+          await base44.entities.Project.update(id, { status: newStatus });
+          await logAudit({
+            project_id: id,
+            screen: "Dados Iniciais",
+            field: "status",
+            old_value: oldStatus,
+            new_value: newStatus,
+          });
+        } : null}
+      />
       {showEditModal && (
         <EditProjectModal
           project={project}
