@@ -252,7 +252,7 @@ ${finalConsiderations ? `
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function TermoEncerramentoTab({ project, scopeItems, reports, savedActivities, projectId, readOnly = false, canGeneratePDF = true }) {
+export default function TermoEncerramentoTab({ project, scopeItems, reports, savedActivities, projectId, readOnly = false, canEditAutoFields = false, canGeneratePDF = true }) {
   const [termos, setTermos] = useState([]);
   const [current, setCurrent] = useState(null);
   const [loadingTermos, setLoadingTermos] = useState(true);
@@ -601,36 +601,36 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
           {/* 1. Identificação */}
           <Section title="IDENTIFICAÇÃO DO PROJETO">
             <div className="bg-slate-50 rounded-lg p-4 mt-2">
-              <EditableAutoField label="Cliente" fieldKey="client_name" autoValue={project?.client_name} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
-              <EditableAutoField label="Tipo de Implantação" fieldKey="implantation_type" autoValue={project?.implantation_type} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
-              <EditableAutoField label="Gerente Pontotel" fieldKey="pontotel_manager_name" autoValue={project?.pontotel_manager_name} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
-              <EditableAutoField label="Analista" fieldKey="pontotel_analyst_name" autoValue={project?.pontotel_analyst_name} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
-              <EditableAutoField label="Líder do Projeto (Cliente)" fieldKey="project_leader_name" autoValue={project?.project_leader_name} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
-              <EditableAutoField label="Patrocinador" fieldKey="sponsor_name" autoValue={project?.sponsor_name} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
-              <EditableAutoField label="Data de Início" fieldKey="start_date" autoValue={project?.start_date} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
-              <EditableAutoField label="Data de Encerramento" fieldKey="end_date" autoValue={project?.aligned_end_date || project?.planned_end_date} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Cliente" fieldKey="client_name" autoValue={project?.client_name} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Tipo de Implantação" fieldKey="implantation_type" autoValue={project?.implantation_type} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Gerente Pontotel" fieldKey="pontotel_manager_name" autoValue={project?.pontotel_manager_name} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Analista" fieldKey="pontotel_analyst_name" autoValue={project?.pontotel_analyst_name} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Líder do Projeto (Cliente)" fieldKey="project_leader_name" autoValue={project?.project_leader_name} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Patrocinador" fieldKey="sponsor_name" autoValue={project?.sponsor_name} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Data de Início" fieldKey="start_date" autoValue={project?.start_date} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Data de Encerramento" fieldKey="end_date" autoValue={project?.aligned_end_date || project?.planned_end_date} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
             </div>
           </Section>
 
           {/* 2. Resumo */}
           <Section title="RESUMO DO PROJETO">
             <div className="bg-slate-50 rounded-lg p-4 mt-2">
-              <EditableAutoField label="Funcionários Contratados" fieldKey="contracted_employees" autoValue={project?.contracted_employees} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
-              <EditableAutoField label="Funcionários Cadastrados" fieldKey="registered_employees" autoValue={usabilitySnap?.numero_funcionarios} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Funcionários Contratados" fieldKey="contracted_employees" autoValue={project?.contracted_employees} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Funcionários Cadastrados" fieldKey="registered_employees" autoValue={usabilitySnap?.numero_funcionarios} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
               <EditableAutoField label="Aderência ao Registro de Ponto" fieldKey="adherence" autoValue={
                 project?.contracted_employees && usabilitySnap
                   ? `${Math.round((usabilitySnap.empregados_batendo_ponto_ultimos_15_dias / project.contracted_employees) * 100)}%`
                   : "—"
-              } sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
-              <EditableAutoField label="Progresso Geral do Projeto" fieldKey="progress_percent" autoValue={project?.progress_percent} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
+              } sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Progresso Geral do Projeto" fieldKey="progress_percent" autoValue={project?.progress_percent} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
             </div>
           </Section>
 
           {/* 3. Escopo */}
           <Section title="ESCOPO CONTRATADO">
             <div className="mt-2 space-y-3 bg-slate-50 rounded-lg p-4">
-              <EditableAutoField label="Módulos" fieldKey="contracted_modules" autoValue={(project?.contracted_modules || []).join(", ")} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
-              <EditableAutoField label="Serviços" fieldKey="contracted_services" autoValue={(project?.contracted_services || []).join(", ")} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Módulos" fieldKey="contracted_modules" autoValue={(project?.contracted_modules || []).join(", ")} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
+              <EditableAutoField label="Serviços" fieldKey="contracted_services" autoValue={(project?.contracted_services || []).join(", ")} sectionOverrides={sectionOverrides} isLocked={isLocked} readOnly={readOnly} canEditAutoFields={canEditAutoFields} onBlur={handleOverrideBlur} />
             </div>
           </Section>
 
@@ -928,10 +928,10 @@ function AutoRow({ label, value }) {
   );
 }
 
-function EditableAutoField({ label, fieldKey, autoValue, sectionOverrides, isLocked, readOnly, onBlur }) {
+function EditableAutoField({ label, fieldKey, autoValue, sectionOverrides, isLocked, readOnly, canEditAutoFields, onBlur }) {
   const inputValue = sectionOverrides[fieldKey] !== undefined ? sectionOverrides[fieldKey] : (autoValue != null ? String(autoValue) : "");
   const manual = sectionOverrides[fieldKey] !== undefined;
-  const disabled = isLocked || readOnly;
+  const disabled = isLocked || readOnly || !canEditAutoFields;
   const inputClass = "flex-1 px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white";
   const isDate = fieldKey.includes("date");
 

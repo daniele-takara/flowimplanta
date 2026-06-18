@@ -139,6 +139,10 @@
           "type": "boolean",
           "default": false
         },
+        "termo_editar_campos_auto": {
+          "type": "boolean",
+          "default": false
+        },
         "termo_pdf": {
           "type": "boolean",
           "default": false

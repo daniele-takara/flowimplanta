@@ -75,6 +75,7 @@ export function usePermissions() {
     // Termo de Encerramento
     canReadTermo: can("termo_ver") || isSystemAdmin,
     canEditTermo: can("termo_editar") || isSystemAdmin,
+    canEditTermoAutoFields: can("termo_editar_campos_auto") || isSystemAdmin,
     canGenerateTermoPDF: can("termo_pdf") || isSystemAdmin,
 
     // Parametrizações
