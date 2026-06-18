@@ -288,7 +288,7 @@ function TaskRow({
                 {RESP_GERAL_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </select>
             )
-            : <span className="text-xs text-slate-500 truncate block">{resolvedGeneralName || form.responsible_general || "—"}</span>
+            : <span className="text-xs text-slate-500 truncate block">{form.responsible_general || resolvedGeneralName || "—"}</span>
           }
         </td>
 
@@ -300,12 +300,14 @@ function TaskRow({
                 {buildRoleOptions(project).map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </select>
             )
-            : resolvedRoleName
-              ? <div>
-                  <span className="text-xs font-medium text-slate-700 block truncate">{resolvedRoleName}</span>
-                  <span className="text-xs text-slate-400 block truncate">{roleLabel}</span>
-                </div>
-              : <span className="text-xs text-slate-500 truncate block">{form.responsible_leader || "—"}</span>
+            : form.responsible_leader
+              ? <span className="text-xs font-medium text-slate-700 block truncate">{resolveRoleToName(form.responsible_leader, project) || form.responsible_leader}</span>
+              : resolvedRoleName
+                ? <div>
+                    <span className="text-xs font-medium text-slate-700 block truncate">{resolvedRoleName}</span>
+                    <span className="text-xs text-slate-400 block truncate">{roleLabel}</span>
+                  </div>
+                : <span className="text-xs text-slate-500 truncate block">—</span>
           }
         </td>
 
