@@ -1,6 +1,6 @@
 # Flowimplanta — Documentação Técnica v6.8
 **Última atualização:** 2026-06-18  
-**Status:** Validado (Novo sistema de status de projeto + Remoção botão Integrar Pipedrive + Seletor de status no header)
+**Status:** Validado (Sistema de status de projeto + Remoção botão "Integrar com Pipedrive" da ProjectList + Seletor de status no header + Botão "Atualizar dados do Pipedrive" mantido no OverviewTab)
 
 ---
 
@@ -1677,11 +1677,14 @@ O botão laranja **"Integrar com Pipedrive"** da tela de listagem de projetos (`
 
 ### O que foi mantido
 
-- **Sincronização de dados**: O botão "Atualizar dados do Pipedrive" dentro da aba Dados Iniciais do projeto **também foi removido** (OverviewTab).
+- **Sincronização de dados**: O botão **"Atualizar dados do Pipedrive"** dentro da aba Dados Iniciais do projeto (OverviewTab) **permanece ativo e funcional** com todas as suas funções:
+  - Sincroniza nome, cliente, responsáveis, módulos, datas, MRR e funcionários contratados
+  - Exibe relatório detalhado de sucesso/erro com alertas de módulos divergentes
+  - Integração com `applyStatusReportFromPipedrive` para pendências e próxima agenda
 - **Backend**: Todas as funções de backend (`syncPipedriveData`, `pipedriveWebhook`, `syncScheduleFromPipedrive`, etc.) permanecem intactas.
 - **Vinculação Pipedrive**: Projetos já vinculados a deals Pipedrive continuam exibindo o banner de vínculo e o ID do deal.
-- **Importação manual**: Para importar novos projetos, use o botão "Novo Projeto" e preencha o ID Deal Pipedrive manualmente nos Dados Iniciais.
+- **Permissão RBAC**: Controlado por `integracao_sync_pipedrive_dados` no perfil do usuário.
 
 ### Motivo
 
-Simplificar a interface e reduzir a superfície de integração exposta a todos os usuários. A importação de projetos agora é feita exclusivamente via criação manual com vínculo de deal.
+Remover apenas o modal de importação em massa (que estava na ProjectList), mantendo a sincronização individual por projeto via OverviewTab, que é a operação mais comum e necessária no dia a dia.
