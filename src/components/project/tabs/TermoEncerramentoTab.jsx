@@ -9,6 +9,7 @@ import {
   XCircle, Lock, Send, History, ChevronDown, ChevronUp, AlertCircle,
   FileSignature, Zap
 } from "lucide-react";
+import { logAudit } from "@/lib/auditLog";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -153,12 +154,7 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
 </div>
 
 <div class="section">
-  <div class="section-title"><span class="section-num">4</span>ENTREGAS REALIZADAS</div>
-  <p style="font-size:11px;color:#334155">As entregas foram realizadas conforme escopo técnico mapeado no início do projeto. Vide cronograma abaixo para detalhamento por fase.</p>
-</div>
-
-<div class="section">
-  <div class="section-title"><span class="section-num">5</span>CRONOGRAMA PLANEJADO VS REALIZADO</div>
+  <div class="section-title"><span class="section-num">4</span>CRONOGRAMA PLANEJADO VS REALIZADO</div>
   <table>
     <tr><th>Etapa</th><th>Início Plan.</th><th>Fim Plan.</th><th>Início Real.</th><th>Fim Real.</th><th>Status</th><th>%</th></tr>
     ${scheduleRows || `<tr><td colspan="7" style="color:#94a3b8;text-align:center">Nenhuma fase calculada</td></tr>`}
@@ -166,7 +162,7 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
 </div>
 
 <div class="section">
-  <div class="section-title"><span class="section-num">6</span>INDICADORES DO PROJETO</div>
+  <div class="section-title"><span class="section-num">5</span>INDICADORES DO PROJETO</div>
   <table>
     <tr><td class="lbl">Aderência ao Registro de Ponto</td><td><strong>${aderencia}%</strong> (${batendo.toLocaleString("pt-BR")} de ${contracted.toLocaleString("pt-BR")} funcionários)</td></tr>
     <tr><td class="lbl">Funcionários Ativos no Sistema</td><td>${(usabilitySnap?.numero_funcionarios_ativos || 0).toLocaleString("pt-BR")}</td></tr>
@@ -176,7 +172,7 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
 </div>
 
 <div class="section">
-  <div class="section-title"><span class="section-num">7</span>PENDÊNCIAS</div>
+  <div class="section-title"><span class="section-num">6</span>PENDÊNCIAS</div>
   <table>
     <tr><th>Pendência</th><th>Responsável</th><th>Prazo</th><th>Plano de Ação</th></tr>
     ${pendingRows}
@@ -184,17 +180,17 @@ function generateTermoPDF({ project, macroPhases, usabilitySnap, pendingItems, f
 </div>
 
 <div class="section">
-  <div class="section-title"><span class="section-num">8</span>ADENDOS</div>
+  <div class="section-title"><span class="section-num">7</span>ADENDOS</div>
   ${adendosHTML}
 </div>
 
 <div class="section">
-  <div class="section-title"><span class="section-num">9</span>CONSIDERAÇÕES FINAIS</div>
+  <div class="section-title"><span class="section-num">8</span>CONSIDERAÇÕES FINAIS</div>
   <div class="text-block">${esc(finalConsiderations) || "—"}</div>
 </div>
 
 <div class="section">
-  <div class="section-title"><span class="section-num">10</span>ACEITE FORMAL</div>
+  <div class="section-title"><span class="section-num">9</span>ACEITE FORMAL</div>
   <p style="margin-bottom:16px;font-size:11px;color:#334155">
     Ao assinar este documento, as partes declaram estar de acordo com os termos e condições do encerramento do projeto de implantação da Pontotel para ${esc(project?.client_name)}, confirmando que todas as atividades previstas foram concluídas conforme acordado.
   </p>
@@ -243,6 +239,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
   const [refreshing, setRefreshing] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
   const savedTimer = useRef(null);
+  const formRef = useRef(form);
 
   const [form, setForm] = useState({
     pending_items: [],
@@ -323,12 +320,18 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
     savedTimer.current = setTimeout(() => setSaveStatus(null), 2500);
   }, [current, isLocked, projectId]);
 
+  // Mantém formRef sempre atualizado para evitar stale closures em onBlur
+  formRef.current = form;
+
   const setField = (key, val) => {
     const next = { ...form, [key]: val };
     setForm(next);
-    clearTimeout(savedTimer.current);
-    savedTimer.current = setTimeout(() => save(next), 1500);
+    save(next);
   };
+
+  const handleBlurSave = useCallback(() => {
+    save(formRef.current);
+  }, [save]);
 
   // Atualizar dados automáticos
   const handleRefresh = async () => {
@@ -579,8 +582,8 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
             </div>
           </Section>
 
-          {/* 5. Cronograma */}
-          <Section number="5" title="CRONOGRAMA PLANEJADO VS REALIZADO">
+          {/* 4. Cronograma */}
+          <Section number="4" title="CRONOGRAMA PLANEJADO VS REALIZADO">
             <div className="flex items-center gap-2 mb-3">
               <AutoBadge />
               <span className="text-xs text-slate-400">
@@ -625,8 +628,8 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
             )}
           </Section>
 
-          {/* 6. Indicadores */}
-          <Section number="6" title="INDICADORES DO PROJETO">
+          {/* 5. Indicadores */}
+          <Section number="5" title="INDICADORES DO PROJETO">
             <AutoBadge />
             <div className="bg-slate-50 rounded-lg p-4 mt-2 grid grid-cols-2 gap-x-8">
               <AutoRow label="Aderência ao Ponto" value={
@@ -640,8 +643,8 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
             </div>
           </Section>
 
-          {/* 7. Pendências */}
-          <Section number="7" title="PENDÊNCIAS">
+          {/* 6. Pendências */}
+          <Section number="6" title="PENDÊNCIAS">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xs text-emerald-600 font-medium bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">✎ Editável</span>
             </div>
@@ -652,18 +655,30 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
             )}
             {!isLocked && !readOnly && (
               <div className="space-y-2 mb-3">
-                {(form.pending_items || []).map((item, i) => (
+                {(form.pending_items || []).map((item, i) => {
+                  const updateItem = (field, val) => {
+                    const arr = [...form.pending_items];
+                    arr[i] = { ...arr[i], [field]: val };
+                    setForm(f => ({ ...f, pending_items: arr }));
+                  };
+                  const removeItem = () => {
+                    const arr = form.pending_items.filter((_, idx) => idx !== i);
+                    setForm(f => ({ ...f, pending_items: arr }));
+                    save({ ...form, pending_items: arr });
+                  };
+                  return (
                   <div key={i} className="flex gap-2 items-start bg-slate-50 rounded-lg p-2 border border-slate-100">
                     <div className="flex-1 grid grid-cols-2 gap-2">
-                      <input className={inputClass} value={item.item || ""} onChange={e => { const arr = [...form.pending_items]; arr[i] = { ...arr[i], item: e.target.value }; setField("pending_items", arr); }} placeholder="Pendência" />
-                      <input className={inputClass} value={item.responsible || ""} onChange={e => { const arr = [...form.pending_items]; arr[i] = { ...arr[i], responsible: e.target.value }; setField("pending_items", arr); }} placeholder="Responsável" />
-                      <input type="date" className={inputClass} value={item.deadline || ""} onChange={e => { const arr = [...form.pending_items]; arr[i] = { ...arr[i], deadline: e.target.value }; setField("pending_items", arr); }} />
-                      <input className={inputClass} value={item.action_plan || ""} onChange={e => { const arr = [...form.pending_items]; arr[i] = { ...arr[i], action_plan: e.target.value }; setField("pending_items", arr); }} placeholder="Plano de ação" />
+                      <input className={inputClass} value={item.item || ""} onChange={e => updateItem("item", e.target.value)} onBlur={handleBlurSave} placeholder="Pendência" />
+                      <input className={inputClass} value={item.responsible || ""} onChange={e => updateItem("responsible", e.target.value)} onBlur={handleBlurSave} placeholder="Responsável" />
+                      <input type="date" className={inputClass} value={item.deadline || ""} onChange={e => updateItem("deadline", e.target.value)} onBlur={handleBlurSave} />
+                      <input className={inputClass} value={item.action_plan || ""} onChange={e => updateItem("action_plan", e.target.value)} onBlur={handleBlurSave} placeholder="Plano de ação" />
                     </div>
-                    <button onClick={() => { const arr = form.pending_items.filter((_, idx) => idx !== i); setField("pending_items", arr); }} className="text-slate-300 hover:text-red-400 mt-1 shrink-0"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={removeItem} className="text-slate-300 hover:text-red-400 mt-1 shrink-0"><Trash2 className="w-4 h-4" /></button>
                   </div>
-                ))}
-                <button onClick={() => setField("pending_items", [...(form.pending_items || []), { item: "", responsible: "", deadline: "", action_plan: "" }])}
+                  );
+                })}
+                <button onClick={() => { const arr = [...(form.pending_items || []), { item: "", responsible: "", deadline: "", action_plan: "" }]; setForm(f => ({ ...f, pending_items: arr })); save({ ...form, pending_items: arr }); }}
                   className="flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-700 px-2 py-1">
                   <Plus className="w-3.5 h-3.5" /> Adicionar pendência
                 </button>
@@ -684,8 +699,8 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
             )}
           </Section>
 
-          {/* 8. Adendos */}
-          <Section number="8" title="ADENDOS">
+          {/* 7. Adendos */}
+          <Section number="7" title="ADENDOS">
             {!isLocked && !readOnly && (
               <div className="mb-4">
                 <p className="text-xs text-slate-500 mb-2">Selecione os adendos a incluir (a ordem de seleção define a ordem no documento):</p>
@@ -729,8 +744,8 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
             ) : <p className="text-sm text-slate-400 italic">Nenhum adendo selecionado.</p>}
           </Section>
 
-          {/* 9. Considerações finais */}
-          <Section number="9" title="CONSIDERAÇÕES FINAIS">
+          {/* 8. Considerações finais */}
+          <Section number="8" title="CONSIDERAÇÕES FINAIS">
             <div className="mb-2 flex items-center gap-2">
               <span className="text-xs text-emerald-600 font-medium bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">✎ Editável</span>
             </div>
@@ -741,14 +756,15 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
                 className={`${inputClass} resize-none`}
                 rows={5}
                 value={form.final_considerations}
-                onChange={e => setField("final_considerations", e.target.value)}
+                onChange={e => setForm(f => ({ ...f, final_considerations: e.target.value }))}
+                onBlur={handleBlurSave}
                 placeholder="Considerações finais sobre o projeto, lições aprendidas, próximos passos..."
               />
             )}
           </Section>
 
-          {/* 10. Assinaturas */}
-          <Section number="10" title="ACEITE E ASSINATURAS">
+          {/* 9. Assinaturas */}
+          <Section number="9" title="ACEITE E ASSINATURAS">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xs text-emerald-600 font-medium bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">✎ Editável</span>
               <span className="text-xs text-slate-400">Selecione os signatários Pontotel</span>
