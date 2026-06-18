@@ -335,6 +335,7 @@ function AssinaturaForm({ assinatura, onSave, onCancel }) {
             <select className={inputClass} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
               <option>Coordenadora de implantação</option>
               <option>Líder de implantação</option>
+              <option>Gerente de Operações</option>
             </select></div>
           <label className="flex items-center gap-2 cursor-pointer">
             <Toggle value={form.active} onChange={v => setForm(f => ({ ...f, active: v }))} />
@@ -369,6 +370,7 @@ function TabAssinaturas() {
   const ROLE_COLORS = {
     "Coordenadora de implantação": "bg-purple-50 text-purple-700 border-purple-200",
     "Líder de implantação": "bg-blue-50 text-blue-700 border-blue-200",
+    "Gerente de Operações": "bg-emerald-50 text-emerald-700 border-emerald-200",
   };
 
   return (
