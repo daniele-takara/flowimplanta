@@ -21,6 +21,7 @@ import RBACReport from './pages/RBACReport';
 import DiagnosticoPipedrive from './pages/DiagnosticoPipedrive';
 import Documentacao from './pages/Documentacao';
 import ClientCalcWizard from './pages/ClientCalcWizard';
+import ClientHome from './pages/ClientHome';
 import WebhookConfig from './pages/WebhookConfig';
 import MonitorIntegracoes from './pages/MonitorIntegracoes';
 import AppLayout from './components/layout/AppLayout';
@@ -28,7 +29,7 @@ import ProtectedRoute from './components/layout/ProtectedRoute';
 import { usePermissions } from './lib/usePermissions';
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, authChecked } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, authChecked, user } = useAuth();
   const perms = usePermissions();
 
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -45,6 +46,11 @@ const AuthenticatedApp = () => {
 
   if (authChecked && !isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Cliente role: acesso restrito apenas ao wizard de regras
+  if (user?.role === 'cliente') {
+    return <ClientHome />;
   }
 
   return (
