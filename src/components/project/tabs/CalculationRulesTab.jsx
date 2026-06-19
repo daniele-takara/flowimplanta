@@ -1031,7 +1031,42 @@ function SobreavisoForm({ companyData, data, onChange }) {
 
   if (rules.length === 0) return <p className="text-slate-400 text-sm">Adicione regras de cálculo no passo 1 primeiro.</p>;
 
-  const selected = (name) => d[name] || { percSobreaviso: "1/3" };
+  const selected = (name) => d[name] || {
+    hasSobreaviso: "sim",
+    bancoHoras: "",
+    porcentagem: "",
+    envioE02: false,
+    codigoVerba: "",
+    formatoVerba: "",
+    particularidade: "",
+    verbas: []
+  };
+
+  const updateRule = (name, field, value) => {
+    const val = selected(name);
+    onChange({ ...d, [name]: { ...val, [field]: value } });
+  };
+
+  const addVerba = (name) => {
+    const val = selected(name);
+    const verbas = [...(val.verbas || [])];
+    verbas.push({ nome: "", codigo: "", percentual: "" });
+    onChange({ ...d, [name]: { ...val, verbas } });
+  };
+
+  const removeVerba = (name, idx) => {
+    const val = selected(name);
+    const verbas = [...(val.verbas || [])];
+    verbas.splice(idx, 1);
+    onChange({ ...d, [name]: { ...val, verbas } });
+  };
+
+  const updateVerba = (name, idx, field, value) => {
+    const val = selected(name);
+    const verbas = [...(val.verbas || [])];
+    verbas[idx] = { ...verbas[idx], [field]: value };
+    onChange({ ...d, [name]: { ...val, verbas } });
+  };
 
   return (
     <div className="space-y-6">
@@ -1048,14 +1083,86 @@ function SobreavisoForm({ companyData, data, onChange }) {
             <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} isInheriting={inhActive} inheritingFrom={inhFrom} />
             {inhLocked ? null : (
             <>
-            <div>
-              <label className={labelClass}>Percentual do Sobreaviso</label>
-              <select value={val.percSobreaviso} onChange={e => onChange({ ...d, [name]: { ...val, percSobreaviso: e.target.value } })} className={`${selectClass} max-w-xs`}>
-                <option value="1/3">1/3 do salário hora</option>
-                <option value="1/2">1/2 do salário hora</option>
-                <option value="custom">Personalizado</option>
+            {/* Pergunta condicional — sobreaviso */}
+            <div className="mb-4">
+              <label className={labelClass}>Nessa regra, existem funcionários com jornadas de sobreaviso?</label>
+              <select value={val.hasSobreaviso || "sim"} onChange={e => updateRule(name, "hasSobreaviso", e.target.value)} className={`${selectClass} max-w-xs`}>
+                <option value="sim">Sim</option>
+                <option value="nao">Não</option>
               </select>
             </div>
+
+            {val.hasSobreaviso !== "nao" && (
+            <>
+            {/* Banco de horas */}
+            <div className="mb-4">
+              <label className={labelClass}>A hora de sobreaviso deverá entrar para banco de horas?</label>
+              <select value={val.bancoHoras || ""} onChange={e => updateRule(name, "bancoHoras", e.target.value)} className={`${selectClass} max-w-xs`}>
+                <option value="">Selecione uma opção</option>
+                <option value="sim">Sim</option>
+                <option value="nao">Não</option>
+              </select>
+            </div>
+
+            {/* Porcentagem */}
+            <div className="mb-4">
+              <label className={labelClass}>Qual a porcentagem de sobreaviso trabalhado?</label>
+              <input value={val.porcentagem || ""} onChange={e => updateRule(name, "porcentagem", e.target.value)} className={`${inputClass} max-w-xs`} placeholder="Ex: 100%" />
+            </div>
+
+            {/* Envio FOPAG */}
+            <div className="border-t pt-4 mb-4">
+              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer mb-3">
+                <input type="checkbox" checked={!!val.envioE02} onChange={e => updateRule(name, "envioE02", e.target.checked)} className="w-4 h-4 accent-purple-600 rounded" />
+                Enviar para arquivo de exportação para FOPAG (E02)?
+              </label>
+              {val.envioE02 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-6">
+                  <input value={val.codigoVerba || ""} onChange={e => updateRule(name, "codigoVerba", e.target.value)} className={inputClass} placeholder="Código da verba" />
+                  <select value={val.formatoVerba || ""} onChange={e => updateRule(name, "formatoVerba", e.target.value)} className={selectClass}>
+                    <option value="">Selecione o formato</option>
+                    <option value="Dia">Dia</option>
+                    <option value="HH:MM">HH:MM</option>
+                    <option value="Centesimal">Centesimal</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Particularidade */}
+            <div className="border-t pt-4 mb-4">
+              <label className={labelClass}>Possui alguma particularidade?</label>
+              <p className="text-xs text-slate-400 mb-2">Deixe explícito o funcionamento do sobreaviso (trabalhado e não trabalhado).</p>
+              <textarea value={val.particularidade || ""} onChange={e => updateRule(name, "particularidade", e.target.value)} className={`${inputClass} h-24`} placeholder="Descreva as particularidades do sobreaviso..." />
+            </div>
+
+            {/* Outras Verbas */}
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-slate-500 uppercase">Outras Verbas (Sobreaviso)</p>
+                <button onClick={() => addVerba(name)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors">
+                  + Adicionar Verba
+                </button>
+              </div>
+              {(val.verbas || []).length === 0 && (
+                <p className="text-xs text-slate-400 italic">Nenhuma verba adicional.</p>
+              )}
+              {(val.verbas || []).map((v, i) => (
+                <div key={i} className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-slate-600">Verba #{i + 1}</span>
+                    <button onClick={() => removeVerba(name, i)} className="text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input value={v.nome || ""} onChange={e => updateVerba(name, i, "nome", e.target.value)} className={inputClass} placeholder="Nome da verba" />
+                    <input value={v.codigo || ""} onChange={e => updateVerba(name, i, "codigo", e.target.value)} className={inputClass} placeholder="Código" />
+                    <input value={v.percentual || ""} onChange={e => updateVerba(name, i, "percentual", e.target.value)} className={inputClass} placeholder="%" />
+                  </div>
+                </div>
+              ))}
+            </div>
+            </>
+            )}
             </>
             )}
           </div>
@@ -1342,7 +1449,7 @@ function RevisaoFinal({ companyData, allData, project }) {
               {br.model && <p><span className="font-medium text-slate-600">Intervalos:</span> {br.model} — Atraso: {br.toleranciaAtrasoPausa || "—"}min, Início: {br.toleranciaInicioPausa || "—"}min, Fim: {br.toleranciaFimPausa || "—"}min {(br.ranges || []).length > 0 && `(${br.ranges.length} faixas)`}</p>}
               {an.percAdicional && <p><span className="font-medium text-slate-600">Noturno:</span> {an.percAdicional}% — {an.horaInicioNoturna || "22:00"} às {an.horaFimNoturna || "05:00"}{an.separarHENoturna === "sim" ? " (HE separada)" : ""}</p>}
               {j12.hasJornada12x36 !== "nao" && <p><span className="font-medium text-slate-600">12x36:</span> Feriado: {j12.pagamentoFeriado === "extra" ? "Pagamento extra" : "Pagamento normal"} | Falta: {j12.faltaFeriado === "sim" ? "Sim" : "Não"}</p>}
-              {sb.percSobreaviso && <p><span className="font-medium text-slate-600">Sobreaviso:</span> {sb.percSobreaviso}</p>}
+              {sb.hasSobreaviso !== "nao" && <p><span className="font-medium text-slate-600">Sobreaviso:</span> {sb.porcentagem || "—"}%{sb.bancoHoras === "sim" ? " (Banco de Horas)" : ""}{sb.envioE02 ? " | Envia FOPAG" : ""}{(sb.verbas || []).length > 0 ? ` | ${sb.verbas.length} verba(s)` : ""}</p>}
               {bh.model && <p><span className="font-medium text-slate-600">Banco de Horas:</span> {bh.model} — {bh.periodoCompensacao || "mensal"}{bh.limiteCreditoMensal ? ` | Crédito máx: ${bh.limiteCreditoMensal}h/mês` : ""}</p>}
               {dsr.modeloDSR && <p><span className="font-medium text-slate-600">DSR:</span> {dsr.modeloDSR === "padrao" ? "Incluso nas HE" : "Separado"}</p>}
             </div>
