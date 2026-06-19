@@ -17,6 +17,7 @@ import UsersPermissions from './pages/UsersPermissions';
 import RBACReport from './pages/RBACReport';
 import DiagnosticoPipedrive from './pages/DiagnosticoPipedrive';
 import Documentacao from './pages/Documentacao';
+import ClientCalcWizard from './pages/ClientCalcWizard';
 import WebhookConfig from './pages/WebhookConfig';
 import MonitorIntegracoes from './pages/MonitorIntegracoes';
 import AppLayout from './components/layout/AppLayout';
@@ -90,7 +91,10 @@ function App() {
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
         <Router>
-          <AuthenticatedApp />
+          <Routes>
+            <Route path="/cliente/:token" element={<ClientCalcWizard />} />
+            <Route path="*" element={<AuthenticatedApp />} />
+          </Routes>
         </Router>
         <Toaster />
       </QueryClientProvider>

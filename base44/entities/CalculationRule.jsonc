@@ -6,6 +6,19 @@
       "type": "string",
       "description": "ID do projeto"
     },
+    "rule_type": {
+      "type": "string",
+      "enum": [
+        "team",
+        "client"
+      ],
+      "default": "team",
+      "description": "Tipo da regra: time ou cliente"
+    },
+    "client_token": {
+      "type": "string",
+      "description": "Token \u00fanico para acesso p\u00fablico do cliente"
+    },
     "status": {
       "type": "string",
       "enum": [
