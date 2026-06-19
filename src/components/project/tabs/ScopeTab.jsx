@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { SCOPE_MODULES, getModuleQuestions, isModuleVisible } from "@/lib/scopeTemplate";
 import { generateScopePDF } from "@/lib/scopePdfExport";
 import ScopeItemRow from "@/components/project/tabs/ScopeItemRow";
-import { ChevronLeft, ChevronRight, Plus, Minus, FileDown, Check, LayoutList, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Minus, FileDown, Check, LayoutList, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
 import ScopeSyncModal from "@/components/project/tabs/ScopeSyncModal.jsx";
 import { logAudit } from "@/lib/auditLog";
 
@@ -396,6 +396,20 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
           >
             <FileDown className="w-3.5 h-3.5" />
             Gerar PDF
+          </button>
+          <button
+            onClick={() => {
+              if (window.location.hash === "#presentation") {
+                window.location.hash = "";
+              } else {
+                window.location.hash = "presentation";
+              }
+            }}
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+            title={window.location.hash === "#presentation" ? "Sair da tela cheia" : "Expandir tela para apresentação"}
+          >
+            {window.location.hash === "#presentation" ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            {window.location.hash === "#presentation" ? "Recolher" : "Expandir"}
           </button>
         </div>
       </div>

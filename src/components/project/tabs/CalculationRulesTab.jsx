@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { ChevronLeft, ChevronRight, Save, CheckCircle, Loader2, FileDown, RotateCcw, AlertCircle, Lock, Info, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, CheckCircle, Loader2, FileDown, RotateCcw, AlertCircle, Lock, Info, Trash2, Maximize2, Minimize2 } from "lucide-react";
 import { usePermissions } from "@/lib/usePermissions";
 import CopyFromRule from "@/components/project/tabs/calculation/CopyFromRule";
 import CalculationModelsInfoModal from "@/components/project/tabs/calculation/CalculationModelsInfoModal";
@@ -2080,6 +2080,20 @@ export default function CalculationRulesTab({ projectId, project }) {
           <p className="text-sm text-slate-400">Wizard de configuração das regras de cálculo da empresa</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              if (window.location.hash === "#presentation") {
+                window.location.hash = "";
+              } else {
+                window.location.hash = "presentation";
+              }
+            }}
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+            title={window.location.hash === "#presentation" ? "Sair da tela cheia" : "Expandir tela para apresentação"}
+          >
+            {window.location.hash === "#presentation" ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            {window.location.hash === "#presentation" ? "Recolher" : "Expandir"}
+          </button>
           <button
             onClick={async () => {
               setGeneratingCalcPDF(true);

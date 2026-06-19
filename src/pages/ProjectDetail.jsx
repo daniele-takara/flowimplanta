@@ -37,6 +37,13 @@ export default function ProjectDetail() {
   const { id } = useParams();
   const [activeTab, setActiveTab] = useState("overview");
   const [project, setProject]     = useState(null);
+  const [isPresentation, setIsPresentation] = useState(() => window.location.hash === "#presentation");
+
+  useEffect(() => {
+    const handler = () => setIsPresentation(window.location.hash === "#presentation");
+    window.addEventListener("hashchange", handler);
+    return () => window.removeEventListener("hashchange", handler);
+  }, []);
   const [phases, setPhases]       = useState([]);
   const [activities, setActivities] = useState([]);
   const [scopeItems, setScopeItems] = useState([]);
@@ -139,6 +146,27 @@ export default function ProjectDetail() {
     return <div className="p-8 text-center text-slate-400">Projeto não encontrado.</div>;
   }
 
+  // Presentation mode: fullscreen content only
+  if (isPresentation) {
+    return (
+      <div className="flex flex-col min-h-screen bg-slate-50">
+        <div className="flex-1 p-4 md:p-8">
+          <div className="max-w-6xl mx-auto">
+            {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} project={project} onRefresh={loadData} onScopeSaved={reloadScopeItems} readOnly={!perms.canEditScope} canUpdateTemplate={perms.canUpdateScopeTemplate} />}
+            {activeTab === "calc" && (
+              <ProtectedRoute allowed={perms.canReadCalcRules}>
+                <CalculationRulesTab projectId={id} project={project} />
+              </ProtectedRoute>
+            )}
+            {(activeTab !== "scope" && activeTab !== "calc") && (
+              <div className="text-center py-12 text-slate-400 text-sm">Modo apresentação disponível apenas para Escopo Técnico e Regras de Cálculo.</div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen">
       <ProjectHeader
@@ -192,9 +220,6 @@ export default function ProjectDetail() {
         <div className={(activeTab === "actions" || activeTab === "schedule") ? "" : "max-w-6xl mx-auto"}>
           {activeTab === "overview" && <OverviewTab project={project} phases={phases} canSyncPipedrive={perms.canSyncPipedriveDados} onEditDadosIniciais={(!isMock && perms.canEditProject) ? () => setShowEditModal(true) : null} onProjectUpdated={async (updated) => {
             if (!updated) return;
-            // NUNCA fazer merge parcial — sempre recarregar do banco para garantir
-            // que contracted_modules e contracted_services sejam a versão oficial.
-            // Merge parcial com dados do Pipedrive pode sobrescrever módulos com undefined.
             try {
               const fresh = await base44.entities.Project.filter({ id });
               if (fresh[0]) {
@@ -202,7 +227,6 @@ export default function ProjectDetail() {
                 setProject(fresh[0]);
               }
             } catch {
-              // Fallback seguro: só usa o updated se busca falhar
               setProject(prev => ({ ...prev, ...updated }));
             }
           }} />}
