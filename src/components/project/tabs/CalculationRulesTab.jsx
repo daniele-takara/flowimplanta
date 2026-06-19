@@ -15,6 +15,7 @@ import ReducaoHoraNoturnaInfoModal from "@/components/project/tabs/calculation/R
 import AdicionalIncluiPausaInfoModal from "@/components/project/tabs/calculation/AdicionalIncluiPausaInfoModal";
 import Jornada12x36FeriadoInfoModal from "@/components/project/tabs/calculation/Jornada12x36FeriadoInfoModal";
 import SobreavisoInfoModal from "@/components/project/tabs/calculation/SobreavisoInfoModal";
+import BancoHorasInfoModal from "@/components/project/tabs/calculation/BancoHorasInfoModal";
 import DSRFeriasHEInfoModal from "@/components/project/tabs/calculation/DSRFeriasHEInfoModal";
 import DSRMesDescontoInfoModal from "@/components/project/tabs/calculation/DSRMesDescontoInfoModal";
 import { logAudit } from "@/lib/auditLog";
@@ -1249,7 +1250,7 @@ function SobreavisoForm({ companyData, data, onChange }) {
   );
 }
 
-// ── Step 8: Banco de Horas ───────────────────────────────────────────────────
+// ── Step 9: Banco de Horas ───────────────────────────────────────────────────
 function BancoHorasForm({ companyData, data, onChange }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
@@ -1257,11 +1258,11 @@ function BancoHorasForm({ companyData, data, onChange }) {
   if (rules.length === 0) return <p className="text-slate-400 text-sm">Adicione regras de cálculo no passo 1 primeiro.</p>;
 
   const selected = (name) => d[name] || {
-    model: "", periodoCompensacao: "mensal",
-    limiteCreditoMensal: "", limiteDebitoMensal: "",
-    limiteCreditoSemestral: "", limiteDebitoSemestral: "",
-    permiteEstouro: false, toleranciaEstouro: "",
-    envioE02: false, codigoVerbaCredito: "", codigoVerbaDebito: ""
+    formato: "",
+    dataInicio: "",
+    limiteDias: "",
+    criterioAcumulo: "",
+    prazoVencimento: ""
   };
 
   const updateRule = (name, field, value) => {
@@ -1271,11 +1272,6 @@ function BancoHorasForm({ companyData, data, onChange }) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 text-sm text-teal-700">
-        <p className="font-semibold mb-1">Banco de Horas</p>
-        <p>Configure o período de compensação e os limites de acúmulo de crédito e débito de horas.</p>
-      </div>
-
       {rules.map((name) => {
         const val = selected(name);
         const inhr = (d || {})[name] || {};
@@ -1289,92 +1285,80 @@ function BancoHorasForm({ companyData, data, onChange }) {
             <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} isInheriting={inhActive} inheritingFrom={inhFrom} />
             {inhLocked ? null : (
             <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className={labelClass}>Modelo</label>
-                <select value={val.model} onChange={e => updateRule(name, "model", e.target.value)} className={selectClass}>
-                  <option value="">Selecione...</option>
-                  <option value="Modelo 1">Modelo 1 — Compensação mensal</option>
-                  <option value="Modelo 2">Modelo 2 — Compensação semestral</option>
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>Período de Compensação</label>
-                <select value={val.periodoCompensacao} onChange={e => updateRule(name, "periodoCompensacao", e.target.value)} className={selectClass}>
-                  <option value="mensal">Mensal</option>
-                  <option value="bimestral">Bimestral</option>
-                  <option value="trimestral">Trimestral</option>
-                  <option value="semestral">Semestral</option>
-                  <option value="anual">Anual</option>
-                </select>
-              </div>
+
+            {/* Pergunta 1: Formato do banco de horas */}
+            <div className="mb-4">
+              <label className={labelClass}>Qual o formato do banco de horas?</label>
+              <select value={val.formato || ""} onChange={e => updateRule(name, "formato", e.target.value)} className={`${selectClass} max-w-sm mt-1`}>
+                <option value="">Selecione o formato</option>
+                <option value="compensacao_geral">Compensação geral</option>
+                <option value="por_janela">Compensação por janelas / Cascata</option>
+              </select>
             </div>
 
-            {/* Limites de acúmulo */}
-            <div className="border-t pt-4 mb-4">
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Limites de Acúmulo (horas)</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-slate-50 rounded-lg p-3">
-                  <p className="text-xs font-medium text-green-700 mb-2">Crédito (saldo positivo)</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="text-xs text-slate-400">Mensal</span>
-                      <input value={val.limiteCreditoMensal || ""} onChange={e => updateRule(name, "limiteCreditoMensal", e.target.value)} className={inputClass} type="number" placeholder="Ex: 10" />
-                    </div>
-                    <div>
-                      <span className="text-xs text-slate-400">Semestral</span>
-                      <input value={val.limiteCreditoSemestral || ""} onChange={e => updateRule(name, "limiteCreditoSemestral", e.target.value)} className={inputClass} type="number" placeholder="Ex: 40" />
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-slate-50 rounded-lg p-3">
-                  <p className="text-xs font-medium text-red-700 mb-2">Débito (saldo negativo)</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="text-xs text-slate-400">Mensal</span>
-                      <input value={val.limiteDebitoMensal || ""} onChange={e => updateRule(name, "limiteDebitoMensal", e.target.value)} className={inputClass} type="number" placeholder="Ex: 8" />
-                    </div>
-                    <div>
-                      <span className="text-xs text-slate-400">Semestral</span>
-                      <input value={val.limiteDebitoSemestral || ""} onChange={e => updateRule(name, "limiteDebitoSemestral", e.target.value)} className={inputClass} type="number" placeholder="Ex: 24" />
-                    </div>
-                  </div>
-                </div>
+            {/* Campos condicionais: Compensação Geral */}
+            {val.formato === "compensacao_geral" && (
+            <div className="border-t pt-4 space-y-4">
+              <div>
+                <label className={labelClass}>Modelo de Banco de Horas</label>
+                <div className="w-full max-w-sm px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-500">Compensação Geral</div>
               </div>
 
-              {/* Estouro de limite */}
-              <div className="mt-3">
-                <label className="flex items-center gap-2 text-sm text-slate-600 mb-2">
-                  <input type="checkbox" checked={!!val.permiteEstouro} onChange={e => updateRule(name, "permiteEstouro", e.target.checked)} className="w-4 h-4 accent-blue-600" />
-                  Permitir estouro de limite
+              <div>
+                <label className={labelClass}>Data de início do banco de horas</label>
+                <input value={val.dataInicio || ""} onChange={e => updateRule(name, "dataInicio", e.target.value)} className={`${inputClass} max-w-sm`} type="date" />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                  Qual o limite de dias para acúmulo/vencimento do banco de horas?
                 </label>
-                {val.permiteEstouro && (
-                  <div>
-                    <span className="text-xs text-slate-400">Tolerância de estouro (horas)</span>
-                    <input value={val.toleranciaEstouro || ""} onChange={e => updateRule(name, "toleranciaEstouro", e.target.value)} className={`${inputClass} max-w-[150px]`} type="number" placeholder="Ex: 4" />
-                  </div>
-                )}
+                <select value={val.limiteDias || ""} onChange={e => updateRule(name, "limiteDias", e.target.value)} className={`${selectClass} max-w-sm`}>
+                  <option value="">Selecione o limite</option>
+                  <option value="90">90 dias</option>
+                  <option value="180">180 dias</option>
+                  <option value="365">365 dias</option>
+                  <option value="custom">Personalizado</option>
+                </select>
               </div>
-            </div>
 
-            {/* Códigos de verba */}
-            <div className="border-t pt-4">
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Códigos de Verba</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs text-slate-500">Cód. Verba Crédito</label>
-                  <input value={val.codigoVerbaCredito || ""} onChange={e => updateRule(name, "codigoVerbaCredito", e.target.value)} className={inputClass} placeholder="Código" />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-500">Cód. Verba Débito</label>
-                  <input value={val.codigoVerbaDebito || ""} onChange={e => updateRule(name, "codigoVerbaDebito", e.target.value)} className={inputClass} placeholder="Código" />
-                </div>
+              <div>
+                <label className={labelClass}>Qual o critério para o início de acúmulo das horas no banco?</label>
+                <select value={val.criterioAcumulo || ""} onChange={e => updateRule(name, "criterioAcumulo", e.target.value)} className={`${selectClass} max-w-sm`}>
+                  <option value="">Selecione o critério</option>
+                  <option value="data_admissao">Data de admissão</option>
+                  <option value="data_inicio_banco">Data de início do banco</option>
+                  <option value="periodo_aquisitivo">Período aquisitivo</option>
+                </select>
               </div>
-              <label className="flex items-center gap-2 text-xs text-slate-500 mt-3">
-                <input type="checkbox" checked={!!val.envioE02} onChange={e => updateRule(name, "envioE02", e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
-                Enviar ao arquivo de exportação para FOPAG
-              </label>
             </div>
+            )}
+
+            {/* Campos condicionais: Por Janela */}
+            {val.formato === "por_janela" && (
+            <div className="border-t pt-4 space-y-4">
+              <div>
+                <label className={labelClass}>Modelo de Banco de Horas</label>
+                <div className="w-full max-w-sm px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-500">Por Janela</div>
+              </div>
+
+              <div>
+                <label className={labelClass}>Data de início do banco de horas</label>
+                <input value={val.dataInicio || ""} onChange={e => updateRule(name, "dataInicio", e.target.value)} className={`${inputClass} max-w-sm`} type="date" />
+              </div>
+
+              <div>
+                <label className={labelClass}>Prazo de vencimento</label>
+                <select value={val.prazoVencimento || ""} onChange={e => updateRule(name, "prazoVencimento", e.target.value)} className={`${selectClass} max-w-sm`}>
+                  <option value="">Selecione o prazo</option>
+                  <option value="6">6 meses</option>
+                  <option value="12">12 meses</option>
+                  <option value="custom">Personalizado</option>
+                </select>
+              </div>
+            </div>
+            )}
+
             </>
             )}
           </div>
@@ -1659,7 +1643,7 @@ function RevisaoFinal({ companyData, allData, project }) {
               {an.percAdicional && <p><span className="font-medium text-slate-600">Noturno:</span> {an.percAdicional}% — {an.horaInicioNoturna || "22:00"} às {an.horaFimNoturna || "05:00"}{an.separarHENoturna === "sim" ? " (HE separada)" : ""}</p>}
               {j12.hasJornada12x36 !== "nao" && <p><span className="font-medium text-slate-600">12x36:</span> Feriado: {j12.pagamentoFeriado === "extra" ? "Pagamento extra" : "Pagamento normal"} | Falta: {j12.faltaFeriado === "sim" ? "Sim" : "Não"}</p>}
               {sb.hasSobreaviso !== "nao" && <p><span className="font-medium text-slate-600">Sobreaviso:</span> {sb.porcentagem || "—"}%{sb.bancoHoras === "sim" ? " (Banco de Horas)" : ""}{sb.envioE02 ? " | Envia FOPAG" : ""}{(sb.verbas || []).length > 0 ? ` | ${sb.verbas.length} verba(s)` : ""}</p>}
-              {bh.model && <p><span className="font-medium text-slate-600">Banco de Horas:</span> {bh.model} — {bh.periodoCompensacao || "mensal"}{bh.limiteCreditoMensal ? ` | Crédito máx: ${bh.limiteCreditoMensal}h/mês` : ""}</p>}
+              {bh.formato && <p><span className="font-medium text-slate-600">Banco de Horas:</span> {bh.formato === "compensacao_geral" ? "Compensação Geral" : "Por Janela"}{bh.dataInicio ? ` | Início: ${bh.dataInicio}` : ""}{bh.limiteDias ? ` | Limite: ${bh.limiteDias} dias` : ""}{bh.prazoVencimento ? ` | Vencimento: ${bh.prazoVencimento} meses` : ""}{bh.criterioAcumulo ? ` | Critério: ${bh.criterioAcumulo}` : ""}</p>}
               {dsr.tipoHEFeriado && <p><span className="font-medium text-slate-600">DSR/Feriados:</span> HE Feriado: {dsr.tipoHEFeriado === "extra" ? "Extra" : "Não considerar"} | Pausa Folga: {dsr.pausaFolgaHoraTrabalhada === "considerar" ? "Considerar" : "Não considerar"} | DSR Dobro: {dsr.dsrDobroFalta === "sim" ? "Sim" : "Não"} | Mês Desc: {dsr.mesDescontoDSR === "falta" ? "Na folha da falta" : "Próximo mês"}{dsr.envioE02 ? " | Envia FOPAG" : ""}{(dsr.verbas || []).length > 0 ? ` | ${dsr.verbas.length} verba(s)` : ""}</p>}
             </div>
           </div>
@@ -1705,6 +1689,7 @@ export default function CalculationRulesTab({ projectId, project }) {
   const [showSobreavisoModal, setShowSobreavisoModal] = useState(false);
   const [showDSRFeriasHEModal, setShowDSRFeriasHEModal] = useState(false);
   const [showDSRMesDescontoModal, setShowDSRMesDescontoModal] = useState(false);
+  const [showBancoHorasModal, setShowBancoHorasModal] = useState(false);
 
   useEffect(() => { if (record?.current_step) setCurrentStep(record.current_step); }, [record?.current_step]);
 
@@ -1882,6 +1867,15 @@ export default function CalculationRulesTab({ projectId, project }) {
               <Info className="w-3.5 h-3.5" />
             </button>
           )}
+          {step?.id === 9 && (
+            <button
+              onClick={() => setShowBancoHorasModal(true)}
+              className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"
+              title="Entenda os modelos de banco de horas"
+            >
+              <Info className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
         <p className="text-sm text-slate-400 mb-6">Passo {currentStepIdx + 1} de {visibleSteps.length}</p>
 
@@ -1976,6 +1970,11 @@ export default function CalculationRulesTab({ projectId, project }) {
       {/* Modal informativo de sobreaviso */}
       {showSobreavisoModal && (
         <SobreavisoInfoModal onClose={() => setShowSobreavisoModal(false)} />
+      )}
+
+      {/* Modal informativo de banco de horas */}
+      {showBancoHorasModal && (
+        <BancoHorasInfoModal onClose={() => setShowBancoHorasModal(false)} />
       )}
 
       {/* Modal informativo de tipo de HE em feriados/folgas */}
