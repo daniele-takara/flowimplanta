@@ -22,12 +22,16 @@ function useClientWizardState(token) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [projectName, setProjectName] = useState("");
+  const [errorType, setErrorType] = useState(null); // 'expired' | 'invalid' | null
 
   const load = useCallback(async () => {
     try {
       const res = await base44.functions.invoke('getClientCalcRule', { token });
       const data = res.data;
       if (data.error) {
+        if (data.error === 'Link expirado') {
+          setErrorType('expired');
+        }
         setRecord(null);
       } else {
         setRecord(data);
@@ -64,12 +68,12 @@ function useClientWizardState(token) {
 
   const getStatus = useCallback(() => record?.status, [record]);
 
-  return { record, loading, saving, save, getData, reload: load, projectName, getStatus };
+  return { record, loading, saving, save, getData, reload: load, projectName, getStatus, errorType };
 }
 
 export default function ClientCalcWizard() {
   const { token } = useParams();
-  const { record, loading, saving, save, getData, projectName } = useClientWizardState(token);
+  const { record, loading, saving, save, getData, projectName, errorType } = useClientWizardState(token);
 
   const dbCompanyData = getData("company_data") || {};
   const [currentStep, setCurrentStep] = useState(record?.current_step || 1);
@@ -189,8 +193,14 @@ export default function ClientCalcWizard() {
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center max-w-md px-4">
           <Lock className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-slate-700 mb-2">Link inválido ou expirado</h1>
-          <p className="text-sm text-slate-500">Este link não é mais válido. Entre em contato com o time de implantação para receber um novo link.</p>
+          <h1 className="text-xl font-bold text-slate-700 mb-2">
+            {errorType === 'expired' ? 'Link expirado' : 'Link inválido ou expirado'}
+          </h1>
+          <p className="text-sm text-slate-500">
+            {errorType === 'expired'
+              ? 'Este link expirou após 30 dias. Solicite um novo link ao time de implantação.'
+              : 'Este link não é mais válido. Entre em contato com o time de implantação para receber um novo link.'}
+          </p>
         </div>
       </div>
     );

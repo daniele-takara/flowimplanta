@@ -12,6 +12,14 @@ Deno.serve(async (req) => {
 
     const rule = rules[0];
 
+    // Check if token has expired
+    if (rule.client_token_expires_at) {
+      const expiresAt = new Date(rule.client_token_expires_at);
+      if (new Date() > expiresAt) {
+        return Response.json({ error: 'Link expirado' }, { status: 410 });
+      }
+    }
+
     // Lookup project name
     let client_name = '';
     try {

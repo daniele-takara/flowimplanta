@@ -18,9 +18,16 @@ Deno.serve(async (req) => {
       rule_type: 'client'
     });
 
+    // Expira em 30 dias
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
     if (existing.length > 0) {
-      // Update existing client rule with new token
-      await base44.entities.CalculationRule.update(existing[0].id, { client_token: token });
+      // Update existing client rule with new token and expiry
+      await base44.entities.CalculationRule.update(existing[0].id, {
+        client_token: token,
+        client_token_expires_at: expiresAt,
+        status: 'rascunho',
+      });
     } else {
       // Get team rule to copy company_data (rule names, etc.)
       const teamRules = await base44.entities.CalculationRule.filter({
@@ -35,6 +42,7 @@ Deno.serve(async (req) => {
         project_id,
         rule_type: 'client',
         client_token: token,
+        client_token_expires_at: expiresAt,
         status: 'rascunho',
         current_step: 1,
         company_data: companyData,
