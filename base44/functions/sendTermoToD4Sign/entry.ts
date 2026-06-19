@@ -82,40 +82,161 @@ Deno.serve(async (req) => {
     }
     const docUuid = uploadData.uuid;
 
-    // 5. Register signers
-    const { signers, signerNames } = buildSigners(project, coordenadora, liderImpl, gerente, clienteSignatario);
-    if (signers.length === 0) {
+    // 5. Buscar signatários existentes do documento (herdados do cofre)
+    const listResp = await fetch(
+      `${D4SIGN_BASE}/documents/${docUuid}/list?${authParams}`
+    );
+    const docData = await listResp.json();
+
+    // docData.list pode ser um array ou um objeto (single signer)
+    const rawList = docData?.list;
+    let existingSigners = [];
+    if (Array.isArray(rawList)) {
+      existingSigners = rawList;
+    } else if (rawList && typeof rawList === "object") {
+      existingSigners = [rawList];
+    }
+
+    console.log("Existing signers from vault:", JSON.stringify(existingSigners.map(s => ({ email: s.email, act: s.act, key_signer: s.key_signer }))));
+
+    // 6. Construir nossos signatários agrupados por papel (com dedup)
+    const seenEmails = new Set();
+    const addSigner = (email, name, role, act) => {
+      const e = (email || "").trim().toLowerCase();
+      if (!e || seenEmails.has(e)) return;
+      seenEmails.add(e);
+      return { email: e, name: name || "", role, act };
+    };
+
+    const ourTestemunha = addSigner(liderImpl?.email, liderImpl?.name, "testemunha", "5");
+    const ourCoordenadora = addSigner(coordenadora?.email, coordenadora?.name, "coordenadora", "1");
+    const ourGerente = addSigner(gerente?.email, gerente?.name, "gerente", "1");
+    const cliEmail = (clienteSignatario?.email || project?.project_leader_email || "").trim().toLowerCase();
+    const cliName = clienteSignatario?.name || project?.project_leader_name || "";
+    const ourCliente = addSigner(cliEmail, cliName, "cliente", "1");
+
+    const ourRegulares = [ourCoordenadora, ourGerente, ourCliente].filter(Boolean);
+
+    const allOurSigners = [ourTestemunha, ...ourRegulares].filter(Boolean);
+    if (allOurSigners.length === 0) {
       return Response.json({ error: "Nenhum signatário definido" }, { status: 400 });
     }
 
-    const signersResp = await fetch(
-      `${D4SIGN_BASE}/documents/${docUuid}/createlist?${authParams}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ signers }),
-      }
-    );
-    const signersData = await signersResp.json();
+    console.log("Our signers:", JSON.stringify(allOurSigners.map(s => ({ email: s.email, role: s.role }))));
 
-    // 5b. Associar cada signatário à posição reservada via addinfo (key_signer + display_name)
-    for (const s of signers) {
-      const displayName = signerNames[s.email] || "";
-      await fetch(
-        `${D4SIGN_BASE}/documents/${docUuid}/addinfo?${authParams}`,
+    // 7. Separar posições do cofre por tipo
+    const vaultTestemunhas = existingSigners.filter(s => String(s.act) === "5");
+    const vaultRegulares = existingSigners.filter(s => String(s.act) !== "5");
+
+    console.log(`Vault: ${vaultTestemunhas.length} testemunhas, ${vaultRegulares.length} regulares`);
+
+    // 8. Helper para trocar email de uma posição do cofre
+    const changeSignerEmail = async (vaultPos, ourSigner) => {
+      const vaultEmail = (vaultPos.email || "").trim().toLowerCase();
+      if (vaultEmail === ourSigner.email) {
+        console.log(`  → email já está correto: ${ourSigner.email} (${ourSigner.role})`);
+      } else {
+        console.log(`  → trocando ${vaultEmail} → ${ourSigner.email} (${ourSigner.role})`);
+        const changeResp = await fetch(
+          `${D4SIGN_BASE}/documents/${docUuid}/changeemail?${authParams}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              "email-before": vaultPos.email,
+              "email-after": ourSigner.email,
+              "key-signer": vaultPos.key_signer,
+            }),
+          }
+        );
+        const changeData = await changeResp.json();
+        if (!changeResp.ok) {
+          console.error(`changeemail failed for ${ourSigner.role}:`, JSON.stringify(changeData));
+        }
+      }
+
+      if (ourSigner.name) {
+        await fetch(
+          `${D4SIGN_BASE}/documents/${docUuid}/addinfo?${authParams}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              key_signer: vaultPos.key_signer,
+              email: ourSigner.email,
+              display_name: ourSigner.name,
+            }),
+          }
+        );
+      }
+    };
+
+    // 9. Mapear testemunha: se o cofre tem vaga de testemunha E temos líder, mapeia
+    const unmappedRegulars = [...ourRegulares];
+    if (ourTestemunha && vaultTestemunhas.length > 0) {
+      await changeSignerEmail(vaultTestemunhas[0], ourTestemunha);
+    } else if (ourTestemunha && vaultTestemunhas.length === 0) {
+      // Cofre não tem vaga de testemunha → adicionar via createlist depois
+      unmappedRegulars.unshift(ourTestemunha);
+    }
+    // Se o cofre tem vaga de testemunha mas não temos líder, deixamos a vaga como está
+
+    // 10. Mapear regulares (coordenadora → gerente → cliente) nas vagas restantes do cofre
+    let regularIdx = 0;
+    for (const vaultPos of vaultRegulares) {
+      if (regularIdx < unmappedRegulars.length) {
+        await changeSignerEmail(vaultPos, unmappedRegulars[regularIdx]);
+        regularIdx++;
+      }
+      // Se acabaram nossos signatários, as vagas restantes do cofre ficam como estão
+    }
+
+    // 11. Signatários que sobraram → adicionar via createlist
+    const remaining = unmappedRegulars.slice(regularIdx);
+    if (remaining.length > 0) {
+      console.log(`Adding ${remaining.length} extra signers via createlist`);
+
+      const extraSigners = remaining.map(s => ({
+        email: s.email,
+        act: s.act,
+        foreign: "0",
+        certificadoicpbr: "0",
+        assinatura_presencial: "0",
+      }));
+
+      const createlistResp = await fetch(
+        `${D4SIGN_BASE}/documents/${docUuid}/createlist?${authParams}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            key_signer: s.email,
-            email: s.email,
-            display_name: displayName,
-          }),
+          body: JSON.stringify({ signers: extraSigners }),
         }
       );
+      const createlistData = await createlistResp.json();
+      console.log("createlist response:", JSON.stringify(createlistData));
+      if (!createlistResp.ok) {
+        console.error("createlist failed:", JSON.stringify(createlistData));
+      }
+
+      for (const s of remaining) {
+        if (s.name) {
+          await fetch(
+            `${D4SIGN_BASE}/documents/${docUuid}/addinfo?${authParams}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                key_signer: s.email,
+                email: s.email,
+                display_name: s.name,
+              }),
+            }
+          );
+        }
+      }
     }
 
-    // 6. Send for signing
+    // 12. Send for signing
     const sendResp = await fetch(
       `${D4SIGN_BASE}/documents/${docUuid}/sendtosigner?${authParams}`,
       {
@@ -129,8 +250,13 @@ Deno.serve(async (req) => {
       }
     );
     const sendData = await sendResp.json();
+    console.log("sendtosigner response:", JSON.stringify(sendData));
+    if (!sendResp.ok) {
+      console.error("sendtosigner failed:", JSON.stringify(sendData));
+      return Response.json({ error: "Falha ao enviar para assinatura", details: sendData }, { status: 500 });
+    }
 
-    // 6. Update TermoEncerramento with d4sign data
+    // 11. Update TermoEncerramento with d4sign data
     const termos = await base44.entities.TermoEncerramento.filter({ project_id: projectId, is_current: true });
     if (termos?.length) {
       await base44.entities.TermoEncerramento.update(termos[0].id, {
@@ -154,57 +280,16 @@ Deno.serve(async (req) => {
   }
 });
 
-// ─── Build signers array ──────────────────────────────────────
-// Ordem de assinatura (sequencial):
-// 1. Testemunha (act=5): Líder de implantação
-// 2. Coordenadora de implantação → act=1
-// 3. Gerente de Operações → act=1
-// 4. Cliente → act=1
-function buildSigners(project, coordenadora, liderImpl, gerente, clienteSignatario) {
-  const list = [];
-  const seen = new Set();
-  const names = {}; // email → display_name
-
-  const addSigner = (email, act, displayName) => {
-    if (!email) return;
-    const key = String(email).trim().toLowerCase();
-    if (!key || seen.has(key)) return; // evita e-mail duplicado
-    seen.add(key);
-    names[key] = displayName || "";
-    list.push({
-      email: key,
-      act,
-      foreign: "0",
-      certificadoicpbr: "0",
-      assinatura_presencial: "0",
-    });
-  };
-
-  // 1. Testemunha (act=5): Líder de implantação
-  addSigner(liderImpl?.email, "5", liderImpl?.name);
-  // 2. Coordenadora de implantação (act=1)
-  addSigner(coordenadora?.email, "1", coordenadora?.name);
-  // 3. Gerente de Operações (act=1)
-  addSigner(gerente?.email, "1", gerente?.name);
-  // 4. Cliente (act=1)
-  const cliEmail = clienteSignatario?.email || project?.project_leader_email;
-  const cliName = clienteSignatario?.name || project?.project_leader_name;
-  addSigner(cliEmail, "1", cliName);
-
-  return { signers: list, signerNames: names };
-}
-
 // ─── PDF Generation ───────────────────────────────────────────
-// Renderização manual com jsPDF + splitTextToSize em todo texto longo
 function generatePDF({
   project, macroPhases, pendingItems, finalConsiderations,
   selectedAdendo, coordenadora, liderImpl, gerente, clienteSignatario,
   sectionOverrides, usabilitySnap, clientName, today, versionLabel, logoDataUrl
 }) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const M = 10;                      // margem esquerda
-  const PW = 190;                    // largura útil
-  const PAGE_H = 287;                // altura antes de quebrar página
+  const M = 10;
+  const PW = 190;
+  const PAGE_H = 287;
   let y = 15;
 
   function getVal(key, autoRaw) {
@@ -214,12 +299,10 @@ function generatePDF({
 
   function fmt(d) { if (!d) return "—"; return d.substring(8, 10) + "/" + d.substring(5, 7) + "/" + d.substring(0, 4); }
 
-  // Check page overflow and add new page if needed
   function checkPage(need = 8) {
     if (y + need > PAGE_H) { doc.addPage(); y = 15; }
   }
 
-  // Draw a section title bar and advance Y
   function sectionTitle(text) {
     y += 3;
     checkPage(10);
@@ -232,7 +315,6 @@ function generatePDF({
     y += 7;
   }
 
-  // Draw a label: value row. Returns number of extra lines used by wrapped value.
   function addRow(label, value, fontSize = 9, labelW = 52) {
     checkPage(5);
     doc.setFontSize(fontSize);
@@ -244,19 +326,14 @@ function generatePDF({
     const maxW = PW - labelW;
     const lines = doc.splitTextToSize(txt, maxW);
     doc.text(lines[0], M + labelW, y);
-    const extra = Math.max(0, lines.length - 1);
-    if (extra > 0) {
-      for (let i = 1; i < lines.length; i++) {
-        y += fontSize * 0.42;
-        checkPage(5);
-        doc.text(lines[i], M + labelW, y);
-      }
+    for (let i = 1; i < lines.length; i++) {
+      y += fontSize * 0.42;
+      checkPage(5);
+      doc.text(lines[i], M + labelW, y);
     }
     y += fontSize * 0.52;
-    return extra;
   }
 
-  // Draw a multi-line block (returns total Y consumed)
   function addBlock(text, fontSize = 9, color = [30, 41, 59], indent = 0) {
     if (!text) return;
     checkPage(5);
@@ -272,10 +349,7 @@ function generatePDF({
     y += 2;
   }
 
-  // ═══════════════════════════════════════════════════════════════
   // HEADER
-  // ═══════════════════════════════════════════════════════════════
-  // Logo Pontotel (canto superior direito)
   if (logoDataUrl) {
     doc.addImage(logoDataUrl, "PNG", M + PW - 38, y - 2, 38, 14);
   }
@@ -292,16 +366,13 @@ function generatePDF({
   doc.text(headerMeta, M, y);
   if (versionLabel) doc.text(versionLabel, M + PW - 25, y);
   y += 3;
-  // header divider
   doc.setDrawColor(124, 58, 237);
   doc.setLineWidth(0.8);
   doc.line(M, y, M + PW, y);
   doc.setLineWidth(0.2);
   y += 6;
 
-  // ═══════════════════════════════════════════════════════════════
   // 1. IDENTIFICAÇÃO
-  // ═══════════════════════════════════════════════════════════════
   sectionTitle("IDENTIFICAÇÃO DO PROJETO");
   addRow("Cliente", getVal("client_name", project?.client_name));
   addRow("Tipo de Implantação", getVal("implantation_type", project?.implantation_type));
@@ -313,9 +384,7 @@ function generatePDF({
   addRow("Data de Encerramento", fmt(getVal("end_date", project?.aligned_end_date || project?.planned_end_date)));
   y += 4;
 
-  // ═══════════════════════════════════════════════════════════════
   // 2. RESUMO
-  // ═══════════════════════════════════════════════════════════════
   sectionTitle("RESUMO DO PROJETO");
   const contracted = parseInt(getVal("contracted_employees", project?.contracted_employees) || "0");
   const cadastrados = parseInt(getVal("registered_employees", usabilitySnap?.registered_employees) || "0");
@@ -326,9 +395,7 @@ function generatePDF({
   addRow("Progresso Geral do Projeto", getVal("progress_percent", project?.progress_percent) + "%");
   y += 4;
 
-  // ═══════════════════════════════════════════════════════════════
   // 3. CRONOGRAMA
-  // ═══════════════════════════════════════════════════════════════
   sectionTitle("CRONOGRAMA PLANEJADO VS REALIZADO");
   if (macroPhases?.length) {
     const cols = [M, 53, 77, 101, 125, 149];
@@ -366,9 +433,7 @@ function generatePDF({
     y += 8;
   }
 
-  // ═══════════════════════════════════════════════════════════════
   // 4. PENDÊNCIAS
-  // ═══════════════════════════════════════════════════════════════
   if (pendingItems?.length) {
     sectionTitle("PENDÊNCIAS");
     const pCols = [M, 100, 140];
@@ -393,35 +458,27 @@ function generatePDF({
     y += 4;
   }
 
-  // ═══════════════════════════════════════════════════════════════
   // 5. ADENDO
-  // ═══════════════════════════════════════════════════════════════
   if (selectedAdendo) {
     sectionTitle("ADENDO");
     checkPage(6);
-    // Título
     doc.setFontSize(9);
     doc.setTextColor(30, 41, 59);
     doc.setFont("helvetica", "bold");
     doc.text(`${selectedAdendo.title}  [${selectedAdendo.type}]`, M, y);
     y += 5;
-    // Conteúdo — usa addBlock que já faz splitTextToSize
     addBlock(selectedAdendo.content, 8, [30, 41, 59]);
     y += 2;
   }
 
-  // ═══════════════════════════════════════════════════════════════
   // 6. CONSIDERAÇÕES FINAIS
-  // ═══════════════════════════════════════════════════════════════
   if (finalConsiderations) {
     sectionTitle("CONSIDERAÇÕES FINAIS");
     addBlock(finalConsiderations, 9, [30, 41, 59]);
     y += 2;
   }
 
-  // ═══════════════════════════════════════════════════════════════
   // 7. ASSINATURAS
-  // ═══════════════════════════════════════════════════════════════
   sectionTitle("ACEITE E ASSINATURAS");
   addBlock(`Ao assinar este documento, as partes declaram estar de acordo com os termos e condições do encerramento do projeto de implantação da Pontotel para ${clientName}, confirmando que todas as atividades previstas foram concluídas conforme acordado.`, 9, [51, 65, 85]);
   y += 2;
@@ -445,13 +502,11 @@ function generatePDF({
     const cx = sx + sigW / 2;
     doc.setDrawColor(203, 213, 225);
     doc.rect(sx, sigY, sigW, sigH);
-    // Nome
     doc.setFontSize(8);
     doc.setTextColor(30, 41, 59);
     doc.setFont("helvetica", "bold");
     const nameLn = doc.splitTextToSize(s.name || "—", sigW - 4);
     nameLn.slice(0, 2).forEach((ln, li) => doc.text(ln, cx, sigY + 14 + li * 3.5, { align: "center" }));
-    // Cargo
     doc.setFontSize(6.5);
     doc.setTextColor(100, 116, 139);
     doc.setFont("helvetica", "normal");
