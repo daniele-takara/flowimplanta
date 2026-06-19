@@ -262,7 +262,9 @@ function HorasExtrasForm({ companyData, data, onChange }) {
     envioE02DiasComuns: false, envioE02Sabado: false, envioE02Domingo: false, envioE02Feriado: false,
     codigoVerbaDiasComuns: "", codigoVerbaSabado: "", codigoVerbaDomingo: "", codigoVerbaFeriado: "",
     formatoDiasComuns: "", formatoSabado: "", formatoDomingo: "", formatoFeriado: "",
-    hasAdditionalRates: false, additionalRates: []
+    categorizacaoHEDiaria: "Não", categorizacaoHEMensal: "Não",
+    hasAdditionalRates: false, additionalRates: [],
+    outrasVerbas: []
   };
 
   const updateRule = (name, field, value) => {
@@ -289,6 +291,27 @@ function HorasExtrasForm({ companyData, data, onChange }) {
     const rates = [...(val.additionalRates || [])];
     rates[idx] = { ...rates[idx], [field]: value };
     onChange({ ...d, [name]: { ...val, additionalRates: rates } });
+  };
+
+  const addOutraVerba = (name) => {
+    const val = selected(name);
+    const verbas = [...(val.outrasVerbas || [])];
+    verbas.push({ nome: "", codigo: "", percentual: "" });
+    onChange({ ...d, [name]: { ...val, outrasVerbas: verbas } });
+  };
+
+  const removeOutraVerba = (name, idx) => {
+    const val = selected(name);
+    const verbas = [...(val.outrasVerbas || [])];
+    verbas.splice(idx, 1);
+    onChange({ ...d, [name]: { ...val, outrasVerbas: verbas } });
+  };
+
+  const updateOutraVerba = (name, idx, field, value) => {
+    const val = selected(name);
+    const verbas = [...(val.outrasVerbas || [])];
+    verbas[idx] = { ...verbas[idx], [field]: value };
+    onChange({ ...d, [name]: { ...val, outrasVerbas: verbas } });
   };
 
   return (
@@ -356,6 +379,33 @@ function HorasExtrasForm({ companyData, data, onChange }) {
               </div>
             </div>
 
+            {/* Categorização de HE */}
+            <div className="border-t pt-4 mb-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Categorização de Horas Extras</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                    Existe categorização de hora extra diária?
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-200 text-slate-500 text-[10px] font-bold cursor-help" title="Define se há categorização por tipo de hora extra dentro do mesmo dia">?</span>
+                  </label>
+                  <select value={val.categorizacaoHEDiaria || "Não"} onChange={e => updateRule(name, "categorizacaoHEDiaria", e.target.value)} className={`${selectClass} mt-1`}>
+                    <option value="Não">Não</option>
+                    <option value="Sim">Sim</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                    Existe categorização de hora extra mensal?
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-200 text-slate-500 text-[10px] font-bold cursor-help" title="Define se há categorização por tipo de hora extra no fechamento mensal">?</span>
+                  </label>
+                  <select value={val.categorizacaoHEMensal || "Não"} onChange={e => updateRule(name, "categorizacaoHEMensal", e.target.value)} className={`${selectClass} mt-1`}>
+                    <option value="Não">Não</option>
+                    <option value="Sim">Sim</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             {/* Percentuais Adicionais */}
             <div className="border-t pt-4">
               <div className="flex items-center justify-between mb-3">
@@ -397,6 +447,32 @@ function HorasExtrasForm({ companyData, data, onChange }) {
                         </select>
                       </div>
                     )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Outras Verbas (Horas Extras) */}
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-slate-500 uppercase">Outras Verbas (Horas Extras)</p>
+                <button onClick={() => addOutraVerba(name)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors">
+                  + Adicionar Verba
+                </button>
+              </div>
+              {(val.outrasVerbas || []).length === 0 && (
+                <p className="text-xs text-slate-400 italic">Nenhuma verba adicional cadastrada.</p>
+              )}
+              {(val.outrasVerbas || []).map((v, i) => (
+                <div key={i} className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-slate-600">Verba #{i + 1}</span>
+                    <button onClick={() => removeOutraVerba(name, i)} className="text-slate-400 hover:text-red-500 text-sm">&times;</button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input value={v.nome || ""} onChange={e => updateOutraVerba(name, i, "nome", e.target.value)} className={inputClass} placeholder="Nome da verba" />
+                    <input value={v.codigo || ""} onChange={e => updateOutraVerba(name, i, "codigo", e.target.value)} className={inputClass} placeholder="Código" />
+                    <input value={v.percentual || ""} onChange={e => updateOutraVerba(name, i, "percentual", e.target.value)} className={inputClass} placeholder="Percentual (%)" />
                   </div>
                 </div>
               ))}
