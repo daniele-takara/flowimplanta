@@ -35,7 +35,7 @@ function useClientWizardState(token) {
         setRecord(null);
       } else {
         setRecord(data);
-        if (data.client_name) setProjectName(data.client_name);
+        setProjectName(data.client_name || "");
       }
     } catch (e) {
       console.error(e);
