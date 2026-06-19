@@ -580,7 +580,7 @@ function IntervalosForm({ companyData, data, onChange }) {
   if (rules.length === 0) return <p className="text-slate-400 text-sm">Adicione regras de cálculo no passo 1 primeiro.</p>;
 
   const selected = (name) => d[name] || {
-    model: "", toleranciaAtrasoPausa: "5", toleranciaInicioPausa: "10", toleranciaFimPausa: "10",
+    model: "", toleranciaPausaRefeicao: "", toleranciaPausaExcesso: "",
     envioE02: false, codigoVerba: "",
     ranges: [],
     intervaloMinHoras: "4", intervaloMaxHoras: "6", intervaloMinMinutos: "15", intervaloMaxMinutos: "60"
@@ -702,19 +702,14 @@ function IntervalosForm({ companyData, data, onChange }) {
             </div>
 
             <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Tolerâncias (minutos)</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <label className={labelClass}>Atraso da Pausa</label>
-                <input value={val.toleranciaAtrasoPausa || ""} onChange={e => updateRule(name, "toleranciaAtrasoPausa", e.target.value)} className={inputClass} type="number" placeholder="Ex: 5" />
+                <label className={labelClass}>Tolerância para duração da pausa refeição realizada</label>
+                <input value={val.toleranciaPausaRefeicao || ""} onChange={e => updateRule(name, "toleranciaPausaRefeicao", e.target.value)} className={inputClass} type="number" placeholder="Ex: 10" />
               </div>
               <div>
-                <label className={labelClass}>Início da Pausa</label>
-                <input value={val.toleranciaInicioPausa || ""} onChange={e => updateRule(name, "toleranciaInicioPausa", e.target.value)} className={inputClass} type="number" placeholder="Ex: 10" />
-              </div>
-              <div>
-                <label className={labelClass}>Fim da Pausa</label>
-                <input value={val.toleranciaFimPausa || ""} onChange={e => updateRule(name, "toleranciaFimPausa", e.target.value)} className={inputClass} type="number" placeholder="Ex: 10" />
-                <p className="text-xs text-slate-400 mt-1">Tolerância para antecipação do fim da pausa.</p>
+                <label className={labelClass}>Tolerância para duração de pausa em excesso</label>
+                <input value={val.toleranciaPausaExcesso || ""} onChange={e => updateRule(name, "toleranciaPausaExcesso", e.target.value)} className={inputClass} type="number" placeholder="Ex: 10" />
               </div>
             </div>
 
