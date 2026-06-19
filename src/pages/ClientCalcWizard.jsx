@@ -91,6 +91,7 @@ export default function ClientCalcWizard() {
 
   const dbCompanyData = getData("company_data") || {};
   const [currentStep, setCurrentStep] = useState(record?.current_step || 1);
+  const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => { if (record?.current_step) setCurrentStep(record.current_step); }, [record?.current_step]);
 
@@ -183,15 +184,44 @@ export default function ClientCalcWizard() {
     );
   }
 
+  // Confirmation screen — shown before the wizard becomes interactive
+  if (!confirmed) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-lg border border-slate-200 p-8 text-center">
+          <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-purple-50 flex items-center justify-center">
+            <Lock className="w-7 h-7 text-purple-600" />
+          </div>
+          <h2 className="text-lg font-semibold text-slate-800 mb-2">Confirmação de empresa</h2>
+          <p className="text-sm text-slate-500 mb-1">Você é da empresa</p>
+          <p className="text-xl font-bold text-slate-800 mb-6">{projectName || "Empresa"}</p>
+          <button
+            onClick={() => setConfirmed(true)}
+            className="w-full px-6 py-3 text-sm font-medium rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+          >
+            Sim, esta é a minha empresa
+          </button>
+          <button
+            onClick={() => window.close()}
+            className="w-full mt-3 px-6 py-3 text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            Não, sair
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Top bar */}
-      <div className="bg-white border-b border-slate-200 px-4 md:px-8 py-3 flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-semibold text-slate-800">Regras de Cálculo</h1>
-          <p className="text-xs text-slate-400">{projectName || "Empresa"}</p>
+      <div className="bg-white border-b border-slate-200 px-4 md:px-8">
+        <div className="py-4">
+          <h1 className="text-xl font-bold text-slate-800">Regras de Cálculo</h1>
+          <p className="text-sm text-slate-400 mt-0.5">{projectName || "Empresa"}</p>
+          <div className="h-px bg-slate-200 mt-3"></div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pb-3">
           <span className="text-xs px-2.5 py-1 rounded-full bg-purple-50 text-purple-600 font-medium border border-purple-200">
             Versão Cliente
           </span>
