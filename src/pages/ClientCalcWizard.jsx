@@ -152,6 +152,27 @@ export default function ClientCalcWizard() {
     await save({ current_step: newStep });
   };
 
+  const handleGeneratePDF = async () => {
+    setGeneratingPDF(true);
+    try {
+      const pdfBytes = await generateCalcRulesPDF({
+        project: { client_name: projectName },
+        companyData: stepData.company_data,
+        allStepData: stepData,
+      });
+      const blob = new Blob([pdfBytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Regras_Calculo_${(projectName || "empresa").replace(/\s+/g, "_")}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Erro ao gerar PDF. Tente novamente.");
+    }
+    setGeneratingPDF(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -170,69 +191,6 @@ export default function ClientCalcWizard() {
           <Lock className="w-12 h-12 text-slate-300 mx-auto mb-4" />
           <h1 className="text-xl font-bold text-slate-700 mb-2">Link inválido ou expirado</h1>
           <p className="text-sm text-slate-500">Este link não é mais válido. Entre em contato com o time de implantação para receber um novo link.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Completion screen — shown after submission or when rule is already finalized
-  if (confirmed && submitted) {
-    const handleGeneratePDF = async () => {
-      setGeneratingPDF(true);
-      try {
-        const pdfBytes = await generateCalcRulesPDF({
-          project: { client_name: projectName },
-          companyData: stepData.company_data,
-          allStepData: stepData,
-        });
-        const blob = new Blob([pdfBytes], { type: "application/pdf" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `Regras_Calculo_${(projectName || "empresa").replace(/\s+/g, "_")}.pdf`;
-        link.click();
-        URL.revokeObjectURL(url);
-      } catch (err) {
-        alert("Erro ao gerar PDF. Tente novamente.");
-      }
-      setGeneratingPDF(false);
-    };
-
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
-        <div className="w-full max-w-lg bg-white rounded-2xl shadow-lg border border-slate-200 p-8 text-center">
-          <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-green-50 flex items-center justify-center">
-            <CheckCircle className="w-8 h-8 text-green-500" />
-          </div>
-          <h2 className="text-xl font-bold text-slate-800 mb-2">Regras enviadas com sucesso!</h2>
-          <p className="text-sm text-slate-500 mb-6">
-            Suas configurações foram recebidas pelo time de implantação.
-          </p>
-
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-left">
-            <p className="text-sm font-semibold text-amber-800 mb-2">Próximo passo</p>
-            <p className="text-sm text-amber-700 mb-2">
-              Gere o PDF das regras de cálculo e envie para o e-mail:
-            </p>
-            <p className="text-base font-bold text-amber-800 mb-1">implantacao@pontotel.com.br</p>
-            <p className="text-xs text-amber-600">Isso é importante para mantermos o histórico documentado.</p>
-          </div>
-
-          <button
-            onClick={handleGeneratePDF}
-            disabled={generatingPDF}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3 text-sm font-medium rounded-xl bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-60 transition-colors"
-          >
-            {generatingPDF ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Gerando PDF...</>
-            ) : (
-              <><FileDown className="w-4 h-4" /> Gerar PDF das Regras</>
-            )}
-          </button>
-
-          <p className="text-xs text-slate-400 mt-4">
-            Você pode fechar esta página ou gerar o PDF novamente se necessário.
-          </p>
         </div>
       </div>
     );
@@ -348,7 +306,40 @@ export default function ClientCalcWizard() {
           {step?.key === "other_verbs_rules" && (
             <OutrasVerbasForm companyData={stepData.company_data} data={stepData.other_verbs_rules} onChange={(data) => scheduleSave("other_verbs_rules", data)} />
           )}
-          {step?.id === 11 && <RevisaoFinal companyData={stepData.company_data} allData={stepData} project={{ client_name: projectName }} />}
+          {step?.id === 11 && !submitted && <RevisaoFinal companyData={stepData.company_data} allData={stepData} project={{ client_name: projectName }} />}
+          {step?.id === 11 && submitted && (
+            <div className="text-center">
+              <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-green-50 flex items-center justify-center">
+                <CheckCircle className="w-7 h-7 text-green-500" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-1">Regras enviadas com sucesso!</h3>
+              <p className="text-sm text-slate-500 mb-5">
+                Suas configurações foram recebidas pelo time de implantação.
+              </p>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 text-left max-w-md mx-auto">
+                <p className="text-sm font-semibold text-amber-800 mb-2">Próximo passo</p>
+                <p className="text-sm text-amber-700 mb-2">
+                  Gere o PDF das regras de cálculo e envie para o e-mail:
+                </p>
+                <p className="text-base font-bold text-amber-800 mb-1">implantacao@pontotel.com.br</p>
+                <p className="text-xs text-amber-600">Isso é importante para mantermos o histórico documentado.</p>
+              </div>
+
+              <button
+                onClick={handleGeneratePDF}
+                disabled={generatingPDF}
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-medium rounded-xl bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-60 transition-colors"
+              >
+                {generatingPDF ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Gerando PDF...</>
+                ) : (
+                  <><FileDown className="w-4 h-4" /> Gerar PDF das Regras</>
+                )}
+              </button>
+              <p className="text-xs text-slate-400 mt-3">Você pode voltar aos passos anteriores para revisar suas configurações.</p>
+            </div>
+          )}
         </div>
 
         {/* Navigation */}
@@ -363,7 +354,14 @@ export default function ClientCalcWizard() {
 
           <span className="text-xs text-slate-400">{currentStepIdx + 1} / {visibleSteps.length}</span>
 
-          {currentStepIdx < visibleSteps.length - 1 ? (
+          {submitted && currentStepIdx === visibleSteps.length - 1 ? (
+            <button
+              onClick={() => setSubmitted(false)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-blue-300"
+            >
+              Editar novamente
+            </button>
+          ) : currentStepIdx < visibleSteps.length - 1 ? (
             <button
               onClick={() => goToStep(visibleSteps[currentStepIdx + 1].id)}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-blue-600 bg-blue-600 text-white hover:bg-blue-700"
