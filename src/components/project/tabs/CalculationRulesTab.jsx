@@ -1268,7 +1268,15 @@ function BancoHorasForm({ companyData, data, onChange, onInfoAcumuloClick }) {
     { key: "falta", label: "Falta" },
   ];
 
-  const defaultFatores = FATORES_OPTIONS.map(f => ({ key: f.key, ativo: false, fator: "" }));
+  const APONTAMENTO_OPTIONS = [
+    { value: "baixa_negativa", label: "Baixa Negativa", desc: "Registro de horas descontadas do banco de horas sendo negativa ( cliente precisa pagar o empregado)" },
+    { value: "baixa_parcial_negativa", label: "Baixa Parcial Negativa", desc: "Registro parcial de horas descontadas do banco de horas, semelhante às baixas negativa, mas realizadas de forma fracionada." },
+    { value: "baixa_parcial_positiva", label: "Baixa Parcial Positiva", desc: "Registro parcial de horas descontadas do banco de horas, semelhante às baixas positivas, mas realizadas de forma fracionada." },
+    { value: "baixa_positiva", label: "Baixa Positiva", desc: "Registro de horas descontadas do banco de horas sendo positiva (cliente precisa descontar o empregado)" },
+    { value: "outra_forma", label: "Outra forma de baixa", desc: "Permite personalizar uma forma específica de baixa não listada nas opções padrões" },
+  ];
+
+  const defaultFatores = FATORES_OPTIONS.map(f => ({ key: f.key, ativo: false, fator: "", fatorCustom: "" }));
 
   const selected = (name) => {
     const ruleData = d[name] || {};
@@ -1279,6 +1287,10 @@ function BancoHorasForm({ companyData, data, onChange, onInfoAcumuloClick }) {
       limiteDiasCustom: "",
       criterioAcumulo: "",
       prazoVencimento: "",
+      limiteAcumuloTipo: "",
+      saldoAutomatico: "",
+      mostrarHistorico: "",
+      verbas: [],
       fatoresTransformacao: defaultFatores,
       ...ruleData,
       fatoresTransformacao: ruleData.fatoresTransformacao?.length ? ruleData.fatoresTransformacao : defaultFatores,
@@ -1293,17 +1305,38 @@ function BancoHorasForm({ companyData, data, onChange, onInfoAcumuloClick }) {
   const toggleFator = (name, fatorKey) => {
     const val = selected(name);
     const fatores = val.fatoresTransformacao.map(f =>
-      f.key === fatorKey ? { ...f, ativo: !f.ativo, fator: f.ativo ? "" : f.fator } : f
+      f.key === fatorKey ? { ...f, ativo: !f.ativo, fator: f.ativo ? "" : f.fator, fatorCustom: f.ativo ? "" : f.fatorCustom } : f
     );
     onChange({ ...d, [name]: { ...val, fatoresTransformacao: fatores } });
   };
 
-  const updateFator = (name, fatorKey, value) => {
+  const updateFator = (name, fatorKey, field, value) => {
     const val = selected(name);
     const fatores = val.fatoresTransformacao.map(f =>
-      f.key === fatorKey ? { ...f, fator: value } : f
+      f.key === fatorKey ? { ...f, [field]: value } : f
     );
     onChange({ ...d, [name]: { ...val, fatoresTransformacao: fatores } });
+  };
+
+  const addVerba = (name) => {
+    const val = selected(name);
+    const verbas = [...(val.verbas || [])];
+    verbas.push({ apontamento: "", envioE02: false });
+    onChange({ ...d, [name]: { ...val, verbas } });
+  };
+
+  const removeVerba = (name, idx) => {
+    const val = selected(name);
+    const verbas = [...(val.verbas || [])];
+    verbas.splice(idx, 1);
+    onChange({ ...d, [name]: { ...val, verbas } });
+  };
+
+  const updateVerba = (name, idx, field, value) => {
+    const val = selected(name);
+    const verbas = [...(val.verbas || [])];
+    verbas[idx] = { ...verbas[idx], [field]: value };
+    onChange({ ...d, [name]: { ...val, verbas } });
   };
 
   return (
@@ -1429,36 +1462,123 @@ function BancoHorasForm({ companyData, data, onChange, onInfoAcumuloClick }) {
 
               <div className="space-y-2">
                 {FATORES_OPTIONS.map(fatorOpt => {
-                  const fatorData = val.fatoresTransformacao.find(f => f.key === fatorOpt.key) || { ativo: false, fator: "" };
+                  const fatorData = val.fatoresTransformacao.find(f => f.key === fatorOpt.key) || { ativo: false, fator: "", fatorCustom: "" };
                   return (
                     <div key={fatorOpt.key} className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2 cursor-pointer flex-1">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <label className="flex items-center gap-2 cursor-pointer flex-1 min-w-[200px]">
                           <input
                             type="checkbox"
                             checked={!!fatorData.ativo}
                             onChange={() => toggleFator(name, fatorOpt.key)}
-                            className="w-4 h-4 accent-purple-600 rounded"
+                            className="w-4 h-4 accent-purple-600 rounded shrink-0"
                           />
                           <span className="text-sm text-slate-700">{fatorOpt.label}</span>
                         </label>
                         {fatorData.ativo && (
-                          <select
-                            value={fatorData.fator || ""}
-                            onChange={e => updateFator(name, fatorOpt.key, e.target.value)}
-                            className="w-28 px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="">Fator</option>
-                            <option value="1_para_1">1 para 1</option>
-                            <option value="1_para_2">1 para 2</option>
-                            <option value="OUTRO">OUTRO</option>
-                          </select>
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={fatorData.fator || ""}
+                              onChange={e => updateFator(name, fatorOpt.key, "fator", e.target.value)}
+                              className="w-28 px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="">Fator</option>
+                              <option value="1_para_1">1 para 1</option>
+                              <option value="1_para_2">1 para 2</option>
+                              <option value="OUTRO">OUTRO</option>
+                            </select>
+                            {fatorData.fator === "OUTRO" && (
+                              <input
+                                value={fatorData.fatorCustom || ""}
+                                onChange={e => updateFator(name, fatorOpt.key, "fatorCustom", e.target.value)}
+                                className="w-24 px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Ex: 1 p/ 3"
+                              />
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
                   );
                 })}
               </div>
+            </div>
+            )}
+
+            {/* Novas perguntas (prints) — independente do formato */}
+            {val.formato && (
+            <div className="border-t pt-4 mt-4 space-y-4">
+              {/* Pergunta: Limite de acúmulo */}
+              <div>
+                <label className="text-sm font-semibold text-slate-800">Existe algum limite de acúmulo diário, mensal, semanal ou geral?</label>
+                <p className="text-xs text-slate-500 mb-2">Caso tenha limitação, todo o saldo remanescente que ultrapasse o limite definido, será direcionado diretamente para pagamento, sendo hora extra para saldo positivo e atraso para saldos negativos.</p>
+                <select value={val.limiteAcumuloTipo || ""} onChange={e => updateRule(name, "limiteAcumuloTipo", e.target.value)} className={`${selectClass} max-w-sm`}>
+                  <option value="">Selecione o tipo de limite</option>
+                  <option value="diario">Diário</option>
+                  <option value="semanal">Semanal</option>
+                  <option value="mensal">Mensal</option>
+                  <option value="geral">Geral</option>
+                  <option value="sem_acumulo">Sem acúmulo</option>
+                </select>
+              </div>
+
+              {/* Pergunta: Saldos automáticos */}
+              <div>
+                <label className="text-sm font-semibold text-slate-800">Os saldos devem entrar automaticamente para banco de horas?</label>
+                <p className="text-xs text-slate-500 mb-2">Ao deixar o saldo do dia para entrar automaticamente para o banco de horas, significa que todos os dias que houver apontamento (positivos e negativos) farão a compensação automaticamente no banco de horas, podendo ser reprovado pontualmente caso opte por pagar aquele crédito ou débito.</p>
+                <p className="text-xs text-slate-500 mb-2">Caso opte por aprovar manualmente os saldos diários, eles irão diretamente para pagamento até ocorrer a aprovação manual.</p>
+                <select value={val.saldoAutomatico || ""} onChange={e => updateRule(name, "saldoAutomatico", e.target.value)} className={`${selectClass} max-w-sm`}>
+                  <option value="">Selecione uma opção</option>
+                  <option value="sim">Sim</option>
+                  <option value="nao">Não</option>
+                </select>
+              </div>
+
+              {/* Pergunta: Mostrar histórico */}
+              <div>
+                <label className="text-sm font-semibold text-slate-800">Mostrar histórico de saldo anterior após a baixa?</label>
+                <select value={val.mostrarHistorico || ""} onChange={e => updateRule(name, "mostrarHistorico", e.target.value)} className={`${selectClass} mt-1`}>
+                  <option value="">Selecione uma opção</option>
+                  <option value="sim">Sim, mesmo após a baixa do banco de horas, o sistema continuará mostrando o saldo anterior que já foi pago ao colaborador.</option>
+                  <option value="nao">Não, após a baixa o saldo é zerado e o histórico de horas já pagas não será exibido.</option>
+                </select>
+              </div>
+            </div>
+            )}
+
+            {/* Seção: Outras Verbas (Banco de Horas) */}
+            {val.formato && (
+            <div className="border-t pt-4 mt-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-slate-500 uppercase">Outras Verbas (Banco de Horas)</p>
+                <button onClick={() => addVerba(name)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors">
+                  + Adicionar Verba
+                </button>
+              </div>
+              {(val.verbas || []).length === 0 && (
+                <p className="text-xs text-slate-400 italic">Nenhuma verba adicional.</p>
+              )}
+              {(val.verbas || []).map((v, i) => (
+                <div key={i} className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-2">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-medium text-slate-600">Verba #{i + 1}</span>
+                    <button onClick={() => removeVerba(name, i)} className="text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Nome do Apontamento</label>
+                    <select value={v.apontamento || ""} onChange={e => updateVerba(name, i, "apontamento", e.target.value)} className={selectClass}>
+                      <option value="">Selecione um apontamento</option>
+                      {APONTAMENTO_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label} — {opt.desc}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer mt-3">
+                    <input type="checkbox" checked={!!v.envioE02} onChange={e => updateVerba(name, i, "envioE02", e.target.checked)} className="w-4 h-4 accent-purple-600 rounded" />
+                    Enviar para arquivo de exportação para FOPAG (E02)?
+                  </label>
+                </div>
+              ))}
             </div>
             )}
 
