@@ -16,6 +16,7 @@ import AdicionalIncluiPausaInfoModal from "@/components/project/tabs/calculation
 import Jornada12x36FeriadoInfoModal from "@/components/project/tabs/calculation/Jornada12x36FeriadoInfoModal";
 import SobreavisoInfoModal from "@/components/project/tabs/calculation/SobreavisoInfoModal";
 import BancoHorasInfoModal from "@/components/project/tabs/calculation/BancoHorasInfoModal";
+import BancoHorasAcumuloInfoModal from "@/components/project/tabs/calculation/BancoHorasAcumuloInfoModal";
 import DSRFeriasHEInfoModal from "@/components/project/tabs/calculation/DSRFeriasHEInfoModal";
 import DSRMesDescontoInfoModal from "@/components/project/tabs/calculation/DSRMesDescontoInfoModal";
 import { logAudit } from "@/lib/auditLog";
@@ -1251,23 +1252,58 @@ function SobreavisoForm({ companyData, data, onChange }) {
 }
 
 // ── Step 9: Banco de Horas ───────────────────────────────────────────────────
-function BancoHorasForm({ companyData, data, onChange }) {
+function BancoHorasForm({ companyData, data, onChange, onInfoAcumuloClick }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
 
   if (rules.length === 0) return <p className="text-slate-400 text-sm">Adicione regras de cálculo no passo 1 primeiro.</p>;
 
-  const selected = (name) => d[name] || {
-    formato: "",
-    dataInicio: "",
-    limiteDias: "",
-    criterioAcumulo: "",
-    prazoVencimento: ""
+  const FATORES_OPTIONS = [
+    { key: "hora_extra", label: "Hora Extra (jornada com presença obrigatória)" },
+    { key: "hora_extra_extraordinaria", label: "Hora Extra Extraordinária (sem jornada esperada – folga/feriado)" },
+    { key: "hora_extra_especial", label: "Hora Extra Especial" },
+    { key: "atraso", label: "Atraso" },
+    { key: "saida_antecipada", label: "Saída Antecipada" },
+    { key: "excesso_pausa", label: "Excesso de Pausa" },
+    { key: "falta", label: "Falta" },
+  ];
+
+  const defaultFatores = FATORES_OPTIONS.map(f => ({ key: f.key, ativo: false, fator: "" }));
+
+  const selected = (name) => {
+    const ruleData = d[name] || {};
+    return {
+      formato: "",
+      dataInicio: "",
+      limiteDias: "",
+      limiteDiasCustom: "",
+      criterioAcumulo: "",
+      prazoVencimento: "",
+      fatoresTransformacao: defaultFatores,
+      ...ruleData,
+      fatoresTransformacao: ruleData.fatoresTransformacao?.length ? ruleData.fatoresTransformacao : defaultFatores,
+    };
   };
 
   const updateRule = (name, field, value) => {
     const val = selected(name);
     onChange({ ...d, [name]: { ...val, [field]: value } });
+  };
+
+  const toggleFator = (name, fatorKey) => {
+    const val = selected(name);
+    const fatores = val.fatoresTransformacao.map(f =>
+      f.key === fatorKey ? { ...f, ativo: !f.ativo, fator: f.ativo ? "" : f.fator } : f
+    );
+    onChange({ ...d, [name]: { ...val, fatoresTransformacao: fatores } });
+  };
+
+  const updateFator = (name, fatorKey, value) => {
+    const val = selected(name);
+    const fatores = val.fatoresTransformacao.map(f =>
+      f.key === fatorKey ? { ...f, fator: value } : f
+    );
+    onChange({ ...d, [name]: { ...val, fatoresTransformacao: fatores } });
   };
 
   return (
@@ -1310,7 +1346,7 @@ function BancoHorasForm({ companyData, data, onChange }) {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
                   Qual o limite de dias para acúmulo/vencimento do banco de horas?
                 </label>
                 <select value={val.limiteDias || ""} onChange={e => updateRule(name, "limiteDias", e.target.value)} className={`${selectClass} max-w-sm`}>
@@ -1320,6 +1356,9 @@ function BancoHorasForm({ companyData, data, onChange }) {
                   <option value="365">365 dias</option>
                   <option value="custom">Personalizado</option>
                 </select>
+                {val.limiteDias === "custom" && (
+                  <input value={val.limiteDiasCustom || ""} onChange={e => updateRule(name, "limiteDiasCustom", e.target.value)} className={`${inputClass} max-w-sm mt-2`} type="number" placeholder="Quantidade de dias" />
+                )}
               </div>
 
               <div>
@@ -1328,7 +1367,6 @@ function BancoHorasForm({ companyData, data, onChange }) {
                   <option value="">Selecione o critério</option>
                   <option value="data_admissao">Data de admissão</option>
                   <option value="data_inicio_banco">Data de início do banco</option>
-                  <option value="periodo_aquisitivo">Período aquisitivo</option>
                 </select>
               </div>
             </div>
@@ -1348,6 +1386,22 @@ function BancoHorasForm({ companyData, data, onChange }) {
               </div>
 
               <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                  Qual o limite de dias para acúmulo/vencimento do banco de horas?
+                </label>
+                <select value={val.limiteDias || ""} onChange={e => updateRule(name, "limiteDias", e.target.value)} className={`${selectClass} max-w-sm`}>
+                  <option value="">Selecione o limite</option>
+                  <option value="90">90 dias</option>
+                  <option value="180">180 dias</option>
+                  <option value="365">365 dias</option>
+                  <option value="custom">Personalizado</option>
+                </select>
+                {val.limiteDias === "custom" && (
+                  <input value={val.limiteDiasCustom || ""} onChange={e => updateRule(name, "limiteDiasCustom", e.target.value)} className={`${inputClass} max-w-sm mt-2`} type="number" placeholder="Quantidade de dias" />
+                )}
+              </div>
+
+              <div>
                 <label className={labelClass}>Prazo de vencimento</label>
                 <select value={val.prazoVencimento || ""} onChange={e => updateRule(name, "prazoVencimento", e.target.value)} className={`${selectClass} max-w-sm`}>
                   <option value="">Selecione o prazo</option>
@@ -1355,6 +1409,55 @@ function BancoHorasForm({ companyData, data, onChange }) {
                   <option value="12">12 meses</option>
                   <option value="custom">Personalizado</option>
                 </select>
+              </div>
+            </div>
+            )}
+
+            {/* Seção: Acúmulo em banco de horas e fator de transformação (independente do formato) */}
+            {val.formato && (
+            <div className="border-t pt-4 mt-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase mb-3 flex items-center gap-1.5">
+                Acúmulo em banco de horas e fator de transformação
+                <button
+                  onClick={(e) => { e.preventDefault(); onInfoAcumuloClick?.(); }}
+                  className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"
+                  title="Entenda o acúmulo e fator de transformação"
+                >
+                  <Info className="w-3.5 h-3.5" />
+                </button>
+              </p>
+
+              <div className="space-y-2">
+                {FATORES_OPTIONS.map(fatorOpt => {
+                  const fatorData = val.fatoresTransformacao.find(f => f.key === fatorOpt.key) || { ativo: false, fator: "" };
+                  return (
+                    <div key={fatorOpt.key} className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-2 cursor-pointer flex-1">
+                          <input
+                            type="checkbox"
+                            checked={!!fatorData.ativo}
+                            onChange={() => toggleFator(name, fatorOpt.key)}
+                            className="w-4 h-4 accent-purple-600 rounded"
+                          />
+                          <span className="text-sm text-slate-700">{fatorOpt.label}</span>
+                        </label>
+                        {fatorData.ativo && (
+                          <select
+                            value={fatorData.fator || ""}
+                            onChange={e => updateFator(name, fatorOpt.key, e.target.value)}
+                            className="w-28 px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">Fator</option>
+                            <option value="1_para_1">1 para 1</option>
+                            <option value="1_para_2">1 para 2</option>
+                            <option value="OUTRO">OUTRO</option>
+                          </select>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
             )}
@@ -1690,6 +1793,7 @@ export default function CalculationRulesTab({ projectId, project }) {
   const [showDSRFeriasHEModal, setShowDSRFeriasHEModal] = useState(false);
   const [showDSRMesDescontoModal, setShowDSRMesDescontoModal] = useState(false);
   const [showBancoHorasModal, setShowBancoHorasModal] = useState(false);
+  const [showBancoHorasAcumuloModal, setShowBancoHorasAcumuloModal] = useState(false);
 
   useEffect(() => { if (record?.current_step) setCurrentStep(record.current_step); }, [record?.current_step]);
 
@@ -1901,7 +2005,7 @@ export default function CalculationRulesTab({ projectId, project }) {
           <SobreavisoForm companyData={stepData.company_data} data={stepData.sobreaviso_rules} onChange={canEdit ? (data) => scheduleSave("sobreaviso_rules", data) : () => {}} />
         )}
         {step?.key === "bank_hours_rules" && (
-          <BancoHorasForm companyData={stepData.company_data} data={stepData.bank_hours_rules} onChange={canEdit ? (data) => scheduleSave("bank_hours_rules", data) : () => {}} />
+          <BancoHorasForm companyData={stepData.company_data} data={stepData.bank_hours_rules} onChange={canEdit ? (data) => scheduleSave("bank_hours_rules", data) : () => {}} onInfoAcumuloClick={() => setShowBancoHorasAcumuloModal(true)} />
         )}
         {step?.key === "dsr_rules" && (
           <DSRForm companyData={stepData.company_data} data={stepData.dsr_rules} onChange={canEdit ? (data) => scheduleSave("dsr_rules", data) : () => {}} onInfoHEFeriadoClick={() => setShowDSRFeriasHEModal(true)} onInfoMesDescontoClick={() => setShowDSRMesDescontoModal(true)} />
@@ -1975,6 +2079,11 @@ export default function CalculationRulesTab({ projectId, project }) {
       {/* Modal informativo de banco de horas */}
       {showBancoHorasModal && (
         <BancoHorasInfoModal onClose={() => setShowBancoHorasModal(false)} />
+      )}
+
+      {/* Modal informativo de acúmulo e fator de transformação */}
+      {showBancoHorasAcumuloModal && (
+        <BancoHorasAcumuloInfoModal onClose={() => setShowBancoHorasAcumuloModal(false)} />
       )}
 
       {/* Modal informativo de tipo de HE em feriados/folgas */}
