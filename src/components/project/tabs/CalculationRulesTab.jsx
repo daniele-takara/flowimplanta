@@ -156,6 +156,17 @@ function DadosEmpresaForm({ data, onChange, project, readOnly }) {
           ))}
         </div>
       </div>
+
+      {/* Observações */}
+      <div className="border-t pt-4 mt-4">
+        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+          <input type="checkbox" checked={!!d.incluirObservacoes} onChange={e => onChange({ ...d, incluirObservacoes: e.target.checked })} className="w-4 h-4 accent-blue-600 rounded" disabled={readOnly} />
+          Incluir observações
+        </label>
+        {d.incluirObservacoes && (
+          <textarea value={d.observacoes || ""} onChange={e => onChange({ ...d, observacoes: e.target.value })} className={`${inputClass} h-24 mt-2`} placeholder="Descreva as observações..." disabled={readOnly} />
+        )}
+      </div>
     </div>
   );
 }
@@ -255,6 +266,17 @@ function RegrasForm({ companyData, data, onChange }) {
                 </div>
               </div>
             )}
+            {/* Observações */}
+            <div className="border-t pt-4 mt-2">
+              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                <input type="checkbox" checked={!!val.incluirObservacoes} onChange={e => onChange({ ...d, [name]: { ...val, incluirObservacoes: e.target.checked } })} className="w-4 h-4 accent-blue-600 rounded" />
+                Incluir observações
+              </label>
+              {val.incluirObservacoes && (
+                <textarea value={val.observacoes || ""} onChange={e => onChange({ ...d, [name]: { ...val, observacoes: e.target.value } })} className={`${inputClass} h-24 mt-2`} placeholder="Descreva as observações..." />
+              )}
+            </div>
+
             </>
             )}
           </div>
@@ -571,6 +593,16 @@ function HorasExtrasForm({ companyData, data, onChange, onInfoDiariaClick, onInf
               ))}
             </div>
 
+            {/* Observações */}
+            <div className="border-t pt-4 mt-2">
+              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                <input type="checkbox" checked={!!val.incluirObservacoes} onChange={e => updateRule(name, "incluirObservacoes", e.target.checked)} className="w-4 h-4 accent-blue-600 rounded" />
+                Incluir observações
+              </label>
+              {val.incluirObservacoes && (
+                <textarea value={val.observacoes || ""} onChange={e => updateRule(name, "observacoes", e.target.value)} className={`${inputClass} h-24 mt-2`} placeholder="Descreva as observações..." />
+              )}
+            </div>
 
             </>
             )}
@@ -728,17 +760,28 @@ function IntervalosForm({ companyData, data, onChange, onInfoToleranciasClick, r
               </div>
             </div>
             </div>
+
+            {/* Observações */}
+            <div className="border-t pt-4 mt-2">
+            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+              <input type="checkbox" checked={!!val.incluirObservacoes} onChange={e => updateRule(name, "incluirObservacoes", e.target.checked)} className="w-4 h-4 accent-blue-600 rounded" />
+              Incluir observações
+            </label>
+            {val.incluirObservacoes && (
+              <textarea value={val.observacoes || ""} onChange={e => updateRule(name, "observacoes", e.target.value)} className={`${inputClass} h-24 mt-2`} placeholder="Descreva as observações..." />
+            )}
+            </div>
             </>
             )}
-          </div>
-        );
-      })}
+            </div>
+            );
+            })}
 
-    </div>
-  );
-}
+            </div>
+            );
+            }
 
-// ── Step 5: Adicional Noturno ────────────────────────────────────────────────
+            // ── Step 5: Adicional Noturno ────────────────────────────────────────────────
 function AdicionalNoturnoForm({ companyData, data, onChange, onInfoReducaoClick, onInfoProrrogacaoClick, onInfoReducaoAmbosClick, onInfoAdicionalPausaClick }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
@@ -939,6 +982,17 @@ function AdicionalNoturnoForm({ companyData, data, onChange, onInfoReducaoClick,
                 </select>
               </div>
             </div>
+            {/* Observações */}
+            <div className="border-t pt-4 mt-2">
+              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                <input type="checkbox" checked={!!val.incluirObservacoes} onChange={e => updateRule(name, "incluirObservacoes", e.target.checked)} className="w-4 h-4 accent-blue-600 rounded" />
+                Incluir observações
+              </label>
+              {val.incluirObservacoes && (
+                <textarea value={val.observacoes || ""} onChange={e => updateRule(name, "observacoes", e.target.value)} className={`${inputClass} h-24 mt-2`} placeholder="Descreva as observações..." />
+              )}
+            </div>
+
             </>
             )}
             </>
@@ -1018,6 +1072,17 @@ function Jornada12x36Form({ companyData, data, onChange, onInfoFeriadoClick }) {
                 <option value="nao">Não, é considerado folga</option>
               </select>
             </div>
+            {/* Observações */}
+            <div className="border-t pt-4 mt-2">
+              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                <input type="checkbox" checked={!!val.incluirObservacoes} onChange={e => updateRule(name, "incluirObservacoes", e.target.checked)} className="w-4 h-4 accent-blue-600 rounded" />
+                Incluir observações
+              </label>
+              {val.incluirObservacoes && (
+                <textarea value={val.observacoes || ""} onChange={e => updateRule(name, "observacoes", e.target.value)} className={`${inputClass} h-24 mt-2`} placeholder="Descreva as observações..." />
+              )}
+            </div>
+
             </>
             )}
             </>
@@ -1240,6 +1305,17 @@ function SobreavisoForm({ companyData, data, onChange }) {
                 </div>
               ))}
             </div>
+            {/* Observações */}
+            <div className="border-t pt-4 mt-2">
+              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                <input type="checkbox" checked={!!val.incluirObservacoes} onChange={e => updateRule(name, "incluirObservacoes", e.target.checked)} className="w-4 h-4 accent-blue-600 rounded" />
+                Incluir observações
+              </label>
+              {val.incluirObservacoes && (
+                <textarea value={val.observacoes || ""} onChange={e => updateRule(name, "observacoes", e.target.value)} className={`${inputClass} h-24 mt-2`} placeholder="Descreva as observações..." />
+              )}
+            </div>
+
             </>
             )}
             </>
@@ -1582,6 +1658,17 @@ function BancoHorasForm({ companyData, data, onChange, onInfoAcumuloClick }) {
             </div>
             )}
 
+            {/* Observações */}
+            <div className="border-t pt-4 mt-2">
+              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                <input type="checkbox" checked={!!val.incluirObservacoes} onChange={e => updateRule(name, "incluirObservacoes", e.target.checked)} className="w-4 h-4 accent-blue-600 rounded" />
+                Incluir observações
+              </label>
+              {val.incluirObservacoes && (
+                <textarea value={val.observacoes || ""} onChange={e => updateRule(name, "observacoes", e.target.value)} className={`${inputClass} h-24 mt-2`} placeholder="Descreva as observações..." />
+              )}
+            </div>
+
             </>
             )}
           </div>
@@ -1754,6 +1841,17 @@ function DSRForm({ companyData, data, onChange, onInfoHEFeriadoClick, onInfoMesD
               ))}
             </div>
 
+            {/* Observações */}
+            <div className="border-t pt-4 mt-2">
+              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                <input type="checkbox" checked={!!val.incluirObservacoes} onChange={e => updateRule(name, "incluirObservacoes", e.target.checked)} className="w-4 h-4 accent-blue-600 rounded" />
+                Incluir observações
+              </label>
+              {val.incluirObservacoes && (
+                <textarea value={val.observacoes || ""} onChange={e => updateRule(name, "observacoes", e.target.value)} className={`${inputClass} h-24 mt-2`} placeholder="Descreva as observações..." />
+              )}
+            </div>
+
             </>
             )}
           </div>
@@ -1766,14 +1864,14 @@ function DSRForm({ companyData, data, onChange, onInfoHEFeriadoClick, onInfoMesD
 // ── Step 10: Outras Verbas ───────────────────────────────────────────────────
 function OutrasVerbasForm({ companyData, data, onChange }) {
   const rules = companyData?.rulesNames || [];
-  const d = { verbas: [], ...(data || {}) };
+  const d = { verbas: [], observacoes: "", incluirObservacoes: false, ...(data || {}) };
 
-  const [novaVerba, setNovaVerba] = useState({ nome: "", codigo: "", percentual: "" });
+  const [novaVerba, setNovaVerba] = useState({ nome: "", codigo: "", percentual: "", descricao: "" });
 
   const add = () => {
     if (!novaVerba.nome.trim()) return;
     onChange({ ...d, verbas: [...(d.verbas || []), { ...novaVerba }] });
-    setNovaVerba({ nome: "", codigo: "", percentual: "" });
+    setNovaVerba({ nome: "", codigo: "", percentual: "", descricao: "" });
   };
 
   const remove = (idx) => {
@@ -1784,8 +1882,8 @@ function OutrasVerbasForm({ companyData, data, onChange }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex gap-2 items-end">
-        <div className="flex-1">
+      <div className="flex gap-2 items-end flex-wrap">
+        <div className="flex-1 min-w-[180px]">
           <label className={labelClass}>Nome da Verba</label>
           <input value={novaVerba.nome} onChange={e => setNovaVerba(prev => ({ ...prev, nome: e.target.value }))} className={inputClass} placeholder="Ex: Adicional de Insalubridade" />
         </div>
@@ -1795,9 +1893,13 @@ function OutrasVerbasForm({ companyData, data, onChange }) {
         </div>
         <div>
           <label className={labelClass}>%</label>
-          <input value={novaVerba.percentual} onChange={e => setNovaVerba(prev => ({ ...prev, percentual: e.target.value }))} className={`${inputClass} w-24`} placeholder="Ex: 20" />
+          <input value={novaVerba.percentual} onChange={e => setNovaVerba(prev => ({ ...prev, percentual: e.target.value }))} className={`${inputClass} w-20`} placeholder="Ex: 20" />
         </div>
-        <button onClick={add} className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 h-10">+</button>
+        <div className="flex-1 min-w-[140px]">
+          <label className={labelClass}>Descrição</label>
+          <input value={novaVerba.descricao} onChange={e => setNovaVerba(prev => ({ ...prev, descricao: e.target.value }))} className={inputClass} placeholder="Ex: Verba adicional" />
+        </div>
+        <button onClick={add} className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 h-10 shrink-0">+</button>
       </div>
 
       {(d.verbas || []).length === 0 && <p className="text-xs text-slate-400 italic">Nenhuma verba adicional.</p>}
@@ -1805,14 +1907,26 @@ function OutrasVerbasForm({ companyData, data, onChange }) {
       <div className="space-y-2">
         {(d.verbas || []).map((v, i) => (
           <div key={i} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-4 py-2">
-            <div>
+            <div className="flex-1 min-w-0">
               <span className="text-sm font-medium text-slate-700">{v.nome}</span>
               <span className="text-xs text-slate-400 ml-3">cód: {v.codigo || "-"}</span>
               <span className="text-xs text-slate-400 ml-3">%: {v.percentual || "-"}</span>
+              {v.descricao && <span className="text-xs text-slate-400 ml-3">{v.descricao}</span>}
             </div>
-            <button onClick={() => remove(i)} className="text-slate-400 hover:text-red-500 text-lg">&times;</button>
+            <button onClick={() => remove(i)} className="text-slate-400 hover:text-red-500 text-lg shrink-0 ml-2">&times;</button>
           </div>
         ))}
+      </div>
+
+      {/* Observações */}
+      <div className="border-t pt-4 mt-4">
+        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+          <input type="checkbox" checked={!!d.incluirObservacoes} onChange={e => onChange({ ...d, incluirObservacoes: e.target.checked, observacoes: e.target.checked ? (d.observacoes || "") : "" })} className="w-4 h-4 accent-blue-600 rounded" />
+          Incluir observações
+        </label>
+        {d.incluirObservacoes && (
+          <textarea value={d.observacoes || ""} onChange={e => onChange({ ...d, observacoes: e.target.value })} className={`${inputClass} h-24 mt-2`} placeholder="Descreva as observações para outras verbas..." />
+        )}
       </div>
     </div>
   );
