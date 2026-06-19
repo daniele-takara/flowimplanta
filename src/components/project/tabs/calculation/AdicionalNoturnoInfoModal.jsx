@@ -8,13 +8,13 @@ export default function AdicionalNoturnoInfoModal({ onClose }) {
   const imgSemReducao = {
     src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/227d388f8_Semreduonoturna.png",
     alt: "Exemplo sem redução noturna — H. Trabalhadas 08:00, Adic. Noturno 07:00",
-    label: "Semreduonoturna.png"
+    label: "Sem redução noturna"
   };
 
   const imgComReducao = {
     src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/88446d976_Reduonoturnacomhoranoturnareduzida52minutose30segundos.png",
     alt: "Exemplo com redução noturna — H. Trabalhadas 08:00, Adic. Noturno 08:00",
-    label: "Reduonoturnacomhoranoturnareduzida52minutose30segundos.png"
+    label: "Com redução noturna"
   };
 
   return (
