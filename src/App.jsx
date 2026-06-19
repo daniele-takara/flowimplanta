@@ -49,10 +49,15 @@ const AuthenticatedApp = () => {
     return <Navigate to="/login" replace />;
   }
 
-  // Usuário com perfil vinculado mas sem nenhuma permissão efetiva
+  // Usuário sem perfil de permissão vinculado → sem acesso
+  if (!user?.permission_profile_id) {
+    return <NoPermissionScreen />;
+  }
+
+  // Usuário com perfil mas sem nenhuma permissão efetiva
   const rawPerms = perms.perms || {};
   const hasAnyPermission = Object.values(rawPerms).some(v => v === true);
-  if (user?.permission_profile_id && !hasAnyPermission && !perms.isSystemAdmin) {
+  if (!hasAnyPermission) {
     return <NoPermissionScreen />;
   }
 
