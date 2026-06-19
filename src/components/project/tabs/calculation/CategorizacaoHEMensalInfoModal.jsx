@@ -43,6 +43,10 @@ export default function CategorizacaoHEMensalInfoModal({ onClose }) {
               </ul>
             </div>
 
+            <p className="text-sm text-slate-700 leading-relaxed mt-4">
+              Em determinado mês, o empregado realizou 72 horas extras, dessa forma, com a categorização mensal configurada acima, ficaria:
+            </p>
+
             <div className="mt-4">
               <img
                 src={img.src}
