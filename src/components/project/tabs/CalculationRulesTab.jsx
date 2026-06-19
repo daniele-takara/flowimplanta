@@ -739,7 +739,15 @@ function AdicionalNoturnoForm({ companyData, data, onChange }) {
     percAdicional: "20", horaInicioNoturna: "22:00", horaFimNoturna: "05:00",
     separarHENoturna: "nao",
     percHENoturnaComuns: "50", percHENoturnaSabado: "50", percHENoturnaDomingo: "100", percHENoturnaFeriado: "100",
-    envioE02: false, codigoVerba: ""
+    envioE02Comuns: false, codigoVerbaComuns: "", formatoComuns: "",
+    envioE02Sabado: false, codigoVerbaSabado: "", formatoSabado: "",
+    envioE02Domingo: false, codigoVerbaDomingo: "", formatoDomingo: "",
+    envioE02Feriado: false, codigoVerbaFeriado: "", formatoFeriado: "",
+    envioE02: false, codigoVerba: "",
+    reducaoHoraPeriodo: "nao",
+    reducaoConsideraAmbos: "nao",
+    adicionalProrrogadoFimJornada: "nao",
+    adicionalIncluiTempoPausa: "nao"
   };
 
   const updateRule = (name, field, value) => {
@@ -796,29 +804,52 @@ function AdicionalNoturnoForm({ companyData, data, onChange }) {
               </select>
 
               {val.separarHENoturna === "sim" && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="space-y-3">
                   {[
-                    { key: "percHENoturnaComuns", label: "% Dias Comuns" },
-                    { key: "percHENoturnaSabado", label: "% Sábado" },
-                    { key: "percHENoturnaDomingo", label: "% Domingo" },
-                    { key: "percHENoturnaFeriado", label: "% Feriado" },
+                    { key: "percHENoturnaComuns", label: "Dias Comuns", envioKey: "envioE02Comuns", codigoKey: "codigoVerbaComuns", formatoKey: "formatoComuns" },
+                    { key: "percHENoturnaSabado", label: "Sábado", envioKey: "envioE02Sabado", codigoKey: "codigoVerbaSabado", formatoKey: "formatoSabado" },
+                    { key: "percHENoturnaDomingo", label: "Domingo", envioKey: "envioE02Domingo", codigoKey: "codigoVerbaDomingo", formatoKey: "formatoDomingo" },
+                    { key: "percHENoturnaFeriado", label: "Feriado", envioKey: "envioE02Feriado", codigoKey: "codigoVerbaFeriado", formatoKey: "formatoFeriado" },
                   ].map(p => (
-                    <div key={p.key}>
-                      <label className="text-xs text-slate-500">{p.label}</label>
-                      <select value={val[p.key] || "50"} onChange={e => updateRule(name, p.key, e.target.value)} className={selectClass}>
-                        <option value="50">50%</option>
-                        <option value="60">60%</option>
-                        <option value="75">75%</option>
-                        <option value="100">100%</option>
-                      </select>
+                    <div key={p.key} className="bg-slate-50 rounded-lg p-3">
+                      <div className="flex flex-col md:flex-row md:items-start gap-3">
+                        <div>
+                          <label className="text-xs font-semibold text-slate-700">% {p.label}</label>
+                          <select value={val[p.key] || "50"} onChange={e => updateRule(name, p.key, e.target.value)} className={`${selectClass} mt-1`}>
+                            <option value="50">50%</option>
+                            <option value="60">60%</option>
+                            <option value="75">75%</option>
+                            <option value="100">100%</option>
+                            <option value="custom">Personalizado</option>
+                          </select>
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                            <input type="checkbox" checked={!!val[p.envioKey]} onChange={e => updateRule(name, p.envioKey, e.target.checked)} className="w-4 h-4 accent-purple-600 rounded" />
+                            Enviar para arquivo de exportação para FOPAG (E02)?
+                          </label>
+                          {val[p.envioKey] && (
+                            <div className="space-y-2 pl-6">
+                              <input value={val[p.codigoKey] || ""} onChange={e => updateRule(name, p.codigoKey, e.target.value)} className={inputClass} placeholder="Código da verba" />
+                              <select value={val[p.formatoKey] || ""} onChange={e => updateRule(name, p.formatoKey, e.target.value)} className={selectClass}>
+                                <option value="">Selecione o formato</option>
+                                <option value="Dia">Dia</option>
+                                <option value="HH:MM">HH:MM</option>
+                                <option value="Centesimal">Centesimal</option>
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Código de verba */}
-            <div className="border-t pt-4">
+            {/* Código de verba (geral — usado quando não há separação) */}
+            {val.separarHENoturna !== "sim" && (
+            <div className="border-t pt-4 mb-4">
               <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Código de Verba</p>
               <div className="flex items-center gap-4">
                 <input value={val.codigoVerba || ""} onChange={e => updateRule(name, "codigoVerba", e.target.value)} className={`${inputClass} max-w-[200px]`} placeholder="Cód. verba" />
@@ -826,6 +857,44 @@ function AdicionalNoturnoForm({ companyData, data, onChange }) {
                   <input type="checkbox" checked={!!val.envioE02} onChange={e => updateRule(name, "envioE02", e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
                   Enviar ao arquivo de exportação para FOPAG
                 </label>
+              </div>
+            </div>
+            )}
+
+            {/* Perguntas adicionais */}
+            <div className="border-t pt-4 space-y-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Configurações Adicionais</p>
+              
+              <div>
+                <label className="text-xs font-semibold text-slate-700">Haverá redução de hora no período informado acima?</label>
+                <select value={val.reducaoHoraPeriodo || "nao"} onChange={e => updateRule(name, "reducaoHoraPeriodo", e.target.value)} className={`${selectClass} mt-1`}>
+                  <option value="nao">Não</option>
+                  <option value="sim">Sim</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700">A redução informada, será considerada apenas no adicional noturno ou também nas horas trabalhadas?</label>
+                <select value={val.reducaoConsideraAmbos || "nao"} onChange={e => updateRule(name, "reducaoConsideraAmbos", e.target.value)} className={`${selectClass} mt-1`}>
+                  <option value="nao">Não</option>
+                  <option value="sim">Sim</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700">O adicional noturno deve ser prorrogado até o fim da jornada?</label>
+                <select value={val.adicionalProrrogadoFimJornada || "nao"} onChange={e => updateRule(name, "adicionalProrrogadoFimJornada", e.target.value)} className={`${selectClass} mt-1`}>
+                  <option value="nao">Não</option>
+                  <option value="sim">Sim</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700">O adicional noturno inclui o tempo de pausa do funcionário?</label>
+                <select value={val.adicionalIncluiTempoPausa || "nao"} onChange={e => updateRule(name, "adicionalIncluiTempoPausa", e.target.value)} className={`${selectClass} mt-1`}>
+                  <option value="nao">Não</option>
+                  <option value="sim">Sim</option>
+                </select>
               </div>
             </div>
             </>
