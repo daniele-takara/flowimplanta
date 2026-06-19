@@ -14,6 +14,7 @@ import ProrrogacaoAdicionalNoturnoInfoModal from "@/components/project/tabs/calc
 import ReducaoHoraNoturnaInfoModal from "@/components/project/tabs/calculation/ReducaoHoraNoturnaInfoModal";
 import AdicionalIncluiPausaInfoModal from "@/components/project/tabs/calculation/AdicionalIncluiPausaInfoModal";
 import Jornada12x36FeriadoInfoModal from "@/components/project/tabs/calculation/Jornada12x36FeriadoInfoModal";
+import SobreavisoInfoModal from "@/components/project/tabs/calculation/SobreavisoInfoModal";
 import DSRFeriasHEInfoModal from "@/components/project/tabs/calculation/DSRFeriasHEInfoModal";
 import DSRMesDescontoInfoModal from "@/components/project/tabs/calculation/DSRMesDescontoInfoModal";
 import { logAudit } from "@/lib/auditLog";
@@ -1701,6 +1702,7 @@ export default function CalculationRulesTab({ projectId, project }) {
   const [showReducaoHoraNoturnaModal, setShowReducaoHoraNoturnaModal] = useState(false);
   const [showAdicionalIncluiPausaModal, setShowAdicionalIncluiPausaModal] = useState(false);
   const [showJornada12x36FeriadoModal, setShowJornada12x36FeriadoModal] = useState(false);
+  const [showSobreavisoModal, setShowSobreavisoModal] = useState(false);
   const [showDSRFeriasHEModal, setShowDSRFeriasHEModal] = useState(false);
   const [showDSRMesDescontoModal, setShowDSRMesDescontoModal] = useState(false);
 
@@ -1871,6 +1873,15 @@ export default function CalculationRulesTab({ projectId, project }) {
               <Info className="w-3.5 h-3.5" />
             </button>
           )}
+          {step?.id === 7 && (
+            <button
+              onClick={() => setShowSobreavisoModal(true)}
+              className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"
+              title="Entenda o funcionamento do sobreaviso"
+            >
+              <Info className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
         <p className="text-sm text-slate-400 mb-6">Passo {currentStepIdx + 1} de {visibleSteps.length}</p>
 
@@ -1960,6 +1971,11 @@ export default function CalculationRulesTab({ projectId, project }) {
       {/* Modal informativo de feriados na jornada 12x36 */}
       {showJornada12x36FeriadoModal && (
         <Jornada12x36FeriadoInfoModal onClose={() => setShowJornada12x36FeriadoModal(false)} />
+      )}
+
+      {/* Modal informativo de sobreaviso */}
+      {showSobreavisoModal && (
+        <SobreavisoInfoModal onClose={() => setShowSobreavisoModal(false)} />
       )}
 
       {/* Modal informativo de tipo de HE em feriados/folgas */}
