@@ -261,6 +261,7 @@ function HorasExtrasForm({ companyData, data, onChange }) {
     model: "", percDiasComuns: "50", percSabado: "50", percDomingo: "100", percFeriado: "100",
     envioE02DiasComuns: false, envioE02Sabado: false, envioE02Domingo: false, envioE02Feriado: false,
     codigoVerbaDiasComuns: "", codigoVerbaSabado: "", codigoVerbaDomingo: "", codigoVerbaFeriado: "",
+    formatoDiasComuns: "", formatoSabado: "", formatoDomingo: "", formatoFeriado: "",
     hasAdditionalRates: false, additionalRates: []
   };
 
@@ -272,7 +273,7 @@ function HorasExtrasForm({ companyData, data, onChange }) {
   const addAdditionalRate = (name) => {
     const val = selected(name);
     const rates = [...(val.additionalRates || [])];
-    rates.push({ name: "", percentage: "50", explanation: "", envioE02: false, codigoVerba: "" });
+    rates.push({ name: "", percentage: "50", explanation: "", envioE02: false, codigoVerba: "", formato: "" });
     onChange({ ...d, [name]: { ...val, additionalRates: rates } });
   };
 
@@ -310,44 +311,46 @@ function HorasExtrasForm({ companyData, data, onChange }) {
             <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} isInheriting={inhActive} inheritingFrom={inhFrom} />
             {inhLocked ? null : (
             <>
-            {/* Percentuais principais */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-              {[
-                { key: "percDiasComuns", label: "% Dias Comuns", envioKey: "envioE02DiasComuns", codigoKey: "codigoVerbaDiasComuns" },
-                { key: "percSabado", label: "% Sábado", envioKey: "envioE02Sabado", codigoKey: "codigoVerbaSabado" },
-                { key: "percDomingo", label: "% Domingo", envioKey: "envioE02Domingo", codigoKey: "codigoVerbaDomingo" },
-                { key: "percFeriado", label: "% Feriado", envioKey: "envioE02Feriado", codigoKey: "codigoVerbaFeriado" },
-              ].map(p => (
-                <div key={p.key}>
-                  <label className={labelClass}>{p.label}</label>
-                  <select value={val[p.key] || "50"} onChange={e => updateRule(name, p.key, e.target.value)} className={selectClass}>
-                    <option value="50">50%</option>
-                    <option value="60">60%</option>
-                    <option value="75">75%</option>
-                    <option value="100">100%</option>
-                    <option value="custom">Personalizado</option>
-                  </select>
-                </div>
-              ))}
-            </div>
-
-            {/* Códigos de verba e envio FOPAG */}
+            {/* Percentuais e Envio FOPAG */}
             <div className="border-t pt-4 mb-4">
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Códigos de Verba</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Percentuais de Hora Extra</p>
+              <div className="space-y-3">
                 {[
-                  { label: "Dias Comuns", codigoKey: "codigoVerbaDiasComuns", envioKey: "envioE02DiasComuns" },
-                  { label: "Sábado", codigoKey: "codigoVerbaSabado", envioKey: "envioE02Sabado" },
-                  { label: "Domingo", codigoKey: "codigoVerbaDomingo", envioKey: "envioE02Domingo" },
-                  { label: "Feriado", codigoKey: "codigoVerbaFeriado", envioKey: "envioE02Feriado" },
+                  { key: "percDiasComuns", label: "Porcentagem da hora extra em dias comuns", envioKey: "envioE02DiasComuns", codigoKey: "codigoVerbaDiasComuns", formatoKey: "formatoDiasComuns" },
+                  { key: "percSabado", label: "Porcentagem da hora extra aos sábados", envioKey: "envioE02Sabado", codigoKey: "codigoVerbaSabado", formatoKey: "formatoSabado" },
+                  { key: "percDomingo", label: "Porcentagem da hora extra aos domingos", envioKey: "envioE02Domingo", codigoKey: "codigoVerbaDomingo", formatoKey: "formatoDomingo" },
+                  { key: "percFeriado", label: "Porcentagem da hora extra em feriados", envioKey: "envioE02Feriado", codigoKey: "codigoVerbaFeriado", formatoKey: "formatoFeriado" },
                 ].map(p => (
-                  <div key={p.label} className="bg-slate-50 rounded-lg p-3">
-                    <p className="text-xs font-medium text-slate-600 mb-2">{p.label}</p>
-                    <input value={val[p.codigoKey] || ""} onChange={e => updateRule(name, p.codigoKey, e.target.value)} className={`${inputClass} mb-2`} placeholder="Cód. verba" />
-                    <label className="flex items-center gap-2 text-xs text-slate-500">
-                      <input type="checkbox" checked={!!val[p.envioKey]} onChange={e => updateRule(name, p.envioKey, e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
-                      Enviar ao arquivo de exportação para FOPAG
-                    </label>
+                  <div key={p.key} className="bg-slate-50 rounded-lg p-3">
+                    <div className="flex flex-col md:flex-row md:items-start gap-3">
+                      <div className="flex-1">
+                        <label className="text-xs font-semibold text-slate-700">{p.label}</label>
+                        <select value={val[p.key] || "50"} onChange={e => updateRule(name, p.key, e.target.value)} className={`${selectClass} mt-1`}>
+                          <option value="50">50%</option>
+                          <option value="60">60%</option>
+                          <option value="75">75%</option>
+                          <option value="100">100%</option>
+                          <option value="custom">Personalizado</option>
+                        </select>
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                          <input type="checkbox" checked={!!val[p.envioKey]} onChange={e => updateRule(name, p.envioKey, e.target.checked)} className="w-4 h-4 accent-purple-600 rounded" />
+                          Enviar para arquivo de exportação para FOPAG (E02)?
+                        </label>
+                        {val[p.envioKey] && (
+                          <div className="space-y-2 pl-6">
+                            <input value={val[p.codigoKey] || ""} onChange={e => updateRule(name, p.codigoKey, e.target.value)} className={inputClass} placeholder="Código da verba" />
+                            <select value={val[p.formatoKey] || ""} onChange={e => updateRule(name, p.formatoKey, e.target.value)} className={selectClass}>
+                              <option value="">Selecione o formato</option>
+                              <option value="E02">E02</option>
+                              <option value="R05">R05</option>
+                              <option value="Personalizado">Personalizado</option>
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -376,14 +379,24 @@ function HorasExtrasForm({ companyData, data, onChange }) {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <input value={rate.name || ""} onChange={e => updateAdditionalRate(name, i, "name", e.target.value)} className={inputClass} placeholder="Nome (ex: 70% extra)" />
                     <input value={rate.percentage || ""} onChange={e => updateAdditionalRate(name, i, "percentage", e.target.value)} className={inputClass} placeholder="Percentual (ex: 70)" />
-                    <input value={rate.codigoVerba || ""} onChange={e => updateAdditionalRate(name, i, "codigoVerba", e.target.value)} className={inputClass} placeholder="Cód. verba" />
+                    <input value={rate.explanation || ""} onChange={e => updateAdditionalRate(name, i, "explanation", e.target.value)} className={inputClass} placeholder="Justificativa" />
                   </div>
-                  <div className="mt-2 flex items-center gap-4">
-                    <input value={rate.explanation || ""} onChange={e => updateAdditionalRate(name, i, "explanation", e.target.value)} className={`${inputClass} flex-1`} placeholder="Justificativa do percentual" />
-                    <label className="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap">
-                      <input type="checkbox" checked={!!rate.envioE02} onChange={e => updateAdditionalRate(name, i, "envioE02", e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
-                      Enviar ao arquivo de exportação para FOPAG
+                  <div className="mt-2 space-y-2">
+                    <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                      <input type="checkbox" checked={!!rate.envioE02} onChange={e => updateAdditionalRate(name, i, "envioE02", e.target.checked)} className="w-4 h-4 accent-purple-600 rounded" />
+                      Enviar para arquivo de exportação para FOPAG (E02)?
                     </label>
+                    {rate.envioE02 && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pl-6">
+                        <input value={rate.codigoVerba || ""} onChange={e => updateAdditionalRate(name, i, "codigoVerba", e.target.value)} className={inputClass} placeholder="Código da verba" />
+                        <select value={rate.formato || ""} onChange={e => updateAdditionalRate(name, i, "formato", e.target.value)} className={selectClass}>
+                          <option value="">Selecione o formato</option>
+                          <option value="E02">E02</option>
+                          <option value="R05">R05</option>
+                          <option value="Personalizado">Personalizado</option>
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
