@@ -343,9 +343,9 @@ function HorasExtrasForm({ companyData, data, onChange }) {
                             <input value={val[p.codigoKey] || ""} onChange={e => updateRule(name, p.codigoKey, e.target.value)} className={inputClass} placeholder="Código da verba" />
                             <select value={val[p.formatoKey] || ""} onChange={e => updateRule(name, p.formatoKey, e.target.value)} className={selectClass}>
                               <option value="">Selecione o formato</option>
-                              <option value="E02">E02</option>
-                              <option value="R05">R05</option>
-                              <option value="Personalizado">Personalizado</option>
+                              <option value="Dia">Dia</option>
+                              <option value="HH:MM">HH:MM</option>
+                              <option value="Centesimal">Centesimal</option>
                             </select>
                           </div>
                         )}
@@ -391,9 +391,9 @@ function HorasExtrasForm({ companyData, data, onChange }) {
                         <input value={rate.codigoVerba || ""} onChange={e => updateAdditionalRate(name, i, "codigoVerba", e.target.value)} className={inputClass} placeholder="Código da verba" />
                         <select value={rate.formato || ""} onChange={e => updateAdditionalRate(name, i, "formato", e.target.value)} className={selectClass}>
                           <option value="">Selecione o formato</option>
-                          <option value="E02">E02</option>
-                          <option value="R05">R05</option>
-                          <option value="Personalizado">Personalizado</option>
+                          <option value="Dia">Dia</option>
+                          <option value="HH:MM">HH:MM</option>
+                          <option value="Centesimal">Centesimal</option>
                         </select>
                       </div>
                     )}
