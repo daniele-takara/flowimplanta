@@ -9,6 +9,7 @@ import CategorizacaoHEInfoModal from "@/components/project/tabs/calculation/Cate
 import CategorizacaoHEMensalInfoModal from "@/components/project/tabs/calculation/CategorizacaoHEMensalInfoModal";
 import ToleranciasIntervaloInfoModal from "@/components/project/tabs/calculation/ToleranciasIntervaloInfoModal";
 import PausaHoraExtraInfoModal from "@/components/project/tabs/calculation/PausaHoraExtraInfoModal";
+import AdicionalNoturnoInfoModal from "@/components/project/tabs/calculation/AdicionalNoturnoInfoModal";
 import { logAudit } from "@/lib/auditLog";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -729,7 +730,7 @@ function IntervalosForm({ companyData, data, onChange, onInfoToleranciasClick, r
 }
 
 // ── Step 5: Adicional Noturno ────────────────────────────────────────────────
-function AdicionalNoturnoForm({ companyData, data, onChange }) {
+function AdicionalNoturnoForm({ companyData, data, onChange, onInfoReducaoClick }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
 
@@ -866,7 +867,12 @@ function AdicionalNoturnoForm({ companyData, data, onChange }) {
               <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Configurações Adicionais</p>
               
               <div>
-                <label className="text-xs font-semibold text-slate-700">Haverá redução de hora no período informado acima?</label>
+                <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                  Haverá redução de hora no período informado acima?
+                  <button onClick={(e) => { e.preventDefault(); onInfoReducaoClick?.(); }} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors" title="Entenda o adicional noturno e a redução noturna">
+                    <Info className="w-3.5 h-3.5" />
+                  </button>
+                </label>
                 <select value={val.reducaoHoraPeriodo || "nao"} onChange={e => updateRule(name, "reducaoHoraPeriodo", e.target.value)} className={`${selectClass} mt-1`}>
                   <option value="nao">Não</option>
                   <option value="sim">Sim</option>
@@ -1310,6 +1316,7 @@ export default function CalculationRulesTab({ projectId, project }) {
   const [showCategorizacaoHEMensalModal, setShowCategorizacaoHEMensalModal] = useState(false);
   const [showToleranciasIntervaloModal, setShowToleranciasIntervaloModal] = useState(false);
   const [showPausaHoraExtraModal, setShowPausaHoraExtraModal] = useState(false);
+  const [showAdicionalNoturnoModal, setShowAdicionalNoturnoModal] = useState(false);
 
   useEffect(() => { if (record?.current_step) setCurrentStep(record.current_step); }, [record?.current_step]);
 
@@ -1494,7 +1501,7 @@ export default function CalculationRulesTab({ projectId, project }) {
           <IntervalosForm companyData={stepData.company_data} data={stepData.break_time_rules} onChange={canEdit ? (data) => scheduleSave("break_time_rules", data) : () => {}} onInfoToleranciasClick={() => setShowToleranciasIntervaloModal(true)} ruleConfigurations={stepData.rule_configurations} onInfoPausaHoraExtraClick={() => setShowPausaHoraExtraModal(true)} />
         )}
         {step?.key === "night_shift_rules" && (
-          <AdicionalNoturnoForm companyData={stepData.company_data} data={stepData.night_shift_rules} onChange={canEdit ? (data) => scheduleSave("night_shift_rules", data) : () => {}} />
+          <AdicionalNoturnoForm companyData={stepData.company_data} data={stepData.night_shift_rules} onChange={canEdit ? (data) => scheduleSave("night_shift_rules", data) : () => {}} onInfoReducaoClick={() => setShowAdicionalNoturnoModal(true)} />
         )}
         {step?.key === "shift_12x36_rules" && (
           <Jornada12x36Form companyData={stepData.company_data} data={stepData.shift_12x36_rules} onChange={canEdit ? (data) => scheduleSave("shift_12x36_rules", data) : () => {}} />
@@ -1542,6 +1549,11 @@ export default function CalculationRulesTab({ projectId, project }) {
       {/* Modal informativo de pausa x hora extra */}
       {showPausaHoraExtraModal && (
         <PausaHoraExtraInfoModal onClose={() => setShowPausaHoraExtraModal(false)} />
+      )}
+
+      {/* Modal informativo de adicional noturno e redução noturna */}
+      {showAdicionalNoturnoModal && (
+        <AdicionalNoturnoInfoModal onClose={() => setShowAdicionalNoturnoModal(false)} />
       )}
 
       {/* Navigation */}
