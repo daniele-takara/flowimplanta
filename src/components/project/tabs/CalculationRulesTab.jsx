@@ -580,9 +580,8 @@ function IntervalosForm({ companyData, data, onChange }) {
   if (rules.length === 0) return <p className="text-slate-400 text-sm">Adicione regras de cálculo no passo 1 primeiro.</p>;
 
   const selected = (name) => d[name] || {
-    model: "", toleranciaPausaRefeicao: "", toleranciaPausaExcesso: "",
+    toleranciaPausaRefeicao: "", toleranciaPausaExcesso: "",
     envioE02: false, codigoVerba: "",
-    ranges: [],
     intervaloMinHoras: "4", intervaloMaxHoras: "6", intervaloMinMinutos: "15", intervaloMaxMinutos: "60"
   };
 
@@ -591,35 +590,8 @@ function IntervalosForm({ companyData, data, onChange }) {
     onChange({ ...d, [name]: { ...val, [field]: value } });
   };
 
-  const addRange = (name) => {
-    const val = selected(name);
-    const ranges = [...(val.ranges || [])];
-    ranges.push({ inicio: "", fim: "", duracaoPrevista: "" });
-    onChange({ ...d, [name]: { ...val, ranges } });
-  };
-
-  const removeRange = (name, idx) => {
-    const val = selected(name);
-    const ranges = [...(val.ranges || [])];
-    ranges.splice(idx, 1);
-    onChange({ ...d, [name]: { ...val, ranges } });
-  };
-
-  const updateRange = (name, idx, field, value) => {
-    const val = selected(name);
-    const ranges = [...(val.ranges || [])];
-    ranges[idx] = { ...ranges[idx], [field]: value };
-    onChange({ ...d, [name]: { ...val, ranges } });
-  };
-
   return (
     <div className="space-y-6">
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-        <p className="font-semibold mb-1">Modelos de Intervalo</p>
-        <p><strong>Modelo 1:</strong> Tempo integral de pausa conta como hora trabalhada para compensação.</p>
-        <p><strong>Modelo 2:</strong> Tempo excedente da pausa NÃO conta como hora trabalhada.</p>
-      </div>
-
       {rules.map((name) => {
         const val = selected(name);
         const inhr = (d || {})[name] || {};
@@ -690,17 +662,6 @@ function IntervalosForm({ companyData, data, onChange }) {
             </div>
 
             <div className="border-t pt-4 mb-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className={labelClass}>Modelo</label>
-                <select value={val.model} onChange={e => updateRule(name, "model", e.target.value)} className={selectClass}>
-                  <option value="">Selecione...</option>
-                  <option value="Modelo 1">Modelo 1 — Tempo integral conta como trabalhada</option>
-                  <option value="Modelo 2">Modelo 2 — Excedente NÃO conta como trabalhada</option>
-                </select>
-              </div>
-            </div>
-
             <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Tolerâncias (minutos)</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
@@ -711,39 +672,6 @@ function IntervalosForm({ companyData, data, onChange }) {
                 <label className={labelClass}>Tolerância para duração de pausa em excesso</label>
                 <input value={val.toleranciaPausaExcesso || ""} onChange={e => updateRule(name, "toleranciaPausaExcesso", e.target.value)} className={inputClass} type="number" placeholder="Ex: 10" />
               </div>
-            </div>
-
-            {/* Faixas de horário */}
-            <div className="border-t pt-4 mb-4">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-semibold text-slate-500 uppercase">Faixas de Horário de Pausa</p>
-                <button onClick={() => addRange(name)} className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700">
-                  + Adicionar faixa
-                </button>
-              </div>
-              {(val.ranges || []).map((r, i) => (
-                <div key={i} className="flex items-center gap-3 bg-slate-50 rounded-lg p-3 mb-2">
-                  <span className="text-xs text-slate-400 font-mono w-5">{i + 1}.</span>
-                  <div className="grid grid-cols-3 gap-2 flex-1">
-                    <div>
-                      <span className="text-xs text-slate-400">Início</span>
-                      <input value={r.inicio || ""} onChange={e => updateRange(name, i, "inicio", e.target.value)} className={inputClass} type="time" />
-                    </div>
-                    <div>
-                      <span className="text-xs text-slate-400">Fim</span>
-                      <input value={r.fim || ""} onChange={e => updateRange(name, i, "fim", e.target.value)} className={inputClass} type="time" />
-                    </div>
-                    <div>
-                      <span className="text-xs text-slate-400">Dur. Prevista (min)</span>
-                      <input value={r.duracaoPrevista || ""} onChange={e => updateRange(name, i, "duracaoPrevista", e.target.value)} className={inputClass} type="number" placeholder="Ex: 60" />
-                    </div>
-                  </div>
-                  <button onClick={() => removeRange(name, i)} className="text-slate-400 hover:text-red-500 shrink-0">&times;</button>
-                </div>
-              ))}
-              {(val.ranges || []).length === 0 && (
-                <p className="text-xs text-slate-400 italic">Nenhuma faixa configurada. O sistema usará a duração padrão da jornada.</p>
-              )}
             </div>
 
             {/* Código de verba */}
