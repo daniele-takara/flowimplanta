@@ -740,6 +740,7 @@ function AdicionalNoturnoForm({ companyData, data, onChange, onInfoReducaoClick,
   if (rules.length === 0) return <p className="text-slate-400 text-sm">Adicione regras de cálculo no passo 1 primeiro.</p>;
 
   const selected = (name) => d[name] || {
+    hasJornadaNoturna: "sim",
     percAdicional: "20", horaInicioNoturna: "22:00", horaFimNoturna: "05:00",
     separarHENoturna: "nao",
     percHENoturnaComuns: "50", percHENoturnaSabado: "50", percHENoturnaDomingo: "100", percHENoturnaFeriado: "100",
@@ -778,6 +779,17 @@ function AdicionalNoturnoForm({ companyData, data, onChange, onInfoReducaoClick,
 
             <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} isInheriting={inhActive} inheritingFrom={inhFrom} />
             {inhLocked ? null : (
+            <>
+            {/* Pergunta condicional — jornada noturna */}
+            <div className="mb-4">
+              <label className={labelClass}>Nessa regra, existem funcionários trabalhando em jornada noturna?</label>
+              <select value={val.hasJornadaNoturna || "sim"} onChange={e => updateRule(name, "hasJornadaNoturna", e.target.value)} className={`${selectClass} max-w-xs`}>
+                <option value="sim">Sim</option>
+                <option value="nao">Não</option>
+              </select>
+            </div>
+
+            {val.hasJornadaNoturna !== "nao" && (
             <>
             {/* Configuração básica */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -921,6 +933,8 @@ function AdicionalNoturnoForm({ companyData, data, onChange, onInfoReducaoClick,
                 </select>
               </div>
             </div>
+            </>
+            )}
             </>
             )}
           </div>
