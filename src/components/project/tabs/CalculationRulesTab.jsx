@@ -12,6 +12,7 @@ import PausaHoraExtraInfoModal from "@/components/project/tabs/calculation/Pausa
 import AdicionalNoturnoInfoModal from "@/components/project/tabs/calculation/AdicionalNoturnoInfoModal";
 import ProrrogacaoAdicionalNoturnoInfoModal from "@/components/project/tabs/calculation/ProrrogacaoAdicionalNoturnoInfoModal";
 import ReducaoHoraNoturnaInfoModal from "@/components/project/tabs/calculation/ReducaoHoraNoturnaInfoModal";
+import AdicionalIncluiPausaInfoModal from "@/components/project/tabs/calculation/AdicionalIncluiPausaInfoModal";
 import { logAudit } from "@/lib/auditLog";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -732,7 +733,7 @@ function IntervalosForm({ companyData, data, onChange, onInfoToleranciasClick, r
 }
 
 // ── Step 5: Adicional Noturno ────────────────────────────────────────────────
-function AdicionalNoturnoForm({ companyData, data, onChange, onInfoReducaoClick, onInfoProrrogacaoClick, onInfoReducaoAmbosClick }) {
+function AdicionalNoturnoForm({ companyData, data, onChange, onInfoReducaoClick, onInfoProrrogacaoClick, onInfoReducaoAmbosClick, onInfoAdicionalPausaClick }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
 
@@ -908,7 +909,12 @@ function AdicionalNoturnoForm({ companyData, data, onChange, onInfoReducaoClick,
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700">O adicional noturno inclui o tempo de pausa do funcionário?</label>
+                <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                  O adicional noturno inclui o tempo de pausa do funcionário?
+                  <button onClick={(e) => { e.preventDefault(); onInfoAdicionalPausaClick?.(); }} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors" title="Entenda o impacto do tempo de pausa no adicional noturno">
+                    <Info className="w-3.5 h-3.5" />
+                  </button>
+                </label>
                 <select value={val.adicionalIncluiTempoPausa || "nao"} onChange={e => updateRule(name, "adicionalIncluiTempoPausa", e.target.value)} className={`${selectClass} mt-1`}>
                   <option value="nao">Não</option>
                   <option value="sim">Sim</option>
@@ -1331,6 +1337,7 @@ export default function CalculationRulesTab({ projectId, project }) {
   const [showAdicionalNoturnoModal, setShowAdicionalNoturnoModal] = useState(false);
   const [showProrrogacaoNoturnoModal, setShowProrrogacaoNoturnoModal] = useState(false);
   const [showReducaoHoraNoturnaModal, setShowReducaoHoraNoturnaModal] = useState(false);
+  const [showAdicionalIncluiPausaModal, setShowAdicionalIncluiPausaModal] = useState(false);
 
   useEffect(() => { if (record?.current_step) setCurrentStep(record.current_step); }, [record?.current_step]);
 
@@ -1515,7 +1522,7 @@ export default function CalculationRulesTab({ projectId, project }) {
           <IntervalosForm companyData={stepData.company_data} data={stepData.break_time_rules} onChange={canEdit ? (data) => scheduleSave("break_time_rules", data) : () => {}} onInfoToleranciasClick={() => setShowToleranciasIntervaloModal(true)} ruleConfigurations={stepData.rule_configurations} onInfoPausaHoraExtraClick={() => setShowPausaHoraExtraModal(true)} />
         )}
         {step?.key === "night_shift_rules" && (
-          <AdicionalNoturnoForm companyData={stepData.company_data} data={stepData.night_shift_rules} onChange={canEdit ? (data) => scheduleSave("night_shift_rules", data) : () => {}} onInfoReducaoClick={() => setShowAdicionalNoturnoModal(true)} onInfoProrrogacaoClick={() => setShowProrrogacaoNoturnoModal(true)} onInfoReducaoAmbosClick={() => setShowReducaoHoraNoturnaModal(true)} />
+          <AdicionalNoturnoForm companyData={stepData.company_data} data={stepData.night_shift_rules} onChange={canEdit ? (data) => scheduleSave("night_shift_rules", data) : () => {}} onInfoReducaoClick={() => setShowAdicionalNoturnoModal(true)} onInfoProrrogacaoClick={() => setShowProrrogacaoNoturnoModal(true)} onInfoReducaoAmbosClick={() => setShowReducaoHoraNoturnaModal(true)} onInfoAdicionalPausaClick={() => setShowAdicionalIncluiPausaModal(true)} />
         )}
         {step?.key === "shift_12x36_rules" && (
           <Jornada12x36Form companyData={stepData.company_data} data={stepData.shift_12x36_rules} onChange={canEdit ? (data) => scheduleSave("shift_12x36_rules", data) : () => {}} />
@@ -1578,6 +1585,11 @@ export default function CalculationRulesTab({ projectId, project }) {
       {/* Modal informativo de redução de hora noturna */}
       {showReducaoHoraNoturnaModal && (
         <ReducaoHoraNoturnaInfoModal onClose={() => setShowReducaoHoraNoturnaModal(false)} />
+      )}
+
+      {/* Modal informativo de adicional noturno — tempo de pausa */}
+      {showAdicionalIncluiPausaModal && (
+        <AdicionalIncluiPausaInfoModal onClose={() => setShowAdicionalIncluiPausaModal(false)} />
       )}
 
       {/* Navigation */}
