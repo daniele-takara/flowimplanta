@@ -8,6 +8,7 @@ import HorasExtrasInfoModal from "@/components/project/tabs/calculation/HorasExt
 import CategorizacaoHEInfoModal from "@/components/project/tabs/calculation/CategorizacaoHEInfoModal";
 import CategorizacaoHEMensalInfoModal from "@/components/project/tabs/calculation/CategorizacaoHEMensalInfoModal";
 import ToleranciasIntervaloInfoModal from "@/components/project/tabs/calculation/ToleranciasIntervaloInfoModal";
+import PausaHoraExtraInfoModal from "@/components/project/tabs/calculation/PausaHoraExtraInfoModal";
 import { logAudit } from "@/lib/auditLog";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -574,7 +575,7 @@ function HorasExtrasForm({ companyData, data, onChange, onInfoDiariaClick, onInf
 const intervalInputClass = "w-12 px-1.5 py-0.5 text-center text-sm border-0 border-b border-black bg-transparent focus:outline-none focus:border-blue-500 focus:border-b-2";
 const intervalReadonlyClass = "w-12 px-1.5 py-0.5 text-center text-sm border-0 bg-slate-100 rounded";
 
-function IntervalosForm({ companyData, data, onChange, onInfoToleranciasClick }) {
+function IntervalosForm({ companyData, data, onChange, onInfoToleranciasClick, ruleConfigurations, onInfoPausaHoraExtraClick }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
 
@@ -582,6 +583,7 @@ function IntervalosForm({ companyData, data, onChange, onInfoToleranciasClick })
 
   const selected = (name) => d[name] || {
     toleranciaPausaRefeicao: "", toleranciaPausaExcesso: "",
+    calcularHoraExtraPausa: "nao",
     envioE02: false, codigoVerba: "",
     intervaloMinHoras: "4", intervaloMaxHoras: "6", intervaloMinMinutos: "15", intervaloMaxMinutos: "60"
   };
@@ -683,6 +685,26 @@ function IntervalosForm({ companyData, data, onChange, onInfoToleranciasClick })
                 <input value={val.toleranciaPausaExcesso || ""} onChange={e => updateRule(name, "toleranciaPausaExcesso", e.target.value)} className={inputClass} type="number" placeholder="Ex: 10" />
               </div>
             </div>
+
+            {/* Pergunta condicional — apenas se modelo Flexível no passo 2 */}
+            {ruleConfigurations?.[name]?.model === "Flexível" && (
+            <div className="border-t pt-4 mb-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase mb-3 flex items-center gap-1.5">
+                Caso o funcionário não cumpra o tempo total de pausa, deve ser calculada hora extra?
+                <button
+                  onClick={(e) => { e.preventDefault(); onInfoPausaHoraExtraClick?.(); }}
+                  className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"
+                  title="Entenda o impacto no cálculo de horas extras"
+                >
+                  <Info className="w-3.5 h-3.5" />
+                </button>
+              </p>
+              <select value={val.calcularHoraExtraPausa || "nao"} onChange={e => updateRule(name, "calcularHoraExtraPausa", e.target.value)} className={selectClass}>
+                <option value="sim">Sim</option>
+                <option value="nao">Não</option>
+              </select>
+            </div>
+            )}
 
             {/* Código de verba */}
             <div className="border-t pt-4">
@@ -1218,6 +1240,7 @@ export default function CalculationRulesTab({ projectId, project }) {
   const [showCategorizacaoHEModal, setShowCategorizacaoHEModal] = useState(false);
   const [showCategorizacaoHEMensalModal, setShowCategorizacaoHEMensalModal] = useState(false);
   const [showToleranciasIntervaloModal, setShowToleranciasIntervaloModal] = useState(false);
+  const [showPausaHoraExtraModal, setShowPausaHoraExtraModal] = useState(false);
 
   useEffect(() => { if (record?.current_step) setCurrentStep(record.current_step); }, [record?.current_step]);
 
@@ -1399,7 +1422,7 @@ export default function CalculationRulesTab({ projectId, project }) {
           <HorasExtrasForm companyData={stepData.company_data} data={stepData.overtime_rules} onChange={canEdit ? (data) => scheduleSave("overtime_rules", data) : () => {}} onInfoDiariaClick={() => setShowCategorizacaoHEModal(true)} onInfoMensalClick={() => setShowCategorizacaoHEMensalModal(true)} />
         )}
         {step?.key === "break_time_rules" && (
-          <IntervalosForm companyData={stepData.company_data} data={stepData.break_time_rules} onChange={canEdit ? (data) => scheduleSave("break_time_rules", data) : () => {}} onInfoToleranciasClick={() => setShowToleranciasIntervaloModal(true)} />
+          <IntervalosForm companyData={stepData.company_data} data={stepData.break_time_rules} onChange={canEdit ? (data) => scheduleSave("break_time_rules", data) : () => {}} onInfoToleranciasClick={() => setShowToleranciasIntervaloModal(true)} ruleConfigurations={stepData.rule_configurations} onInfoPausaHoraExtraClick={() => setShowPausaHoraExtraModal(true)} />
         )}
         {step?.key === "night_shift_rules" && (
           <AdicionalNoturnoForm companyData={stepData.company_data} data={stepData.night_shift_rules} onChange={canEdit ? (data) => scheduleSave("night_shift_rules", data) : () => {}} />
@@ -1445,6 +1468,11 @@ export default function CalculationRulesTab({ projectId, project }) {
       {/* Modal informativo de tolerâncias de intervalo */}
       {showToleranciasIntervaloModal && (
         <ToleranciasIntervaloInfoModal onClose={() => setShowToleranciasIntervaloModal(false)} />
+      )}
+
+      {/* Modal informativo de pausa x hora extra */}
+      {showPausaHoraExtraModal && (
+        <PausaHoraExtraInfoModal onClose={() => setShowPausaHoraExtraModal(false)} />
       )}
 
       {/* Navigation */}
