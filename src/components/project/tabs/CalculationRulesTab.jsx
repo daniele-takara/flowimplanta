@@ -6,6 +6,7 @@ import CopyFromRule from "@/components/project/tabs/calculation/CopyFromRule";
 import CalculationModelsInfoModal from "@/components/project/tabs/calculation/CalculationModelsInfoModal";
 import HorasExtrasInfoModal from "@/components/project/tabs/calculation/HorasExtrasInfoModal";
 import CategorizacaoHEInfoModal from "@/components/project/tabs/calculation/CategorizacaoHEInfoModal";
+import CategorizacaoHEMensalInfoModal from "@/components/project/tabs/calculation/CategorizacaoHEMensalInfoModal";
 import { logAudit } from "@/lib/auditLog";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -252,7 +253,7 @@ function RegrasForm({ companyData, data, onChange }) {
 }
 
 // ── Step 3: Horas Extras ─────────────────────────────────────────────────────
-function HorasExtrasForm({ companyData, data, onChange, onInfoDiariaClick }) {
+function HorasExtrasForm({ companyData, data, onChange, onInfoDiariaClick, onInfoMensalClick }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
 
@@ -400,7 +401,7 @@ function HorasExtrasForm({ companyData, data, onChange, onInfoDiariaClick }) {
                 <div>
                   <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
                     Existe categorização de hora extra mensal?
-                    <Info className="w-3.5 h-3.5 text-purple-500 cursor-help" />
+                    <button onClick={(e) => { e.preventDefault(); onInfoMensalClick?.(); }} className="inline-flex"><Info className="w-3.5 h-3.5 text-purple-500 cursor-pointer hover:text-purple-700" /></button>
                   </label>
                   <select value={val.categorizacaoHEMensal || "Não"} onChange={e => updateRule(name, "categorizacaoHEMensal", e.target.value)} className={`${selectClass} mt-1`}>
                     <option value="Não">Não</option>
@@ -1220,6 +1221,7 @@ export default function CalculationRulesTab({ projectId, project }) {
   const [showCalcModelsModal, setShowCalcModelsModal] = useState(false);
   const [showHorasExtrasModal, setShowHorasExtrasModal] = useState(false);
   const [showCategorizacaoHEModal, setShowCategorizacaoHEModal] = useState(false);
+  const [showCategorizacaoHEMensalModal, setShowCategorizacaoHEMensalModal] = useState(false);
 
   useEffect(() => { if (record?.current_step) setCurrentStep(record.current_step); }, [record?.current_step]);
 
@@ -1398,7 +1400,7 @@ export default function CalculationRulesTab({ projectId, project }) {
           <RegrasForm companyData={stepData.company_data} data={stepData.rule_configurations} onChange={canEdit ? (data) => scheduleSave("rule_configurations", data) : () => {}} />
         )}
         {step?.key === "overtime_rules" && (
-          <HorasExtrasForm companyData={stepData.company_data} data={stepData.overtime_rules} onChange={canEdit ? (data) => scheduleSave("overtime_rules", data) : () => {}} onInfoDiariaClick={() => setShowCategorizacaoHEModal(true)} />
+          <HorasExtrasForm companyData={stepData.company_data} data={stepData.overtime_rules} onChange={canEdit ? (data) => scheduleSave("overtime_rules", data) : () => {}} onInfoDiariaClick={() => setShowCategorizacaoHEModal(true)} onInfoMensalClick={() => setShowCategorizacaoHEMensalModal(true)} />
         )}
         {step?.key === "break_time_rules" && (
           <IntervalosForm companyData={stepData.company_data} data={stepData.break_time_rules} onChange={canEdit ? (data) => scheduleSave("break_time_rules", data) : () => {}} />
@@ -1434,9 +1436,14 @@ export default function CalculationRulesTab({ projectId, project }) {
         <HorasExtrasInfoModal onClose={() => setShowHorasExtrasModal(false)} />
       )}
 
-      {/* Modal informativo de categorização de hora extra */}
+      {/* Modal informativo de categorização de hora extra diária */}
       {showCategorizacaoHEModal && (
         <CategorizacaoHEInfoModal onClose={() => setShowCategorizacaoHEModal(false)} />
+      )}
+
+      {/* Modal informativo de categorização de hora extra mensal */}
+      {showCategorizacaoHEMensalModal && (
+        <CategorizacaoHEMensalInfoModal onClose={() => setShowCategorizacaoHEMensalModal(false)} />
       )}
 
       {/* Navigation */}
