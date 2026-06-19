@@ -13,6 +13,7 @@ import AdicionalNoturnoInfoModal from "@/components/project/tabs/calculation/Adi
 import ProrrogacaoAdicionalNoturnoInfoModal from "@/components/project/tabs/calculation/ProrrogacaoAdicionalNoturnoInfoModal";
 import ReducaoHoraNoturnaInfoModal from "@/components/project/tabs/calculation/ReducaoHoraNoturnaInfoModal";
 import AdicionalIncluiPausaInfoModal from "@/components/project/tabs/calculation/AdicionalIncluiPausaInfoModal";
+import Jornada12x36FeriadoInfoModal from "@/components/project/tabs/calculation/Jornada12x36FeriadoInfoModal";
 import { logAudit } from "@/lib/auditLog";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -945,13 +946,22 @@ function AdicionalNoturnoForm({ companyData, data, onChange, onInfoReducaoClick,
 }
 
 // ── Step 6: Jornada 12x36 ────────────────────────────────────────────────────
-function Jornada12x36Form({ companyData, data, onChange }) {
+function Jornada12x36Form({ companyData, data, onChange, onInfoFeriadoClick }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
 
   if (rules.length === 0) return <p className="text-slate-400 text-sm">Adicione regras de cálculo no passo 1 primeiro.</p>;
 
-  const selected = (name) => d[name] || { model: "", folgaFixa: false, diaFolga: "" };
+  const selected = (name) => d[name] || {
+    hasJornada12x36: "sim",
+    pagamentoFeriado: "normal",
+    faltaFeriado: "sim"
+  };
+
+  const updateRule = (name, field, value) => {
+    const val = selected(name);
+    onChange({ ...d, [name]: { ...val, [field]: value } });
+  };
 
   return (
     <div className="space-y-6">
@@ -968,20 +978,43 @@ function Jornada12x36Form({ companyData, data, onChange }) {
             <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} isInheriting={inhActive} inheritingFrom={inhFrom} />
             {inhLocked ? null : (
             <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Modelo</label>
-                <select value={val.model} onChange={e => onChange({ ...d, [name]: { ...val, model: e.target.value } })} className={selectClass}>
-                  <option value="">Selecione...</option>
-                  <option value="Modelo 1">Modelo 1 — Semana cheia 12x36</option>
-                  <option value="Modelo 2">Modelo 2 — 12x36 com 4h extras semanais</option>
-                </select>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 pt-6">
-                <input type="checkbox" checked={!!val.folgaFixa} onChange={e => onChange({ ...d, [name]: { ...val, folgaFixa: e.target.checked } })} className="w-4 h-4 accent-blue-600" />
-                Possui dia de folga fixa
-              </label>
+            {/* Pergunta condicional — jornada 12x36 */}
+            <div className="mb-4">
+              <label className={labelClass}>Nessa regra, existem funcionários trabalhando em jornada 12x36?</label>
+              <select value={val.hasJornada12x36 || "sim"} onChange={e => updateRule(name, "hasJornada12x36", e.target.value)} className={`${selectClass} max-w-xs`}>
+                <option value="sim">Sim</option>
+                <option value="nao">Não</option>
+              </select>
             </div>
+
+            {val.hasJornada12x36 !== "nao" && (
+            <>
+            {/* Pagamento em feriado */}
+            <div className="border-t pt-4 mb-4">
+              <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                Funcionários com jornada 12x36 recebem como hora normal caso o dia trabalhado coincida com feriado?
+                <button onClick={(e) => { e.preventDefault(); onInfoFeriadoClick?.(); }} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors" title="Entenda o pagamento de feriados na jornada 12x36">
+                  <Info className="w-3.5 h-3.5" />
+                </button>
+              </label>
+              <select value={val.pagamentoFeriado || "normal"} onChange={e => updateRule(name, "pagamentoFeriado", e.target.value)} className={`${selectClass} mt-1`}>
+                <option value="normal">Pagamento normal (dia útil)</option>
+                <option value="extra">Pagamento de hora extra (considerando o feriado)</option>
+              </select>
+            </div>
+
+            {/* Falta em feriado */}
+            <div className="border-t pt-4 mb-4">
+              <label className="text-xs font-semibold text-slate-700">
+                Funcionários 12x36 recebem falta caso não trabalhem em dias de feriado que coincidem com dias trabalhados?
+              </label>
+              <select value={val.faltaFeriado || "sim"} onChange={e => updateRule(name, "faltaFeriado", e.target.value)} className={`${selectClass} mt-1`}>
+                <option value="sim">Sim, é considerado falta</option>
+                <option value="nao">Não, é considerado folga</option>
+              </select>
+            </div>
+            </>
+            )}
             </>
             )}
           </div>
@@ -1308,7 +1341,7 @@ function RevisaoFinal({ companyData, allData, project }) {
               )}
               {br.model && <p><span className="font-medium text-slate-600">Intervalos:</span> {br.model} — Atraso: {br.toleranciaAtrasoPausa || "—"}min, Início: {br.toleranciaInicioPausa || "—"}min, Fim: {br.toleranciaFimPausa || "—"}min {(br.ranges || []).length > 0 && `(${br.ranges.length} faixas)`}</p>}
               {an.percAdicional && <p><span className="font-medium text-slate-600">Noturno:</span> {an.percAdicional}% — {an.horaInicioNoturna || "22:00"} às {an.horaFimNoturna || "05:00"}{an.separarHENoturna === "sim" ? " (HE separada)" : ""}</p>}
-              {j12.model && <p><span className="font-medium text-slate-600">12x36:</span> {j12.model}{j12.folgaFixa ? " — Folga fixa" : ""}</p>}
+              {j12.hasJornada12x36 !== "nao" && <p><span className="font-medium text-slate-600">12x36:</span> Feriado: {j12.pagamentoFeriado === "extra" ? "Pagamento extra" : "Pagamento normal"} | Falta: {j12.faltaFeriado === "sim" ? "Sim" : "Não"}</p>}
               {sb.percSobreaviso && <p><span className="font-medium text-slate-600">Sobreaviso:</span> {sb.percSobreaviso}</p>}
               {bh.model && <p><span className="font-medium text-slate-600">Banco de Horas:</span> {bh.model} — {bh.periodoCompensacao || "mensal"}{bh.limiteCreditoMensal ? ` | Crédito máx: ${bh.limiteCreditoMensal}h/mês` : ""}</p>}
               {dsr.modeloDSR && <p><span className="font-medium text-slate-600">DSR:</span> {dsr.modeloDSR === "padrao" ? "Incluso nas HE" : "Separado"}</p>}
@@ -1352,6 +1385,7 @@ export default function CalculationRulesTab({ projectId, project }) {
   const [showProrrogacaoNoturnoModal, setShowProrrogacaoNoturnoModal] = useState(false);
   const [showReducaoHoraNoturnaModal, setShowReducaoHoraNoturnaModal] = useState(false);
   const [showAdicionalIncluiPausaModal, setShowAdicionalIncluiPausaModal] = useState(false);
+  const [showJornada12x36FeriadoModal, setShowJornada12x36FeriadoModal] = useState(false);
 
   useEffect(() => { if (record?.current_step) setCurrentStep(record.current_step); }, [record?.current_step]);
 
@@ -1539,7 +1573,7 @@ export default function CalculationRulesTab({ projectId, project }) {
           <AdicionalNoturnoForm companyData={stepData.company_data} data={stepData.night_shift_rules} onChange={canEdit ? (data) => scheduleSave("night_shift_rules", data) : () => {}} onInfoReducaoClick={() => setShowAdicionalNoturnoModal(true)} onInfoProrrogacaoClick={() => setShowProrrogacaoNoturnoModal(true)} onInfoReducaoAmbosClick={() => setShowReducaoHoraNoturnaModal(true)} onInfoAdicionalPausaClick={() => setShowAdicionalIncluiPausaModal(true)} />
         )}
         {step?.key === "shift_12x36_rules" && (
-          <Jornada12x36Form companyData={stepData.company_data} data={stepData.shift_12x36_rules} onChange={canEdit ? (data) => scheduleSave("shift_12x36_rules", data) : () => {}} />
+          <Jornada12x36Form companyData={stepData.company_data} data={stepData.shift_12x36_rules} onChange={canEdit ? (data) => scheduleSave("shift_12x36_rules", data) : () => {}} onInfoFeriadoClick={() => setShowJornada12x36FeriadoModal(true)} />
         )}
         {step?.key === "sobreaviso_rules" && (
           <SobreavisoForm companyData={stepData.company_data} data={stepData.sobreaviso_rules} onChange={canEdit ? (data) => scheduleSave("sobreaviso_rules", data) : () => {}} />
@@ -1604,6 +1638,11 @@ export default function CalculationRulesTab({ projectId, project }) {
       {/* Modal informativo de adicional noturno — tempo de pausa */}
       {showAdicionalIncluiPausaModal && (
         <AdicionalIncluiPausaInfoModal onClose={() => setShowAdicionalIncluiPausaModal(false)} />
+      )}
+
+      {/* Modal informativo de feriados na jornada 12x36 */}
+      {showJornada12x36FeriadoModal && (
+        <Jornada12x36FeriadoInfoModal onClose={() => setShowJornada12x36FeriadoModal(false)} />
       )}
 
       {/* Navigation */}
