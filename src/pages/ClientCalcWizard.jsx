@@ -15,6 +15,22 @@ import OutrasVerbasForm from "@/components/project/tabs/calculation/OutrasVerbas
 import RevisaoFinal from "@/components/project/tabs/calculation/RevisaoFinal";
 import { STEPS } from "@/lib/calcRulesShared";
 import { base44 } from "@/api/base44Client";
+import CalculationModelsInfoModal from "@/components/project/tabs/calculation/CalculationModelsInfoModal";
+import HorasExtrasInfoModal from "@/components/project/tabs/calculation/HorasExtrasInfoModal";
+import CategorizacaoHEInfoModal from "@/components/project/tabs/calculation/CategorizacaoHEInfoModal";
+import CategorizacaoHEMensalInfoModal from "@/components/project/tabs/calculation/CategorizacaoHEMensalInfoModal";
+import ToleranciasIntervaloInfoModal from "@/components/project/tabs/calculation/ToleranciasIntervaloInfoModal";
+import PausaHoraExtraInfoModal from "@/components/project/tabs/calculation/PausaHoraExtraInfoModal";
+import AdicionalNoturnoInfoModal from "@/components/project/tabs/calculation/AdicionalNoturnoInfoModal";
+import ProrrogacaoAdicionalNoturnoInfoModal from "@/components/project/tabs/calculation/ProrrogacaoAdicionalNoturnoInfoModal";
+import ReducaoHoraNoturnaInfoModal from "@/components/project/tabs/calculation/ReducaoHoraNoturnaInfoModal";
+import AdicionalIncluiPausaInfoModal from "@/components/project/tabs/calculation/AdicionalIncluiPausaInfoModal";
+import Jornada12x36FeriadoInfoModal from "@/components/project/tabs/calculation/Jornada12x36FeriadoInfoModal";
+import SobreavisoInfoModal from "@/components/project/tabs/calculation/SobreavisoInfoModal";
+import BancoHorasInfoModal from "@/components/project/tabs/calculation/BancoHorasInfoModal";
+import BancoHorasAcumuloInfoModal from "@/components/project/tabs/calculation/BancoHorasAcumuloInfoModal";
+import DSRFeriasHEInfoModal from "@/components/project/tabs/calculation/DSRFeriasHEInfoModal";
+import DSRMesDescontoInfoModal from "@/components/project/tabs/calculation/DSRMesDescontoInfoModal";
 
 // ── Client-side data layer (uses backend functions, no auth) ────────────────
 function useClientWizardState(token) {
@@ -80,6 +96,22 @@ export default function ClientCalcWizard() {
   const [confirmed, setConfirmed] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [showCalcModelsModal, setShowCalcModelsModal] = useState(false);
+  const [showHorasExtrasModal, setShowHorasExtrasModal] = useState(false);
+  const [showCategorizacaoHEModal, setShowCategorizacaoHEModal] = useState(false);
+  const [showCategorizacaoHEMensalModal, setShowCategorizacaoHEMensalModal] = useState(false);
+  const [showToleranciasIntervaloModal, setShowToleranciasIntervaloModal] = useState(false);
+  const [showPausaHoraExtraModal, setShowPausaHoraExtraModal] = useState(false);
+  const [showAdicionalNoturnoModal, setShowAdicionalNoturnoModal] = useState(false);
+  const [showProrrogacaoNoturnoModal, setShowProrrogacaoNoturnoModal] = useState(false);
+  const [showReducaoHoraNoturnaModal, setShowReducaoHoraNoturnaModal] = useState(false);
+  const [showAdicionalIncluiPausaModal, setShowAdicionalIncluiPausaModal] = useState(false);
+  const [showJornada12x36FeriadoModal, setShowJornada12x36FeriadoModal] = useState(false);
+  const [showSobreavisoModal, setShowSobreavisoModal] = useState(false);
+  const [showBancoHorasModal, setShowBancoHorasModal] = useState(false);
+  const [showBancoHorasAcumuloModal, setShowBancoHorasAcumuloModal] = useState(false);
+  const [showDSRFeriasHEModal, setShowDSRFeriasHEModal] = useState(false);
+  const [showDSRMesDescontoModal, setShowDSRMesDescontoModal] = useState(false);
 
   useEffect(() => { if (record?.current_step) setCurrentStep(record.current_step); }, [record?.current_step]);
 
@@ -283,6 +315,26 @@ export default function ClientCalcWizard() {
         <div className="bg-white rounded-xl border border-slate-200 p-6 mb-5 min-h-[300px]">
           <div className="flex items-center gap-2 mb-1">
             <h3 className="text-lg font-semibold text-slate-800">{step?.title}</h3>
+            {step?.id === 2 && (
+              <button onClick={() => setShowCalcModelsModal(true)} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors" title="Entenda os modelos de cálculo">
+                <Info className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {step?.id === 3 && (
+              <button onClick={() => setShowHorasExtrasModal(true)} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors" title="Entenda o funcionamento das horas extras">
+                <Info className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {step?.id === 7 && (
+              <button onClick={() => setShowSobreavisoModal(true)} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors" title="Entenda o funcionamento do sobreaviso">
+                <Info className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {step?.id === 9 && (
+              <button onClick={() => setShowBancoHorasModal(true)} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors" title="Entenda os modelos de banco de horas">
+                <Info className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
           <p className="text-sm text-slate-400 mb-6">Passo {currentStepIdx + 1} de {visibleSteps.length}</p>
 
@@ -293,25 +345,25 @@ export default function ClientCalcWizard() {
             <RegrasForm companyData={stepData.company_data} data={stepData.rule_configurations} onChange={(data) => scheduleSave("rule_configurations", data)} />
           )}
           {step?.key === "overtime_rules" && (
-            <HorasExtrasForm companyData={stepData.company_data} data={stepData.overtime_rules} onChange={(data) => scheduleSave("overtime_rules", data)} />
+            <HorasExtrasForm companyData={stepData.company_data} data={stepData.overtime_rules} onChange={(data) => scheduleSave("overtime_rules", data)} onInfoDiariaClick={() => setShowCategorizacaoHEModal(true)} onInfoMensalClick={() => setShowCategorizacaoHEMensalModal(true)} />
           )}
           {step?.key === "break_time_rules" && (
-            <IntervalosForm companyData={stepData.company_data} data={stepData.break_time_rules} onChange={(data) => scheduleSave("break_time_rules", data)} ruleConfigurations={stepData.rule_configurations} />
+            <IntervalosForm companyData={stepData.company_data} data={stepData.break_time_rules} onChange={(data) => scheduleSave("break_time_rules", data)} ruleConfigurations={stepData.rule_configurations} onInfoToleranciasClick={() => setShowToleranciasIntervaloModal(true)} onInfoPausaHoraExtraClick={() => setShowPausaHoraExtraModal(true)} />
           )}
           {step?.key === "night_shift_rules" && (
-            <AdicionalNoturnoForm companyData={stepData.company_data} data={stepData.night_shift_rules} onChange={(data) => scheduleSave("night_shift_rules", data)} />
+            <AdicionalNoturnoForm companyData={stepData.company_data} data={stepData.night_shift_rules} onChange={(data) => scheduleSave("night_shift_rules", data)} onInfoReducaoClick={() => setShowAdicionalNoturnoModal(true)} onInfoProrrogacaoClick={() => setShowProrrogacaoNoturnoModal(true)} onInfoReducaoAmbosClick={() => setShowReducaoHoraNoturnaModal(true)} onInfoAdicionalPausaClick={() => setShowAdicionalIncluiPausaModal(true)} />
           )}
           {step?.key === "shift_12x36_rules" && (
-            <Jornada12x36Form companyData={stepData.company_data} data={stepData.shift_12x36_rules} onChange={(data) => scheduleSave("shift_12x36_rules", data)} />
+            <Jornada12x36Form companyData={stepData.company_data} data={stepData.shift_12x36_rules} onChange={(data) => scheduleSave("shift_12x36_rules", data)} onInfoFeriadoClick={() => setShowJornada12x36FeriadoModal(true)} />
           )}
           {step?.key === "sobreaviso_rules" && (
             <SobreavisoForm companyData={stepData.company_data} data={stepData.sobreaviso_rules} onChange={(data) => scheduleSave("sobreaviso_rules", data)} />
           )}
           {step?.key === "bank_hours_rules" && (
-            <BancoHorasForm companyData={stepData.company_data} data={stepData.bank_hours_rules} onChange={(data) => scheduleSave("bank_hours_rules", data)} />
+            <BancoHorasForm companyData={stepData.company_data} data={stepData.bank_hours_rules} onChange={(data) => scheduleSave("bank_hours_rules", data)} onInfoAcumuloClick={() => setShowBancoHorasAcumuloModal(true)} />
           )}
           {step?.key === "dsr_rules" && (
-            <DSRForm companyData={stepData.company_data} data={stepData.dsr_rules} onChange={(data) => scheduleSave("dsr_rules", data)} />
+            <DSRForm companyData={stepData.company_data} data={stepData.dsr_rules} onChange={(data) => scheduleSave("dsr_rules", data)} onInfoHEFeriadoClick={() => setShowDSRFeriasHEModal(true)} onInfoMesDescontoClick={() => setShowDSRMesDescontoModal(true)} />
           )}
           {step?.key === "other_verbs_rules" && (
             <OutrasVerbasForm companyData={stepData.company_data} data={stepData.other_verbs_rules} onChange={(data) => scheduleSave("other_verbs_rules", data)} />
@@ -392,6 +444,24 @@ export default function ClientCalcWizard() {
           )}
         </div>
       </div>
+
+      {/* Info Modals */}
+      {showCalcModelsModal && <CalculationModelsInfoModal onClose={() => setShowCalcModelsModal(false)} />}
+      {showHorasExtrasModal && <HorasExtrasInfoModal onClose={() => setShowHorasExtrasModal(false)} />}
+      {showCategorizacaoHEModal && <CategorizacaoHEInfoModal onClose={() => setShowCategorizacaoHEModal(false)} />}
+      {showCategorizacaoHEMensalModal && <CategorizacaoHEMensalInfoModal onClose={() => setShowCategorizacaoHEMensalModal(false)} />}
+      {showToleranciasIntervaloModal && <ToleranciasIntervaloInfoModal onClose={() => setShowToleranciasIntervaloModal(false)} />}
+      {showPausaHoraExtraModal && <PausaHoraExtraInfoModal onClose={() => setShowPausaHoraExtraModal(false)} />}
+      {showAdicionalNoturnoModal && <AdicionalNoturnoInfoModal onClose={() => setShowAdicionalNoturnoModal(false)} />}
+      {showProrrogacaoNoturnoModal && <ProrrogacaoAdicionalNoturnoInfoModal onClose={() => setShowProrrogacaoNoturnoModal(false)} />}
+      {showReducaoHoraNoturnaModal && <ReducaoHoraNoturnaInfoModal onClose={() => setShowReducaoHoraNoturnaModal(false)} />}
+      {showAdicionalIncluiPausaModal && <AdicionalIncluiPausaInfoModal onClose={() => setShowAdicionalIncluiPausaModal(false)} />}
+      {showJornada12x36FeriadoModal && <Jornada12x36FeriadoInfoModal onClose={() => setShowJornada12x36FeriadoModal(false)} />}
+      {showSobreavisoModal && <SobreavisoInfoModal onClose={() => setShowSobreavisoModal(false)} />}
+      {showBancoHorasModal && <BancoHorasInfoModal onClose={() => setShowBancoHorasModal(false)} />}
+      {showBancoHorasAcumuloModal && <BancoHorasAcumuloInfoModal onClose={() => setShowBancoHorasAcumuloModal(false)} />}
+      {showDSRFeriasHEModal && <DSRFeriasHEInfoModal onClose={() => setShowDSRFeriasHEModal(false)} />}
+      {showDSRMesDescontoModal && <DSRMesDescontoInfoModal onClose={() => setShowDSRMesDescontoModal(false)} />}
     </div>
   );
 }
