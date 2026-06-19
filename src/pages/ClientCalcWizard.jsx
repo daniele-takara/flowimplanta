@@ -35,17 +35,7 @@ function useClientWizardState(token) {
         setRecord(null);
       } else {
         setRecord(data);
-        // Fetch project name
-        try {
-          const headers = { "Content-Type": "application/json", "X-App-Id": appParams.appId };
-          const pRes = await fetch(`/api/functions/getClientCalcRule`, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({ token, action: "projectName" }),
-          });
-          const pData = await pRes.json();
-          if (pData.client_name) setProjectName(pData.client_name);
-        } catch {}
+        if (data.client_name) setProjectName(data.client_name);
       }
     } catch (e) {
       console.error(e);

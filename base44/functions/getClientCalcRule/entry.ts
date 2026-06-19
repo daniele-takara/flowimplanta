@@ -12,15 +12,17 @@ Deno.serve(async (req) => {
 
     const rule = rules[0];
 
-    // Support project name lookup
-    if (action === 'projectName') {
+    // Lookup project name
+    let client_name = '';
+    try {
       const projects = await base44.asServiceRole.entities.Project.filter({ id: rule.project_id });
-      return Response.json({ client_name: projects[0]?.client_name || '' });
-    }
+      client_name = projects[0]?.client_name || '';
+    } catch {}
 
     return Response.json({
       id: rule.id,
       project_id: rule.project_id,
+      client_name,
       status: rule.status,
       current_step: rule.current_step,
       company_data: rule.company_data,
