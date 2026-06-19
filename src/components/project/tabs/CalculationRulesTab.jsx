@@ -1036,8 +1036,11 @@ function SobreavisoForm({ companyData, data, onChange }) {
     bancoHoras: "",
     porcentagem: "",
     envioE02: false,
-    codigoVerba: "",
-    formatoVerba: "",
+    verbasE02: {
+      horaExtra: { codigo: "", formato: "" },
+      duracaoNaoTrabalhada: { codigo: "", formato: "" },
+      adicionalNoturno: { codigo: "", formato: "" }
+    },
     particularidade: "",
     verbas: []
   };
@@ -1045,6 +1048,13 @@ function SobreavisoForm({ companyData, data, onChange }) {
   const updateRule = (name, field, value) => {
     const val = selected(name);
     onChange({ ...d, [name]: { ...val, [field]: value } });
+  };
+
+  const updateVerbaE02 = (name, verbaKey, field, value) => {
+    const val = selected(name);
+    const verbasE02 = { ...(val.verbasE02 || {}) };
+    verbasE02[verbaKey] = { ...verbasE02[verbaKey], [field]: value };
+    onChange({ ...d, [name]: { ...val, verbasE02 } });
   };
 
   const addVerba = (name) => {
@@ -1117,14 +1127,78 @@ function SobreavisoForm({ companyData, data, onChange }) {
                 Enviar para arquivo de exportação para FOPAG (E02)?
               </label>
               {val.envioE02 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-6">
-                  <input value={val.codigoVerba || ""} onChange={e => updateRule(name, "codigoVerba", e.target.value)} className={inputClass} placeholder="Código da verba" />
-                  <select value={val.formatoVerba || ""} onChange={e => updateRule(name, "formatoVerba", e.target.value)} className={selectClass}>
-                    <option value="">Selecione o formato</option>
-                    <option value="Dia">Dia</option>
-                    <option value="HH:MM">HH:MM</option>
-                    <option value="Centesimal">Centesimal</option>
-                  </select>
+                <div className="space-y-4 pl-6">
+                  {/* Verba 1: Hora extra de sobreaviso */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                    <p className="text-xs font-semibold text-slate-700 mb-2">1. Hora extra de sobreaviso</p>
+                    <p className="text-xs text-slate-400 mb-2">Quando o empregado trabalha durante o período de sobreaviso</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <input
+                        value={(val.verbasE02?.horaExtra?.codigo) || ""}
+                        onChange={e => updateVerbaE02(name, "horaExtra", "codigo", e.target.value)}
+                        className={inputClass}
+                        placeholder="Código da verba"
+                      />
+                      <select
+                        value={(val.verbasE02?.horaExtra?.formato) || ""}
+                        onChange={e => updateVerbaE02(name, "horaExtra", "formato", e.target.value)}
+                        className={selectClass}
+                      >
+                        <option value="">Selecione o formato</option>
+                        <option value="Dia">Dia</option>
+                        <option value="HH:MM">HH:MM</option>
+                        <option value="Centesimal">Centesimal</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Verba 2: Duração de sobreaviso não trabalhada */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                    <p className="text-xs font-semibold text-slate-700 mb-2">2. Duração de sobreaviso não trabalhada</p>
+                    <p className="text-xs text-slate-400 mb-2">Quando o empregado estava de sobreaviso mas não foi acionado e não trabalhou</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <input
+                        value={(val.verbasE02?.duracaoNaoTrabalhada?.codigo) || ""}
+                        onChange={e => updateVerbaE02(name, "duracaoNaoTrabalhada", "codigo", e.target.value)}
+                        className={inputClass}
+                        placeholder="Código da verba"
+                      />
+                      <select
+                        value={(val.verbasE02?.duracaoNaoTrabalhada?.formato) || ""}
+                        onChange={e => updateVerbaE02(name, "duracaoNaoTrabalhada", "formato", e.target.value)}
+                        className={selectClass}
+                      >
+                        <option value="">Selecione o formato</option>
+                        <option value="Dia">Dia</option>
+                        <option value="HH:MM">HH:MM</option>
+                        <option value="Centesimal">Centesimal</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Verba 3: Adicional noturno de sobreaviso */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                    <p className="text-xs font-semibold text-slate-700 mb-2">3. Adicional noturno de sobreaviso</p>
+                    <p className="text-xs text-slate-400 mb-2">Quando o empregado trabalhou durante o sobreaviso em horário noturno</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <input
+                        value={(val.verbasE02?.adicionalNoturno?.codigo) || ""}
+                        onChange={e => updateVerbaE02(name, "adicionalNoturno", "codigo", e.target.value)}
+                        className={inputClass}
+                        placeholder="Código da verba"
+                      />
+                      <select
+                        value={(val.verbasE02?.adicionalNoturno?.formato) || ""}
+                        onChange={e => updateVerbaE02(name, "adicionalNoturno", "formato", e.target.value)}
+                        className={selectClass}
+                      >
+                        <option value="">Selecione o formato</option>
+                        <option value="Dia">Dia</option>
+                        <option value="HH:MM">HH:MM</option>
+                        <option value="Centesimal">Centesimal</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
