@@ -2032,6 +2032,20 @@ export default function CalculationRulesTab({ projectId, project }) {
   const [generatingCalcPDF, setGeneratingCalcPDF] = useState(false);
   const [parametrizacaoRealizada, setParametrizacaoRealizada] = useState(false);
 
+  // Ao carregar, verifica se a atividade de parametrização já foi concluída no cronograma
+  useEffect(() => {
+    (async () => {
+      const atividadeNome = "Parametrização de regras";
+      const atividades = await base44.entities.ScheduleActivity.filter({
+        project_id: projectId,
+        activity_name: atividadeNome
+      });
+      if (atividades.length > 0 && atividades[0].actual_end) {
+        setParametrizacaoRealizada(true);
+      }
+    })();
+  }, [projectId]);
+
   useEffect(() => { if (record?.current_step) setCurrentStep(record.current_step); }, [record?.current_step]);
 
   // Build stepData from DB (used as initial seed for buffer)
