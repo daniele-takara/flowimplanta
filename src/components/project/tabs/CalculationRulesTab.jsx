@@ -479,8 +479,8 @@ function HorasExtrasForm({ companyData, data, onChange }) {
                     <button onClick={() => removeFaixaLimite(name, "mensal", i)} className="text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <input value={f.inicio || ""} onChange={e => updateFaixaLimite(name, "mensal", i, "inicio", e.target.value)} className={inputClass} placeholder="Ex: 0h" />
-                    <input value={f.fim || ""} onChange={e => updateFaixaLimite(name, "mensal", i, "fim", e.target.value)} className={inputClass} placeholder="Ex: 20h" />
+                    <input value={f.inicio || ""} onChange={e => updateFaixaLimite(name, "mensal", i, "inicio", e.target.value)} className={inputClass} type="number" placeholder="Ex: 0" />
+                    <input value={f.fim || ""} onChange={e => updateFaixaLimite(name, "mensal", i, "fim", e.target.value)} className={inputClass} type="number" placeholder="Ex: 150" />
                     <select value={f.valorPorcentagem || ""} onChange={e => updateFaixaLimite(name, "mensal", i, "valorPorcentagem", e.target.value)} className={selectClass}>
                       <option value="">Valor da Porcentagem</option>
                       <option value="50">50%</option>
