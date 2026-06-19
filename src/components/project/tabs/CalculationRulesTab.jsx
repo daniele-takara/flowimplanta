@@ -7,6 +7,7 @@ import CalculationModelsInfoModal from "@/components/project/tabs/calculation/Ca
 import HorasExtrasInfoModal from "@/components/project/tabs/calculation/HorasExtrasInfoModal";
 import CategorizacaoHEInfoModal from "@/components/project/tabs/calculation/CategorizacaoHEInfoModal";
 import CategorizacaoHEMensalInfoModal from "@/components/project/tabs/calculation/CategorizacaoHEMensalInfoModal";
+import ToleranciasIntervaloInfoModal from "@/components/project/tabs/calculation/ToleranciasIntervaloInfoModal";
 import { logAudit } from "@/lib/auditLog";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -573,7 +574,7 @@ function HorasExtrasForm({ companyData, data, onChange, onInfoDiariaClick, onInf
 const intervalInputClass = "w-12 px-1.5 py-0.5 text-center text-sm border-0 border-b border-black bg-transparent focus:outline-none focus:border-blue-500 focus:border-b-2";
 const intervalReadonlyClass = "w-12 px-1.5 py-0.5 text-center text-sm border-0 bg-slate-100 rounded";
 
-function IntervalosForm({ companyData, data, onChange }) {
+function IntervalosForm({ companyData, data, onChange, onInfoToleranciasClick }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
 
@@ -662,7 +663,16 @@ function IntervalosForm({ companyData, data, onChange }) {
             </div>
 
             <div className="border-t pt-4 mb-4">
-            <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Tolerâncias (minutos)</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase mb-3 flex items-center gap-1.5">
+              Tolerâncias (minutos)
+              <button
+                onClick={(e) => { e.preventDefault(); onInfoToleranciasClick?.(); }}
+                className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"
+                title="Entenda as tolerâncias de intervalo"
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className={labelClass}>Tolerância para duração da pausa refeição realizada</label>
@@ -1207,6 +1217,7 @@ export default function CalculationRulesTab({ projectId, project }) {
   const [showHorasExtrasModal, setShowHorasExtrasModal] = useState(false);
   const [showCategorizacaoHEModal, setShowCategorizacaoHEModal] = useState(false);
   const [showCategorizacaoHEMensalModal, setShowCategorizacaoHEMensalModal] = useState(false);
+  const [showToleranciasIntervaloModal, setShowToleranciasIntervaloModal] = useState(false);
 
   useEffect(() => { if (record?.current_step) setCurrentStep(record.current_step); }, [record?.current_step]);
 
@@ -1388,7 +1399,7 @@ export default function CalculationRulesTab({ projectId, project }) {
           <HorasExtrasForm companyData={stepData.company_data} data={stepData.overtime_rules} onChange={canEdit ? (data) => scheduleSave("overtime_rules", data) : () => {}} onInfoDiariaClick={() => setShowCategorizacaoHEModal(true)} onInfoMensalClick={() => setShowCategorizacaoHEMensalModal(true)} />
         )}
         {step?.key === "break_time_rules" && (
-          <IntervalosForm companyData={stepData.company_data} data={stepData.break_time_rules} onChange={canEdit ? (data) => scheduleSave("break_time_rules", data) : () => {}} />
+          <IntervalosForm companyData={stepData.company_data} data={stepData.break_time_rules} onChange={canEdit ? (data) => scheduleSave("break_time_rules", data) : () => {}} onInfoToleranciasClick={() => setShowToleranciasIntervaloModal(true)} />
         )}
         {step?.key === "night_shift_rules" && (
           <AdicionalNoturnoForm companyData={stepData.company_data} data={stepData.night_shift_rules} onChange={canEdit ? (data) => scheduleSave("night_shift_rules", data) : () => {}} />
@@ -1429,6 +1440,11 @@ export default function CalculationRulesTab({ projectId, project }) {
       {/* Modal informativo de categorização de hora extra mensal */}
       {showCategorizacaoHEMensalModal && (
         <CategorizacaoHEMensalInfoModal onClose={() => setShowCategorizacaoHEMensalModal(false)} />
+      )}
+
+      {/* Modal informativo de tolerâncias de intervalo */}
+      {showToleranciasIntervaloModal && (
+        <ToleranciasIntervaloInfoModal onClose={() => setShowToleranciasIntervaloModal(false)} />
       )}
 
       {/* Navigation */}
