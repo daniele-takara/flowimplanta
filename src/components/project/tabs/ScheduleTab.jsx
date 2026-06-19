@@ -3,7 +3,8 @@ import { base44 } from "@/api/base44Client";
 import {
   ChevronDown, ChevronRight, Save, X, Anchor, Pencil, Lock,
   AlertCircle, CheckCircle, CheckCircle2, Loader2, RefreshCw,
-  Database, Plus, RotateCcw, Zap, Eye, MoreHorizontal, EyeOff, FileDown
+  Database, Plus, RotateCcw, Zap, Eye, MoreHorizontal, EyeOff, FileDown,
+  Maximize2, Minimize2
 } from "lucide-react";
 import { SCHEDULE_TASKS, PHASE_ORDER } from "@/lib/scheduleTasks.js";
 import { computeSchedule } from "@/lib/scheduleEngine.js";
@@ -1137,6 +1138,20 @@ export default function ScheduleTab({
               Gerar PDF do Cronograma
             </button>
           )}
+          <button
+            onClick={() => {
+              if (window.location.hash === "#presentation") {
+                window.location.hash = "";
+              } else {
+                window.location.hash = "presentation";
+              }
+            }}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+            title={window.location.hash === "#presentation" ? "Sair da tela cheia" : "Expandir tela para apresentação"}
+          >
+            {window.location.hash === "#presentation" ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            {window.location.hash === "#presentation" ? "Recolher" : "Expandir"}
+          </button>
           {canCreatePhase && (
             <button
               onClick={() => { setEditingPhase(null); setShowAddPhaseModal(true); }}

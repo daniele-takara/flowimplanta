@@ -7,7 +7,7 @@ import { logAudit } from "@/lib/auditLog";
 import {
   RefreshCw, Mail, Clock, CheckCircle2, AlertTriangle,
   AlertCircle, Users, Activity, Calendar,
-  Plus, Trash2
+  Plus, Trash2, Maximize2, Minimize2
 } from "lucide-react";
 
 // Cache de campos salvos — sobrevive a unmount/remount do componente
@@ -731,6 +731,20 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
                 Gerar e-mail
               </button>
             )}
+            <button
+              onClick={() => {
+                if (window.location.hash === "#presentation") {
+                  window.location.hash = "";
+                } else {
+                  window.location.hash = "presentation";
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+              title={window.location.hash === "#presentation" ? "Sair da tela cheia" : "Expandir tela para apresentação"}
+            >
+              {window.location.hash === "#presentation" ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              {window.location.hash === "#presentation" ? "Recolher" : "Expandir"}
+            </button>
           </div>
         </div>
 
