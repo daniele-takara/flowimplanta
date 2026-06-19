@@ -2128,6 +2128,7 @@ export default function CalculationRulesTab({ projectId, project }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <img src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/09fa0a8a2_LogoPontotel_AmarelaePreta.png" alt="Pontotel" className="h-5 opacity-80" />
           {/* Enviar para cliente */}
           {canEdit && viewMode === "team" && (
             <>
