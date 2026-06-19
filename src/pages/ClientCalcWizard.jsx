@@ -277,10 +277,9 @@ export default function ClientCalcWizard() {
               <p className="text-sm text-slate-400 mt-0.5">{projectName || "Empresa"}</p>
             </div>
             <img
-              src="https://pontotel.com.br/wp-content/themes/pontotel/assets/img/logo-pontotel.svg"
+              src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/09fa0a8a2_LogoPontotel_AmarelaePreta.png"
               alt="Pontotel"
               className="h-8 md:h-10 mt-0.5"
-              onError={(e) => { e.target.style.display = 'none'; }}
             />
           </div>
           <div className="h-px bg-slate-200 mt-3"></div>
