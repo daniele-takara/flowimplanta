@@ -2355,7 +2355,20 @@ export default function CalculationRulesTab({ projectId, project }) {
               onClick={async () => {
                 await flushPending();
                 await save({ status: "finalizado" });
-                alert("Regras de cálculo finalizadas com sucesso!");
+
+                // Preencher data de fim de execução da atividade de reunião de parametrização
+                const today = new Date().toISOString().split("T")[0];
+                const atividades = await base44.entities.ScheduleActivity.filter({
+                  project_id: projectId,
+                  activity_name: "Reunião para parametrização de Regras (Cálculo, banco de horas e arquivo de exportação)"
+                });
+                let msgExtra = "";
+                if (atividades.length > 0) {
+                  await base44.entities.ScheduleActivity.update(atividades[0].id, { actual_end: today });
+                  msgExtra = "\n\nA data de Fim Exec. da atividade \"Reunião para parametrização de Regras\" foi atualizada para hoje.";
+                }
+
+                alert("Regras de cálculo finalizadas com sucesso!" + msgExtra);
               }}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-green-600 bg-green-600 text-white hover:bg-green-700"
             >
