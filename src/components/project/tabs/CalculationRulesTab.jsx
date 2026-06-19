@@ -14,6 +14,8 @@ import ProrrogacaoAdicionalNoturnoInfoModal from "@/components/project/tabs/calc
 import ReducaoHoraNoturnaInfoModal from "@/components/project/tabs/calculation/ReducaoHoraNoturnaInfoModal";
 import AdicionalIncluiPausaInfoModal from "@/components/project/tabs/calculation/AdicionalIncluiPausaInfoModal";
 import Jornada12x36FeriadoInfoModal from "@/components/project/tabs/calculation/Jornada12x36FeriadoInfoModal";
+import DSRFeriasHEInfoModal from "@/components/project/tabs/calculation/DSRFeriasHEInfoModal";
+import DSRMesDescontoInfoModal from "@/components/project/tabs/calculation/DSRMesDescontoInfoModal";
 import { logAudit } from "@/lib/auditLog";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -1381,14 +1383,50 @@ function BancoHorasForm({ companyData, data, onChange }) {
   );
 }
 
-// ── Step 9: DSR / Feriados ───────────────────────────────────────────────────
-function DSRForm({ companyData, data, onChange }) {
+// ── Step 8: DSR / Feriados ───────────────────────────────────────────────────
+function DSRForm({ companyData, data, onChange, onInfoHEFeriadoClick, onInfoMesDescontoClick }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
 
   if (rules.length === 0) return <p className="text-slate-400 text-sm">Adicione regras de cálculo no passo 1 primeiro.</p>;
 
-  const selected = (name) => d[name] || { modeloDSR: "padrao" };
+  const selected = (name) => d[name] || {
+    tipoHEFeriado: "extra",
+    pausaFolgaHoraTrabalhada: "nao_considerar",
+    dsrDobroFalta: "sim",
+    mesDescontoDSR: "falta",
+    dispensaParcial: "atraso",
+    envioE02: false,
+    codigoVerba: "",
+    formatoVerba: "",
+    verbas: []
+  };
+
+  const updateRule = (name, field, value) => {
+    const val = selected(name);
+    onChange({ ...d, [name]: { ...val, [field]: value } });
+  };
+
+  const addVerba = (name) => {
+    const val = selected(name);
+    const verbas = [...(val.verbas || [])];
+    verbas.push({ nome: "", codigo: "", percentual: "" });
+    onChange({ ...d, [name]: { ...val, verbas } });
+  };
+
+  const removeVerba = (name, idx) => {
+    const val = selected(name);
+    const verbas = [...(val.verbas || [])];
+    verbas.splice(idx, 1);
+    onChange({ ...d, [name]: { ...val, verbas } });
+  };
+
+  const updateVerba = (name, idx, field, value) => {
+    const val = selected(name);
+    const verbas = [...(val.verbas || [])];
+    verbas[idx] = { ...verbas[idx], [field]: value };
+    onChange({ ...d, [name]: { ...val, verbas } });
+  };
 
   return (
     <div className="space-y-6">
@@ -1405,13 +1443,109 @@ function DSRForm({ companyData, data, onChange }) {
             <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} isInheriting={inhActive} inheritingFrom={inhFrom} />
             {inhLocked ? null : (
             <>
-            <div>
-              <label className={labelClass}>Modelo DSR/Feriados</label>
-              <select value={val.modeloDSR} onChange={e => onChange({ ...d, [name]: { ...val, modeloDSR: e.target.value } })} className={`${selectClass} max-w-xs`}>
-                <option value="padrao">Padrão — DSR incluso nas horas extras</option>
-                <option value="separado">Separado — DSR calculado separadamente</option>
+
+            {/* Pergunta 1: Tipo de HE em feriado/folga com pausa */}
+            <div className="mb-4">
+              <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                Se o funcionário trabalhar em um dia de feriado ou folga, qual o tipo de % de Hora Extra deve ser considerada caso não seja realizada a pausa refeição? Selecione a opção mais indicada.
+                <button onClick={(e) => { e.preventDefault(); onInfoHEFeriadoClick?.(); }} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors shrink-0" title="Entenda os modelos">
+                  <Info className="w-3.5 h-3.5" />
+                </button>
+              </label>
+              <select value={val.tipoHEFeriado || "extra"} onChange={e => updateRule(name, "tipoHEFeriado", e.target.value)} className={`${selectClass} mt-1`}>
+                <option value="extra">Extra</option>
+                <option value="nao_considerar">Não considerar</option>
               </select>
             </div>
+
+            {/* Pergunta 2: Pausa refeição em dia de folga */}
+            <div className="border-t pt-4 mb-4">
+              <label className={labelClass}>Caso o funcionário trabalhe em um dia de folga, a pausa refeição deve ser considerada como hora trabalhada?</label>
+              <select value={val.pausaFolgaHoraTrabalhada || "nao_considerar"} onChange={e => updateRule(name, "pausaFolgaHoraTrabalhada", e.target.value)} className={`${selectClass} mt-1`}>
+                <option value="">Selecione uma opção</option>
+                <option value="nao_considerar">Se o funcionário trabalha 08:00 + 01:00 de pausa, será gerado apontamento de 08:00 trabalhadas (não considerando a pausa)</option>
+                <option value="considerar">Se o funcionário trabalha 08:00 + 01:00 de pausa, será gerado apontamento de 09:00 trabalhadas (considerando a pausa)</option>
+              </select>
+            </div>
+
+            {/* Pergunta 3: DSR em dobro */}
+            <div className="border-t pt-4 mb-4">
+              <label className={labelClass}>Se o funcionário falta em uma semana com feriado, é descontado DSR em dobro?</label>
+              <select value={val.dsrDobroFalta || "sim"} onChange={e => updateRule(name, "dsrDobroFalta", e.target.value)} className={`${selectClass} mt-1`}>
+                <option value="sim">Sim, descontar o DSR do domingo e do feriado</option>
+                <option value="nao">Não, descontar apenas um DSR</option>
+              </select>
+            </div>
+
+            {/* Pergunta 4: Mês de desconto do DSR */}
+            <div className="border-t pt-4 mb-4">
+              <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                Quando a falta for realizada em uma semana em que o domingo acontecerá na próxima folha, o desconto será:
+                <button onClick={(e) => { e.preventDefault(); onInfoMesDescontoClick?.(); }} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors shrink-0" title="Entenda o mês de desconto do DSR">
+                  <Info className="w-3.5 h-3.5" />
+                </button>
+              </label>
+              <select value={val.mesDescontoDSR || "falta"} onChange={e => updateRule(name, "mesDescontoDSR", e.target.value)} className={`${selectClass} mt-1`}>
+                <option value="falta">Realizado na folha em que ocorreu a falta</option>
+                <option value="proximo_mes">No próximo mês, olhando para o domingo</option>
+              </select>
+            </div>
+
+            {/* Pergunta 5: Dispensa parcial */}
+            <div className="border-t pt-4 mb-4">
+              <label className={labelClass}>Em dias de falta com dispensa parcial lançada, é considerado atraso ou falta?</label>
+              <select value={val.dispensaParcial || "atraso"} onChange={e => updateRule(name, "dispensaParcial", e.target.value)} className={`${selectClass} mt-1`}>
+                <option value="">Selecione uma opção</option>
+                <option value="atraso">Se o funcionário possui uma jornada das 09:00 às 18:00 e possui atestado das 09:00 às 15:00, caso ele não trabalhe o tempo restante da jornada, as horas serão descontadas como atraso.</option>
+                <option value="falta">Se o funcionário possui uma jornada das 09:00 às 18:00 e possui atestado das 09:00 às 15:00, caso ele não trabalhe o tempo restante da jornada, o dia será contabilizado como falta.</option>
+              </select>
+            </div>
+
+            {/* Pergunta 6: Envio FOPAG */}
+            <div className="border-t pt-4 mb-4">
+              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer mb-3">
+                <input type="checkbox" checked={!!val.envioE02} onChange={e => updateRule(name, "envioE02", e.target.checked)} className="w-4 h-4 accent-purple-600 rounded" />
+                Enviar para arquivo de exportação para FOPAG (E02)?
+              </label>
+              {val.envioE02 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-6">
+                  <input value={val.codigoVerba || ""} onChange={e => updateRule(name, "codigoVerba", e.target.value)} className={inputClass} placeholder="Código da verba" />
+                  <select value={val.formatoVerba || ""} onChange={e => updateRule(name, "formatoVerba", e.target.value)} className={selectClass}>
+                    <option value="">Selecione o formato</option>
+                    <option value="Dia">Dia</option>
+                    <option value="HH:MM">HH:MM</option>
+                    <option value="Centesimal">Centesimal</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Pergunta 7: Outras Verbas */}
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-slate-500 uppercase">Outras Verbas (Folga/Feriado/DSR)</p>
+                <button onClick={() => addVerba(name)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors">
+                  + Adicionar Verba
+                </button>
+              </div>
+              {(val.verbas || []).length === 0 && (
+                <p className="text-xs text-slate-400 italic">Nenhuma verba adicional.</p>
+              )}
+              {(val.verbas || []).map((v, i) => (
+                <div key={i} className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-slate-600">Verba #{i + 1}</span>
+                    <button onClick={() => removeVerba(name, i)} className="text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input value={v.nome || ""} onChange={e => updateVerba(name, i, "nome", e.target.value)} className={inputClass} placeholder="Nome da verba" />
+                    <input value={v.codigo || ""} onChange={e => updateVerba(name, i, "codigo", e.target.value)} className={inputClass} placeholder="Código" />
+                    <input value={v.percentual || ""} onChange={e => updateVerba(name, i, "percentual", e.target.value)} className={inputClass} placeholder="%" />
+                  </div>
+                </div>
+              ))}
+            </div>
+
             </>
             )}
           </div>
@@ -1525,7 +1659,7 @@ function RevisaoFinal({ companyData, allData, project }) {
               {j12.hasJornada12x36 !== "nao" && <p><span className="font-medium text-slate-600">12x36:</span> Feriado: {j12.pagamentoFeriado === "extra" ? "Pagamento extra" : "Pagamento normal"} | Falta: {j12.faltaFeriado === "sim" ? "Sim" : "Não"}</p>}
               {sb.hasSobreaviso !== "nao" && <p><span className="font-medium text-slate-600">Sobreaviso:</span> {sb.porcentagem || "—"}%{sb.bancoHoras === "sim" ? " (Banco de Horas)" : ""}{sb.envioE02 ? " | Envia FOPAG" : ""}{(sb.verbas || []).length > 0 ? ` | ${sb.verbas.length} verba(s)` : ""}</p>}
               {bh.model && <p><span className="font-medium text-slate-600">Banco de Horas:</span> {bh.model} — {bh.periodoCompensacao || "mensal"}{bh.limiteCreditoMensal ? ` | Crédito máx: ${bh.limiteCreditoMensal}h/mês` : ""}</p>}
-              {dsr.modeloDSR && <p><span className="font-medium text-slate-600">DSR:</span> {dsr.modeloDSR === "padrao" ? "Incluso nas HE" : "Separado"}</p>}
+              {dsr.tipoHEFeriado && <p><span className="font-medium text-slate-600">DSR/Feriados:</span> HE Feriado: {dsr.tipoHEFeriado === "extra" ? "Extra" : "Não considerar"} | Pausa Folga: {dsr.pausaFolgaHoraTrabalhada === "considerar" ? "Considerar" : "Não considerar"} | DSR Dobro: {dsr.dsrDobroFalta === "sim" ? "Sim" : "Não"} | Mês Desc: {dsr.mesDescontoDSR === "falta" ? "Na folha da falta" : "Próximo mês"}{dsr.envioE02 ? " | Envia FOPAG" : ""}{(dsr.verbas || []).length > 0 ? ` | ${dsr.verbas.length} verba(s)` : ""}</p>}
             </div>
           </div>
         );
@@ -1567,6 +1701,8 @@ export default function CalculationRulesTab({ projectId, project }) {
   const [showReducaoHoraNoturnaModal, setShowReducaoHoraNoturnaModal] = useState(false);
   const [showAdicionalIncluiPausaModal, setShowAdicionalIncluiPausaModal] = useState(false);
   const [showJornada12x36FeriadoModal, setShowJornada12x36FeriadoModal] = useState(false);
+  const [showDSRFeriasHEModal, setShowDSRFeriasHEModal] = useState(false);
+  const [showDSRMesDescontoModal, setShowDSRMesDescontoModal] = useState(false);
 
   useEffect(() => { if (record?.current_step) setCurrentStep(record.current_step); }, [record?.current_step]);
 
@@ -1763,7 +1899,7 @@ export default function CalculationRulesTab({ projectId, project }) {
           <BancoHorasForm companyData={stepData.company_data} data={stepData.bank_hours_rules} onChange={canEdit ? (data) => scheduleSave("bank_hours_rules", data) : () => {}} />
         )}
         {step?.key === "dsr_rules" && (
-          <DSRForm companyData={stepData.company_data} data={stepData.dsr_rules} onChange={canEdit ? (data) => scheduleSave("dsr_rules", data) : () => {}} />
+          <DSRForm companyData={stepData.company_data} data={stepData.dsr_rules} onChange={canEdit ? (data) => scheduleSave("dsr_rules", data) : () => {}} onInfoHEFeriadoClick={() => setShowDSRFeriasHEModal(true)} onInfoMesDescontoClick={() => setShowDSRMesDescontoModal(true)} />
         )}
         {step?.key === "other_verbs_rules" && (
           <OutrasVerbasForm companyData={stepData.company_data} data={stepData.other_verbs_rules} onChange={canEdit ? (data) => scheduleSave("other_verbs_rules", data) : () => {}} />
@@ -1824,6 +1960,16 @@ export default function CalculationRulesTab({ projectId, project }) {
       {/* Modal informativo de feriados na jornada 12x36 */}
       {showJornada12x36FeriadoModal && (
         <Jornada12x36FeriadoInfoModal onClose={() => setShowJornada12x36FeriadoModal(false)} />
+      )}
+
+      {/* Modal informativo de tipo de HE em feriados/folgas */}
+      {showDSRFeriasHEModal && (
+        <DSRFeriasHEInfoModal onClose={() => setShowDSRFeriasHEModal(false)} />
+      )}
+
+      {/* Modal informativo de mês de desconto do DSR */}
+      {showDSRMesDescontoModal && (
+        <DSRMesDescontoInfoModal onClose={() => setShowDSRMesDescontoModal(false)} />
       )}
 
       {/* Navigation */}
