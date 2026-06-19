@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Save, CheckCircle, Loader2, FileDown, Rotate
 import { usePermissions } from "@/lib/usePermissions";
 import CopyFromRule from "@/components/project/tabs/calculation/CopyFromRule";
 import CalculationModelsInfoModal from "@/components/project/tabs/calculation/CalculationModelsInfoModal";
+import { generateCalcRulesPDF } from "@/lib/calcRulesPdfExport";
 import HorasExtrasInfoModal from "@/components/project/tabs/calculation/HorasExtrasInfoModal";
 import CategorizacaoHEInfoModal from "@/components/project/tabs/calculation/CategorizacaoHEInfoModal";
 import CategorizacaoHEMensalInfoModal from "@/components/project/tabs/calculation/CategorizacaoHEMensalInfoModal";
@@ -2028,6 +2029,8 @@ export default function CalculationRulesTab({ projectId, project }) {
   const [showDSRMesDescontoModal, setShowDSRMesDescontoModal] = useState(false);
   const [showBancoHorasModal, setShowBancoHorasModal] = useState(false);
   const [showBancoHorasAcumuloModal, setShowBancoHorasAcumuloModal] = useState(false);
+  const [generatingCalcPDF, setGeneratingCalcPDF] = useState(false);
+  const [parametrizacaoRealizada, setParametrizacaoRealizada] = useState(false);
 
   useEffect(() => { if (record?.current_step) setCurrentStep(record.current_step); }, [record?.current_step]);
 
@@ -2129,19 +2132,67 @@ export default function CalculationRulesTab({ projectId, project }) {
           <p className="text-sm text-slate-400">Wizard de configuração das regras de cálculo da empresa</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={async () => {
+              setGeneratingCalcPDF(true);
+              try {
+                const pdfBytes = await generateCalcRulesPDF({
+                  project,
+                  companyData: stepData.company_data,
+                  allStepData: stepData,
+                });
+                const blob = new Blob([pdfBytes], { type: "application/pdf" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = `Regras_Calculo_${(project?.client_name || "projeto").replace(/\s+/g, "_")}.pdf`;
+                link.click();
+                URL.revokeObjectURL(url);
+              } catch (err) {
+                console.error("Erro ao gerar PDF das regras:", err);
+                alert("Erro ao gerar PDF. Tente novamente.");
+              }
+              setGeneratingCalcPDF(false);
+            }}
+            disabled={generatingCalcPDF}
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 disabled:opacity-60 transition-colors"
+          >
+            {generatingCalcPDF ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+            Gerar PDF
+          </button>
           {canEdit && (
-            <button
-              onClick={async () => {
-                if (window.confirm("Reiniciar o assistente? Todos os dados serão perdidos.")) {
-                  if (record?.id) await base44.entities.CalculationRule.delete(record.id);
-                  reload();
-                  setCurrentStep(1);
-                }
-              }}
-              className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-red-300 hover:bg-red-50 transition-colors"
-            >
-              <RotateCcw className="w-3.5 h-3.5" /> Reiniciar
-            </button>
+            <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-600 border border-slate-200 rounded-lg px-3 py-1.5 bg-white hover:bg-slate-50 transition-colors">
+              <input
+                type="checkbox"
+                checked={!!parametrizacaoRealizada}
+                onChange={async (e) => {
+                  const checked = e.target.checked;
+                  setParametrizacaoRealizada(checked);
+                  if (checked) {
+                    const today = new Date().toISOString().split("T")[0];
+                    const atividadeNome = "Parametrização de regras";
+                    const atividades = await base44.entities.ScheduleActivity.filter({
+                      project_id: projectId,
+                      activity_name: atividadeNome
+                    });
+                    if (atividades.length > 0) {
+                      await base44.entities.ScheduleActivity.update(atividades[0].id, { actual_end: today, status: "Concluído" });
+                    } else {
+                      await base44.entities.ScheduleActivity.create({
+                        project_id: projectId,
+                        phase_name: "Parametrização",
+                        activity_name: atividadeNome,
+                        order: 28,
+                        actual_end: today,
+                        status: "Concluído",
+                      });
+                    }
+                  }
+                }}
+                className="w-4 h-4 accent-emerald-600 rounded"
+              />
+              Parametrização realizada
+            </label>
           )}
           {saving && (
             <span className="flex items-center gap-1 text-xs text-slate-400">
