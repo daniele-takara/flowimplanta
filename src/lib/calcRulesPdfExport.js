@@ -85,7 +85,7 @@ export async function generateCalcRulesPDF({ project, companyData, allStepData }
 
   // ═══ HEADER ═══
   if (logoDataUrl) {
-    doc.addImage(logoDataUrl, "PNG", M + PW - 38, y - 2, 38, 14);
+    doc.addImage(logoDataUrl, "PNG", M + PW - 24, y - 6, 24, 8);
   }
   doc.setFontSize(18);
   doc.setTextColor(124, 58, 237);
