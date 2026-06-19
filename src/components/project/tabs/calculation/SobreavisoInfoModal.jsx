@@ -1,6 +1,22 @@
+import { useState } from "react";
 import { X } from "lucide-react";
+import ImageExpandModal from "@/components/project/tabs/ImageExpandModal";
 
 export default function SobreavisoInfoModal({ onClose }) {
+  const [expandedImg, setExpandedImg] = useState(null);
+
+  const imgTrabalhado = {
+    src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/f79109595_Sobreavisocadastradoetrabalhado.png",
+    alt: "Sobreaviso cadastrado e trabalhado",
+    label: "Sobreaviso cadastrado e trabalhado — gera H. Trabalhadas + H. Extra Sobreaviso"
+  };
+
+  const imgParcial = {
+    src: "https://media.base44.com/images/public/69e295c073bbccc7f63f6156/47130e733_Sobreavisocadastradoetrabalhadoparcialmente.png",
+    alt: "Sobreaviso cadastrado e trabalhado parcialmente",
+    label: "Sobreaviso cadastrado e trabalhado parcialmente — gera H. Trabalhadas + H. Extra Sobreaviso + Duração de Sobreaviso"
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div
@@ -44,34 +60,52 @@ export default function SobreavisoInfoModal({ onClose }) {
               </div>
             </div>
 
-            <div className="border-t pt-4 space-y-4">
+            <div className="border-t pt-4 space-y-6">
+              {/* Sobreaviso não trabalhado — textual apenas */}
               <div>
-                <h3 className="text-sm font-bold text-slate-800 mb-3">Sobreaviso cadastrado, porém não trabalhado</h3>
-                {/* Imagem: Sobreaviso cadastrado e não trabalhado */}
-                <div className="bg-slate-100 rounded-lg h-48 flex items-center justify-center text-slate-400 text-sm">
-                  Imagem: Sobreaviso não trabalhado
-                </div>
+                <h3 className="text-sm font-bold text-slate-800 mb-2">Sobreaviso cadastrado, porém não trabalhado</h3>
+                <p className="text-xs text-slate-500">
+                  Neste cenário, o colaborador estava de sobreaviso mas não foi acionado. Será gerado apenas o apontamento de <strong>"duração de sobreaviso"</strong>.
+                </p>
               </div>
 
+              {/* Sobreaviso trabalhado */}
               <div>
                 <h3 className="text-sm font-bold text-slate-800 mb-3">Sobreaviso cadastrado e trabalhado</h3>
-                {/* Imagem: Sobreaviso cadastrado e trabalhado */}
-                <div className="bg-slate-100 rounded-lg h-48 flex items-center justify-center text-slate-400 text-sm">
-                  Imagem: Sobreaviso cadastrado e trabalhado
-                </div>
+                <img
+                  src={imgTrabalhado.src}
+                  alt={imgTrabalhado.alt}
+                  onClick={() => setExpandedImg(imgTrabalhado)}
+                  className="w-full rounded-lg border border-slate-200 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all shadow-sm"
+                  title="Clique para ampliar"
+                />
+                <p className="text-xs text-slate-400 mt-1.5 text-center">{imgTrabalhado.label}</p>
               </div>
 
+              {/* Sobreaviso trabalhado parcialmente */}
               <div>
                 <h3 className="text-sm font-bold text-slate-800 mb-3">Sobreaviso cadastrado e trabalhado parcialmente</h3>
-                {/* Imagem: Sobreaviso cadastrado e trabalhado parcialmente */}
-                <div className="bg-slate-100 rounded-lg h-48 flex items-center justify-center text-slate-400 text-sm">
-                  Imagem: Sobreaviso cadastrado e trabalhado parcialmente
-                </div>
+                <img
+                  src={imgParcial.src}
+                  alt={imgParcial.alt}
+                  onClick={() => setExpandedImg(imgParcial)}
+                  className="w-full rounded-lg border border-slate-200 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all shadow-sm"
+                  title="Clique para ampliar"
+                />
+                <p className="text-xs text-slate-400 mt-1.5 text-center">{imgParcial.label}</p>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {expandedImg && (
+        <ImageExpandModal
+          src={expandedImg.src}
+          alt={expandedImg.alt}
+          onClose={() => setExpandedImg(null)}
+        />
+      )}
     </div>
   );
 }
