@@ -271,8 +271,18 @@ export default function ClientCalcWizard() {
       {/* Top bar */}
       <div className="bg-white border-b border-slate-200 px-4 md:px-8">
         <div className="py-4">
-          <h1 className="text-xl font-bold text-slate-800">Regras de Cálculo</h1>
-          <p className="text-sm text-slate-400 mt-0.5">{projectName || "Empresa"}</p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-slate-800">Regras de Cálculo</h1>
+              <p className="text-sm text-slate-400 mt-0.5">{projectName || "Empresa"}</p>
+            </div>
+            <img
+              src="https://pontotel.com.br/wp-content/themes/pontotel/assets/img/logo-pontotel.svg"
+              alt="Pontotel"
+              className="h-8 md:h-10 mt-0.5"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+          </div>
           <div className="h-px bg-slate-200 mt-3"></div>
         </div>
         <div className="flex items-center gap-2 pb-3">
