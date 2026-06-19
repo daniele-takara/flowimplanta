@@ -13,7 +13,7 @@ import DSRForm from "@/components/project/tabs/calculation/DSRForm";
 import OutrasVerbasForm from "@/components/project/tabs/calculation/OutrasVerbasForm";
 import RevisaoFinal from "@/components/project/tabs/calculation/RevisaoFinal";
 import { STEPS } from "@/lib/calcRulesShared";
-import { appParams } from "@/lib/app-params";
+import { base44 } from "@/api/base44Client";
 
 // ── Client-side data layer (uses backend functions, no auth) ────────────────
 function useClientWizardState(token) {
@@ -24,13 +24,8 @@ function useClientWizardState(token) {
 
   const load = useCallback(async () => {
     try {
-      const headers = { "Content-Type": "application/json", "X-App-Id": appParams.appId };
-      const res = await fetch(`/api/functions/getClientCalcRule`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ token }),
-      });
-      const data = await res.json();
+      const res = await base44.functions.invoke('getClientCalcRule', { token });
+      const data = res.data;
       if (data.error) {
         setRecord(null);
       } else {
@@ -38,7 +33,6 @@ function useClientWizardState(token) {
         setProjectName(data.client_name || "");
       }
     } catch (e) {
-      console.error(e);
       setRecord(null);
     }
     setLoading(false);
@@ -53,14 +47,9 @@ function useClientWizardState(token) {
       if (v !== undefined && v !== null) payload[k] = typeof v === "object" ? v : v;
     });
     try {
-      const headers = { "Content-Type": "application/json", "X-App-Id": appParams.appId };
-      await fetch(`/api/functions/saveClientCalcRule`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
-      });
+      await base44.functions.invoke('saveClientCalcRule', payload);
     } catch (e) {
-      console.error(e);
+      // silent
     }
     setSaving(false);
   }, [token]);
