@@ -5,6 +5,7 @@ import { usePermissions } from "@/lib/usePermissions";
 import CopyFromRule from "@/components/project/tabs/calculation/CopyFromRule";
 import CalculationModelsInfoModal from "@/components/project/tabs/calculation/CalculationModelsInfoModal";
 import HorasExtrasInfoModal from "@/components/project/tabs/calculation/HorasExtrasInfoModal";
+import CategorizacaoHEInfoModal from "@/components/project/tabs/calculation/CategorizacaoHEInfoModal";
 import { logAudit } from "@/lib/auditLog";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -251,7 +252,7 @@ function RegrasForm({ companyData, data, onChange }) {
 }
 
 // ── Step 3: Horas Extras ─────────────────────────────────────────────────────
-function HorasExtrasForm({ companyData, data, onChange }) {
+function HorasExtrasForm({ companyData, data, onChange, onInfoDiariaClick }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
 
@@ -389,7 +390,7 @@ function HorasExtrasForm({ companyData, data, onChange }) {
                 <div>
                   <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
                     Existe categorização de hora extra diária?
-                    <Info className="w-3.5 h-3.5 text-purple-500 cursor-help" />
+                    <button onClick={(e) => { e.preventDefault(); onInfoDiariaClick?.(); }} className="inline-flex"><Info className="w-3.5 h-3.5 text-purple-500 cursor-pointer hover:text-purple-700" /></button>
                   </label>
                   <select value={val.categorizacaoHEDiaria || "Não"} onChange={e => updateRule(name, "categorizacaoHEDiaria", e.target.value)} className={`${selectClass} mt-1`}>
                     <option value="Não">Não</option>
@@ -1218,6 +1219,7 @@ export default function CalculationRulesTab({ projectId, project }) {
   const [currentStep, setCurrentStep] = useState(record?.current_step || 1);
   const [showCalcModelsModal, setShowCalcModelsModal] = useState(false);
   const [showHorasExtrasModal, setShowHorasExtrasModal] = useState(false);
+  const [showCategorizacaoHEModal, setShowCategorizacaoHEModal] = useState(false);
 
   useEffect(() => { if (record?.current_step) setCurrentStep(record.current_step); }, [record?.current_step]);
 
@@ -1396,7 +1398,7 @@ export default function CalculationRulesTab({ projectId, project }) {
           <RegrasForm companyData={stepData.company_data} data={stepData.rule_configurations} onChange={canEdit ? (data) => scheduleSave("rule_configurations", data) : () => {}} />
         )}
         {step?.key === "overtime_rules" && (
-          <HorasExtrasForm companyData={stepData.company_data} data={stepData.overtime_rules} onChange={canEdit ? (data) => scheduleSave("overtime_rules", data) : () => {}} />
+          <HorasExtrasForm companyData={stepData.company_data} data={stepData.overtime_rules} onChange={canEdit ? (data) => scheduleSave("overtime_rules", data) : () => {}} onInfoDiariaClick={() => setShowCategorizacaoHEModal(true)} />
         )}
         {step?.key === "break_time_rules" && (
           <IntervalosForm companyData={stepData.company_data} data={stepData.break_time_rules} onChange={canEdit ? (data) => scheduleSave("break_time_rules", data) : () => {}} />
@@ -1430,6 +1432,11 @@ export default function CalculationRulesTab({ projectId, project }) {
       {/* Modal informativo de horas extras */}
       {showHorasExtrasModal && (
         <HorasExtrasInfoModal onClose={() => setShowHorasExtrasModal(false)} />
+      )}
+
+      {/* Modal informativo de categorização de hora extra */}
+      {showCategorizacaoHEModal && (
+        <CategorizacaoHEInfoModal onClose={() => setShowCategorizacaoHEModal(false)} />
       )}
 
       {/* Navigation */}
