@@ -14,6 +14,7 @@
 import { jsPDF } from "jspdf";
 import { SCHEDULE_TASKS, PHASE_ORDER, ANCHOR_IDS } from "@/lib/scheduleTasks.js";
 import { computeSchedule } from "@/lib/scheduleEngine.js";
+import { resolveRoleToName, resolveGeneralResponsible } from "@/lib/resolveResponsibleRole.js";
 
 function loadImage(url) {
   return new Promise((resolve, reject) => {
@@ -311,8 +312,16 @@ export async function generateSchedulePDF({
       const aEnd = act?.actual_end || "";
       const status = act?.status || "Nao iniciado";
       const obs = act?.history_observations || "";
-      const respGeneral = act?.responsible_general || task.responsibleGeneral || "";
-      const respLeader = act?.responsible_leader || task.responsibleLeader || "";
+      // Resolve responsável geral: 1. salvo na atividade, 2. templateConfig (resolveGeneralResponsible), 3. fallback
+      const taskConfig = templateConfig?.[task.id];
+      const resolvedGeneral = taskConfig?.responsible_general_type
+        ? resolveGeneralResponsible(taskConfig.responsible_general_type, project)
+        : "";
+      const resolvedLeader = taskConfig?.responsible_role
+        ? resolveRoleToName(taskConfig.responsible_role, project)
+        : "";
+      const respGeneral = act?.responsible_general || resolvedGeneral || "";
+      const respLeader = act?.responsible_leader || resolvedLeader || "";
 
       doc.setFontSize(6);
       doc.setFont("helvetica", "normal");
