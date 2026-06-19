@@ -570,6 +570,9 @@ function HorasExtrasForm({ companyData, data, onChange, onInfoDiariaClick, onInf
 }
 
 // ── Step 4: Intervalos ───────────────────────────────────────────────────────
+const intervalInputClass = "w-12 px-1.5 py-0.5 text-center text-sm border-0 border-b border-black bg-transparent focus:outline-none focus:border-blue-500 focus:border-b-2";
+const intervalReadonlyClass = "w-12 px-1.5 py-0.5 text-center text-sm border-0 bg-slate-100 rounded";
+
 function IntervalosForm({ companyData, data, onChange }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
@@ -579,7 +582,8 @@ function IntervalosForm({ companyData, data, onChange }) {
   const selected = (name) => d[name] || {
     model: "", toleranciaAtrasoPausa: "5", toleranciaInicioPausa: "10", toleranciaFimPausa: "10",
     envioE02: false, codigoVerba: "",
-    ranges: []
+    ranges: [],
+    intervaloMinHoras: "4", intervaloMaxHoras: "6", intervaloMinMinutos: "15", intervaloMaxMinutos: "60"
   };
 
   const updateRule = (name, field, value) => {
@@ -629,6 +633,63 @@ function IntervalosForm({ companyData, data, onChange }) {
             <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} isInheriting={inhActive} inheritingFrom={inhFrom} />
             {inhLocked ? null : (
             <>
+            {/* Divisão do intervalo para refeição e descanso */}
+            <div className="mb-6">
+              <p className="text-sm font-semibold text-slate-700 mb-4">Divisão do intervalo para refeição e descanso</p>
+              <div className="space-y-3">
+                {/* Linha 1: Entre X e Y horas será devido Z mins */}
+                <div className="flex items-center gap-1.5 flex-wrap text-sm text-slate-700">
+                  <span>Entre</span>
+                  <input
+                    value={val.intervaloMinHoras || "4"}
+                    onChange={e => updateRule(name, "intervaloMinHoras", e.target.value)}
+                    className={intervalInputClass}
+                    type="number"
+                    min="1"
+                  />
+                  <span>e</span>
+                  <input
+                    value={val.intervaloMaxHoras || "6"}
+                    onChange={e => updateRule(name, "intervaloMaxHoras", e.target.value)}
+                    className={intervalInputClass}
+                    type="number"
+                    min="1"
+                  />
+                  <span>horas será devido</span>
+                  <input
+                    value={val.intervaloMinMinutos || "15"}
+                    onChange={e => updateRule(name, "intervaloMinMinutos", e.target.value)}
+                    className={intervalInputClass}
+                    type="number"
+                    min="1"
+                  />
+                  <span>mins</span>
+                </div>
+                <p className="text-xs text-slate-400 -mt-1 ml-0 pl-0">de intervalo para refeição</p>
+
+                {/* Linha 2: Mais que X horas será devido Y mins */}
+                <div className="flex items-center gap-1.5 flex-wrap text-sm text-slate-700">
+                  <span>Mais que</span>
+                  <input
+                    value={val.intervaloMaxHoras || "6"}
+                    readOnly
+                    className={intervalReadonlyClass}
+                    type="number"
+                  />
+                  <span>horas será devido</span>
+                  <input
+                    value={val.intervaloMaxMinutos || "60"}
+                    onChange={e => updateRule(name, "intervaloMaxMinutos", e.target.value)}
+                    className={intervalInputClass}
+                    type="number"
+                    min="1"
+                  />
+                  <span>mins</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t pt-4 mb-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className={labelClass}>Modelo</label>
@@ -700,6 +761,7 @@ function IntervalosForm({ companyData, data, onChange }) {
                   Enviar ao arquivo de exportação para FOPAG
                 </label>
               </div>
+            </div>
             </div>
             </>
             )}
