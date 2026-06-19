@@ -4,7 +4,7 @@ export default function CategorizacaoHEInfoModal({ onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto mx-4"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -28,11 +28,12 @@ export default function CategorizacaoHEInfoModal({ onClose }) {
           </p>
 
           {/* Imagem de exemplo */}
-          <div className="bg-slate-50 rounded-xl border border-slate-200 p-3">
+          <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
             <img
               src="https://media.base44.com/images/public/69e295c073bbccc7f63f6156/37621bba2_cathoraextra.png"
               alt="Exemplo de categorização de hora extra"
               className="w-full rounded-lg"
+              style={{ minHeight: "300px" }}
             />
           </div>
         </div>
