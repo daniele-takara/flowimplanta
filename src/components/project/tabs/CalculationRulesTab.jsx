@@ -2358,12 +2358,22 @@ export default function CalculationRulesTab({ projectId, project }) {
 
                 // Preencher data de fim de execução da atividade de reunião de parametrização
                 const today = new Date().toISOString().split("T")[0];
+                const atividadeNome = "Reunião para parametrização de Regras (Cálculo, banco de horas e arquivo de exportação)";
                 const atividades = await base44.entities.ScheduleActivity.filter({
                   project_id: projectId,
-                  activity_name: "Reunião para parametrização de Regras (Cálculo, banco de horas e arquivo de exportação)"
+                  activity_name: atividadeNome
                 });
                 if (atividades.length > 0) {
-                  await base44.entities.ScheduleActivity.update(atividades[0].id, { actual_end: today });
+                  await base44.entities.ScheduleActivity.update(atividades[0].id, { actual_end: today, status: "Concluído" });
+                } else {
+                  await base44.entities.ScheduleActivity.create({
+                    project_id: projectId,
+                    phase_name: "Parametrização",
+                    activity_name: atividadeNome,
+                    order: 26,
+                    actual_end: today,
+                    status: "Concluído",
+                  });
                 }
 
                 alert("Regras de cálculo finalizadas com sucesso! E data atualizada em cronograma");
