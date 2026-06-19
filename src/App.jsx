@@ -26,6 +26,7 @@ import WebhookConfig from './pages/WebhookConfig';
 import MonitorIntegracoes from './pages/MonitorIntegracoes';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
+import NoPermissionScreen from './components/NoPermissionScreen';
 import { usePermissions } from './lib/usePermissions';
 
 const AuthenticatedApp = () => {
@@ -46,6 +47,13 @@ const AuthenticatedApp = () => {
 
   if (authChecked && !isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Usuário com perfil vinculado mas sem nenhuma permissão efetiva
+  const rawPerms = perms.perms || {};
+  const hasAnyPermission = Object.values(rawPerms).some(v => v === true);
+  if (user?.permission_profile_id && !hasAnyPermission && !perms.isSystemAdmin) {
+    return <NoPermissionScreen />;
   }
 
   // Cliente role: acesso restrito apenas ao wizard de regras
