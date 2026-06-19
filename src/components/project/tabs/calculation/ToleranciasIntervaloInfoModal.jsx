@@ -82,8 +82,7 @@ export default function ToleranciasIntervaloInfoModal({ onClose }) {
               <p className="font-medium text-amber-800">Por esse motivo:</p>
               <ul className="list-disc list-inside space-y-1 pl-2">
                 <li>O período não usufruído do intervalo <strong>não pode ser compensado</strong> posteriormente na jornada;</li>
-                <li>O período não usufruído <strong>não deve gerar crédito ou débito</strong> em banco de horas;</li>
-                <li>A situação deve ser tratada por meio do <strong>pagamento da indenização</strong> prevista na legislação.</li>
+                <li>A situação deve ser tratada por meio do <strong>pagamento em folha da indenização</strong> prevista na legislação.</li>
               </ul>
               <div className="bg-white border border-amber-100 rounded-lg p-4 mt-3">
                 <p className="text-xs font-semibold text-amber-700 mb-2">Exemplo:</p>
