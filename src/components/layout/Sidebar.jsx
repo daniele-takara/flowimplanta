@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, FolderKanban, Plus, Settings, GitBranch, LogOut, Users, FileBarChart, Activity } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Plus, Settings, GitBranch, LogOut, Users, FileBarChart, Activity, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { usePermissions } from "@/lib/usePermissions";
@@ -20,6 +20,7 @@ export default function Sidebar() {
     canAccessParametrizacoes && { icon: Activity, label: "Monitor Integrações", path: "/monitor-integracoes" },
     canAccessParametrizacoes && { icon: FileBarChart, label: "Relatório RBAC", path: "/rbac-report" },
     canAccessFluxo && { icon: GitBranch, label: "Fluxo do Projeto", path: "/fluxo" },
+  { icon: Database, label: "BigQuery", path: "/bigquery" },
   ].filter(Boolean);
 
   const renderLink = ({ icon: Icon, label, path }) => {

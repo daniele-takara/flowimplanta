@@ -19,6 +19,7 @@ import FluxoProjeto from './pages/FluxoProjeto';
 import UsersPermissions from './pages/UsersPermissions';
 import RBACReport from './pages/RBACReport';
 import DiagnosticoPipedrive from './pages/DiagnosticoPipedrive';
+import BigQueryConsultas from './pages/BigQueryConsultas';
 import Documentacao from './pages/Documentacao';
 import ClientCalcWizard from './pages/ClientCalcWizard';
 import WebhookConfig from './pages/WebhookConfig';
@@ -104,6 +105,7 @@ const AuthenticatedApp = () => {
             <FluxoProjeto />
           </ProtectedRoute>
         } />
+        <Route path="/bigquery" element={<BigQueryConsultas />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
