@@ -500,6 +500,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
     if (!current) return;
     setSendingToD4Sign(true);
     try {
+      const resolvedContent = selectedAdendo ? resolveAdendoContent(selectedAdendo.content, project, usabilitySnap) : null;
       const result = await base44.functions.invoke("sendTermoToD4Sign", {
         projectId,
         project,
@@ -509,7 +510,7 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
         selectedAdendo: selectedAdendo ? {
           title: selectedAdendo.title,
           type: selectedAdendo.type,
-          content: selectedAdendo.content
+          content: resolvedContent
         } : null,
         coordenadora: coordenadora ? { name: coordenadora.name, email: coordenadora.email } : null,
         liderImpl: liderImpl ? { name: liderImpl.name, email: liderImpl.email } : null,
