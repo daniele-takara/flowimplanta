@@ -1,6 +1,10 @@
+import { useState } from "react";
 import { Info, Trash2 } from "lucide-react";
-import { inputClass, labelClass, selectClass } from "@/lib/calcRulesShared";
 import CopyFromRule from "@/components/project/tabs/calculation/CopyFromRule";
+
+const inputClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";
+const labelClass = "block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5";
+const selectClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";
 
 export default function HorasExtrasForm({ companyData, data, onChange, onInfoDiariaClick, onInfoMensalClick }) {
   const rules = companyData?.rulesNames || [];
@@ -88,6 +92,7 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
             <CopyFromRule rules={rules} currentRule={name} data={d} onChange={onChange} isInheriting={inhActive} inheritingFrom={inhFrom} />
             {inhLocked ? null : (
             <>
+            {/* Percentuais e Envio FOPAG */}
             <div className="border-t pt-4 mb-4">
               <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Percentuais de Hora Extra</p>
               <div className="space-y-3">
@@ -132,6 +137,7 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
               </div>
             </div>
 
+            {/* Categorização de HE */}
             <div className="border-t pt-4 mb-4">
               <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Categorização de Horas Extras</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -158,13 +164,18 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
               </div>
             </div>
 
+            {/* Faixas de Limitação Diária */}
             {val.categorizacaoHEDiaria === "Sim" && (
             <div className="border-t pt-4 mb-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-semibold text-slate-500 uppercase">Faixas de Limitação Diária</p>
-                <button onClick={() => addFaixaLimite(name, "diaria")} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors">+ Adicionar Faixa</button>
+                <button onClick={() => addFaixaLimite(name, "diaria")} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors">
+                  + Adicionar Faixa
+                </button>
               </div>
-              {(val.faixasLimiteDiaria || []).length === 0 && <p className="text-xs text-slate-400 italic">Nenhuma faixa de limitação diária configurada.</p>}
+              {(val.faixasLimiteDiaria || []).length === 0 && (
+                <p className="text-xs text-slate-400 italic">Nenhuma faixa de limitação diária configurada.</p>
+              )}
               {(val.faixasLimiteDiaria || []).map((f, i) => (
                 <div key={i} className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-2">
                   <div className="flex items-center justify-between mb-2">
@@ -204,13 +215,18 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
             </div>
             )}
 
+            {/* Faixas de Limitação Mensal */}
             {val.categorizacaoHEMensal === "Sim" && (
             <div className="border-t pt-4 mb-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-semibold text-slate-500 uppercase">Faixas de Limitação Mensal</p>
-                <button onClick={() => addFaixaLimite(name, "mensal")} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors">+ Adicionar Faixa</button>
+                <button onClick={() => addFaixaLimite(name, "mensal")} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors">
+                  + Adicionar Faixa
+                </button>
               </div>
-              {(val.faixasLimiteMensal || []).length === 0 && <p className="text-xs text-slate-400 italic">Nenhuma faixa de limitação mensal configurada.</p>}
+              {(val.faixasLimiteMensal || []).length === 0 && (
+                <p className="text-xs text-slate-400 italic">Nenhuma faixa de limitação mensal configurada.</p>
+              )}
               {(val.faixasLimiteMensal || []).map((f, i) => (
                 <div key={i} className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-2">
                   <div className="flex items-center justify-between mb-2">
@@ -250,6 +266,7 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
             </div>
             )}
 
+            {/* Percentuais Adicionais */}
             <div className="border-t pt-4">
               <div className="flex items-center justify-between mb-3">
                 <label className="flex items-center gap-2 text-sm text-slate-600">
@@ -257,9 +274,12 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
                   Possui percentuais adicionais
                 </label>
                 {val.hasAdditionalRates && (
-                  <button onClick={() => addAdditionalRate(name)} className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700">+ Adicionar percentual</button>
+                  <button onClick={() => addAdditionalRate(name)} className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700">
+                    + Adicionar percentual
+                  </button>
                 )}
               </div>
+
               {(val.additionalRates || []).map((rate, i) => (
                 <div key={i} className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-2">
                   <div className="flex items-center justify-between mb-2">
@@ -292,6 +312,7 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
               ))}
             </div>
 
+            {/* Observações */}
             <div className="border-t pt-4 mt-2">
               <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
                 <input type="checkbox" checked={!!val.incluirObservacoes} onChange={e => updateRule(name, "incluirObservacoes", e.target.checked)} className="w-4 h-4 accent-blue-600 rounded" />
@@ -301,6 +322,7 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
                 <textarea value={val.observacoes || ""} onChange={e => updateRule(name, "observacoes", e.target.value)} className={`${inputClass} h-24 mt-2`} placeholder="Descreva as observações..." />
               )}
             </div>
+
             </>
             )}
           </div>
