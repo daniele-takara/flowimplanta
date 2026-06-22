@@ -11,97 +11,139 @@ Deno.serve(async (req) => {
       return Response.json({ error: "GOOGLE_SERVICE_ACCOUNT_JSON não configurado" }, { status: 500 });
     }
 
-    const { comp_man_id, empresa_id, limite, debug } = await req.json().catch(() => ({}));
+    const { comp_man_id, code, empresa_id, limite } = await req.json().catch(() => ({}));
 
-    // Gerar token JWT para autenticação via service account
     const credentials = JSON.parse(serviceAccountJson);
     const accessToken = await getAccessToken(credentials);
+    const projectId = credentials.project_id;
+    const bqUrl = `https://bigquery.googleapis.com/bigquery/v2/projects/${projectId}/queries`;
 
-    // Construir query
-    const searchId = comp_man_id || empresa_id;
-    let query;
-    const params = [];
-    
-    if (debug && searchId) {
-      // Modo debug: busca global pelo ID em TODAS as colunas de texto
-      const schemaUrl = `https://bigquery.googleapis.com/bigquery/v2/projects/${credentials.project_id}/datasets/customer_intelligence/tables/fct_uso_produto`;
-      const schemaResp = await fetch(schemaUrl, { headers: { "Authorization": `Bearer ${accessToken}` } });
-      const schemaData = await schemaResp.json();
-      const stringColumns = (schemaData.schema?.fields || []).filter(f => f.type === "STRING").map(f => f.name);
-      
-      // Buscar o ID em cada coluna de texto
-      const results = {};
-      for (const col of stringColumns) {
-        const q = `SELECT \`${col}\`, snapshot_at FROM \`pontotel-homepage.customer_intelligence.fct_uso_produto\` WHERE \`${col}\` = @searchId ORDER BY snapshot_at DESC LIMIT 3`;
-        const r = await fetch(`https://bigquery.googleapis.com/bigquery/v2/projects/${credentials.project_id}/queries`, {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ query: q, queryParameters: [{ name: "searchId", parameterType: { type: "STRING" }, parameterValue: { value: String(searchId) } }], useLegacySql: false, useQueryCache: false }),
+    const runQuery = async (sql, params = []) => {
+      const resp = await fetch(bqUrl, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ query: sql, queryParameters: params, useLegacySql: false, useQueryCache: true }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data?.error?.message || "Erro BigQuery");
+      return data;
+    };
+
+    const formatRows = (bqData) => {
+      const columns = (bqData.schema?.fields || []).map(f => f.name);
+      return (bqData.rows || []).map(row => {
+        const obj = {};
+        (row.f || []).forEach((field, i) => {
+          const colName = columns[i];
+          let val = field.v;
+          if (colName === "snapshot_at" && val) {
+            try {
+              obj["snapshot_at_formatted"] = new Date(parseFloat(val) * 1000).toISOString().split("T")[0];
+            } catch (_) {}
+          }
+          obj[colName] = val;
         });
-        const d = await r.json();
-        if (parseInt(d.totalRows || "0") > 0) {
-          results[col] = parseInt(d.totalRows);
+        return obj;
+      });
+    };
+
+    // Resolver o comp_man_id: aceita code, comp_man_id direto, ou empresa_id
+    let resolvedCompManId = comp_man_id || empresa_id;
+    let clientData = null;
+
+    const searchInput = code || resolvedCompManId;
+
+    if (code) {
+      // Buscar o comp_man_id via vw_xref_code
+      try {
+        const xrefData = await runQuery(
+          `SELECT comp_man_id FROM \`pontotel-homepage.customer_intelligence.vw_xref_code\` WHERE code = @code LIMIT 1`,
+          [{ name: "code", parameterType: { type: "STRING" }, parameterValue: { value: String(code) } }]
+        );
+        if (parseInt(xrefData.totalRows || "0") > 0) {
+          resolvedCompManId = xrefData.rows[0].f[0].v;
+        }
+      } catch (_) {}
+    }
+
+    if (!searchInput) {
+      return Response.json({ error: "Informe code, comp_man_id ou empresa_id" }, { status: 400 });
+    }
+
+    // Buscar dados do cliente (dim_clientes)
+    try {
+      let clientQuery, clientParams;
+      if (code) {
+        clientQuery = `SELECT * FROM \`pontotel-homepage.customer_intelligence.dim_clientes\` WHERE comp_man_code = @id ORDER BY snapshot_at DESC LIMIT 1`;
+      } else {
+        clientQuery = `SELECT * FROM \`pontotel-homepage.customer_intelligence.dim_clientes\` WHERE comp_man_id = @id ORDER BY snapshot_at DESC LIMIT 1`;
+      }
+      clientParams = [{ name: "id", parameterType: { type: "STRING" }, parameterValue: { value: String(searchInput) } }];
+      const clientResp = await runQuery(clientQuery, clientParams);
+      if (parseInt(clientResp.totalRows || "0") > 0) {
+        const cols = (clientResp.schema?.fields || []).map(f => f.name);
+        const row = clientResp.rows[0];
+        clientData = {};
+        (row.f || []).forEach((field, i) => {
+          clientData[cols[i]] = field.v;
+        });
+        // Garantir que temos o comp_man_id correto do dim_clientes
+        if (clientData.comp_man_id && !resolvedCompManId) {
+          resolvedCompManId = clientData.comp_man_id;
         }
       }
-      return Response.json({ success: true, debug: true, searchedId: searchId, stringColumns, matches: results, totalDistinctComps: null });
-    } else if (searchId) {
-      query = `SELECT * FROM \`pontotel-homepage.customer_intelligence.fct_uso_produto\` WHERE comp_man_id = @comp_man_id ORDER BY snapshot_at DESC LIMIT @limite`;
-      params.push({ name: "comp_man_id", parameterType: { type: "STRING" }, parameterValue: { value: String(searchId) } });
-      params.push({ name: "limite", parameterType: { type: "INT64" }, parameterValue: { value: String(limite || 10) } });
-    } else {
-      query = `SELECT * FROM \`pontotel-homepage.customer_intelligence.fct_uso_produto\` ORDER BY snapshot_at DESC LIMIT @limite`;
-      params.push({ name: "limite", parameterType: { type: "INT64" }, parameterValue: { value: String(limite || 10) } });
+    } catch (_) {}
+
+    // Buscar dados de uso do produto (fct_uso_produto)
+    let usageRows = [];
+    let usageColumns = [];
+    let totalRows = 0;
+    let usedFallbackId = false;
+
+    if (resolvedCompManId) {
+      try {
+        const usageData = await runQuery(
+          `SELECT * FROM \`pontotel-homepage.customer_intelligence.fct_uso_produto\` WHERE comp_man_id = @id ORDER BY snapshot_at DESC LIMIT @limite`,
+          [
+            { name: "id", parameterType: { type: "STRING" }, parameterValue: { value: String(resolvedCompManId) } },
+            { name: "limite", parameterType: { type: "INT64" }, parameterValue: { value: String(limite || 10) } },
+          ]
+        );
+        usageRows = formatRows(usageData);
+        usageColumns = (usageData.schema?.fields || []).map(f => f.name);
+        totalRows = parseInt(usageData.totalRows || "0");
+      } catch (_) {}
     }
 
-    // Chamar BigQuery API REST
-    const projectId = credentials.project_id;
-    const url = `https://bigquery.googleapis.com/bigquery/v2/projects/${projectId}/queries`;
-
-    const bqResp = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query: query,
-        queryParameters: params,
-        useLegacySql: false,
-        useQueryCache: true,
-      }),
-    });
-
-    const bqData = await bqResp.json();
-
-    if (!bqResp.ok) {
-      console.error("BigQuery error:", JSON.stringify(bqData));
-      return Response.json({ error: "Erro na consulta ao BigQuery", details: bqData?.error?.message || bqData }, { status: 500 });
+    // Fallback: se não achou por comp_man_id, tenta buscar o input como code no dim_clientes
+    if (totalRows === 0 && !code && clientData?.comp_man_id) {
+      try {
+        const usageData = await runQuery(
+          `SELECT * FROM \`pontotel-homepage.customer_intelligence.fct_uso_produto\` WHERE comp_man_id = @id ORDER BY snapshot_at DESC LIMIT @limite`,
+          [
+            { name: "id", parameterType: { type: "STRING" }, parameterValue: { value: String(clientData.comp_man_id) } },
+            { name: "limite", parameterType: { type: "INT64" }, parameterValue: { value: String(limite || 10) } },
+          ]
+        );
+        usageRows = formatRows(usageData);
+        usageColumns = (usageData.schema?.fields || []).map(f => f.name);
+        totalRows = parseInt(usageData.totalRows || "0");
+        usedFallbackId = true;
+        resolvedCompManId = clientData.comp_man_id;
+      } catch (_) {}
     }
-
-    // Formatar resultado
-    const columns = (bqData.schema?.fields || []).map(f => f.name);
-    const rows = (bqData.rows || []).map(row => {
-      const obj = {};
-      (row.f || []).forEach((field, i) => {
-        const colName = columns[i];
-        let val = field.v;
-        // Formatar snapshot_at (epoch seconds → ISO date)
-        if (colName === "snapshot_at" && val) {
-          try {
-            const epoch = parseFloat(val);
-            obj["snapshot_at_formatted"] = new Date(epoch * 1000).toISOString().split("T")[0];
-          } catch (_) {}
-        }
-        obj[colName] = val;
-      });
-      return obj;
-    });
 
     return Response.json({
       success: true,
-      totalRows: parseInt(bqData.totalRows || "0"),
-      rows,
-      columns,
+      searchedAs: code ? "code" : "comp_man_id",
+      searchedValue: searchInput,
+      resolvedCompManId: resolvedCompManId || null,
+      clientData,
+      usageData: {
+        totalRows,
+        rows: usageRows,
+        columns: usageColumns,
+      },
     });
   } catch (error) {
     console.error("queryBigQueryUsage error:", error);
@@ -131,7 +173,6 @@ async function getAccessToken(credentials) {
   const claimB64 = base64Url(JSON.stringify(claim));
   const unsigned = `${headerB64}.${claimB64}`;
 
-  // Importar a chave privada
   const pemHeader = "-----BEGIN PRIVATE KEY-----";
   const pemFooter = "-----END PRIVATE KEY-----";
   let keyContent = credentials.private_key;
@@ -155,7 +196,6 @@ async function getAccessToken(credentials) {
   const sigB64 = base64Url(String.fromCharCode(...new Uint8Array(signature)));
   const jwt = `${unsigned}.${sigB64}`;
 
-  // Trocar JWT por access token
   const tokenResp = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },

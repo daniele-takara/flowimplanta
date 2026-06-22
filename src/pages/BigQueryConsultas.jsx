@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Search, Database, Loader2, Users, Clock, Calendar, TrendingUp, Activity, Ban as Building, Hash } from "lucide-react";
+import { Search, Database, Loader2, Users, Clock, Calendar, TrendingUp, Activity, Building, Hash, MapPin, DollarSign } from "lucide-react";
 
 const inputClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";
 
@@ -33,22 +33,28 @@ const METRICS = [
   { key: "regra_travamento_ativa", label: "Regra Travamento", icon: Activity, format: v => v === "true" || v === true ? "Sim" : v === "false" || v === false ? "Não" : "—" },
 ];
 
+const formatCurrency = (centavos) => {
+  if (!centavos) return "—";
+  const reais = parseInt(centavos) / 100;
+  return `R$ ${reais.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
 export default function BigQueryConsultas() {
-  const [empresaId, setEmpresaId] = useState("");
+  const [searchId, setSearchId] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!empresaId.trim()) {
-      setError("Informe o ID da empresa (comp_man_id)");
+    if (!searchId.trim()) {
+      setError("Informe o ID da empresa (code ou comp_man_id)");
       return;
     }
     setLoading(true);
     setError("");
     try {
-      const res = await base44.functions.invoke("queryBigQueryUsage", { comp_man_id: empresaId.trim(), limite: 1 });
+      const res = await base44.functions.invoke("queryBigQueryUsage", { code: searchId.trim(), limite: 1 });
       if (res?.data?.success) {
         setResult(res.data);
       } else {
@@ -62,7 +68,8 @@ export default function BigQueryConsultas() {
     setLoading(false);
   };
 
-  const record = result?.rows?.[0];
+  const record = result?.usageData?.rows?.[0];
+  const client = result?.clientData;
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -79,9 +86,9 @@ export default function BigQueryConsultas() {
       <form onSubmit={handleSearch} className="flex gap-3 mb-6">
         <div className="flex-1 max-w-md">
           <input
-            value={empresaId}
-            onChange={e => setEmpresaId(e.target.value)}
-            placeholder="ID da empresa (comp_man_id)"
+            value={searchId}
+            onChange={e => setSearchId(e.target.value)}
+            placeholder="Code da empresa ou comp_man_id"
             className={inputClass}
           />
         </div>
@@ -101,16 +108,60 @@ export default function BigQueryConsultas() {
         </div>
       )}
 
+      {/* Dados do Cliente */}
+      {client && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5 mb-6">
+          <div className="flex items-start justify-between flex-wrap gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-800">{client.nome || "—"}</h2>
+              <div className="flex flex-wrap items-center gap-3 mt-1.5 text-sm text-slate-500">
+                {client.cidade && client.estado && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5" />
+                    {client.cidade}, {client.estado}
+                  </span>
+                )}
+                {client.vertical && (
+                  <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-medium capitalize">
+                    {client.vertical}
+                  </span>
+                )}
+                {client.cliente_ativo === "true" && (
+                  <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-medium">
+                    Ativo
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-4 text-sm">
+              <div className="text-right">
+                <p className="text-xs text-slate-400">Funcionários (baseline)</p>
+                <p className="font-semibold text-slate-700">{client.funcionarios_baseline_contratado || "—"}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-slate-400">MRR Mínimo</p>
+                <p className="font-semibold text-slate-700">{formatCurrency(client.mrr_minimo_centavos)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-slate-400">MRR Total</p>
+                <p className="font-semibold text-slate-700">{formatCurrency(client.mrr_total_centavos)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Métricas de Uso */}
       {record && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-            <Hash className="w-4 h-4 text-blue-500" />
-            <div>
-              <span className="text-xs text-blue-500 font-medium">Empresa</span>
-              <p className="text-sm font-semibold text-blue-800">{record.comp_man_id}</p>
+          <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+            <Hash className="w-4 h-4 text-slate-400" />
+            <div className="flex-1">
+              <span className="text-xs text-slate-400 font-medium">comp_man_id</span>
+              <p className="text-sm font-mono text-slate-600">{result.resolvedCompManId}</p>
             </div>
             {record.snapshot_at_formatted && (
-              <div className="ml-auto flex items-center gap-1.5 text-xs text-slate-400">
+              <div className="flex items-center gap-1.5 text-xs text-slate-400">
                 <Calendar className="w-3.5 h-3.5" />
                 Snapshot: {record.snapshot_at_formatted}
               </div>
@@ -145,7 +196,7 @@ export default function BigQueryConsultas() {
       {!result && !loading && !error && (
         <div className="bg-slate-50 border border-slate-200 rounded-xl px-6 py-12 text-center">
           <Database className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-          <p className="text-slate-400 text-sm">Informe o ID da empresa para consultar os dados de uso do produto.</p>
+          <p className="text-slate-400 text-sm">Informe o ID da empresa (code ou comp_man_id) para consultar os dados de uso do produto.</p>
         </div>
       )}
     </div>
