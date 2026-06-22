@@ -11,26 +11,47 @@ Deno.serve(async (req) => {
       return Response.json({ error: "GOOGLE_SERVICE_ACCOUNT_JSON não configurado" }, { status: 500 });
     }
 
-    const { comp_man_id, empresa_id, limite } = await req.json().catch(() => ({}));
+    const { comp_man_id, empresa_id, limite, debug } = await req.json().catch(() => ({}));
 
     // Gerar token JWT para autenticação via service account
     const credentials = JSON.parse(serviceAccountJson);
     const accessToken = await getAccessToken(credentials);
 
     // Construir query
-    let hasFilter = false;
-    let query = `SELECT * FROM \`pontotel-homepage.customer_intelligence.fct_uso_produto\``;
-    const params = [];
-
     const searchId = comp_man_id || empresa_id;
-    if (searchId) {
-      query += ` WHERE comp_man_id = @comp_man_id`;
+    let query;
+    const params = [];
+    
+    if (debug && searchId) {
+      // Modo debug: busca global pelo ID em TODAS as colunas de texto
+      const schemaUrl = `https://bigquery.googleapis.com/bigquery/v2/projects/${credentials.project_id}/datasets/customer_intelligence/tables/fct_uso_produto`;
+      const schemaResp = await fetch(schemaUrl, { headers: { "Authorization": `Bearer ${accessToken}` } });
+      const schemaData = await schemaResp.json();
+      const stringColumns = (schemaData.schema?.fields || []).filter(f => f.type === "STRING").map(f => f.name);
+      
+      // Buscar o ID em cada coluna de texto
+      const results = {};
+      for (const col of stringColumns) {
+        const q = `SELECT \`${col}\`, snapshot_at FROM \`pontotel-homepage.customer_intelligence.fct_uso_produto\` WHERE \`${col}\` = @searchId ORDER BY snapshot_at DESC LIMIT 3`;
+        const r = await fetch(`https://bigquery.googleapis.com/bigquery/v2/projects/${credentials.project_id}/queries`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ query: q, queryParameters: [{ name: "searchId", parameterType: { type: "STRING" }, parameterValue: { value: String(searchId) } }], useLegacySql: false, useQueryCache: false }),
+        });
+        const d = await r.json();
+        if (parseInt(d.totalRows || "0") > 0) {
+          results[col] = parseInt(d.totalRows);
+        }
+      }
+      return Response.json({ success: true, debug: true, searchedId: searchId, stringColumns, matches: results, totalDistinctComps: null });
+    } else if (searchId) {
+      query = `SELECT * FROM \`pontotel-homepage.customer_intelligence.fct_uso_produto\` WHERE comp_man_id = @comp_man_id ORDER BY snapshot_at DESC LIMIT @limite`;
       params.push({ name: "comp_man_id", parameterType: { type: "STRING" }, parameterValue: { value: String(searchId) } });
-      hasFilter = true;
+      params.push({ name: "limite", parameterType: { type: "INT64" }, parameterValue: { value: String(limite || 10) } });
+    } else {
+      query = `SELECT * FROM \`pontotel-homepage.customer_intelligence.fct_uso_produto\` ORDER BY snapshot_at DESC LIMIT @limite`;
+      params.push({ name: "limite", parameterType: { type: "INT64" }, parameterValue: { value: String(limite || 10) } });
     }
-
-    query += ` ORDER BY snapshot_at DESC LIMIT @limite`;
-    params.push({ name: "limite", parameterType: { type: "INT64" }, parameterValue: { value: String(limite || 10) } });
 
     // Chamar BigQuery API REST
     const projectId = credentials.project_id;
