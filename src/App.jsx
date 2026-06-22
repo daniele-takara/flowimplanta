@@ -21,7 +21,6 @@ import RBACReport from './pages/RBACReport';
 import DiagnosticoPipedrive from './pages/DiagnosticoPipedrive';
 import Documentacao from './pages/Documentacao';
 import ClientCalcWizard from './pages/ClientCalcWizard';
-import ClientHome from './pages/ClientHome';
 import WebhookConfig from './pages/WebhookConfig';
 import MonitorIntegracoes from './pages/MonitorIntegracoes';
 import AppLayout from './components/layout/AppLayout';
@@ -61,9 +60,13 @@ const AuthenticatedApp = () => {
     return <NoPermissionScreen />;
   }
 
-  // Cliente role: acesso restrito apenas ao wizard de regras
+  // Cliente role: acesso restrito apenas ao wizard de regras (link público)
   if (user?.role === 'cliente') {
-    return <ClientHome />;
+    return (
+      <Routes>
+        <Route path="*" element={<NoPermissionScreen />} />
+      </Routes>
+    );
   }
 
   return (
