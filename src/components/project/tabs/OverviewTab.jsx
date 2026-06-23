@@ -80,7 +80,22 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
   };
 
   const handleSyncBigQuery = async () => {
-    if (!project?.empresa_id) {
+    let empresaId = project?.empresa_id;
+
+    // Auto-detect empresa_id from lar21 pattern: lar21@<code>.com.br
+    if (!empresaId && project?.lar21) {
+      const match = project.lar21.match(/^lar21@([a-zA-Z0-9]+)\.com\.br$/);
+      if (match) {
+        empresaId = match[1];
+        // Update the project with the detected empresa_id
+        try {
+          await base44.entities.Project.update(project.id, { empresa_id: empresaId });
+          if (onProjectUpdated) onProjectUpdated({ ...project, empresa_id: empresaId });
+        } catch (_) {}
+      }
+    }
+
+    if (!empresaId) {
       setBqResult({ error: "Informe o ID da Empresa (empresa_id) nos Dados Iniciais para buscar no BigQuery" });
       return;
     }
@@ -88,7 +103,7 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
     setBqResult(null);
     try {
       const res = await base44.functions.invoke("queryBigQueryUsage", {
-        code: project.empresa_id,
+        code: empresaId,
         client_name: project.client_name,
         limite: 1,
       });
@@ -164,7 +179,7 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
               <button
                 onClick={handleSyncBigQuery}
                 disabled={bqSyncing}
-                title={project?.empresa_id ? "Atualizar Funcionários e MRR do BigQuery" : "Informe o ID da Empresa nos Dados Iniciais"}
+                title={project?.empresa_id ? "Atualizar Funcionários e MRR do BigQuery" : (project?.lar21 && /^lar21@[a-zA-Z0-9]+\.com\.br$/.test(project.lar21) ? "Extrair ID da Empresa do lar21 e buscar no BigQuery" : "Informe o ID da Empresa nos Dados Iniciais")}
                 className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50 border border-blue-200 bg-blue-50 hover:bg-blue-100 rounded-lg px-2.5 py-1 transition-colors"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${bqSyncing ? "animate-spin" : ""}`} />
