@@ -207,7 +207,7 @@ function StatusReportDashboard({ report, project, macroPhases, overallProgress, 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard
-          label="Empregados Cadastrados"
+          label="Empregados Ativos"
           value={cadastrados.toLocaleString("pt-BR")}
           sub={`de ${contracted.toLocaleString("pt-BR")} contratados`}
           icon={Users}
@@ -457,7 +457,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
           const d = bqRes.data;
           if (d?.success && d.usageData?.rows?.length > 0) {
             const row = d.usageData.rows[0];
-            registeredEmployees = parseInt(row.empregados_cadastrados) || registeredEmployees;
+            registeredEmployees = parseInt(row.empregados_ativos) || registeredEmployees;
             recordingEmployees  = parseInt(row.empregados_batendo_30d) || recordingEmployees;
             bqFound = true;
             dataSource = "BigQuery";
@@ -632,7 +632,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
 
       setUpdateResult({
         success: true,
-        msg: `${registeredEmployees} cadastrados · ${recordingEmployees} no ponto · ${aderencia}% aderência · cronograma atualizado${bqFound ? " · BigQuery" : sheetFound ? " · planilha" : ""}`,
+        msg: `${registeredEmployees} ativos · ${recordingEmployees} no ponto · ${aderencia}% aderência · cronograma atualizado${bqFound ? " · BigQuery" : sheetFound ? " · planilha" : ""}`,
       });
     } catch (e) {
       setUpdateResult({ error: e.message });
