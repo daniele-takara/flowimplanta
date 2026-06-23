@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: "GOOGLE_SERVICE_ACCOUNT_JSON não configurado" }, { status: 500 });
     }
 
-    const { comp_man_id, code, empresa_id, limite } = await req.json().catch(() => ({}));
+    const { comp_man_id, code, empresa_id, limite, client_name } = await req.json().catch(() => ({}));
 
     const credentials = JSON.parse(serviceAccountJson);
     const accessToken = await getAccessToken(credentials);
@@ -66,8 +66,8 @@ Deno.serve(async (req) => {
       } catch (_) {}
     }
 
-    if (!searchInput) {
-      return Response.json({ error: "Informe code, comp_man_id ou empresa_id" }, { status: 400 });
+    if (!searchInput && !client_name) {
+      return Response.json({ error: "Informe code, comp_man_id, empresa_id ou client_name" }, { status: 400 });
     }
 
     // Buscar dados do cliente (dim_clientes)
@@ -93,6 +93,30 @@ Deno.serve(async (req) => {
         }
       }
     } catch (_) {}
+
+    // Fallback: se não achou por code/comp_man_id, tenta pelo nome do cliente
+    if (!clientData && client_name) {
+      const nameFields = ["nome", "razao_social", "comp_man_name", "name"];
+      for (const field of nameFields) {
+        try {
+          const nameQuery = `SELECT * FROM \`pontotel-homepage.customer_intelligence.dim_clientes\` WHERE LOWER(\`${field}\`) LIKE @name ORDER BY snapshot_at DESC LIMIT 1`;
+          const nameParams = [{ name: "name", parameterType: { type: "STRING" }, parameterValue: { value: `%${String(client_name).toLowerCase()}%` } }];
+          const nameResp = await runQuery(nameQuery, nameParams);
+          if (parseInt(nameResp.totalRows || "0") > 0) {
+            const cols = (nameResp.schema?.fields || []).map(f => f.name);
+            const row = nameResp.rows[0];
+            clientData = {};
+            (row.f || []).forEach((field, i) => {
+              clientData[cols[i]] = field.v;
+            });
+            if (clientData.comp_man_id && !resolvedCompManId) {
+              resolvedCompManId = clientData.comp_man_id;
+            }
+            break;
+          }
+        } catch (_) {}
+      }
+    }
 
     // Buscar dados de uso do produto (fct_uso_produto)
     let usageRows = [];

@@ -89,6 +89,7 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
     try {
       const res = await base44.functions.invoke("queryBigQueryUsage", {
         code: project.empresa_id,
+        client_name: project.client_name,
         limite: 1,
       });
       const d = res.data;
