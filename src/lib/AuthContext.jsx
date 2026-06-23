@@ -1,7 +1,18 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
+import { DEFAULT_PROFILES } from '@/lib/permissions';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
+
+/** Fallback: resolve um perfil a partir do app_role legado do usuário */
+function resolveLegacyProfile(user) {
+  if (!user?.app_role) return null;
+  const profile = DEFAULT_PROFILES.find(p => p.name === user.app_role);
+  if (profile) return { name: profile.name, permissions: profile.permissions };
+  // Fallback mínimo: Viewer
+  const viewer = DEFAULT_PROFILES.find(p => p.name === "Viewer");
+  return viewer ? { name: viewer.name, permissions: viewer.permissions } : null;
+}
 
 const AuthContext = createContext();
 
@@ -105,10 +116,17 @@ export const AuthProvider = ({ children }) => {
             currentUser._resolvedProfile = profiles[0];
           } else {
             console.warn("[AuthContext] Perfil não encontrado para id:", currentUser.permission_profile_id);
+            // Tenta fallback pelo app_role legado
+            currentUser._resolvedProfile = resolveLegacyProfile(currentUser);
           }
         } catch (err) {
           console.error("[AuthContext] Erro ao carregar perfil de permissões:", err);
+          // Fallback pelo app_role legado
+          currentUser._resolvedProfile = resolveLegacyProfile(currentUser);
         }
+      } else if (currentUser?.app_role) {
+        // Sem permission_profile_id mas com app_role legado
+        currentUser._resolvedProfile = resolveLegacyProfile(currentUser);
       }
 
       setUser(currentUser);
