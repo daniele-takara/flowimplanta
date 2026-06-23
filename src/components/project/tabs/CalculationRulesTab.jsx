@@ -1739,6 +1739,14 @@ export default function CalculationRulesTab({ projectId, project }) {
   const currentStepIdx = visibleSteps.findIndex(s => s.id === currentStep);
   const step = visibleSteps[currentStepIdx];
 
+  // Safety: if currentStep is not in visibleSteps (e.g. step 5 but hasNightShift was toggled off),
+  // reset to the first visible step so the UI doesn't render empty
+  useEffect(() => {
+    if (visibleSteps.length > 0 && currentStepIdx === -1) {
+      setCurrentStep(visibleSteps[0].id);
+    }
+  }, [visibleSteps, currentStepIdx]);
+
   // Debounce: buffer local changes and persist only after inactivity
   const pendingSaveRef = useRef(null);
   const pendingDataRef = useRef({});
