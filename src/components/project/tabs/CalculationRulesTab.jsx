@@ -1286,6 +1286,16 @@ function BancoHorasForm({ companyData, data, onChange, onInfoAcumuloClick }) {
                   <option value="geral">Geral</option>
                   <option value="sem_acumulo">Sem acúmulo</option>
                 </select>
+                {val.limiteAcumuloTipo && val.limiteAcumuloTipo !== "sem_acumulo" && (
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <input
+                      value={val.limiteAcumuloValor || ""}
+                      onChange={e => updateRule(name, "limiteAcumuloValor", e.target.value)}
+                      className={inputClass}
+                      placeholder="Ex: 2 (horas)"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Pergunta: Saldos automáticos */}
