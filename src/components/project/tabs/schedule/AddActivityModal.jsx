@@ -40,13 +40,14 @@ export default function AddActivityModal({ projectId, defaultPhase, allPhaseName
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   const handleSave = async () => {
+    if (!form.phase_name.trim()) { setError("O nome da fase é obrigatório."); return; }
     if (!form.activity_name.trim()) { setError("Nome da atividade é obrigatório."); return; }
     setSaving(true);
     setError("");
     try {
       await onSave({
         project_id:           projectId,
-        phase_name:           form.phase_name,
+        phase_name:           form.phase_name.trim(),
         activity_name:        form.activity_name.trim(),
         planned_start:        form.planned_start || null,
         planned_end:          form.planned_end   || null,
@@ -62,7 +63,8 @@ export default function AddActivityModal({ projectId, defaultPhase, allPhaseName
       onClose();
     } catch (err) {
       console.error("[AddActivityModal] Erro ao salvar:", err);
-      setError(err?.message || err?.response?.data?.message || "Erro ao salvar atividade. Verifique suas permissões.");
+      const msg = err?.response?.data?.message || err?.response?.data?.error || err?.message || "";
+      setError(msg || "Erro ao salvar atividade. Tente novamente.");
       setSaving(false);
     }
   };
@@ -151,7 +153,7 @@ export default function AddActivityModal({ projectId, defaultPhase, allPhaseName
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-100">Cancelar</button>
           <button
             onClick={handleSave}
-            disabled={saving || !form.activity_name.trim()}
+            disabled={saving || !form.activity_name.trim() || !form.phase_name.trim()}
             className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
