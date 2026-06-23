@@ -162,8 +162,8 @@ export default function AdicionalNoturnoForm({ companyData, data, onChange, onIn
                   <button onClick={(e) => { e.preventDefault(); onInfoReducaoAmbosClick?.(); }} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors" title="Entenda a redução de hora noturna"><Info className="w-3.5 h-3.5" /></button>
                 </label>
                 <select value={val.reducaoConsideraAmbos || "nao"} onChange={e => updateRule(name, "reducaoConsideraAmbos", e.target.value)} className={`${selectClass} mt-1`}>
-                  <option value="nao">Não</option>
-                  <option value="sim">Sim</option>
+                  <option value="nao">Será considerada apenas no adicional noturno</option>
+                  <option value="sim">Considera as horas trabalhadas</option>
                 </select>
               </div>
 

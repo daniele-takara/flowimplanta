@@ -628,8 +628,8 @@ function AdicionalNoturnoForm({ companyData, data, onChange, onInfoReducaoClick,
                   </button>
                 </label>
                 <select value={val.reducaoConsideraAmbos || "nao"} onChange={e => updateRule(name, "reducaoConsideraAmbos", e.target.value)} className={`${selectClass} mt-1`}>
-                  <option value="nao">Não</option>
-                  <option value="sim">Sim</option>
+                  <option value="nao">Será considerada apenas no adicional noturno</option>
+                  <option value="sim">Considera as horas trabalhadas</option>
                 </select>
               </div>
 
