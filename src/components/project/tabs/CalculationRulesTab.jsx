@@ -1053,7 +1053,8 @@ function BancoHorasForm({ companyData, data, onChange, onInfoAcumuloClick }) {
       limiteDiasCustom: "",
       criterioAcumulo: "",
       prazoVencimento: "",
-      limiteAcumuloTipo: "",
+      limiteAcumuloTipos: [],
+      limiteAcumuloValores: {},
       saldoAutomatico: "",
       mostrarHistorico: "",
       verbas: [],
@@ -1278,24 +1279,65 @@ function BancoHorasForm({ companyData, data, onChange, onInfoAcumuloClick }) {
               <div>
                 <label className="text-sm font-semibold text-slate-800">Existe algum limite de acúmulo diário, mensal, semanal ou geral?</label>
                 <p className="text-xs text-slate-500 mb-2">Caso tenha limitação, todo o saldo remanescente que ultrapasse o limite definido, será direcionado diretamente para pagamento, sendo hora extra para saldo positivo e atraso para saldos negativos.</p>
-                <select value={val.limiteAcumuloTipo || ""} onChange={e => updateRule(name, "limiteAcumuloTipo", e.target.value)} className={`${selectClass} max-w-sm`}>
-                  <option value="">Selecione o tipo de limite</option>
-                  <option value="diario">Diário</option>
-                  <option value="semanal">Semanal</option>
-                  <option value="mensal">Mensal</option>
-                  <option value="geral">Geral</option>
-                  <option value="sem_acumulo">Sem acúmulo</option>
-                </select>
-                {val.limiteAcumuloTipo && val.limiteAcumuloTipo !== "sem_acumulo" && (
-                  <div className="flex items-center gap-1.5 mt-2">
+                <div className="space-y-2">
+                  {[
+                    { key: "diario", label: "Diário" },
+                    { key: "semanal", label: "Semanal" },
+                    { key: "mensal", label: "Mensal" },
+                    { key: "geral", label: "Geral" },
+                  ].map(opt => {
+                    const tipos = val.limiteAcumuloTipos || [];
+                    const isChecked = tipos.includes(opt.key);
+                    const isSemAcumulo = tipos.includes("sem_acumulo");
+                    return (
+                      <div key={opt.key}>
+                        <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            disabled={isSemAcumulo}
+                            onChange={() => {
+                              const next = isChecked
+                                ? tipos.filter(t => t !== opt.key)
+                                : [...tipos.filter(t => t !== "sem_acumulo"), opt.key];
+                              onChange({ ...d, [name]: { ...val, limiteAcumuloTipos: next } });
+                            }}
+                            className="w-4 h-4 accent-blue-600 rounded"
+                          />
+                          {opt.label}
+                        </label>
+                        {isChecked && (
+                          <div className="ml-6 mt-1">
+                            <input
+                              value={(val.limiteAcumuloValores || {})[opt.key] || ""}
+                              onChange={e => {
+                                const vals = { ...(val.limiteAcumuloValores || {}) };
+                                vals[opt.key] = e.target.value;
+                                onChange({ ...d, [name]: { ...val, limiteAcumuloValores: vals } });
+                              }}
+                              className={inputClass}
+                              placeholder={`Ex: 2 (horas ${opt.label.toLowerCase()})`}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <label className={`flex items-center gap-2 cursor-pointer text-sm ${((val.limiteAcumuloTipos || []).length > 0 && !(val.limiteAcumuloTipos || []).includes("sem_acumulo")) ? "text-slate-400" : "text-slate-700"}`}>
                     <input
-                      value={val.limiteAcumuloValor || ""}
-                      onChange={e => updateRule(name, "limiteAcumuloValor", e.target.value)}
-                      className={inputClass}
-                      placeholder="Ex: 2 (horas)"
+                      type="checkbox"
+                      checked={(val.limiteAcumuloTipos || []).includes("sem_acumulo")}
+                      disabled={(val.limiteAcumuloTipos || []).length > 0 && !(val.limiteAcumuloTipos || []).includes("sem_acumulo")}
+                      onChange={() => {
+                        const tipos = val.limiteAcumuloTipos || [];
+                        const next = tipos.includes("sem_acumulo") ? [] : ["sem_acumulo"];
+                        onChange({ ...d, [name]: { ...val, limiteAcumuloTipos: next, limiteAcumuloValores: {} } });
+                      }}
+                      className="w-4 h-4 accent-blue-600 rounded"
                     />
-                  </div>
-                )}
+                    Sem acúmulo
+                  </label>
+                </div>
               </div>
 
               {/* Pergunta: Saldos automáticos */}
