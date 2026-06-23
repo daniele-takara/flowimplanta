@@ -33,6 +33,8 @@ function ParticipantCard({ role, name, email, phone, legacyContact }) {
 export default function OverviewTab({ project, phases, onEditDadosIniciais, onProjectUpdated, canSyncPipedrive = true }) {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
+  const [bqSyncing, setBqSyncing] = useState(false);
+  const [bqResult, setBqResult] = useState(null);
   const [teamMembers, setTeamMembers] = useState([]);
   const [membersLoaded, setMembersLoaded] = useState(false);
 
@@ -77,6 +79,53 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
     setSyncing(false);
   };
 
+  const handleSyncBigQuery = async () => {
+    if (!project?.empresa_id) {
+      setBqResult({ error: "Informe o ID da Empresa (empresa_id) nos Dados Iniciais para buscar no BigQuery" });
+      return;
+    }
+    setBqSyncing(true);
+    setBqResult(null);
+    try {
+      const res = await base44.functions.invoke("queryBigQueryUsage", {
+        code: project.empresa_id,
+        limite: 1,
+      });
+      const d = res.data;
+      if (!d?.success || !d.clientData) {
+        setBqResult({ error: "Cliente não encontrado no BigQuery para este empresa_id" });
+        setBqSyncing(false);
+        return;
+      }
+      const client = d.clientData;
+      const funcionarios = client.funcionarios_baseline_contratado != null ? parseInt(client.funcionarios_baseline_contratado) : null;
+      const mrrCentavos = client.mrr_total_centavos != null ? parseFloat(client.mrr_total_centavos) : null;
+      const mrr = mrrCentavos != null ? mrrCentavos / 100 : null;
+
+      const updates = {};
+      if (funcionarios != null) updates.contracted_employees = funcionarios;
+      if (mrr != null) updates.mrr = mrr;
+
+      if (Object.keys(updates).length === 0) {
+        setBqResult({ error: "Dados não encontrados no BigQuery (funcionarios_baseline_contratado e mrr_total_centavos ausentes)" });
+        setBqSyncing(false);
+        return;
+      }
+
+      const updated = await base44.entities.Project.update(project.id, updates);
+      setBqResult({
+        success: true,
+        funcionarios,
+        mrr,
+        fields: Object.keys(updates),
+      });
+      if (onProjectUpdated) onProjectUpdated(updated);
+    } catch (e) {
+      setBqResult({ error: e.response?.data?.error || e.message });
+    }
+    setBqSyncing(false);
+  };
+
   return (
     <div className="grid grid-cols-3 gap-6">
       {/* Banner de vínculo Pipedrive */}
@@ -111,6 +160,15 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
                 <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
                 {syncing ? "Sincronizando..." : "Atualizar dados do Pipedrive"}
               </button>}
+              <button
+                onClick={handleSyncBigQuery}
+                disabled={bqSyncing}
+                title={project?.empresa_id ? "Atualizar Funcionários e MRR do BigQuery" : "Informe o ID da Empresa nos Dados Iniciais"}
+                className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50 border border-blue-200 bg-blue-50 hover:bg-blue-100 rounded-lg px-2.5 py-1 transition-colors"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${bqSyncing ? "animate-spin" : ""}`} />
+                {bqSyncing ? "Consultando..." : "Atualizar com o BigQuery"}
+              </button>
               {onEditDadosIniciais && (
                 <button
                   onClick={onEditDadosIniciais}
@@ -178,6 +236,31 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
                   </div>
                 </div>
               )}
+            </div>
+          )}
+          {/* BigQuery sync feedback */}
+          {bqResult && (
+            <div className={`rounded-lg text-xs border mb-3 ${
+              bqResult.success ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-700"
+            }`}>
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-inherit">
+                {bqResult.success
+                  ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  : <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                }
+                <span className="font-semibold">
+                  {bqResult.success ? "BigQuery atualizado" : "Erro BigQuery"}
+                </span>
+              </div>
+              <div className="px-3 py-2 space-y-0.5">
+                {bqResult.success && bqResult.funcionarios != null && (
+                  <p>Funcionários: <strong>{bqResult.funcionarios.toLocaleString("pt-BR")}</strong></p>
+                )}
+                {bqResult.success && bqResult.mrr != null && (
+                  <p>MRR: <strong>R$ {bqResult.mrr.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></p>
+                )}
+                {bqResult.error && <p>{bqResult.error}</p>}
+              </div>
             </div>
           )}
           <InfoRow label="Cliente" value={project.client_name} />
