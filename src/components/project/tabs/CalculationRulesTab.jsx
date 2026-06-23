@@ -1816,7 +1816,7 @@ export default function CalculationRulesTab({ projectId, project }) {
   const pendingSaveRef = useRef(null);
   const pendingDataRef = useRef({});
 
-  const flushPending = async () => {
+  const flushPending = useCallback(async () => {
     if (pendingSaveRef.current) {
       clearTimeout(pendingSaveRef.current);
       pendingSaveRef.current = null;
@@ -1825,11 +1825,11 @@ export default function CalculationRulesTab({ projectId, project }) {
     if (keys.length > 0) {
       const payload = { ...pendingDataRef.current, current_step: currentStep };
       pendingDataRef.current = {};
-      await save(payload);
+      try { await save(payload); } catch (_) { /* não perder dados do buffer em caso de erro */ }
     }
-  };
+  }, [save, currentStep]);
 
-  const scheduleSave = (key, data) => {
+  const scheduleSave = useCallback((key, data) => {
     // Update UI buffer immediately — input stays responsive
     setStepData(prev => ({ ...prev, [key]: data }));
     // Schedule DB persistence
@@ -1840,8 +1840,27 @@ export default function CalculationRulesTab({ projectId, project }) {
       const payload = { ...pendingDataRef.current, current_step: currentStep };
       pendingDataRef.current = {};
       save(payload);
-    }, 800);
-  };
+    }, 500);
+  }, [save, currentStep]);
+
+  // ── Persistence safeguards: save on unmount, tab close, and tab hidden ──
+  const flushPendingRef = useRef(flushPending);
+  flushPendingRef.current = flushPending;
+
+  useEffect(() => {
+    const handleBeforeUnload = () => { flushPendingRef.current(); };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') { flushPendingRef.current(); }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      // Cleanup on unmount — flush any pending data
+      flushPendingRef.current();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   const goToStep = async (newStep) => {
     setCurrentStep(newStep);
