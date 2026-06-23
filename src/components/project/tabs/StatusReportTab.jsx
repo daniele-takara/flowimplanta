@@ -440,14 +440,36 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
     setUpdateResult(null);
 
     try {
-      // 1. Buscar dados de usabilidade da aba "Mais recente" (source oficial).
-      //    updateReportFromSheet já persiste no banco; capturamos os valores para
-      //    usar no restante do fluxo (cronograma, aderência, payload final).
+      // 1. Buscar dados de usabilidade — BigQuery primeiro, Planilha como fallback
       let registeredEmployees = report?.registered_employees || 0;
       let recordingEmployees  = report?.recording_employees  || 0;
+      let bqFound = false;
       let sheetFound = false;
+      let dataSource = "planilha";
 
-      if (project?.lar21) {
+      // 1a. BigQuery (source primário) — usa empresa_id do projeto
+      if (project?.empresa_id) {
+        try {
+          const bqRes = await base44.functions.invoke("queryBigQueryUsage", {
+            code: project.empresa_id,
+            limite: 1,
+          });
+          const d = bqRes.data;
+          if (d?.success && d.usageData?.rows?.length > 0) {
+            const row = d.usageData.rows[0];
+            registeredEmployees = parseInt(row.empregados_cadastrados) || registeredEmployees;
+            recordingEmployees  = parseInt(row.empregados_batendo_30d) || recordingEmployees;
+            bqFound = true;
+            dataSource = "BigQuery";
+            console.log("[StatusReportTab] BigQuery:", { registeredEmployees, recordingEmployees });
+          }
+        } catch (e) {
+          console.warn("[StatusReportTab] BigQuery falhou, tentando planilha:", e.message);
+        }
+      }
+
+      // 1b. Planilha Google Sheets (fallback)
+      if (!bqFound && project?.lar21) {
         try {
           const sheetRes = await base44.functions.invoke("updateReportFromSheet", {
             project_id: projectId,
@@ -458,6 +480,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
             registeredEmployees = d.registered_employees;
             recordingEmployees  = d.recording_employees;
             sheetFound = true;
+            dataSource = "planilha";
             if (d.report) { const merged = { ...(reportRef.current || {}), ...d.report }; reportRef.current = merged; setReport(merged); }
           } else if (d?.lar21_not_found) {
             setUpdateResult({ error: `Lar21 não encontrado na aba "Mais recente" da planilha. (Lar21: ${project.lar21})` });
@@ -467,8 +490,8 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         } catch (e) {
           console.warn("[StatusReportTab] Erro ao buscar planilha (não crítico):", e.message);
         }
-      } else {
-        console.warn("[StatusReportTab] Lar21 não preenchido — planilha de usabilidade não será consultada.");
+      } else if (!bqFound) {
+        console.warn("[StatusReportTab] Sem empresa_id (BigQuery) e sem Lar21 (planilha) — dados de usabilidade não atualizados.");
       }
 
       // 2. Calcular aderência — source único
@@ -609,7 +632,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
 
       setUpdateResult({
         success: true,
-        msg: `${registeredEmployees} cadastrados · ${recordingEmployees} no ponto · ${aderencia}% aderência · cronograma atualizado${sheetFound ? " · planilha sincronizada" : ""}`,
+        msg: `${registeredEmployees} cadastrados · ${recordingEmployees} no ponto · ${aderencia}% aderência · cronograma atualizado${bqFound ? " · BigQuery" : sheetFound ? " · planilha" : ""}`,
       });
     } catch (e) {
       setUpdateResult({ error: e.message });

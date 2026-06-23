@@ -449,11 +449,34 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
       );
       setMacroPhases(phases);
 
-      // Buscar usabilidade do último report
-      const latestReport = reports?.[0];
+      // Buscar usabilidade: BigQuery (fonte primária), fallback para último StatusReport
       let usability = null;
-      if (latestReport?.usability_snapshot) {
-        try { usability = JSON.parse(latestReport.usability_snapshot); } catch {}
+      if (project?.empresa_id) {
+        try {
+          const bqRes = await base44.functions.invoke("queryBigQueryUsage", {
+            code: project.empresa_id,
+            limite: 1,
+          });
+          const d = bqRes.data;
+          if (d?.success && d.usageData?.rows?.length > 0) {
+            const row = d.usageData.rows[0];
+            usability = {
+              registered_employees: parseInt(row.empregados_cadastrados) || 0,
+              recording_employees: parseInt(row.empregados_batendo_30d) || 0,
+              active_employees: parseInt(row.empregados_ativos) || 0,
+            };
+            console.log("[TermoEncerramentoTab] BigQuery:", usability);
+          }
+        } catch (e) {
+          console.warn("[TermoEncerramentoTab] BigQuery falhou, usando último report:", e.message);
+        }
+      }
+      // Fallback: último StatusReport
+      if (!usability) {
+        const latestReport = reports?.[0];
+        if (latestReport?.usability_snapshot) {
+          try { usability = JSON.parse(latestReport.usability_snapshot); } catch {}
+        }
       }
       setUsabilitySnap(usability);
 
