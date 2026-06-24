@@ -21,7 +21,7 @@ export default function Sidebar() {
     canAccessParametrizacoes && { icon: FileBarChart, label: "Relatório RBAC", path: "/rbac-report" },
     canAccessFluxo && { icon: GitBranch, label: "Fluxo do Projeto", path: "/fluxo" },
   { icon: Database, label: "BigQuery", path: "/bigquery" },
-  { icon: Activity, label: "Kanban Cálculo", path: "/calculo-kanban" },
+  { icon: Activity, label: "Kanban Regras de Cálculo Morfeu", path: "/calculo-kanban" },
   ].filter(Boolean);
 
   const renderLink = ({ icon: Icon, label, path }) => {
