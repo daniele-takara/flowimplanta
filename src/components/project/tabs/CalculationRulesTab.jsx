@@ -710,7 +710,8 @@ function Jornada12x36Form({ companyData, data, onChange, onInfoFeriadoClick }) {
   const selected = (name) => d[name] || {
     hasJornada12x36: "sim",
     pagamentoFeriado: "normal",
-    faltaFeriado: "sim"
+    faltaFeriado: "sim",
+    dsrDobroFalta: "sim"
   };
 
   const updateRule = (name, field, value) => {
@@ -766,6 +767,16 @@ function Jornada12x36Form({ companyData, data, onChange, onInfoFeriadoClick }) {
               <select value={val.faltaFeriado || "sim"} onChange={e => updateRule(name, "faltaFeriado", e.target.value)} className={`${selectClass} mt-1`}>
                 <option value="sim">Sim, é considerado falta</option>
                 <option value="nao">Não, é considerado folga</option>
+              </select>
+            </div>
+
+            <div className="border-t pt-4 mb-4">
+              <label className="text-xs font-semibold text-slate-700">
+                Se o funcionário falta em uma semana com feriado, é descontado DSR em dobro?
+              </label>
+              <select value={val.dsrDobroFalta || "sim"} onChange={e => updateRule(name, "dsrDobroFalta", e.target.value)} className={`${selectClass} mt-1`}>
+                <option value="sim">Sim, descontar o DSR em dobro (feriado + domingo)</option>
+                <option value="nao">Não, descontar apenas 1 DSR (domingo)</option>
               </select>
             </div>
             {/* Observações */}
