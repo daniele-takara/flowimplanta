@@ -13,15 +13,7 @@ import DSRForm from "@/components/project/tabs/calculation/DSRForm";
 import OutrasVerbasForm from "@/components/project/tabs/calculation/OutrasVerbasForm";
 import RevisaoFinal from "@/components/project/tabs/calculation/RevisaoFinal";
 import { STEPS } from "@/lib/calcRulesShared";
-// Chamadas diretas às funções (sem auth) — app privado, funções usam asServiceRole
-async function callFunction(name, payload) {
-  const res = await fetch(`/functions/${name}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  return res.json();
-}
+import { base44 } from "@/api/base44Client";
 import CalculationModelsInfoModal from "@/components/project/tabs/calculation/CalculationModelsInfoModal";
 import HorasExtrasInfoModal from "@/components/project/tabs/calculation/HorasExtrasInfoModal";
 import CategorizacaoHEInfoModal from "@/components/project/tabs/calculation/CategorizacaoHEInfoModal";
@@ -53,12 +45,12 @@ function useStandaloneWizard() {
       return;
     }
     try {
-      const res = await callFunction('getStandaloneCalcRule', { id: storedId });
-      if (res.error) {
+      const res = await base44.functions.invoke('getStandaloneCalcRule', { id: storedId });
+      if (res.data?.error) {
         localStorage.removeItem(LS_KEY);
         setRecord(null);
       } else {
-        setRecord(res);
+        setRecord(res.data);
       }
     } catch (e) {
       localStorage.removeItem(LS_KEY);
@@ -77,7 +69,7 @@ function useStandaloneWizard() {
       if (v !== undefined && v !== null) payload[k] = typeof v === "object" ? v : v;
     });
     try {
-      await callFunction('saveStandaloneCalcRule', payload);
+      await base44.functions.invoke('saveStandaloneCalcRule', payload);
     } catch (e) {}
     setSaving(false);
   }, [record?.id]);
@@ -91,10 +83,10 @@ function useStandaloneWizard() {
 
   const identify = async (name, email) => {
     try {
-      const res = await callFunction('createStandaloneRule', { client_name: name, client_email: email });
-      if (res.id) {
-        localStorage.setItem(LS_KEY, res.id);
-        setRecord({ id: res.id, client_name: name, client_email: email, status: 'pendente', current_step: 1 });
+      const res = await base44.functions.invoke('createStandaloneRule', { client_name: name, client_email: email });
+      if (res.data?.id) {
+        localStorage.setItem(LS_KEY, res.data.id);
+        setRecord({ id: res.data.id, client_name: name, client_email: email, status: 'pendente', current_step: 1 });
         return true;
       }
     } catch (e) {
