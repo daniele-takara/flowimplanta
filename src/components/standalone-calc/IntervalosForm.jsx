@@ -1,0 +1,1 @@
+export { default } from "@/components/project/tabs/calculation/IntervalosForm";

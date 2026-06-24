@@ -1,0 +1,1 @@
+export { default } from "@/components/project/tabs/calculation/Jornada12x36Form";
