@@ -1158,7 +1158,7 @@ function BancoHorasForm({ companyData, data, onChange, onInfoAcumuloClick }) {
               </div>
 
               <div>
-                <label className={labelClass}>Data de início do banco de horas</label>
+                <label className={labelClass}>Data de início de banco de horas na Pontotel</label>
                 <input value={val.dataInicio || ""} onChange={e => updateRule(name, "dataInicio", e.target.value)} className={`${inputClass} max-w-sm`} type="date" />
               </div>
 
@@ -1198,7 +1198,7 @@ function BancoHorasForm({ companyData, data, onChange, onInfoAcumuloClick }) {
               </div>
 
               <div>
-                <label className={labelClass}>Data de início do banco de horas</label>
+                <label className={labelClass}>Data de início de banco de horas na Pontotel</label>
                 <input value={val.dataInicio || ""} onChange={e => updateRule(name, "dataInicio", e.target.value)} className={`${inputClass} max-w-sm`} type="date" />
               </div>
 
