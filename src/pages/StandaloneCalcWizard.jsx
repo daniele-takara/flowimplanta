@@ -388,7 +388,7 @@ export default function StandaloneCalcWizard() {
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 text-left max-w-md mx-auto">
                 <p className="text-sm font-semibold text-amber-800 mb-2">Próximo passo</p>
                 <p className="text-sm text-amber-700 mb-2">Gere o PDF das regras de cálculo e envie para o e-mail:</p>
-                <p className="text-base font-bold text-amber-800 mb-1">implantacao@pontotel.com.br</p>
+                <p className="text-base font-bold text-amber-800 mb-1">acompanhamento@pontotel.com.br</p>
               </div>
               <button
                 onClick={handleGeneratePDF}
