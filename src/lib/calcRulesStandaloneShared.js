@@ -8,11 +8,10 @@ export const STEPS = [
   { id: 4, title: "Intervalos", key: "break_time_rules" },
   { id: 5, title: "Adicional Noturno", key: "night_shift_rules" },
   { id: 6, title: "Jornada 12x36", key: "shift_12x36_rules" },
-  { id: 7, title: "Sobreaviso", key: "sobreaviso_rules" },
-  { id: 8, title: "DSR / Feriados", key: "dsr_rules" },
-  { id: 9, title: "Banco de Horas", key: "bank_hours_rules" },
-  { id: 10, title: "Outras Verbas", key: "other_verbs_rules" },
-  { id: 11, title: "Revisão Final", key: null },
+  { id: 7, title: "DSR / Feriados", key: "dsr_rules" },
+  { id: 8, title: "Banco de Horas", key: "bank_hours_rules" },
+  { id: 9, title: "Outras Verbas", key: "other_verbs_rules" },
+  { id: 10, title: "Revisão Final", key: null },
 ];
 
 export const inputClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";

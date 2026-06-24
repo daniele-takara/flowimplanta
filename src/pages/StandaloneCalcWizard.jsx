@@ -7,7 +7,6 @@ import HorasExtrasForm from "@/components/standalone-calc/HorasExtrasForm";
 import IntervalosForm from "@/components/standalone-calc/IntervalosForm";
 import AdicionalNoturnoForm from "@/components/standalone-calc/AdicionalNoturnoForm";
 import Jornada12x36Form from "@/components/standalone-calc/Jornada12x36Form";
-import SobreavisoForm from "@/components/standalone-calc/SobreavisoForm";
 import BancoHorasForm from "@/components/standalone-calc/BancoHorasForm";
 import DSRForm from "@/components/standalone-calc/DSRForm";
 import OutrasVerbasForm from "@/components/standalone-calc/OutrasVerbasForm";
@@ -25,7 +24,6 @@ import ProrrogacaoAdicionalNoturnoInfoModal from "@/components/project/tabs/calc
 import ReducaoHoraNoturnaInfoModal from "@/components/project/tabs/calculation/ReducaoHoraNoturnaInfoModal";
 import AdicionalIncluiPausaInfoModal from "@/components/project/tabs/calculation/AdicionalIncluiPausaInfoModal";
 import Jornada12x36FeriadoInfoModal from "@/components/project/tabs/calculation/Jornada12x36FeriadoInfoModal";
-import SobreavisoInfoModal from "@/components/project/tabs/calculation/SobreavisoInfoModal";
 import BancoHorasInfoModal from "@/components/project/tabs/calculation/BancoHorasInfoModal";
 import BancoHorasAcumuloInfoModal from "@/components/project/tabs/calculation/BancoHorasAcumuloInfoModal";
 import DSRFeriasHEInfoModal from "@/components/project/tabs/calculation/DSRFeriasHEInfoModal";
@@ -120,7 +118,6 @@ export default function StandaloneCalcWizard() {
   const [showReducaoHoraNoturnaModal, setShowReducaoHoraNoturnaModal] = useState(false);
   const [showAdicionalIncluiPausaModal, setShowAdicionalIncluiPausaModal] = useState(false);
   const [showJornada12x36FeriadoModal, setShowJornada12x36FeriadoModal] = useState(false);
-  const [showSobreavisoModal, setShowSobreavisoModal] = useState(false);
   const [showBancoHorasModal, setShowBancoHorasModal] = useState(false);
   const [showBancoHorasAcumuloModal, setShowBancoHorasAcumuloModal] = useState(false);
   const [showDSRFeriasHEModal, setShowDSRFeriasHEModal] = useState(false);
@@ -143,7 +140,6 @@ export default function StandaloneCalcWizard() {
     break_time_rules: getData("break_time_rules") || {},
     night_shift_rules: getData("night_shift_rules") || {},
     shift_12x36_rules: getData("shift_12x36_rules") || {},
-    sobreaviso_rules: getData("sobreaviso_rules") || {},
     bank_hours_rules: getData("bank_hours_rules") || {},
     dsr_rules: getData("dsr_rules") || {},
     other_verbs_rules: getData("other_verbs_rules") || {},
@@ -157,7 +153,6 @@ export default function StandaloneCalcWizard() {
     if (!cd?.rulesNames?.length && step.id > 1) return false;
     if (step.key === "night_shift_rules" && cd?.hasNightShift === false) return false;
     if (step.key === "shift_12x36_rules" && cd?.has12x36Shift === false) return false;
-    if (step.key === "sobreaviso_rules" && cd?.hasOnCallWorkers === false) return false;
     if (step.key === "bank_hours_rules" && cd?.hasTimeBank === false) return false;
     return true;
   });
@@ -342,8 +337,7 @@ export default function StandaloneCalcWizard() {
             <h3 className="text-lg font-semibold text-slate-800">{step?.title}</h3>
             {step?.id === 2 && <button onClick={() => setShowCalcModelsModal(true)} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"><Info className="w-3.5 h-3.5" /></button>}
             {step?.id === 3 && <button onClick={() => setShowHorasExtrasModal(true)} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"><Info className="w-3.5 h-3.5" /></button>}
-            {step?.id === 7 && <button onClick={() => setShowSobreavisoModal(true)} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"><Info className="w-3.5 h-3.5" /></button>}
-            {step?.id === 9 && <button onClick={() => setShowBancoHorasModal(true)} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"><Info className="w-3.5 h-3.5" /></button>}
+            {step?.id === 8 && <button onClick={() => setShowBancoHorasModal(true)} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"><Info className="w-3.5 h-3.5" /></button>}
           </div>
           <p className="text-sm text-slate-400 mb-6">Passo {currentStepIdx + 1} de {visibleSteps.length}</p>
 
@@ -377,9 +371,6 @@ export default function StandaloneCalcWizard() {
           {step?.key === "shift_12x36_rules" && (
             <Jornada12x36Form companyData={stepData.company_data} data={stepData.shift_12x36_rules} onChange={(data) => scheduleSave("shift_12x36_rules", data)} onInfoFeriadoClick={() => setShowJornada12x36FeriadoModal(true)} />
           )}
-          {step?.key === "sobreaviso_rules" && (
-            <SobreavisoForm companyData={stepData.company_data} data={stepData.sobreaviso_rules} onChange={(data) => scheduleSave("sobreaviso_rules", data)} />
-          )}
           {step?.key === "bank_hours_rules" && (
             <BancoHorasForm companyData={stepData.company_data} data={stepData.bank_hours_rules} onChange={(data) => scheduleSave("bank_hours_rules", data)} onInfoAcumuloClick={() => setShowBancoHorasAcumuloModal(true)} />
           )}
@@ -389,8 +380,8 @@ export default function StandaloneCalcWizard() {
           {step?.key === "other_verbs_rules" && (
             <OutrasVerbasForm companyData={stepData.company_data} data={stepData.other_verbs_rules} onChange={(data) => scheduleSave("other_verbs_rules", data)} />
           )}
-          {step?.id === 11 && !submitted && <RevisaoFinal companyData={stepData.company_data} allData={stepData} project={{ client_name: clientName }} />}
-          {step?.id === 11 && submitted && (
+          {step?.id === 10 && !submitted && <RevisaoFinal companyData={stepData.company_data} allData={stepData} project={{ client_name: clientName }} />}
+          {step?.id === 10 && submitted && (
             <div className="text-center">
               <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-green-50 flex items-center justify-center">
                 <CheckCircle className="w-7 h-7 text-green-500" />
@@ -457,7 +448,6 @@ export default function StandaloneCalcWizard() {
       {showReducaoHoraNoturnaModal && <ReducaoHoraNoturnaInfoModal onClose={() => setShowReducaoHoraNoturnaModal(false)} />}
       {showAdicionalIncluiPausaModal && <AdicionalIncluiPausaInfoModal onClose={() => setShowAdicionalIncluiPausaModal(false)} />}
       {showJornada12x36FeriadoModal && <Jornada12x36FeriadoInfoModal onClose={() => setShowJornada12x36FeriadoModal(false)} />}
-      {showSobreavisoModal && <SobreavisoInfoModal onClose={() => setShowSobreavisoModal(false)} />}
       {showBancoHorasModal && <BancoHorasInfoModal onClose={() => setShowBancoHorasModal(false)} />}
       {showBancoHorasAcumuloModal && <BancoHorasAcumuloInfoModal onClose={() => setShowBancoHorasAcumuloModal(false)} />}
       {showDSRFeriasHEModal && <DSRFeriasHEInfoModal onClose={() => setShowDSRFeriasHEModal(false)} />}
