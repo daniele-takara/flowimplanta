@@ -132,7 +132,7 @@ export default function StandaloneCalcWizard() {
       setClientName(record.client_name || "");
       setClientEmail(record.client_email || "");
       setIdentified(true);
-      if (record.status === 'pendente') setSubmitted(true);
+      if (record.status !== 'preenchimento') setSubmitted(true);
     }
   }, [record]);
 

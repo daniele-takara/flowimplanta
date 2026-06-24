@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
     const record = await base44.asServiceRole.entities.StandaloneCalcRule.create({
       client_name,
       client_email,
-      status: 'pendente',
+      status: 'preenchimento',
       current_step: 1,
       token: crypto.randomUUID(),
     });

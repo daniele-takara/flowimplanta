@@ -29,13 +29,14 @@
     "status": {
       "type": "string",
       "enum": [
+        "preenchimento",
         "pendente",
         "em_revisao",
         "validado",
         "concluido",
         "excluido"
       ],
-      "default": "pendente"
+      "default": "preenchimento"
     },
     "deleted_at": {
       "type": "string",

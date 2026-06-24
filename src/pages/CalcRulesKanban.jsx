@@ -4,6 +4,7 @@ import { Copy, ExternalLink, ChevronRight, Clock, Search, User, Hash, AlertTrian
 import { generateCalcRulesPDF } from "@/lib/calcRulesPdfExport";
 
 const COLUMNS = [
+  { key: "preenchimento", label: "Preenchimento em andamento", color: "bg-purple-50 border-purple-300", badge: "bg-purple-200 text-purple-700" },
   { key: "pendente", label: "Pendente", color: "bg-slate-100 border-slate-300", badge: "bg-slate-200 text-slate-700" },
   { key: "em_revisao", label: "Em Parametrização", color: "bg-amber-50 border-amber-300", badge: "bg-amber-200 text-amber-700" },
   { key: "validado", label: "Pendente Info. Cliente", color: "bg-blue-50 border-blue-300", badge: "bg-blue-200 text-blue-700" },
@@ -13,6 +14,7 @@ const COLUMNS = [
 const DELETED_COLUMN = { key: "excluido", label: "Excluídos", color: "bg-red-50/50 border-red-200 border-dashed", badge: "bg-red-200 text-red-700" };
 
 const STATUS_LABELS = {
+  preenchimento: "Preenchimento em andamento",
   pendente: "Pendente",
   em_revisao: "Em Parametrização",
   validado: "Pendente Info. Cliente",
@@ -583,7 +585,7 @@ export default function CalcRulesKanban() {
       </div>
 
       <div className="flex gap-4">
-        <div className="grid grid-cols-4 gap-4 flex-1">
+        <div className="grid grid-cols-5 gap-4 flex-1">
         {COLUMNS.map(col => {
           const items = filteredRules.filter(r => r.status === col.key);
           return (
