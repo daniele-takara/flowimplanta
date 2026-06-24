@@ -6,7 +6,7 @@ const inputClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg 
 const labelClass = "block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5";
 const selectClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";
 
-export default function HorasExtrasForm({ companyData, data, onChange, onInfoDiariaClick, onInfoMensalClick, hideFopag }) {
+export default function HorasExtrasForm({ companyData, data, onChange, onInfoDiariaClick, onInfoMensalClick, hideFopag, hideCategorizacao }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
 
@@ -146,6 +146,7 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
             </div>
 
             {/* Categorização de HE */}
+            {!hideCategorizacao && (
             <div className="border-t pt-4 mb-4">
               <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Categorização de Horas Extras</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -171,9 +172,10 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
                 </div>
               </div>
             </div>
+            )}
 
             {/* Faixas de Limitação Diária */}
-            {val.categorizacaoHEDiaria === "Sim" && (
+            {!hideCategorizacao && val.categorizacaoHEDiaria === "Sim" && (
             <div className="border-t pt-4 mb-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-semibold text-slate-500 uppercase">Faixas de Limitação Diária</p>
@@ -226,7 +228,7 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
             )}
 
             {/* Faixas de Limitação Mensal */}
-            {val.categorizacaoHEMensal === "Sim" && (
+            {!hideCategorizacao && val.categorizacaoHEMensal === "Sim" && (
             <div className="border-t pt-4 mb-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-semibold text-slate-500 uppercase">Faixas de Limitação Mensal</p>

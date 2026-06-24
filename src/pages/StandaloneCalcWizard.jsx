@@ -360,7 +360,7 @@ export default function StandaloneCalcWizard() {
             <RegrasForm companyData={stepData.company_data} data={stepData.rule_configurations} onChange={(data) => scheduleSave("rule_configurations", data)} />
           )}
           {step?.key === "overtime_rules" && (
-            <HorasExtrasForm companyData={stepData.company_data} data={stepData.overtime_rules} onChange={(data) => scheduleSave("overtime_rules", data)} onInfoDiariaClick={() => setShowCategorizacaoHEModal(true)} onInfoMensalClick={() => setShowCategorizacaoHEMensalModal(true)} hideFopag />
+            <HorasExtrasForm companyData={stepData.company_data} data={stepData.overtime_rules} onChange={(data) => scheduleSave("overtime_rules", data)} onInfoDiariaClick={() => setShowCategorizacaoHEModal(true)} onInfoMensalClick={() => setShowCategorizacaoHEMensalModal(true)} hideFopag hideCategorizacao />
           )}
           {step?.key === "break_time_rules" && (
             <IntervalosForm companyData={stepData.company_data} data={stepData.break_time_rules} onChange={(data) => scheduleSave("break_time_rules", data)} ruleConfigurations={stepData.rule_configurations} onInfoToleranciasClick={() => setShowToleranciasIntervaloModal(true)} onInfoPausaHoraExtraClick={() => setShowPausaHoraExtraModal(true)} hideFopag />
