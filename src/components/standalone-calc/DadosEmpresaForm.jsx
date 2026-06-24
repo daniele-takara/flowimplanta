@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { Info } from "lucide-react";
 import { inputClass, labelClass } from "@/lib/calcRulesStandaloneShared";
+import PeriodoApuracaoInfoModal from "@/components/standalone-calc/PeriodoApuracaoInfoModal";
 
 export default function DadosEmpresaForm({ data, onChange, project, readOnly }) {
-  const d = { responsibleName: "", rulesNames: [], hasNightShift: true, has12x36Shift: true, hasTimeBank: true, ...(data || {}) };
+  const d = { responsibleName: "", rulesNames: [], hasNightShift: true, has12x36Shift: true, hasTimeBank: true, apuracao_inicio: 1, apuracao_fim: 30, ...(data || {}) };
   const [ruleInput, setRuleInput] = useState("");
+  const [showPeriodoModal, setShowPeriodoModal] = useState(false);
 
   const addRule = () => {
     if (!ruleInput.trim()) return;
@@ -32,6 +35,46 @@ export default function DadosEmpresaForm({ data, onChange, project, readOnly }) 
       <div>
         <label className={labelClass}>Responsável</label>
         <input value={d.responsibleName} onChange={e => onChange({ ...d, responsibleName: e.target.value })} className={`${inputClass} max-w-sm`} placeholder="Nome do responsável pelas regras" disabled={readOnly} />
+      </div>
+
+      <div>
+        <div className="flex items-center gap-2 mb-1.5">
+          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Informe o período de apuração da sua folha de ponto</label>
+          <button
+            onClick={() => setShowPeriodoModal(true)}
+            className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors"
+            type="button"
+          >
+            <Info className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500">Dia</span>
+            <input
+              type="number"
+              min={1}
+              max={31}
+              value={d.apuracao_inicio || 1}
+              onChange={e => onChange({ ...d, apuracao_inicio: parseInt(e.target.value) || 1 })}
+              className="w-16 px-2 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-center"
+              disabled={readOnly}
+            />
+          </div>
+          <span className="text-slate-400 text-sm">a</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500">Dia</span>
+            <input
+              type="number"
+              min={1}
+              max={31}
+              value={d.apuracao_fim || 30}
+              onChange={e => onChange({ ...d, apuracao_fim: parseInt(e.target.value) || 30 })}
+              className="w-16 px-2 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-center"
+              disabled={readOnly}
+            />
+          </div>
+        </div>
       </div>
 
       <div>
@@ -77,6 +120,8 @@ export default function DadosEmpresaForm({ data, onChange, project, readOnly }) 
           <textarea value={d.observacoes || ""} onChange={e => onChange({ ...d, observacoes: e.target.value })} className={`${inputClass} h-24 mt-2`} placeholder="Descreva as observações..." disabled={readOnly} />
         )}
       </div>
+
+      {showPeriodoModal && <PeriodoApuracaoInfoModal onClose={() => setShowPeriodoModal(false)} />}
     </div>
   );
 }
