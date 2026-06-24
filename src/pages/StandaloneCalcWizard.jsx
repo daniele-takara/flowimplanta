@@ -30,35 +30,10 @@ import BancoHorasAcumuloInfoModal from "@/components/project/tabs/calculation/Ba
 import DSRFeriasHEInfoModal from "@/components/project/tabs/calculation/DSRFeriasHEInfoModal";
 import DSRMesDescontoInfoModal from "@/components/project/tabs/calculation/DSRMesDescontoInfoModal";
 
-const LS_KEY = "standalone_calc_rule_id";
-
 function useStandaloneWizard() {
   const [record, setRecord] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  const load = useCallback(async () => {
-    const storedId = localStorage.getItem(LS_KEY);
-    if (!storedId) {
-      setLoading(false);
-      return;
-    }
-    try {
-      const res = await base44.functions.invoke('getStandaloneCalcRule', { id: storedId });
-      if (res.data?.error) {
-        localStorage.removeItem(LS_KEY);
-        setRecord(null);
-      } else {
-        setRecord(res.data);
-      }
-    } catch (e) {
-      localStorage.removeItem(LS_KEY);
-      setRecord(null);
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   const save = useCallback(async (data) => {
     if (!record?.id) return;
@@ -84,8 +59,7 @@ function useStandaloneWizard() {
     try {
       const res = await base44.functions.invoke('createStandaloneRule', { client_name: name, client_email: email });
       if (res.data?.id) {
-        localStorage.setItem(LS_KEY, res.data.id);
-        setRecord({ id: res.data.id, client_name: name, client_email: email, status: 'pendente', current_step: 1 });
+        setRecord({ id: res.data.id, client_name: name, client_email: email, status: 'preenchimento', current_step: 1 });
         return true;
       }
     } catch (e) {
@@ -94,9 +68,9 @@ function useStandaloneWizard() {
     return false;
   };
 
-  const finish = () => { localStorage.removeItem(LS_KEY); };
+  const finish = () => {};
 
-  return { record, loading, saving, save, getData, reload: load, identify, finish };
+  return { record, loading, saving, save, getData, identify, finish };
 }
 
 export default function StandaloneCalcWizard() {
