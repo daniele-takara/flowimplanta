@@ -1,5 +1,14 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
+const STATUS_LABELS = {
+  preenchimento: 'Preenchimento em andamento',
+  pendente: 'Pendente',
+  em_revisao: 'Em Parametrização',
+  validado: 'Pendente Info. Cliente',
+  concluido: 'Concluído',
+  excluido: 'Excluído',
+};
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -19,11 +28,9 @@ Deno.serve(async (req) => {
 
     const isAdvancing = validStatuses.indexOf(status) > validStatuses.indexOf(record.status);
 
-    // Ao avançar (qualquer transição para frente), validar campos obrigatórios
     if (isAdvancing) {
       const effectiveEmpresaId = empresa_id ?? record.empresa_id;
       const effectiveUserId = implantacao_user_id ?? record.implantacao_user_id;
-
       if (!effectiveEmpresaId || !effectiveEmpresaId.trim()) {
         return Response.json({ error: 'Preencha o ID do cliente antes de avançar.' }, { status: 400 });
       }
@@ -32,10 +39,27 @@ Deno.serve(async (req) => {
       }
     }
 
+    const now = new Date().toISOString();
+
+    // Append to history only when status actually changes
+    let history = [];
+    try { history = JSON.parse(record.history || '[]'); } catch (_) {}
+
+    if (status !== record.status) {
+      history.push({
+        from: record.status,
+        to: status,
+        label: STATUS_LABELS[status] || status,
+        user_name: user.full_name,
+        at: now,
+      });
+    }
+
     const payload = {
       status,
       reviewed_by: user.full_name,
-      reviewed_at: new Date().toISOString(),
+      reviewed_at: now,
+      history: JSON.stringify(history),
     };
     if (reviewer_notes !== undefined) payload.reviewer_notes = reviewer_notes;
     if (empresa_id !== undefined) payload.empresa_id = empresa_id;

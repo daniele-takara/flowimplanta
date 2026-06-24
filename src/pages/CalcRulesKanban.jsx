@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { Copy, ChevronRight, Clock, Search, User, Hash, AlertTriangle, FileDown, Loader2, Trash2, Undo2, ChevronDown, ChevronUp } from "lucide-react";
+import { Copy, ChevronRight, Clock, Search, User, Hash, AlertTriangle, FileDown, Loader2, Trash2, Undo2, ChevronDown, ChevronUp, History } from "lucide-react";
 import { generateCalcRulesPDF } from "@/lib/calcRulesPdfExport";
 import { uploadAndOpenPDF } from "@/lib/pdfDownload";
 import { usePermissions } from "@/lib/usePermissions";
@@ -437,6 +437,30 @@ function DetailModal({ rule, onClose, onRefresh, canEdit }) {
             </button>
             )}
           </div>
+
+          {/* Histórico de movimentações */}
+          {(() => {
+            let hist = [];
+            try { hist = JSON.parse(rule.history || '[]'); } catch (_) {}
+            return hist.length > 0 ? (
+              <div className="border-t pt-4 mb-4">
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+                  <History className="w-3.5 h-3.5" /> Histórico de movimentações
+                </p>
+                <ol className="relative border-l border-slate-200 ml-1 space-y-3">
+                  {[...hist].reverse().map((h, i) => (
+                    <li key={i} className="ml-4">
+                      <span className="absolute -left-1.5 w-3 h-3 rounded-full bg-purple-400 border-2 border-white"></span>
+                      <p className="text-xs font-semibold text-slate-700">{h.label}</p>
+                      <p className="text-[11px] text-slate-400">
+                        {h.user_name} · {h.at ? new Date(h.at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
+                      </p>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : null;
+          })()}
 
           {canEdit && (
           <div className="border-t pt-4 flex items-center gap-2">

@@ -54,6 +54,10 @@
       "type": "string",
       "description": "ISO datetime da \u00faltima revis\u00e3o"
     },
+    "history": {
+      "type": "string",
+      "description": "JSON: array de {status, user_name, at, notes} \u2014 hist\u00f3rico de movimenta\u00e7\u00f5es do card"
+    },
     "current_step": {
       "type": "number",
       "default": 1
