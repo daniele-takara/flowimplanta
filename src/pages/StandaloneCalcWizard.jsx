@@ -9,7 +9,7 @@ import AdicionalNoturnoForm from "@/components/standalone-calc/AdicionalNoturnoF
 import Jornada12x36Form from "@/components/standalone-calc/Jornada12x36Form";
 import BancoHorasForm from "@/components/standalone-calc/BancoHorasForm";
 import DSRForm from "@/components/standalone-calc/DSRForm";
-import OutrasVerbasForm from "@/components/standalone-calc/OutrasVerbasForm";
+import TimesheetConfigForm from "@/components/standalone-calc/TimesheetConfigForm";
 import RevisaoFinal from "@/components/standalone-calc/RevisaoFinal";
 import { STEPS } from "@/lib/calcRulesStandaloneShared";
 import { FATORES_OPTIONS } from "@/lib/calcRulesShared";
@@ -145,7 +145,7 @@ export default function StandaloneCalcWizard() {
     shift_12x36_rules: getData("shift_12x36_rules") || {},
     bank_hours_rules: getData("bank_hours_rules") || {},
     dsr_rules: getData("dsr_rules") || {},
-    other_verbs_rules: getData("other_verbs_rules") || {},
+    timesheet_config: getData("timesheet_config") || {},
   };
 
   const [stepData, setStepData] = useState(dbStepData);
@@ -403,8 +403,8 @@ export default function StandaloneCalcWizard() {
           {step?.key === "dsr_rules" && (
             <DSRForm companyData={stepData.company_data} data={stepData.dsr_rules} onChange={(data) => scheduleSave("dsr_rules", data)} onInfoHEFeriadoClick={() => setShowDSRFeriasHEModal(true)} onInfoMesDescontoClick={() => setShowDSRMesDescontoModal(true)} hideFopag />
           )}
-          {step?.key === "other_verbs_rules" && (
-            <OutrasVerbasForm companyData={stepData.company_data} data={stepData.other_verbs_rules} onChange={(data) => scheduleSave("other_verbs_rules", data)} />
+          {step?.key === "timesheet_config" && (
+            <TimesheetConfigForm data={stepData.timesheet_config} onChange={(data) => scheduleSave("timesheet_config", data)} />
           )}
           {step?.id === 10 && !submitted && <RevisaoFinal companyData={stepData.company_data} allData={stepData} project={{ client_name: clientName }} />}
           {step?.id === 10 && submitted && (

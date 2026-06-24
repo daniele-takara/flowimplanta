@@ -10,7 +10,7 @@ export const STEPS = [
   { id: 6, title: "Jornada 12x36", key: "shift_12x36_rules" },
   { id: 7, title: "DSR / Feriados", key: "dsr_rules" },
   { id: 8, title: "Banco de Horas", key: "bank_hours_rules" },
-  { id: 9, title: "Outras Verbas", key: "other_verbs_rules" },
+  { id: 9, title: "Configuração da Folha de Ponto", key: "timesheet_config" },
   { id: 10, title: "Revisão Final", key: null },
 ];
 
