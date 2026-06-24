@@ -241,17 +241,30 @@ export function computeSchedule(tasks, anchors, answersMap, project) {
     }
   }
 
-  // Calcular datas de phases/groups a partir de filhos visíveis
+  // Calcular datas de phases/groups/subgroups a partir de filhos visíveis
   for (const task of tasks) {
-    if (task.type !== "phase" && task.type !== "group") continue;
+    if (task.type !== "phase" && task.type !== "group" && task.type !== "subgroup") continue;
     if (!visible.has(task.id)) continue;
 
-    const children = tasks.filter(t =>
-      t.id !== task.id &&
-      t.phase === task.phase &&
-      t.type === "task" &&
-      visible.has(t.id)
-    );
+    let children;
+    if (task.type === "subgroup") {
+      // Subgrupo: filhas são tasks com parentGroup === task.id
+      children = tasks.filter(t =>
+        t.parentGroup === task.id &&
+        t.type === "task" &&
+        visible.has(t.id)
+      );
+    } else {
+      // Group/phase: filhas são tasks da mesma fase SEM parentGroup (para não contar
+      // subatividades que já pertencem a um subgrupo no rol da fase pai)
+      children = tasks.filter(t =>
+        t.id !== task.id &&
+        t.phase === task.phase &&
+        t.type === "task" &&
+        !t.parentGroup &&
+        visible.has(t.id)
+      );
+    }
 
     if (children.length > 0) {
       const starts = children.map(c => dates[c.id]?.plannedStart).filter(Boolean);

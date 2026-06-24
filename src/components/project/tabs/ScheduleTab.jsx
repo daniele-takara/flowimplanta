@@ -98,7 +98,7 @@ function DateOriginBadge({ origin }) {
 function TaskRow({
   task, computedDates, manualOverrides, onSaveOverride, onRemoveOverride,
   onSaveActivity, onInactivateTask, existingActivity, project, templateConfig,
-  readOnly, canEditPlanned, canEditExecuted,
+  readOnly, canEditPlanned, canEditExecuted, indented = false,
 }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -215,8 +215,9 @@ function TaskRow({
   return (
     <>
       <tr className={`border-b border-slate-50 transition-colors ${isInactive ? "bg-slate-50/60 opacity-60" : "hover:bg-slate-50/80"}`}>
-        <td className="px-2 py-2.5 text-sm text-slate-700 max-w-[280px]">
+        <td className={`py-2.5 text-sm text-slate-700 max-w-[280px] ${indented ? "pl-8 pr-2" : "px-2"}`}>
           <div>
+            {indented && <span className="inline-block w-1 h-3 rounded-full bg-purple-300 mr-1.5 align-middle" />}
             <span className={`leading-snug ${isInactive ? "line-through text-slate-400" : ""}`}>{task.activity}</span>
             <div className="flex items-center gap-1 mt-0.5 flex-wrap">
               {isInactive && (
@@ -428,6 +429,22 @@ function GroupRow({ task, computedDates }) {
   );
 }
 
+function SubGroupRow({ task, computedDates }) {
+  const dates = computedDates[task.id] || {};
+  return (
+    <tr className="bg-purple-50 border-b border-purple-200">
+      <td className="pl-6 pr-4 py-2 text-xs font-semibold text-purple-700" colSpan={3}>
+        <span className="flex items-center gap-1.5">
+          <span className="w-1 h-3 rounded-full bg-purple-400 shrink-0" />
+          {task.activity}
+        </span>
+      </td>
+      <td className="px-3 py-2 text-xs text-purple-500">{fmtDate(dates.plannedStart)} → {fmtDate(dates.plannedEnd)}</td>
+      <td colSpan={6} />
+    </tr>
+  );
+}
+
 // ── PhaseSection (fases do template) ──────────────────────────────────────────
 function PhaseSection({
   phaseName, tasks, computedDates, manualOverrides, activitiesByTask, localActivities,
@@ -581,15 +598,20 @@ function PhaseSection({
             <tbody>
               {tasks.map(task => {
                 if (task.type === "group") return <GroupRow key={task.id} task={task} computedDates={computedDates} />;
-                if (task.type === "task") return (
-                  <TaskRow
-                    key={task.id} task={task} computedDates={computedDates} manualOverrides={manualOverrides}
-                    onSaveOverride={onSaveOverride} onRemoveOverride={onRemoveOverride} onSaveActivity={onSaveActivity}
-                    onInactivateTask={onInactivateTask}
-                    existingActivity={activitiesByTask[task.id]} project={project} templateConfig={templateConfig}
-                    readOnly={readOnly} canEditPlanned={canEditPlanned} canEditExecuted={canEditExecuted}
-                  />
-                );
+                if (task.type === "subgroup") return <SubGroupRow key={task.id} task={task} computedDates={computedDates} />;
+                if (task.type === "task") {
+                  const isSubActivity = !!task.parentGroup;
+                  return (
+                    <TaskRow
+                      key={task.id} task={task} computedDates={computedDates} manualOverrides={manualOverrides}
+                      onSaveOverride={onSaveOverride} onRemoveOverride={onRemoveOverride} onSaveActivity={onSaveActivity}
+                      onInactivateTask={onInactivateTask}
+                      existingActivity={activitiesByTask[task.id]} project={project} templateConfig={templateConfig}
+                      readOnly={readOnly} canEditPlanned={canEditPlanned} canEditExecuted={canEditExecuted}
+                      indented={isSubActivity}
+                    />
+                  );
+                }
                 return null;
               })}
               {phaseLocalActivities.map(act => (

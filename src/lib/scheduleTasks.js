@@ -324,9 +324,23 @@ export const SCHEDULE_TASKS = [
     plannedEnd: { type: "calculated", formula: "workday(plannedStart, 15)" },
     visibleWhen: { source: "dados_iniciais.modulos_contratados", contains: "Cálculos e Tratamento" }
   },
+  // ── SUBGRUPO: REUNIÃO SOBRE O USO DE MÓDULOS (v2 — apenas novos projetos) ──
+  // parentGroup identifica subatividades deste grupo; engine calcula datas do grupo
+  // a partir do min(start) e max(end) das filhas visíveis.
+  {
+    id: "grupo_reuniao_uso_modulos", row: 53.6, type: "subgroup",
+    phase: "Treinamento e Validações", activity: "Reunião sobre o uso de módulos",
+    visibleWhenAny: [
+      { source: "dados_iniciais.modulos_contratados", contains: "Gestão de Ponto Participativa" },
+      { source: "dados_iniciais.modulos_contratados", contains: "Controle de Custos" },
+      { source: "dados_iniciais.modulos_contratados", contains: "Gestão de Férias e Ausências" },
+      { source: "escopo.q038", equals: "Sim" },
+    ]
+  },
   {
     id: "treinamento_solicitacoes", row: 54, type: "task",
     phase: "Treinamento e Validações", activity: "Reunião sobre o uso e validação do fluxo de Solicitações",
+    parentGroup: "grupo_reuniao_uso_modulos",
     plannedStart: { type: "calculated", formula: "parametrizacao_gestao_participativa.plannedEnd" },
     plannedEnd: { type: "calculated", formula: "workday(plannedStart, 5)" },
     visibleWhen: { source: "dados_iniciais.modulos_contratados", contains: "Gestão de Ponto Participativa" }
@@ -334,6 +348,7 @@ export const SCHEDULE_TASKS = [
   {
     id: "treinamento_gestao_horas_extras", row: 55, type: "task",
     phase: "Treinamento e Validações", activity: "Reunião sobre o uso e validação do fluxo de Gestão de horas extras",
+    parentGroup: "grupo_reuniao_uso_modulos",
     plannedStart: { type: "calculated", formula: "parametrizacao_controle_custos.plannedEnd" },
     plannedEnd: { type: "calculated", formula: "workday(plannedStart, 1)" },
     visibleWhen: { source: "dados_iniciais.modulos_contratados", contains: "Controle de Custos" }
@@ -341,6 +356,7 @@ export const SCHEDULE_TASKS = [
   {
     id: "treinamento_gestao_ferias", row: 56, type: "task",
     phase: "Treinamento e Validações", activity: "Reunião sobre o uso e validação do fluxo de gestão de férias",
+    parentGroup: "grupo_reuniao_uso_modulos",
     plannedStart: { type: "calculated", formula: "parametrizacao_gestao_ferias.plannedEnd" },
     plannedEnd: { type: "calculated", formula: "workday(plannedStart, 1)" },
     visibleWhen: { source: "dados_iniciais.modulos_contratados", contains: "Gestão de Férias e Ausências" }
@@ -348,6 +364,7 @@ export const SCHEDULE_TASKS = [
   {
     id: "treinamento_sobreaviso", row: 57, type: "task",
     phase: "Treinamento e Validações", activity: "Reunião para explicar o uso e validação do fluxo de Sobreaviso",
+    parentGroup: "grupo_reuniao_uso_modulos",
     plannedStart: { type: "calculated", formula: "parametrizar_permissoes_usuarios.plannedEnd" },
     plannedEnd: { type: "calculated", formula: "workday(plannedStart, 1)" },
     visibleWhen: { source: "escopo.q038", equals: "Sim" }
