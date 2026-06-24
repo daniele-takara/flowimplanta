@@ -4,7 +4,7 @@ import { inputClass, labelClass } from "@/lib/calcRulesStandaloneShared";
 import PeriodoApuracaoInfoModal from "@/components/standalone-calc/PeriodoApuracaoInfoModal";
 
 export default function DadosEmpresaForm({ data, onChange, project, readOnly }) {
-  const d = { responsibleName: "", rulesNames: [], hasNightShift: true, has12x36Shift: true, hasTimeBank: true, apuracao_inicio: 1, apuracao_fim: 30, ...(data || {}) };
+  const d = { responsibleName: "", rulesNames: [], hasNightShift: true, has12x36Shift: true, hasTimeBank: true, apuracao_inicio: 1, apuracao_fim: 30, modo_registro: "individual", aparelho_registro: [], ...(data || {}) };
   const [ruleInput, setRuleInput] = useState("");
   const [showPeriodoModal, setShowPeriodoModal] = useState(false);
 
@@ -74,6 +74,69 @@ export default function DadosEmpresaForm({ data, onChange, project, readOnly }) 
               disabled={readOnly}
             />
           </div>
+        </div>
+      </div>
+
+      <div>
+        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">
+          Como será o modo de registro de ponto? <span className="text-red-500">*</span>
+        </label>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
+            <input
+              type="radio"
+              name="modo_registro"
+              checked={d.modo_registro === "individual"}
+              onChange={() => onChange({ ...d, modo_registro: "individual" })}
+              className="w-4 h-4 accent-amber-600"
+              disabled={readOnly}
+            />
+            Registro individual - Cada empregado com seu dispositivo para registro
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
+            <input
+              type="radio"
+              name="modo_registro"
+              checked={d.modo_registro === "coletivo"}
+              onChange={() => onChange({ ...d, modo_registro: "coletivo" })}
+              className="w-4 h-4 accent-amber-600"
+              disabled={readOnly}
+            />
+            Registro Coletivo - Utilizarão um dispositivo único (modo coletivo)
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">
+          Qual aparelho será utilizado para registro de ponto? <span className="text-red-500">*</span>
+        </label>
+        <div className="space-y-2">
+          {[
+            { value: "celular_pessoal", label: "Celular pessoal do colaborador" },
+            { value: "celular_coletivo", label: "Celular coletivo" },
+            { value: "tablet_coletivo", label: "Tablet coletivo" },
+            { value: "computador", label: "Computador" },
+          ].map(opt => {
+            const arr = d.aparelho_registro || [];
+            const checked = arr.includes(opt.value);
+            const toggleAparelho = () => {
+              const next = checked ? arr.filter(v => v !== opt.value) : [...arr, opt.value];
+              onChange({ ...d, aparelho_registro: next });
+            };
+            return (
+              <label key={opt.value} className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={toggleAparelho}
+                  className="w-4 h-4 accent-amber-600"
+                  disabled={readOnly}
+                />
+                {opt.label}
+              </label>
+            );
+          })}
         </div>
       </div>
 
