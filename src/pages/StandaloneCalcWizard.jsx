@@ -14,6 +14,7 @@ import TimesheetConfigForm from "@/components/standalone-calc/TimesheetConfigFor
 import RevisaoFinal from "@/components/standalone-calc/RevisaoFinal";
 import { STEPS } from "@/lib/calcRulesStandaloneShared";
 import { FATORES_OPTIONS } from "@/lib/calcRulesShared";
+import { validateStep } from "@/lib/wizardValidations";
 import { base44 } from "@/api/base44Client";
 import CalculationModelsInfoModal from "@/components/project/tabs/calculation/CalculationModelsInfoModal";
 import HorasExtrasInfoModal from "@/components/project/tabs/calculation/HorasExtrasInfoModal";
@@ -173,22 +174,10 @@ export default function StandaloneCalcWizard() {
     await save({ current_step: newStep });
   };
 
-  const validateBancoHoras = () => {
-    const data = stepData.bank_hours_rules || {};
-    const rules = stepData.company_data?.rulesNames || [];
-    const missing = [];
-    for (const ruleName of rules) {
-      const rule = data[ruleName] || {};
-      const fatores = rule.fatoresTransformacao || [];
-      for (const f of fatores) {
-        if (f.ativo && !f.fator) {
-          const label = FATORES_OPTIONS.find(opt => opt.key === f.key)?.label || f.key;
-          missing.push(`${ruleName}: ${label}`);
-        }
-      }
-    }
-    if (missing.length > 0) {
-      setValidationError(`Selecione o fator de transformação para:\n${missing.map(m => `• ${m}`).join("\n")}`);
+  const runValidation = (stepKey) => {
+    const errors = validateStep(stepKey, stepData);
+    if (errors.length > 0) {
+      setValidationError(`Por favor, preencha os campos obrigatórios:\n${errors.map(e => `• ${e}`).join("\n")}`);
       setShowValidationModal(true);
       return false;
     }
@@ -309,10 +298,16 @@ export default function StandaloneCalcWizard() {
           {visibleSteps.map((s, idx) => {
             const isActive = s.id === currentStep;
             const isPast = s.id < currentStep;
+            const isFuture = s.id > currentStep;
             return (
               <button
                 key={s.id}
-                onClick={() => goToStep(s.id)}
+                onClick={() => {
+                  // Navegar para passos anteriores: sempre permitido
+                  if (!isFuture) { goToStep(s.id); return; }
+                  // Navegar para frente: validar passo atual primeiro
+                  if (runValidation(step?.key)) goToStep(s.id);
+                }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${
                   isActive ? "bg-blue-600 text-white border-blue-600" :
                   isPast ? "bg-green-50 text-green-700 border-green-200" :
@@ -414,7 +409,7 @@ export default function StandaloneCalcWizard() {
             </button>
           ) : currentStepIdx < visibleSteps.length - 1 ? (
             <button onClick={() => {
-              if (step?.key === "bank_hours_rules" && !validateBancoHoras()) return;
+              if (!runValidation(step?.key)) return;
               goToStep(visibleSteps[currentStepIdx + 1].id);
             }} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-blue-600 bg-blue-600 text-white hover:bg-blue-700">
               Próximo <ChevronRight className="w-4 h-4" />
@@ -422,6 +417,7 @@ export default function StandaloneCalcWizard() {
           ) : (
             <button
               onClick={async () => {
+                if (!runValidation(step?.key)) return;
                 await flushPending();
                 await save({ status: "pendente" });
                 finish();
