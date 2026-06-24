@@ -1,6 +1,11 @@
-import { useState } from "react";
+const BASE = "https://media.base44.com/images/public/69e295c073bbccc7f63f6156";
 
-const labelClass = "block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5";
+const IMAGES = {
+  somatoriaSim: `${BASE}/735ea52bd_sim.png`,
+  somatoriaNao: `${BASE}/171f9e890_no.png`,
+  abreviacaoSim: `${BASE}/15c1e6160_Comabreviao.png`,
+  abreviacaoNao: `${BASE}/da6b73a7c_Semabreviao.png`,
+};
 
 export default function TimesheetConfigForm({ data, onChange }) {
   const d = data || {};
@@ -9,15 +14,15 @@ export default function TimesheetConfigForm({ data, onChange }) {
     onChange({ ...d, [field]: value });
   };
 
-  const CardOption = ({ selected, onClick, children, label }) => (
+  const CardOption = ({ selected, onClick, imgSrc, imgAlt, label }) => (
     <div className="flex flex-col items-center gap-2">
       <button
         onClick={onClick}
-        className={`w-full max-w-[280px] rounded-xl border-2 overflow-hidden transition-all ${
+        className={`w-full max-w-[320px] rounded-xl border-2 overflow-hidden transition-all bg-white ${
           selected ? "border-amber-500 shadow-md" : "border-slate-200 hover:border-slate-300"
         }`}
       >
-        {children}
+        <img src={imgSrc} alt={imgAlt} className="w-full h-auto" />
       </button>
       <label className="flex items-center gap-2 cursor-pointer" onClick={onClick}>
         <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${selected ? "border-amber-600" : "border-slate-300"}`}>
@@ -45,71 +50,17 @@ export default function TimesheetConfigForm({ data, onChange }) {
           <CardOption
             selected={d.somatoriaFinal === "sim"}
             onClick={() => update("somatoriaFinal", "sim")}
+            imgSrc={IMAGES.somatoriaSim}
+            imgAlt="Folha de ponto com somatória final"
             label="Sim"
-          >
-            <div className="bg-white p-3">
-              <table className="w-full text-[10px] border-collapse">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-1 px-1">Data</th>
-                    <th className="text-left py-1 px-1">Entrada</th>
-                    <th className="text-left py-1 px-1">Saída</th>
-                    <th className="text-left py-1 px-1">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    ["01/07", "08:00", "18:00", "09:00"],
-                    ["02/07", "08:05", "18:00", "08:55"],
-                    ["03/07", "08:00", "17:45", "08:45"],
-                  ].map((row, i) => (
-                    <tr key={i} className="border-b border-slate-100">
-                      {row.map((cell, j) => (
-                        <td key={j} className="py-1 px-1 text-slate-600">{cell}</td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-blue-50">
-                    <td colSpan={3} className="py-1 px-1 font-semibold text-right">Total:</td>
-                    <td className="py-1 px-1 font-bold text-blue-700">26:40</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </CardOption>
+          />
           <CardOption
             selected={d.somatoriaFinal === "nao"}
             onClick={() => update("somatoriaFinal", "nao")}
+            imgSrc={IMAGES.somatoriaNao}
+            imgAlt="Folha de ponto sem somatória final"
             label="Não"
-          >
-            <div className="bg-white p-3">
-              <table className="w-full text-[10px] border-collapse">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-1 px-1">Data</th>
-                    <th className="text-left py-1 px-1">Entrada</th>
-                    <th className="text-left py-1 px-1">Saída</th>
-                    <th className="text-left py-1 px-1">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    ["01/07", "08:00", "18:00", "09:00"],
-                    ["02/07", "08:05", "18:00", "08:55"],
-                    ["03/07", "08:00", "17:45", "08:45"],
-                  ].map((row, i) => (
-                    <tr key={i} className="border-b border-slate-100">
-                      {row.map((cell, j) => (
-                        <td key={j} className="py-1 px-1 text-slate-600">{cell}</td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardOption>
+          />
         </div>
       </div>
 
@@ -123,65 +74,17 @@ export default function TimesheetConfigForm({ data, onChange }) {
           <CardOption
             selected={d.abreviarLegendas === "sim"}
             onClick={() => update("abreviarLegendas", "sim")}
+            imgSrc={IMAGES.abreviacaoSim}
+            imgAlt="Folha de ponto com legendas abreviadas"
             label="Com abreviação"
-          >
-            <div className="bg-white p-3">
-              <table className="w-full text-[10px] border-collapse">
-                <thead>
-                  <tr className="border-b bg-slate-50">
-                    <th className="text-left py-1 px-1">Data</th>
-                    <th className="text-left py-1 px-1">Ent.</th>
-                    <th className="text-left py-1 px-1">Sd.</th>
-                    <th className="text-left py-1 px-1">Obs.</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    ["01/07", "08:00", "18:00", "HE 50%"],
-                    ["02/07", "08:00", "18:00", "ATR"],
-                    ["03/07", "08:00", "18:00", "—"],
-                  ].map((row, i) => (
-                    <tr key={i} className="border-b border-slate-100">
-                      {row.map((cell, j) => (
-                        <td key={j} className="py-1 px-1 text-slate-600">{cell}</td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardOption>
+          />
           <CardOption
             selected={d.abreviarLegendas === "nao"}
             onClick={() => update("abreviarLegendas", "nao")}
+            imgSrc={IMAGES.abreviacaoNao}
+            imgAlt="Folha de ponto sem abreviação de legendas"
             label="Sem abreviação"
-          >
-            <div className="bg-white p-3">
-              <table className="w-full text-[10px] border-collapse">
-                <thead>
-                  <tr className="border-b bg-slate-50">
-                    <th className="text-left py-1 px-1">Data</th>
-                    <th className="text-left py-1 px-1">Entrada</th>
-                    <th className="text-left py-1 px-1">Saída</th>
-                    <th className="text-left py-1 px-1">Observações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    ["01/07", "08:00", "18:00", "Hora Extra 50%"],
-                    ["02/07", "08:00", "18:00", "Atraso"],
-                    ["03/07", "08:00", "18:00", "—"],
-                  ].map((row, i) => (
-                    <tr key={i} className="border-b border-slate-100">
-                      {row.map((cell, j) => (
-                        <td key={j} className="py-1 px-1 text-slate-600">{cell}</td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardOption>
+          />
         </div>
       </div>
     </div>
