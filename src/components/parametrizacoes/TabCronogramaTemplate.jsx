@@ -143,9 +143,28 @@ function TypeBadge({ type }) {
   );
 }
 
+// ── Linha de subgrupo ─────────────────────────────────────────────────────────
+
+function SubGroupRow({ task }) {
+  const visibility = describeVisibility(task);
+  return (
+    <tr className="bg-purple-50 border-b border-purple-200">
+      <td className="pl-6 pr-4 py-2 text-xs font-semibold text-purple-700" colSpan={7}>
+        <span className="flex items-center gap-1.5">
+          <span className="w-1 h-3 rounded-full bg-purple-400 shrink-0" />
+          {task.activity}
+          <span className={`ml-2 text-xs px-1.5 py-0.5 rounded border font-normal ${visibility.color}`}>
+            {visibility.label}
+          </span>
+        </span>
+      </td>
+    </tr>
+  );
+}
+
 // ── Linha de atividade ────────────────────────────────────────────────────────
 
-function TaskRow({ task, config, onChange }) {
+function TaskRow({ task, config, onChange, indented = false }) {
   const startSpec = task.plannedStart || {};
   const endSpec   = task.plannedEnd   || {};
 
@@ -170,8 +189,11 @@ function TaskRow({ task, config, onChange }) {
   return (
     <tr className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
       {/* Atividade */}
-      <td className="px-4 py-3 text-xs text-slate-800 max-w-[220px] leading-snug font-medium">
-        <div>{task.activity}</div>
+      <td className={`py-3 text-xs text-slate-800 max-w-[220px] leading-snug font-medium ${indented ? "pl-8 pr-4" : "px-4"}`}>
+        <div>
+          {indented && <span className="inline-block w-1 h-3 rounded-full bg-purple-300 mr-1.5 align-middle" />}
+          {task.activity}
+        </div>
         {!isAlwaysVisible && (
           <span className={`inline-block mt-1 text-xs px-1.5 py-0.5 rounded border ${visibility.color} font-normal`}>
             {visibility.label}
@@ -280,14 +302,18 @@ function PhaseSection({ phaseName, tasks, tasksConfig, onChangeTask }) {
               </tr>
             </thead>
             <tbody>
-              {tasks.map(task => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  config={tasksConfig[task.id]}
-                  onChange={onChangeTask}
-                />
-              ))}
+              {tasks.map(task => {
+                if (task.type === "subgroup") return <SubGroupRow key={task.id} task={task} />;
+                return (
+                  <TaskRow
+                    key={task.id}
+                    task={task}
+                    config={tasksConfig[task.id]}
+                    onChange={onChangeTask}
+                    indented={!!task.parentGroup}
+                  />
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -343,15 +369,17 @@ export default function TabCronogramaTemplate() {
     setTimeout(() => setSavedMsg(false), 2500);
   };
 
-  // Agrupa tasks reais por fase (apenas type=task, sem grupos)
+  // Agrupa tasks e subgroups por fase (type=task ou subgroup, sem grupos de fase)
   const TASK_LIST = SCHEDULE_TASKS.filter(t => t.type === "task");
   const tasksByPhase = {};
-  TASK_LIST.forEach(t => {
+  SCHEDULE_TASKS.filter(t => t.type === "task" || t.type === "subgroup").forEach(t => {
     const ph = t.phase || "Geral";
     if (!tasksByPhase[ph]) tasksByPhase[ph] = [];
     tasksByPhase[ph].push(t);
   });
-  const phases = PHASE_ORDER.filter(ph => tasksByPhase[ph]?.length > 0);
+  // Ordenar por row para garantir sequência correta
+  Object.values(tasksByPhase).forEach(arr => arr.sort((a, b) => (a.row ?? 0) - (b.row ?? 0)));
+  const phases = PHASE_ORDER.filter(ph => tasksByPhase[ph]?.some(t => t.type === "task"));
 
   // Resumo das âncoras
   const anchors = SCHEDULE_TASKS.filter(t => t.plannedStart?.type === "anchor");
