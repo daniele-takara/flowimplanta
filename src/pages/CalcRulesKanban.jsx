@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { Copy, ExternalLink, ChevronRight, Clock, Search, User, Hash, AlertTriangle } from "lucide-react";
+import { Copy, ExternalLink, ChevronRight, Clock, Search, User, Hash, AlertTriangle, FileDown, Loader2 } from "lucide-react";
+import { generateCalcRulesPDF } from "@/lib/calcRulesPdfExport";
 
 const COLUMNS = [
   { key: "pendente", label: "Pendente", color: "bg-slate-100 border-slate-300", badge: "bg-slate-200 text-slate-700" },
@@ -27,6 +28,30 @@ function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUse
   const [localImplantacaoId, setLocalImplantacaoId] = useState(rule.implantacao_user_id || "");
   const [validationMsg, setValidationMsg] = useState("");
   const [savingField, setSavingField] = useState(null);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    setGeneratingPdf(true);
+    try {
+      const res = await base44.functions.invoke("getCalcRuleForPdf", { id: rule.id });
+      const data = res.data;
+      const pdfBytes = await generateCalcRulesPDF({
+        project: data.project,
+        companyData: data.companyData,
+        allStepData: data.allStepData,
+      });
+      const blob = new Blob([pdfBytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Regras_${(rule.client_name || "cliente").replace(/\s+/g, "_")}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert("Erro ao gerar PDF. Tente novamente.");
+    }
+    setGeneratingPdf(false);
+  };
 
   const nextStatus = (current) => {
     const idx = COLUMNS.findIndex(c => c.key === current);
@@ -202,6 +227,14 @@ function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUse
           </button>
         )}
         <button
+          onClick={handleDownloadPdf}
+          disabled={generatingPdf}
+          className="text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-500 hover:border-red-300 hover:bg-red-50 disabled:opacity-50"
+          title="Baixar PDF das regras"
+        >
+          {generatingPdf ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileDown className="w-3 h-3" />}
+        </button>
+        <button
           onClick={() => { navigator.clipboard.writeText(link); alert("Link copiado!"); }}
           className="text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-500 hover:border-purple-300 hover:bg-purple-50"
           title="Copiar link do cliente"
@@ -216,6 +249,7 @@ function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUse
 function DetailModal({ rule, onClose, onRefresh }) {
   const [notes, setNotes] = useState(rule.reviewer_notes || "");
   const [saving, setSaving] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   const saveNotes = async () => {
     setSaving(true);
@@ -226,6 +260,29 @@ function DetailModal({ rule, onClose, onRefresh }) {
       alert("Erro ao salvar anotações");
     }
     setSaving(false);
+  };
+
+  const handleDownloadPdf = async () => {
+    setGeneratingPdf(true);
+    try {
+      const res = await base44.functions.invoke("getCalcRuleForPdf", { id: rule.id });
+      const data = res.data;
+      const pdfBytes = await generateCalcRulesPDF({
+        project: data.project,
+        companyData: data.companyData,
+        allStepData: data.allStepData,
+      });
+      const blob = new Blob([pdfBytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Regras_${(rule.client_name || "cliente").replace(/\s+/g, "_")}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert("Erro ao gerar PDF. Tente novamente.");
+    }
+    setGeneratingPdf(false);
   };
 
   const link = `${window.location.origin}/calculo`;
@@ -288,6 +345,14 @@ function DetailModal({ rule, onClose, onRefresh }) {
           </div>
 
           <div className="border-t pt-4 flex items-center gap-2">
+            <button
+              onClick={handleDownloadPdf}
+              disabled={generatingPdf}
+              className="flex items-center gap-1.5 text-xs font-medium rounded-lg px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 disabled:opacity-50"
+            >
+              {generatingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+              {generatingPdf ? "Gerando PDF..." : "Baixar PDF"}
+            </button>
             <a
               href={link}
               target="_blank"
