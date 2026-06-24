@@ -108,6 +108,15 @@ export const PERMISSION_MODULES = [
     ],
   },
   {
+    key: "kanban",
+    label: "Kanban Regras Morfeu",
+    permissions: [
+      { key: "kanban_ver", label: "Visualizar" },
+      { key: "kanban_editar", label: "Editar (tudo)" },
+      { key: "kanban_excluir", label: "Excluir cards" },
+    ],
+  },
+  {
     key: "parametrizacoes",
     label: "Parametrizações",
     permissions: [
@@ -142,6 +151,7 @@ export const DEFAULT_PROFILES = [
       parametrizacoes_acessar: true, parametrizacoes_editar: true,
       regras_calculo_ver: true, regras_calculo_editar: true,
       regras_calculo_criar: true, regras_calculo_excluir: true, regras_calculo_finalizar: true,
+      kanban_ver: true, kanban_editar: true, kanban_excluir: true,
     },
   },
   {
@@ -167,6 +177,7 @@ export const DEFAULT_PROFILES = [
       parametrizacoes_acessar: false, parametrizacoes_editar: false,
       regras_calculo_ver: true, regras_calculo_editar: true,
       regras_calculo_criar: true, regras_calculo_excluir: false, regras_calculo_finalizar: true,
+      kanban_ver: true, kanban_editar: true, kanban_excluir: false,
     },
   },
   {
@@ -192,6 +203,7 @@ export const DEFAULT_PROFILES = [
       parametrizacoes_acessar: false, parametrizacoes_editar: false,
       regras_calculo_ver: true, regras_calculo_editar: true,
       regras_calculo_criar: true, regras_calculo_excluir: false, regras_calculo_finalizar: true,
+      kanban_ver: true, kanban_editar: true, kanban_excluir: false,
     },
   },
   {
@@ -217,6 +229,7 @@ export const DEFAULT_PROFILES = [
       parametrizacoes_acessar: false, parametrizacoes_editar: false,
       regras_calculo_ver: true, regras_calculo_editar: false,
       regras_calculo_criar: false, regras_calculo_excluir: false, regras_calculo_finalizar: false,
+      kanban_ver: true, kanban_editar: false, kanban_excluir: false,
     },
   },
 ];

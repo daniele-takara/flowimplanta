@@ -89,6 +89,11 @@ export function usePermissions() {
     canDeleteCalcRules: can("regras_calculo_excluir") || isSystemAdmin,
     canFinalizeCalcRules: can("regras_calculo_finalizar") || isSystemAdmin,
 
+    // Kanban Regras Morfeu
+    canViewKanban: can("kanban_ver") || isSystemAdmin,
+    canEditKanban: can("kanban_editar") || isSystemAdmin,
+    canDeleteKanbanCards: can("kanban_excluir") || isSystemAdmin,
+
     // Integrações / Ações
     canSyncPipedriveDados: can("integracao_sync_pipedrive_dados") || isSystemAdmin,
     canSyncPipedriveCronograma: can("integracao_sync_pipedrive_cronograma") || isSystemAdmin,

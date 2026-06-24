@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { Copy, ChevronRight, Clock, Search, User, Hash, AlertTriangle, FileDown, Loader2, Trash2, Undo2, ChevronDown, ChevronUp } from "lucide-react";
 import { generateCalcRulesPDF } from "@/lib/calcRulesPdfExport";
+import { usePermissions } from "@/lib/usePermissions";
 
 const COLUMNS = [
   { key: "preenchimento", label: "Preenchimento em andamento", color: "bg-purple-50 border-purple-300", badge: "bg-purple-200 text-purple-700" },
@@ -27,7 +28,7 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUsers, onSaveEmpresaId, onSaveImplantacao, onDelete, onReactivate }) {
+function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUsers, onSaveEmpresaId, onSaveImplantacao, onDelete, onReactivate, canEdit, canDelete }) {
   const [updating, setUpdating] = useState(false);
   const [localEmpresaId, setLocalEmpresaId] = useState(rule.empresa_id || "");
   const [localImplantacaoId, setLocalImplantacaoId] = useState(rule.implantacao_user_id || "");
@@ -195,8 +196,9 @@ function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUse
             value={localEmpresaId}
             onChange={e => setLocalEmpresaId(e.target.value)}
             onBlur={handleEmpresaBlur}
+            disabled={!canEdit}
             placeholder="Ex: ABC123"
-            className="w-full px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
+            className="w-full px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
           />
           {savingField === "empresa_id" && (
             <span className="absolute right-2 top-1/2 -translate-y-1/2 w-2.5 h-2.5 border-2 border-slate-200 border-t-blue-500 rounded-full animate-spin"></span>
@@ -216,7 +218,8 @@ function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUse
           <select
             value={localImplantacaoId}
             onChange={handleImplantacaoChange}
-            className="w-full px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
+            disabled={!canEdit}
+            className="w-full px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white disabled:bg-slate-50 disabled:cursor-not-allowed"
           >
             <option value="">Selecionar...</option>
             {loadingUsers ? (
@@ -247,15 +250,17 @@ function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUse
 
       {isDeleted ? (
         <div className="flex items-center gap-1.5 flex-wrap">
-          <button
-            onClick={handleReactivate}
-            disabled={reactivating}
-            className="text-xs px-2 py-0.5 rounded border border-green-200 text-green-600 hover:bg-green-50 disabled:opacity-50 flex items-center gap-1"
-            title="Reativar card"
-          >
-            {reactivating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Undo2 className="w-3 h-3" />}
-            Reativar
-          </button>
+          {(canEdit || canDelete) && (
+            <button
+              onClick={handleReactivate}
+              disabled={reactivating}
+              className="text-xs px-2 py-0.5 rounded border border-green-200 text-green-600 hover:bg-green-50 disabled:opacity-50 flex items-center gap-1"
+              title="Reativar card"
+            >
+              {reactivating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Undo2 className="w-3 h-3" />}
+              Reativar
+            </button>
+          )}
           <span className="text-[10px] text-slate-400">
             Expira em {(() => {
               if (!rule.deleted_at) return "";
@@ -268,7 +273,7 @@ function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUse
         </div>
       ) : (
         <div className="flex items-center gap-1.5 flex-wrap">
-          {prevStatus(rule.status) && (
+          {canEdit && prevStatus(rule.status) && (
             <button
               onClick={() => moveTo(prevStatus(rule.status))}
               disabled={updating}
@@ -277,7 +282,7 @@ function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUse
               ◀
             </button>
           )}
-          {nextStatus(rule.status) && (
+          {canEdit && nextStatus(rule.status) && (
             <button
               onClick={() => moveTo(nextStatus(rule.status))}
               disabled={updating}
@@ -286,29 +291,35 @@ function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUse
               ▶
             </button>
           )}
-          <button
-            onClick={handleDownloadPdf}
-            disabled={generatingPdf}
-            className="text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-500 hover:border-red-300 hover:bg-red-50 disabled:opacity-50"
-            title="Baixar PDF das regras"
-          >
-            {generatingPdf ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileDown className="w-3 h-3" />}
-          </button>
-          <button
-            onClick={() => { navigator.clipboard.writeText(link); alert("Link copiado!"); }}
-            className="text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-500 hover:border-purple-300 hover:bg-purple-50"
-            title="Copiar link do cliente"
-          >
-            <Copy className="w-3 h-3" />
-          </button>
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            disabled={updating}
-            className="text-xs px-2 py-0.5 rounded border border-red-200 text-red-500 hover:bg-red-50 disabled:opacity-30"
-            title="Excluir card"
-          >
-            <Trash2 className="w-3 h-3" />
-          </button>
+          {canEdit && (
+            <button
+              onClick={handleDownloadPdf}
+              disabled={generatingPdf}
+              className="text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-500 hover:border-red-300 hover:bg-red-50 disabled:opacity-50"
+              title="Baixar PDF das regras"
+            >
+              {generatingPdf ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileDown className="w-3 h-3" />}
+            </button>
+          )}
+          {canEdit && (
+            <button
+              onClick={() => { navigator.clipboard.writeText(link); alert("Link copiado!"); }}
+              className="text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-500 hover:border-purple-300 hover:bg-purple-50"
+              title="Copiar link do cliente"
+            >
+              <Copy className="w-3 h-3" />
+            </button>
+          )}
+          {(canEdit || canDelete) && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={updating}
+              className="text-xs px-2 py-0.5 rounded border border-red-200 text-red-500 hover:bg-red-50 disabled:opacity-30"
+              title="Excluir card"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          )}
         </div>
       )}
 
@@ -339,7 +350,7 @@ function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUse
   );
 }
 
-function DetailModal({ rule, onClose, onRefresh }) {
+function DetailModal({ rule, onClose, onRefresh, canEdit }) {
   const [notes, setNotes] = useState(rule.reviewer_notes || "");
   const [saving, setSaving] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
@@ -423,9 +434,11 @@ function DetailModal({ rule, onClose, onRefresh }) {
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white h-24"
+              disabled={!canEdit}
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white h-24 disabled:bg-slate-50 disabled:cursor-not-allowed"
               placeholder="Anotações sobre esta submissão..."
             />
+            {canEdit && (
             <button
               onClick={saveNotes}
               disabled={saving}
@@ -433,8 +446,10 @@ function DetailModal({ rule, onClose, onRefresh }) {
             >
               {saving ? "Salvando..." : "Salvar anotações"}
             </button>
+            )}
           </div>
 
+          {canEdit && (
           <div className="border-t pt-4 flex items-center gap-2">
             <button
               onClick={handleDownloadPdf}
@@ -445,6 +460,7 @@ function DetailModal({ rule, onClose, onRefresh }) {
               {generatingPdf ? "Gerando PDF..." : "Baixar PDF"}
             </button>
           </div>
+          )}
         </div>
       </div>
     </div>
@@ -452,6 +468,7 @@ function DetailModal({ rule, onClose, onRefresh }) {
 }
 
 export default function CalcRulesKanban() {
+  const { canEditKanban: canEdit, canDeleteKanbanCards: canDelete } = usePermissions();
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRule, setSelectedRule] = useState(null);
@@ -594,6 +611,8 @@ export default function CalcRulesKanban() {
                     onSaveImplantacao={handleSaveImplantacao}
                     onDelete={handleDelete}
                     onReactivate={handleReactivate}
+                    canEdit={canEdit}
+                    canDelete={canDelete}
                   />
                 ))}
               </div>
@@ -642,6 +661,8 @@ export default function CalcRulesKanban() {
                     onSaveImplantacao={handleSaveImplantacao}
                     onDelete={handleDelete}
                     onReactivate={handleReactivate}
+                    canEdit={canEdit}
+                    canDelete={canDelete}
                   />
                 ))}
               </div>
@@ -655,6 +676,7 @@ export default function CalcRulesKanban() {
           rule={selectedRule}
           onClose={() => setSelectedRule(null)}
           onRefresh={load}
+          canEdit={canEdit}
         />
       )}
     </div>

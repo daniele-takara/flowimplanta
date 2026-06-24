@@ -198,6 +198,18 @@
         "regras_calculo_finalizar": {
           "type": "boolean",
           "default": false
+        },
+        "kanban_ver": {
+          "type": "boolean",
+          "default": false
+        },
+        "kanban_editar": {
+          "type": "boolean",
+          "default": false
+        },
+        "kanban_excluir": {
+          "type": "boolean",
+          "default": false
         }
       }
     }
