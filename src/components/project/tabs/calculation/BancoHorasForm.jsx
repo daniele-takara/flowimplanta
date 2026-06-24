@@ -103,7 +103,7 @@ export default function BancoHorasForm({ companyData, data, onChange, onInfoAcum
                 <div className="w-full max-w-sm px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-500">Compensação Geral</div>
               </div>
               <div>
-                <label className={labelClass}>Data de início de banco de horas na Pontotel</label>
+                <label className={labelClass}>Data de início do banco de horas</label>
                 <input value={val.dataInicio || ""} onChange={e => updateRule(name, "dataInicio", e.target.value)} className={`${inputClass} max-w-sm`} type="date" />
               </div>
               <div>
@@ -137,7 +137,7 @@ export default function BancoHorasForm({ companyData, data, onChange, onInfoAcum
                 <div className="w-full max-w-sm px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-500">Por Janela</div>
               </div>
               <div>
-                <label className={labelClass}>Data de início de banco de horas na Pontotel</label>
+                <label className={labelClass}>Data de início do banco de horas</label>
                 <input value={val.dataInicio || ""} onChange={e => updateRule(name, "dataInicio", e.target.value)} className={`${inputClass} max-w-sm`} type="date" />
               </div>
               <div>
