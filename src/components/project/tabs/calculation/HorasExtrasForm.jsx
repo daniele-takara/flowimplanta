@@ -113,6 +113,12 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
                           <option value="100">100%</option>
                           <option value="custom">Personalizado</option>
                         </select>
+                        {val[p.key] === "custom" && (
+                          <div className="flex items-center gap-1.5 mt-2">
+                            <input value={val[p.key + "Custom"] || ""} onChange={e => updateRule(name, p.key + "Custom", e.target.value)} className={inputClass} type="number" placeholder="Ex: 70" min="0" />
+                            <span className="text-sm text-slate-400">%</span>
+                          </div>
+                        )}
                       </div>
                       {!hideFopag && (
                       <div className="flex-1 space-y-2">

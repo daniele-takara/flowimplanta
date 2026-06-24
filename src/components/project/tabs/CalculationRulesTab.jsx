@@ -577,6 +577,12 @@ function AdicionalNoturnoForm({ companyData, data, onChange, onInfoReducaoClick,
                             <option value="100">100%</option>
                             <option value="custom">Personalizado</option>
                           </select>
+                          {val[p.key] === "custom" && (
+                            <div className="flex items-center gap-1.5 mt-2">
+                              <input value={val[p.key + "Custom"] || ""} onChange={e => updateRule(name, p.key + "Custom", e.target.value)} className={inputClass} type="number" placeholder="Ex: 30" min="0" />
+                              <span className="text-sm text-slate-400">%</span>
+                            </div>
+                          )}
                         </div>
                         <div className="flex-1 space-y-2">
                           <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
@@ -1209,6 +1215,9 @@ function BancoHorasForm({ companyData, data, onChange, onInfoAcumuloClick }) {
                   <option value="12">12 meses</option>
                   <option value="custom">Personalizado</option>
                 </select>
+                {val.prazoVencimento === "custom" && (
+                  <input value={val.prazoVencimentoCustom || ""} onChange={e => updateRule(name, "prazoVencimentoCustom", e.target.value)} className={`${inputClass} max-w-sm mt-2`} type="number" placeholder="Quantidade de meses" />
+                )}
               </div>
             </div>
             )}

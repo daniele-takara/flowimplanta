@@ -161,6 +161,9 @@ export default function BancoHorasForm({ companyData, data, onChange, onInfoAcum
                   <option value="12">12 meses</option>
                   <option value="custom">Personalizado</option>
                 </select>
+                {val.prazoVencimento === "custom" && (
+                  <input value={val.prazoVencimentoCustom || ""} onChange={e => updateRule(name, "prazoVencimentoCustom", e.target.value)} className={`${inputClass} max-w-sm mt-2`} type="number" placeholder="Quantidade de meses" />
+                )}
               </div>
             </div>
             )}

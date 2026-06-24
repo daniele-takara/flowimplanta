@@ -67,6 +67,12 @@ export default function AdicionalNoturnoForm({ companyData, data, onChange, onIn
                   <option value="25">25%</option>
                   <option value="custom">Personalizado</option>
                 </select>
+                {val.percAdicional === "custom" && (
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <input value={val.percAdicionalCustom || ""} onChange={e => updateRule(name, "percAdicionalCustom", e.target.value)} className={inputClass} type="number" placeholder="Ex: 30" min="0" />
+                    <span className="text-sm text-slate-400">%</span>
+                  </div>
+                )}
               </div>
               <div>
                 <label className={labelClass}>Início Hora Noturna</label>
@@ -104,6 +110,12 @@ export default function AdicionalNoturnoForm({ companyData, data, onChange, onIn
                             <option value="100">100%</option>
                             <option value="custom">Personalizado</option>
                           </select>
+                          {val[p.key] === "custom" && (
+                            <div className="flex items-center gap-1.5 mt-2">
+                              <input value={val[p.key + "Custom"] || ""} onChange={e => updateRule(name, p.key + "Custom", e.target.value)} className={inputClass} type="number" placeholder="Ex: 30" min="0" />
+                              <span className="text-sm text-slate-400">%</span>
+                            </div>
+                          )}
                         </div>
                         {!hideFopag && (
                         <div className="flex-1 space-y-2">
