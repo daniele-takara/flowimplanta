@@ -423,7 +423,8 @@ export default function CalcRulesKanban() {
         return (
           (r.client_name || "").toLowerCase().includes(q) ||
           (r.client_email || "").toLowerCase().includes(q) ||
-          (r.empresa_id || "").toLowerCase().includes(q)
+          (r.empresa_id || "").toLowerCase().includes(q) ||
+          (r.implantacao_user_name || "").toLowerCase().includes(q)
         );
       })
     : rules;
@@ -458,7 +459,7 @@ export default function CalcRulesKanban() {
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Pesquisar por nome da empresa, e-mail ou ID do cliente..."
+          placeholder="Pesquisar por nome da empresa, e-mail, ID do cliente ou usuário de implantação..."
           className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
         />
         {search && (
