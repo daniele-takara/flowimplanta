@@ -6,7 +6,7 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { project_id } = await req.json();
+    const { project_id, client_email } = await req.json();
     if (!project_id) return Response.json({ error: 'project_id required' }, { status: 400 });
 
     // Generate a random token
@@ -47,6 +47,16 @@ Deno.serve(async (req) => {
         current_step: 1,
         company_data: companyData,
       });
+    }
+
+    // Invite client email as "cliente" role so they get restricted access
+    if (client_email) {
+      try {
+        await base44.users.inviteUser(client_email, "cliente");
+      } catch (inviteErr) {
+        // User may already exist or be invited — non-blocking
+        console.log("Invite skipped:", inviteErr.message);
+      }
     }
 
     return Response.json({ token });
