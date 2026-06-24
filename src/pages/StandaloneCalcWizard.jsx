@@ -12,6 +12,7 @@ import DSRForm from "@/components/standalone-calc/DSRForm";
 import OutrasVerbasForm from "@/components/standalone-calc/OutrasVerbasForm";
 import RevisaoFinal from "@/components/standalone-calc/RevisaoFinal";
 import { STEPS } from "@/lib/calcRulesStandaloneShared";
+import { FATORES_OPTIONS } from "@/lib/calcRulesShared";
 import { base44 } from "@/api/base44Client";
 import CalculationModelsInfoModal from "@/components/project/tabs/calculation/CalculationModelsInfoModal";
 import HorasExtrasInfoModal from "@/components/project/tabs/calculation/HorasExtrasInfoModal";
@@ -107,6 +108,7 @@ export default function StandaloneCalcWizard() {
   const [identified, setIdentified] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [validationError, setValidationError] = useState("");
   const [showCalcModelsModal, setShowCalcModelsModal] = useState(false);
   const [showHorasExtrasModal, setShowHorasExtrasModal] = useState(false);
   const [showCategorizacaoHEModal, setShowCategorizacaoHEModal] = useState(false);
@@ -189,9 +191,31 @@ export default function StandaloneCalcWizard() {
   };
 
   const goToStep = async (newStep) => {
+    setValidationError("");
     setCurrentStep(newStep);
     await flushPending();
     await save({ current_step: newStep });
+  };
+
+  const validateBancoHoras = () => {
+    const data = stepData.bank_hours_rules || {};
+    const rules = stepData.company_data?.rulesNames || [];
+    const missing = [];
+    for (const ruleName of rules) {
+      const rule = data[ruleName] || {};
+      const fatores = rule.fatoresTransformacao || [];
+      for (const f of fatores) {
+        if (f.ativo && !f.fator) {
+          const label = FATORES_OPTIONS.find(opt => opt.key === f.key)?.label || f.key;
+          missing.push(`${ruleName}: ${label}`);
+        }
+      }
+    }
+    if (missing.length > 0) {
+      setValidationError(`Para avançar, selecione o fator de transformação para:\n${missing.map(m => `• ${m}`).join("\n")}`);
+      return false;
+    }
+    return true;
   };
 
   const handleIdentify = async () => {
@@ -372,7 +396,14 @@ export default function StandaloneCalcWizard() {
             <Jornada12x36Form companyData={stepData.company_data} data={stepData.shift_12x36_rules} onChange={(data) => scheduleSave("shift_12x36_rules", data)} onInfoFeriadoClick={() => setShowJornada12x36FeriadoModal(true)} />
           )}
           {step?.key === "bank_hours_rules" && (
-            <BancoHorasForm companyData={stepData.company_data} data={stepData.bank_hours_rules} onChange={(data) => scheduleSave("bank_hours_rules", data)} onInfoAcumuloClick={() => setShowBancoHorasAcumuloModal(true)} hideFopag />
+            <>
+              {validationError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-300 rounded-lg">
+                  <p className="text-sm font-semibold text-red-700 whitespace-pre-line">{validationError}</p>
+                </div>
+              )}
+              <BancoHorasForm companyData={stepData.company_data} data={stepData.bank_hours_rules} onChange={(data) => { setValidationError(""); scheduleSave("bank_hours_rules", data); }} onInfoAcumuloClick={() => setShowBancoHorasAcumuloModal(true)} hideFopag />
+            </>
           )}
           {step?.key === "dsr_rules" && (
             <DSRForm companyData={stepData.company_data} data={stepData.dsr_rules} onChange={(data) => scheduleSave("dsr_rules", data)} onInfoHEFeriadoClick={() => setShowDSRFeriasHEModal(true)} onInfoMesDescontoClick={() => setShowDSRMesDescontoModal(true)} hideFopag />
@@ -418,7 +449,10 @@ export default function StandaloneCalcWizard() {
               Editar novamente
             </button>
           ) : currentStepIdx < visibleSteps.length - 1 ? (
-            <button onClick={() => goToStep(visibleSteps[currentStepIdx + 1].id)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-blue-600 bg-blue-600 text-white hover:bg-blue-700">
+            <button onClick={() => {
+              if (step?.key === "bank_hours_rules" && !validateBancoHoras()) return;
+              goToStep(visibleSteps[currentStepIdx + 1].id);
+            }} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-blue-600 bg-blue-600 text-white hover:bg-blue-700">
               Próximo <ChevronRight className="w-4 h-4" />
             </button>
           ) : (
