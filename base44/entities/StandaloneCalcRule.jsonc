@@ -32,9 +32,14 @@
         "pendente",
         "em_revisao",
         "validado",
-        "concluido"
+        "concluido",
+        "excluido"
       ],
       "default": "pendente"
+    },
+    "deleted_at": {
+      "type": "string",
+      "description": "ISO datetime de quando o card foi exclu\u00eddo (soft-delete, 15 dias)"
     },
     "reviewer_notes": {
       "type": "string",

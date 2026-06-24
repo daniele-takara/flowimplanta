@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { Copy, ExternalLink, ChevronRight, Clock, Search, User, Hash, AlertTriangle, FileDown, Loader2 } from "lucide-react";
+import { Copy, ExternalLink, ChevronRight, Clock, Search, User, Hash, AlertTriangle, FileDown, Loader2, Trash2, Undo2, ChevronDown, ChevronUp } from "lucide-react";
 import { generateCalcRulesPDF } from "@/lib/calcRulesPdfExport";
 
 const COLUMNS = [
@@ -10,11 +10,14 @@ const COLUMNS = [
   { key: "concluido", label: "Concluído", color: "bg-green-50 border-green-300", badge: "bg-green-200 text-green-700" },
 ];
 
+const DELETED_COLUMN = { key: "excluido", label: "Excluídos", color: "bg-red-50/50 border-red-200 border-dashed", badge: "bg-red-200 text-red-700" };
+
 const STATUS_LABELS = {
   pendente: "Pendente",
   em_revisao: "Em Parametrização",
   validado: "Pendente Info. Cliente",
   concluido: "Concluído",
+  excluido: "Excluído",
 };
 
 function formatDate(iso) {
@@ -22,13 +25,16 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUsers, onSaveEmpresaId, onSaveImplantacao }) {
+function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUsers, onSaveEmpresaId, onSaveImplantacao, onDelete, onReactivate }) {
   const [updating, setUpdating] = useState(false);
   const [localEmpresaId, setLocalEmpresaId] = useState(rule.empresa_id || "");
   const [localImplantacaoId, setLocalImplantacaoId] = useState(rule.implantacao_user_id || "");
   const [validationMsg, setValidationMsg] = useState("");
   const [savingField, setSavingField] = useState(null);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
 
   const handleDownloadPdf = async () => {
     setGeneratingPdf(true);
@@ -124,10 +130,40 @@ function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUse
     setSavingField(null);
   };
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await base44.entities.StandaloneCalcRule.update(rule.id, {
+        status: "excluido",
+        deleted_at: new Date().toISOString(),
+      });
+      onDelete(rule.id);
+    } catch (e) {
+      alert("Erro ao excluir. Tente novamente.");
+    }
+    setDeleting(false);
+    setShowDeleteConfirm(false);
+  };
+
+  const handleReactivate = async () => {
+    setReactivating(true);
+    try {
+      await base44.entities.StandaloneCalcRule.update(rule.id, {
+        status: "pendente",
+        deleted_at: null,
+      });
+      onReactivate(rule.id);
+    } catch (e) {
+      alert("Erro ao reativar. Tente novamente.");
+    }
+    setReactivating(false);
+  };
+
+  const isDeleted = rule.status === "excluido";
   const link = `${window.location.origin}/calculo`;
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-sm hover:shadow transition-shadow">
+    <div className={`bg-white rounded-lg border border-slate-200 p-3 shadow-sm hover:shadow transition-shadow ${isDeleted ? "opacity-75" : ""}`}>
       <div className="flex items-start justify-between mb-2">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-slate-800 truncate">{rule.client_name || "Sem nome"}</p>
@@ -207,41 +243,96 @@ function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUse
         <p className="text-xs text-slate-400 mb-2">Revisado por: {rule.reviewed_by}</p>
       )}
 
-      <div className="flex items-center gap-1.5 flex-wrap">
-        {prevStatus(rule.status) && (
+      {isDeleted ? (
+        <div className="flex items-center gap-1.5 flex-wrap">
           <button
-            onClick={() => moveTo(prevStatus(rule.status))}
-            disabled={updating}
-            className="text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50 disabled:opacity-30"
+            onClick={handleReactivate}
+            disabled={reactivating}
+            className="text-xs px-2 py-0.5 rounded border border-green-200 text-green-600 hover:bg-green-50 disabled:opacity-50 flex items-center gap-1"
+            title="Reativar card"
           >
-            ◀
+            {reactivating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Undo2 className="w-3 h-3" />}
+            Reativar
           </button>
-        )}
-        {nextStatus(rule.status) && (
+          <span className="text-[10px] text-slate-400">
+            Expira em {(() => {
+              if (!rule.deleted_at) return "";
+              const exp = new Date(rule.deleted_at);
+              exp.setDate(exp.getDate() + 15);
+              const dias = Math.max(0, Math.ceil((exp - new Date()) / (1000 * 60 * 60 * 24)));
+              return `${dias}d`;
+            })()}
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {prevStatus(rule.status) && (
+            <button
+              onClick={() => moveTo(prevStatus(rule.status))}
+              disabled={updating}
+              className="text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50 disabled:opacity-30"
+            >
+              ◀
+            </button>
+          )}
+          {nextStatus(rule.status) && (
+            <button
+              onClick={() => moveTo(nextStatus(rule.status))}
+              disabled={updating}
+              className="text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-500 hover:border-blue-300 hover:bg-blue-50 disabled:opacity-30"
+            >
+              ▶
+            </button>
+          )}
           <button
-            onClick={() => moveTo(nextStatus(rule.status))}
-            disabled={updating}
-            className="text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-500 hover:border-blue-300 hover:bg-blue-50 disabled:opacity-30"
+            onClick={handleDownloadPdf}
+            disabled={generatingPdf}
+            className="text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-500 hover:border-red-300 hover:bg-red-50 disabled:opacity-50"
+            title="Baixar PDF das regras"
           >
-            ▶
+            {generatingPdf ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileDown className="w-3 h-3" />}
           </button>
-        )}
-        <button
-          onClick={handleDownloadPdf}
-          disabled={generatingPdf}
-          className="text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-500 hover:border-red-300 hover:bg-red-50 disabled:opacity-50"
-          title="Baixar PDF das regras"
-        >
-          {generatingPdf ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileDown className="w-3 h-3" />}
-        </button>
-        <button
-          onClick={() => { navigator.clipboard.writeText(link); alert("Link copiado!"); }}
-          className="text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-500 hover:border-purple-300 hover:bg-purple-50"
-          title="Copiar link do cliente"
-        >
-          <Copy className="w-3 h-3" />
-        </button>
-      </div>
+          <button
+            onClick={() => { navigator.clipboard.writeText(link); alert("Link copiado!"); }}
+            className="text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-500 hover:border-purple-300 hover:bg-purple-50"
+            title="Copiar link do cliente"
+          >
+            <Copy className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={updating}
+            className="text-xs px-2 py-0.5 rounded border border-red-200 text-red-500 hover:bg-red-50 disabled:opacity-30"
+            title="Excluir card"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-5 max-w-xs w-full mx-4" onClick={e => e.stopPropagation()}>
+            <p className="text-sm text-slate-700 mb-4">Tem certeza que deseja excluir este card? Ele ficará disponível para reativação por <strong>15 dias</strong>.</p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="text-xs px-3 py-1.5 rounded border border-slate-200 text-slate-500 hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="text-xs px-3 py-1.5 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 flex items-center gap-1"
+              >
+                {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : null} Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -311,7 +402,7 @@ function DetailModal({ rule, onClose, onRefresh }) {
             </div>
             <div>
               <span className="text-slate-400">Status:</span>
-              <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${COLUMNS.find(c => c.key === rule.status)?.badge}`}>
+              <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${rule.status === "excluido" ? DELETED_COLUMN.badge : (COLUMNS.find(c => c.key === rule.status)?.badge)}`}>
                 {STATUS_LABELS[rule.status]}
               </span>
             </div>
@@ -381,6 +472,7 @@ export default function CalcRulesKanban() {
   const [search, setSearch] = useState("");
   const [implantacaoUsers, setImplantacaoUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [deletedExpanded, setDeletedExpanded] = useState(false);
   const fixedLink = `${window.location.origin}/calculo`;
 
   const load = useCallback(async () => {
@@ -417,8 +509,26 @@ export default function CalcRulesKanban() {
     setRules(prev => prev.map(r => r.id === id ? { ...r, implantacao_user_id: userId, implantacao_user_name: userName } : r));
   };
 
+  const handleDelete = (id) => {
+    setRules(prev => prev.map(r => r.id === id ? { ...r, status: "excluido", deleted_at: new Date().toISOString() } : r));
+  };
+
+  const handleReactivate = (id) => {
+    setRules(prev => prev.map(r => r.id === id ? { ...r, status: "pendente", deleted_at: null } : r));
+  };
+
+  // Filter out cards deleted more than 15 days ago
+  const activeRules = rules.filter(r => {
+    if (r.status === "excluido" && r.deleted_at) {
+      const exp = new Date(r.deleted_at);
+      exp.setDate(exp.getDate() + 15);
+      if (new Date() > exp) return false; // expired
+    }
+    return true;
+  });
+
   const filteredRules = search.trim()
-    ? rules.filter(r => {
+    ? activeRules.filter(r => {
         const q = search.toLowerCase();
         return (
           (r.client_name || "").toLowerCase().includes(q) ||
@@ -427,7 +537,7 @@ export default function CalcRulesKanban() {
           (r.implantacao_user_name || "").toLowerCase().includes(q)
         );
       })
-    : rules;
+    : activeRules;
 
   if (loading) {
     return (
@@ -472,7 +582,8 @@ export default function CalcRulesKanban() {
         )}
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="flex gap-4">
+        <div className="grid grid-cols-4 gap-4 flex-1">
         {COLUMNS.map(col => {
           const items = filteredRules.filter(r => r.status === col.key);
           return (
@@ -495,12 +606,62 @@ export default function CalcRulesKanban() {
                     loadingUsers={loadingUsers}
                     onSaveEmpresaId={handleSaveEmpresaId}
                     onSaveImplantacao={handleSaveImplantacao}
+                    onDelete={handleDelete}
+                    onReactivate={handleReactivate}
                   />
                 ))}
               </div>
             </div>
           );
         })}
+
+        </div>
+
+        {/* Excluídos — collapsed column */}
+        <div className={`rounded-xl border-2 ${DELETED_COLUMN.color} min-h-[300px] transition-all duration-200 ${deletedExpanded ? "p-3 flex-1" : "w-10 cursor-pointer hover:bg-red-50 flex flex-col items-center justify-start pt-3"}`} onClick={() => !deletedExpanded && setDeletedExpanded(true)}>
+          <div className="flex items-center justify-between mb-3">
+            {deletedExpanded ? (
+              <>
+                <h3 className="text-sm font-semibold text-slate-700">{DELETED_COLUMN.label}</h3>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${DELETED_COLUMN.badge}`}>{filteredRules.filter(r => r.status === "excluido").length}</span>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-1">
+                <Trash2 className="w-4 h-4 text-red-400" />
+                <span className="text-[10px] text-red-400 font-medium text-center leading-tight">{filteredRules.filter(r => r.status === "excluido").length}</span>
+              </div>
+            )}
+          </div>
+          {deletedExpanded && (
+            <>
+              <button
+                onClick={() => setDeletedExpanded(false)}
+                className="mb-2 text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"
+              >
+                <ChevronUp className="w-3 h-3" /> Recolher
+              </button>
+              <div className="space-y-2">
+                {filteredRules.filter(r => r.status === "excluido").length === 0 && (
+                  <p className="text-xs text-slate-400 text-center py-8 italic">Nenhum card excluído</p>
+                )}
+                {filteredRules.filter(r => r.status === "excluido").map(rule => (
+                  <Card
+                    key={rule.id}
+                    rule={rule}
+                    onStatusChange={handleStatusChange}
+                    onOpenDetail={setSelectedRule}
+                    implantacaoUsers={implantacaoUsers}
+                    loadingUsers={loadingUsers}
+                    onSaveEmpresaId={handleSaveEmpresaId}
+                    onSaveImplantacao={handleSaveImplantacao}
+                    onDelete={handleDelete}
+                    onReactivate={handleReactivate}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {selectedRule && (
