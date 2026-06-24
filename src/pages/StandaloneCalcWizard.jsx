@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { ChevronLeft, ChevronRight, CheckCircle, Loader2, Lock, Info, FileDown, AlertTriangle, X } from "lucide-react";
 import { generateCalcRulesPDF } from "@/lib/calcRulesPdfExport";
+import { uploadAndOpenPDF } from "@/lib/pdfDownload";
 import DadosEmpresaForm from "@/components/standalone-calc/DadosEmpresaForm";
 import RegrasForm from "@/components/standalone-calc/RegrasForm";
 import HorasExtrasForm from "@/components/standalone-calc/HorasExtrasForm";
@@ -209,13 +210,7 @@ export default function StandaloneCalcWizard() {
         companyData: stepData.company_data,
         allStepData: stepData,
       });
-      const blob = new Blob([pdfBytes], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `Regras_Calculo_${(clientName || "empresa").replace(/\s+/g, "_")}.pdf`;
-      link.click();
-      URL.revokeObjectURL(url);
+      await uploadAndOpenPDF(pdfBytes, `Regras_Calculo_${(clientName || "empresa").replace(/\s+/g, "_")}.pdf`);
     } catch (err) {
       alert("Erro ao gerar PDF. Tente novamente.");
     }

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { Copy, ChevronRight, Clock, Search, User, Hash, AlertTriangle, FileDown, Loader2, Trash2, Undo2, ChevronDown, ChevronUp } from "lucide-react";
 import { generateCalcRulesPDF } from "@/lib/calcRulesPdfExport";
+import { uploadAndOpenPDF } from "@/lib/pdfDownload";
 import { usePermissions } from "@/lib/usePermissions";
 
 const COLUMNS = [
@@ -49,13 +50,7 @@ function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUse
         companyData: data.companyData,
         allStepData: data.allStepData,
       });
-      const blob = new Blob([pdfBytes], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `Regras_${(rule.client_name || "cliente").replace(/\s+/g, "_")}.pdf`;
-      link.click();
-      URL.revokeObjectURL(url);
+      await uploadAndOpenPDF(pdfBytes, `Regras_${(rule.client_name || "cliente").replace(/\s+/g, "_")}.pdf`);
     } catch (e) {
       alert("Erro ao gerar PDF. Tente novamente.");
     }
@@ -376,13 +371,7 @@ function DetailModal({ rule, onClose, onRefresh, canEdit }) {
         companyData: data.companyData,
         allStepData: data.allStepData,
       });
-      const blob = new Blob([pdfBytes], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `Regras_${(rule.client_name || "cliente").replace(/\s+/g, "_")}.pdf`;
-      link.click();
-      URL.revokeObjectURL(url);
+      await uploadAndOpenPDF(pdfBytes, `Regras_${(rule.client_name || "cliente").replace(/\s+/g, "_")}.pdf`);
     } catch (e) {
       alert("Erro ao gerar PDF. Tente novamente.");
     }
