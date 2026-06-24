@@ -66,11 +66,11 @@ export default function RegrasForm({ companyData, data, onChange }) {
             {val.model === "Flexível" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className={labelClass}>Janela Antes (min)</label>
+                  <label className={labelClass}>Tolerância para cálculo de hora extra</label>
                   <input value={val.janelaAntes || ""} onChange={e => onChange({ ...d, [name]: { ...val, janelaAntes: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 30" />
                 </div>
                 <div>
-                  <label className={labelClass}>Janela Depois (min)</label>
+                  <label className={labelClass}>Tolerância para cálculo de atraso</label>
                   <input value={val.janelaDepois || ""} onChange={e => onChange({ ...d, [name]: { ...val, janelaDepois: e.target.value } })} className={inputClass} type="number" placeholder="Ex: 30" />
                 </div>
               </div>
