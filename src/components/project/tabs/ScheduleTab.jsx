@@ -1274,7 +1274,7 @@ export default function ScheduleTab({
                 project={project} templateConfig={templateConfig}
                 readOnly={readOnly} canCompletePhase={canCompletePhase}
                 canEditPlanned={canEditPlanned} canEditExecuted={canEditExecuted}
-                canAddActivity={canAddActivity && !readOnly}
+                canAddActivity={canAddActivity}
                 canEditActivity={!readOnly}
                 canExcluirActivity={!readOnly && canExcluirActivity}
                 showInactive={showInactive}
@@ -1301,7 +1301,7 @@ export default function ScheduleTab({
               readOnly={readOnly}
               canEditPhase={canEditPhase}
               canExcluirPhase={canExcluirPhase}
-              canAddActivity={canAddActivity && !readOnly}
+              canAddActivity={canAddActivity}
               canEditActivity={!readOnly && canEditExecuted}
               canExcluirActivity={!readOnly && canExcluirActivity}
               showInactive={showInactive}
