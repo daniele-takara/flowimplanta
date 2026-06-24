@@ -20,6 +20,7 @@ export default function BancoHorasForm({ companyData, data, onChange, onInfoAcum
       criterioAcumulo: "",
       prazoVencimento: "",
       limiteAcumuloTipo: "",
+      limiteAcumuloValor: "",
       saldoAutomatico: "",
       mostrarHistorico: "",
       verbas: [],
@@ -216,8 +217,17 @@ export default function BancoHorasForm({ companyData, data, onChange, onInfoAcum
                   <option value="semanal">Semanal</option>
                   <option value="mensal">Mensal</option>
                   <option value="geral">Geral</option>
-                  <option value="sem_acumulo">Sem acúmulo</option>
+                  <option value="sem_acumulo">Sem limite de acúmulo</option>
                 </select>
+                {val.limiteAcumuloTipo && val.limiteAcumuloTipo !== "sem_acumulo" && (
+                  <input
+                    value={val.limiteAcumuloValor || ""}
+                    onChange={e => updateRule(name, "limiteAcumuloValor", e.target.value)}
+                    className={`${inputClass} max-w-sm mt-2`}
+                    type="number"
+                    placeholder={`Ex: 2 (horas ${val.limiteAcumuloTipo === "diario" ? "diário" : val.limiteAcumuloTipo})`}
+                  />
+                )}
               </div>
               <div>
                 <label className="text-sm font-semibold text-slate-800">Os saldos devem entrar automaticamente para banco de horas?</label>

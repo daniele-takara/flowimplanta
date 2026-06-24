@@ -1344,7 +1344,7 @@ function BancoHorasForm({ companyData, data, onChange, onInfoAcumuloClick }) {
                       }}
                       className="w-4 h-4 accent-blue-600 rounded"
                     />
-                    Sem acúmulo
+                    Sem limite de acúmulo
                   </label>
                 </div>
               </div>
