@@ -348,7 +348,19 @@ export default function StandaloneCalcWizard() {
           <p className="text-sm text-slate-400 mb-6">Passo {currentStepIdx + 1} de {visibleSteps.length}</p>
 
           {step?.key === "company_data" && (
-            <DadosEmpresaForm data={stepData.company_data} onChange={(data) => scheduleSave("company_data", data)} project={{ client_name: clientName }} readOnly={false} />
+            <>
+              <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-400 rounded-xl flex items-start gap-3">
+                <Info className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-bold text-blue-800 mb-1">Dica importante</p>
+                  <p className="text-sm text-blue-700 leading-relaxed">
+                    Ao longo do preenchimento, você verá o ícone <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-600 font-bold text-xs mx-0.5 align-middle">i</span> ao lado de cada pergunta.
+                    Clique nele para ver <strong>exemplos reais</strong> de como cada opção funciona na prática. Isso vai te ajudar a escolher a configuração correta para sua empresa.
+                  </p>
+                </div>
+              </div>
+              <DadosEmpresaForm data={stepData.company_data} onChange={(data) => scheduleSave("company_data", data)} project={{ client_name: clientName }} readOnly={false} />
+            </>
           )}
           {step?.key === "rule_configurations" && (
             <RegrasForm companyData={stepData.company_data} data={stepData.rule_configurations} onChange={(data) => scheduleSave("rule_configurations", data)} />
