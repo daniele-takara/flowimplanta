@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, CheckCircle, Loader2, Lock, Info, FileDown } from "lucide-react";
 import { generateCalcRulesPDF } from "@/lib/calcRulesPdfExport";
 import DadosEmpresaForm from "@/components/project/tabs/calculation/DadosEmpresaForm";
@@ -32,31 +31,40 @@ import BancoHorasAcumuloInfoModal from "@/components/project/tabs/calculation/Ba
 import DSRFeriasHEInfoModal from "@/components/project/tabs/calculation/DSRFeriasHEInfoModal";
 import DSRMesDescontoInfoModal from "@/components/project/tabs/calculation/DSRMesDescontoInfoModal";
 
-function useStandaloneWizardState(token) {
+const LS_KEY = "standalone_calc_rule_id";
+
+function useStandaloneWizard() {
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
+    const storedId = localStorage.getItem(LS_KEY);
+    if (!storedId) {
+      setLoading(false);
+      return;
+    }
     try {
-      const res = await base44.functions.invoke('getStandaloneCalcRule', { token });
-      const data = res.data;
-      if (data.error) {
+      const res = await base44.functions.invoke('getStandaloneCalcRule', { id: storedId });
+      if (res.data?.error) {
+        localStorage.removeItem(LS_KEY);
         setRecord(null);
       } else {
-        setRecord(data);
+        setRecord(res.data);
       }
     } catch (e) {
+      localStorage.removeItem(LS_KEY);
       setRecord(null);
     }
     setLoading(false);
-  }, [token]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const save = useCallback(async (data) => {
+    if (!record?.id) return;
     setSaving(true);
-    const payload = { token };
+    const payload = { id: record.id };
     Object.entries(data).forEach(([k, v]) => {
       if (v !== undefined && v !== null) payload[k] = typeof v === "object" ? v : v;
     });
@@ -64,7 +72,7 @@ function useStandaloneWizardState(token) {
       await base44.functions.invoke('saveStandaloneCalcRule', payload);
     } catch (e) {}
     setSaving(false);
-  }, [token]);
+  }, [record?.id]);
 
   const getData = useCallback((key) => {
     if (!record) return null;
@@ -73,12 +81,27 @@ function useStandaloneWizardState(token) {
     try { return JSON.parse(raw); } catch { return raw; }
   }, [record]);
 
-  return { record, loading, saving, save, getData, reload: load };
+  const identify = async (name, email) => {
+    try {
+      const res = await base44.functions.invoke('createStandaloneRule', { client_name: name, client_email: email });
+      if (res.data?.id) {
+        localStorage.setItem(LS_KEY, res.data.id);
+        setRecord({ id: res.data.id, client_name: name, client_email: email, status: 'pendente', current_step: 1 });
+        return true;
+      }
+    } catch (e) {
+      alert("Erro ao iniciar. Tente novamente.");
+    }
+    return false;
+  };
+
+  const finish = () => { localStorage.removeItem(LS_KEY); };
+
+  return { record, loading, saving, save, getData, reload: load, identify, finish };
 }
 
 export default function StandaloneCalcWizard() {
-  const { token } = useParams();
-  const { record, loading, saving, save, getData } = useStandaloneWizardState(token);
+  const { record, loading, saving, save, getData, identify, finish } = useStandaloneWizard();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [clientName, setClientName] = useState("");
@@ -106,11 +129,9 @@ export default function StandaloneCalcWizard() {
   useEffect(() => {
     if (record) {
       setCurrentStep(record.current_step || 1);
-      if (record.client_name) {
-        setClientName(record.client_name);
-        setClientEmail(record.client_email || "");
-        setIdentified(true);
-      }
+      setClientName(record.client_name || "");
+      setClientEmail(record.client_email || "");
+      setIdentified(true);
       if (record.status === 'pendente') setSubmitted(true);
     }
   }, [record]);
@@ -129,7 +150,6 @@ export default function StandaloneCalcWizard() {
   };
 
   const [stepData, setStepData] = useState(dbStepData);
-
   useEffect(() => { setStepData(dbStepData); }, [record]);
 
   const visibleSteps = STEPS.filter(step => {
@@ -181,7 +201,8 @@ export default function StandaloneCalcWizard() {
 
   const handleIdentify = async () => {
     if (!clientName.trim() || !clientEmail.trim()) return;
-    await save({ client_name: clientName.trim(), client_email: clientEmail.trim(), current_step: 1 });
+    const ok = await identify(clientName.trim(), clientEmail.trim());
+    if (!ok) return;
     setIdentified(true);
   };
 
@@ -217,19 +238,7 @@ export default function StandaloneCalcWizard() {
     );
   }
 
-  if (!record) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center max-w-md px-4">
-          <Lock className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-slate-700 mb-2">Link inválido</h1>
-          <p className="text-sm text-slate-500">Este link não é válido. Solicite um novo link ao time de implantação.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Identification screen — name + email before the wizard
+  // Identification screen
   if (!identified) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
@@ -237,7 +246,7 @@ export default function StandaloneCalcWizard() {
           <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-purple-50 flex items-center justify-center">
             <Lock className="w-7 h-7 text-purple-600" />
           </div>
-          <h2 className="text-lg font-semibold text-slate-800 mb-2 text-center">Identificação</h2>
+          <h2 className="text-lg font-semibold text-slate-800 mb-2 text-center">Configuração de Regras</h2>
           <p className="text-sm text-slate-500 mb-6 text-center">Preencha os dados da sua empresa para começar</p>
 
           <div className="space-y-4">
@@ -414,6 +423,7 @@ export default function StandaloneCalcWizard() {
               onClick={async () => {
                 await flushPending();
                 await save({ status: "pendente" });
+                finish();
                 setSubmitted(true);
               }}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-green-600 bg-green-600 text-white hover:bg-green-700"

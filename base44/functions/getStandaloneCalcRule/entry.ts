@@ -2,14 +2,12 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 Deno.serve(async (req) => {
   try {
+    const { id } = await req.json();
+    if (!id) return Response.json({ error: 'ID required' }, { status: 400 });
+
     const base44 = createClientFromRequest(req);
-    const { token } = await req.json();
-    if (!token) return Response.json({ error: 'Token required' }, { status: 400 });
-
-    const rules = await base44.asServiceRole.entities.StandaloneCalcRule.filter({ token });
-    if (!rules.length) return Response.json({ error: 'Link inválido' }, { status: 404 });
-
-    const rule = rules[0];
+    const rule = await base44.asServiceRole.entities.StandaloneCalcRule.get(id);
+    if (!rule) return Response.json({ error: 'Registro não encontrado' }, { status: 404 });
 
     return Response.json({
       id: rule.id,

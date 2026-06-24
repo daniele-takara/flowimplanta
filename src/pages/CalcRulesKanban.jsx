@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Link, Copy, Loader2, Plus, ExternalLink, MessageSquare, ChevronRight, Clock } from "lucide-react";
+import { Copy, ExternalLink, ChevronRight, Clock } from "lucide-react";
 
 const COLUMNS = [
   { key: "pendente", label: "Pendente", color: "bg-slate-100 border-slate-300", badge: "bg-slate-200 text-slate-700" },
@@ -45,7 +45,7 @@ function Card({ rule, onStatusChange, onOpenDetail }) {
     return idx > 0 ? COLUMNS[idx - 1].key : null;
   };
 
-  const link = `${window.location.origin}/calculo/${rule.token}`;
+  const link = `${window.location.origin}/calculo`;
 
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-sm hover:shadow transition-shadow">
@@ -118,7 +118,7 @@ function DetailModal({ rule, onClose, onRefresh }) {
     setSaving(false);
   };
 
-  const link = `${window.location.origin}/calculo/${rule.token}`;
+  const link = `${window.location.origin}/calculo`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
@@ -195,8 +195,7 @@ export default function CalcRulesKanban() {
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRule, setSelectedRule] = useState(null);
-  const [generating, setGenerating] = useState(false);
-  const [newLink, setNewLink] = useState("");
+  const fixedLink = `${window.location.origin}/calculo`;
 
   const load = async () => {
     try {
@@ -212,19 +211,6 @@ export default function CalcRulesKanban() {
 
   const handleStatusChange = (id, newStatus) => {
     setRules(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
-  };
-
-  const handleGenerateLink = async () => {
-    setGenerating(true);
-    setNewLink("");
-    try {
-      const res = await base44.functions.invoke("createStandaloneToken", {});
-      const token = res.data?.token;
-      if (token) setNewLink(`${window.location.origin}/calculo/${token}`);
-    } catch (e) {
-      alert("Erro ao gerar link");
-    }
-    setGenerating(false);
   };
 
   if (loading) {
@@ -243,27 +229,13 @@ export default function CalcRulesKanban() {
           <p className="text-sm text-slate-500 mt-0.5">Gerencie as submissões de regras de cálculo dos clientes</p>
         </div>
         <button
-          onClick={handleGenerateLink}
-          disabled={generating}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors"
+          onClick={() => { navigator.clipboard.writeText(fixedLink); alert("Link copiado!"); }}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors"
         >
-          {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-          Novo Link
+          <Copy className="w-4 h-4" />
+          Copiar Link
         </button>
       </div>
-
-      {newLink && (
-        <div className="mb-4 bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-3">
-          <Link className="w-4 h-4 text-green-600 shrink-0" />
-          <span className="text-sm text-green-800 font-medium truncate flex-1">{newLink}</span>
-          <button
-            onClick={() => { navigator.clipboard.writeText(newLink); alert("Link copiado!"); }}
-            className="flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-lg border border-green-300 bg-white text-green-700 hover:bg-green-50"
-          >
-            <Copy className="w-3 h-3" /> Copiar
-          </button>
-        </div>
-      )}
 
       <div className="grid grid-cols-4 gap-4">
         {COLUMNS.map(col => {

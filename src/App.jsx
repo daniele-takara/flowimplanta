@@ -129,7 +129,7 @@ function App() {
 
             {/* Public client route — no auth needed */}
             <Route path="/cliente/:token" element={<ClientCalcWizard />} />
-            <Route path="/calculo/:token" element={<StandaloneCalcWizard />} />
+            <Route path="/calculo" element={<StandaloneCalcWizard />} />
 
             {/* All other routes: gated by login */}
             <Route path="*" element={<AuthenticatedApp />} />

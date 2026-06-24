@@ -3,15 +3,10 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 Deno.serve(async (req) => {
   try {
     const payload = await req.json();
-    const { token, ...data } = payload;
-    if (!token) return Response.json({ error: 'Token required' }, { status: 400 });
+    const { id, ...data } = payload;
+    if (!id) return Response.json({ error: 'ID required' }, { status: 400 });
 
     const base44 = createClientFromRequest(req);
-
-    const rules = await base44.asServiceRole.entities.StandaloneCalcRule.filter({ token });
-    if (!rules.length) return Response.json({ error: 'Link inválido' }, { status: 404 });
-
-    const rule = rules[0];
 
     const updatePayload = {};
     const stepKeys = [
@@ -27,7 +22,7 @@ Deno.serve(async (req) => {
     if (data.client_name !== undefined) updatePayload.client_name = data.client_name;
     if (data.client_email !== undefined) updatePayload.client_email = data.client_email;
 
-    await base44.asServiceRole.entities.StandaloneCalcRule.update(rule.id, updatePayload);
+    await base44.asServiceRole.entities.StandaloneCalcRule.update(id, updatePayload);
 
     return Response.json({ success: true });
   } catch (error) {
