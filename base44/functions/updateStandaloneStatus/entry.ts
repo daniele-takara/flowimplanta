@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
     const { id, status, reviewer_notes, empresa_id, implantacao_user_id, implantacao_user_name } = await req.json();
     if (!id || !status) return Response.json({ error: 'id and status required' }, { status: 400 });
 
-    const validStatuses = ['pendente', 'em_revisao', 'validado', 'concluido'];
+    const validStatuses = ['preenchimento', 'pendente', 'em_revisao', 'validado', 'concluido'];
     if (!validStatuses.includes(status)) {
       return Response.json({ error: 'Status inválido' }, { status: 400 });
     }
@@ -26,7 +26,8 @@ Deno.serve(async (req) => {
     const record = await base44.asServiceRole.entities.StandaloneCalcRule.get(id);
     if (!record) return Response.json({ error: 'Registro não encontrado' }, { status: 404 });
 
-    const isAdvancing = validStatuses.indexOf(status) > validStatuses.indexOf(record.status);
+    const advanceStatuses = ['pendente', 'em_revisao', 'validado', 'concluido'];
+    const isAdvancing = advanceStatuses.indexOf(status) > advanceStatuses.indexOf(record.status);
 
     if (isAdvancing) {
       const effectiveEmpresaId = empresa_id ?? record.empresa_id;

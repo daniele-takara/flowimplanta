@@ -495,6 +495,12 @@ export default function CalcRulesKanban() {
     try {
       const list = await base44.entities.StandaloneCalcRule.list("-created_date", 100);
       setRules(list || []);
+      // Sync selectedRule with fresh data so history updates in the modal
+      setSelectedRule(prev => {
+        if (!prev) return prev;
+        const fresh = (list || []).find(r => r.id === prev.id);
+        return fresh || prev;
+      });
     } catch (e) {
       console.error(e);
     }
@@ -515,6 +521,7 @@ export default function CalcRulesKanban() {
 
   const handleStatusChange = (id, newStatus) => {
     setRules(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
+    setSelectedRule(prev => prev?.id === id ? { ...prev, status: newStatus } : prev);
   };
 
   const handleSaveEmpresaId = (id, empresaId) => {
