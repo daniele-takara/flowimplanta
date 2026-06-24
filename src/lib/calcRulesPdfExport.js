@@ -495,7 +495,7 @@ export async function generateCalcRulesPDF({ project, companyData, allStepData }
         infoRow("Nessa regra, existe banco de horas?", hasBank ? "Sim" : "Não configurado");
         if (hasBank) {
           infoRow("Modelo de Banco de Horas", bhCfg.formato === "compensacao_geral" ? "Compensação Geral" : "Por Janela / Cascata");
-          infoRow("Data de início do banco de horas", bhCfg.dataInicio ? fmt(bhCfg.dataInicio) : "Não informado");
+          infoRow("Data de início de banco de horas na Pontotel", bhCfg.dataInicio ? fmt(bhCfg.dataInicio) : "Não informado");
           const limitLabel = bhCfg.limiteDias === "custom" ? `${bhCfg.limiteDiasCustom || "—"} DIAS` : bhCfg.limiteDias ? `${bhCfg.limiteDias} DIAS` : "Não informado";
           infoRow("Qual o limite de dias para acúmulo/vencimento do banco de horas?", limitLabel);
           if (bhCfg.criterioAcumulo) infoRow("Qual o critério para o início de acúmulo das horas no banco?", bhCfg.criterioAcumulo === "data_admissao" ? "Data de admissão" : "A partir da data informada acima (fixo)");
