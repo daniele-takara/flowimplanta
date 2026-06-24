@@ -1,0 +1,89 @@
+{
+  "name": "StandaloneCalcRule",
+  "type": "object",
+  "properties": {
+    "token": {
+      "type": "string",
+      "description": "Token \u00fanico de acesso p\u00fablico"
+    },
+    "client_name": {
+      "type": "string",
+      "description": "Nome da empresa/cliente"
+    },
+    "client_email": {
+      "type": "string",
+      "description": "E-mail de contato do cliente"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pendente",
+        "em_revisao",
+        "validado",
+        "concluido"
+      ],
+      "default": "pendente"
+    },
+    "reviewer_notes": {
+      "type": "string",
+      "description": "Anota\u00e7\u00f5es do revisor"
+    },
+    "reviewed_by": {
+      "type": "string",
+      "description": "Nome de quem revisou"
+    },
+    "reviewed_at": {
+      "type": "string",
+      "description": "ISO datetime da \u00faltima revis\u00e3o"
+    },
+    "current_step": {
+      "type": "number",
+      "default": 1
+    },
+    "company_data": {
+      "type": "string",
+      "description": "JSON: dados da empresa"
+    },
+    "rule_configurations": {
+      "type": "string",
+      "description": "JSON: configura\u00e7\u00f5es das regras"
+    },
+    "overtime_rules": {
+      "type": "string",
+      "description": "JSON: regras de horas extras"
+    },
+    "break_time_rules": {
+      "type": "string",
+      "description": "JSON: regras de intervalos"
+    },
+    "night_shift_rules": {
+      "type": "string",
+      "description": "JSON: regras de adicional noturno"
+    },
+    "shift_12x36_rules": {
+      "type": "string",
+      "description": "JSON: regras de jornada 12x36"
+    },
+    "sobreaviso_rules": {
+      "type": "string",
+      "description": "JSON: regras de sobreaviso"
+    },
+    "bank_hours_rules": {
+      "type": "string",
+      "description": "JSON: regras de banco de horas"
+    },
+    "dsr_rules": {
+      "type": "string",
+      "description": "JSON: regras de DSR/feriados"
+    },
+    "other_verbs_rules": {
+      "type": "string",
+      "description": "JSON: outras verbas"
+    }
+  },
+  "required": [
+    "token",
+    "client_name",
+    "client_email"
+  ]
+}

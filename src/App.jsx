@@ -22,6 +22,8 @@ import DiagnosticoPipedrive from './pages/DiagnosticoPipedrive';
 import BigQueryConsultas from './pages/BigQueryConsultas';
 import Documentacao from './pages/Documentacao';
 import ClientCalcWizard from './pages/ClientCalcWizard';
+import StandaloneCalcWizard from './pages/StandaloneCalcWizard';
+import CalcRulesKanban from './pages/CalcRulesKanban';
 import WebhookConfig from './pages/WebhookConfig';
 import MonitorIntegracoes from './pages/MonitorIntegracoes';
 import AppLayout from './components/layout/AppLayout';
@@ -106,6 +108,7 @@ const AuthenticatedApp = () => {
           </ProtectedRoute>
         } />
         <Route path="/bigquery" element={<BigQueryConsultas />} />
+        <Route path="/calculo-kanban" element={<CalcRulesKanban />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
@@ -126,6 +129,7 @@ function App() {
 
             {/* Public client route — no auth needed */}
             <Route path="/cliente/:token" element={<ClientCalcWizard />} />
+            <Route path="/calculo/:token" element={<StandaloneCalcWizard />} />
 
             {/* All other routes: gated by login */}
             <Route path="*" element={<AuthenticatedApp />} />
