@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { Copy, ExternalLink, ChevronRight, Clock, Search, User, Hash, AlertTriangle, FileDown, Loader2, Trash2, Undo2, ChevronDown, ChevronUp } from "lucide-react";
+import { Copy, ChevronRight, Clock, Search, User, Hash, AlertTriangle, FileDown, Loader2, Trash2, Undo2, ChevronDown, ChevronUp } from "lucide-react";
 import { generateCalcRulesPDF } from "@/lib/calcRulesPdfExport";
 
 const COLUMNS = [
@@ -378,8 +378,6 @@ function DetailModal({ rule, onClose, onRefresh }) {
     setGeneratingPdf(false);
   };
 
-  const link = `${window.location.origin}/calculo`;
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -445,20 +443,6 @@ function DetailModal({ rule, onClose, onRefresh }) {
             >
               {generatingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
               {generatingPdf ? "Gerando PDF..." : "Baixar PDF"}
-            </button>
-            <a
-              href={link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium"
-            >
-              <ExternalLink className="w-3.5 h-3.5" /> Abrir link do cliente
-            </a>
-            <button
-              onClick={() => { navigator.clipboard.writeText(link); alert("Link copiado!"); }}
-              className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700"
-            >
-              <Copy className="w-3 h-3" />
             </button>
           </div>
         </div>
