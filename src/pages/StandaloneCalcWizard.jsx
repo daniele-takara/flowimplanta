@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ChevronLeft, ChevronRight, CheckCircle, Loader2, Lock, Info, FileDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle, Loader2, Lock, Info, FileDown, AlertTriangle, X } from "lucide-react";
 import { generateCalcRulesPDF } from "@/lib/calcRulesPdfExport";
 import DadosEmpresaForm from "@/components/standalone-calc/DadosEmpresaForm";
 import RegrasForm from "@/components/standalone-calc/RegrasForm";
@@ -109,6 +109,7 @@ export default function StandaloneCalcWizard() {
   const [submitted, setSubmitted] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
   const [validationError, setValidationError] = useState("");
+  const [showValidationModal, setShowValidationModal] = useState(false);
   const [showCalcModelsModal, setShowCalcModelsModal] = useState(false);
   const [showHorasExtrasModal, setShowHorasExtrasModal] = useState(false);
   const [showCategorizacaoHEModal, setShowCategorizacaoHEModal] = useState(false);
@@ -212,7 +213,8 @@ export default function StandaloneCalcWizard() {
       }
     }
     if (missing.length > 0) {
-      setValidationError(`Para avançar, selecione o fator de transformação para:\n${missing.map(m => `• ${m}`).join("\n")}`);
+      setValidationError(`Selecione o fator de transformação para:\n${missing.map(m => `• ${m}`).join("\n")}`);
+      setShowValidationModal(true);
       return false;
     }
     return true;
@@ -396,14 +398,7 @@ export default function StandaloneCalcWizard() {
             <Jornada12x36Form companyData={stepData.company_data} data={stepData.shift_12x36_rules} onChange={(data) => scheduleSave("shift_12x36_rules", data)} onInfoFeriadoClick={() => setShowJornada12x36FeriadoModal(true)} />
           )}
           {step?.key === "bank_hours_rules" && (
-            <>
-              {validationError && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-300 rounded-lg">
-                  <p className="text-sm font-semibold text-red-700 whitespace-pre-line">{validationError}</p>
-                </div>
-              )}
-              <BancoHorasForm companyData={stepData.company_data} data={stepData.bank_hours_rules} onChange={(data) => { setValidationError(""); scheduleSave("bank_hours_rules", data); }} onInfoAcumuloClick={() => setShowBancoHorasAcumuloModal(true)} hideFopag />
-            </>
+            <BancoHorasForm companyData={stepData.company_data} data={stepData.bank_hours_rules} onChange={(data) => scheduleSave("bank_hours_rules", data)} onInfoAcumuloClick={() => setShowBancoHorasAcumuloModal(true)} hideFopag />
           )}
           {step?.key === "dsr_rules" && (
             <DSRForm companyData={stepData.company_data} data={stepData.dsr_rules} onChange={(data) => scheduleSave("dsr_rules", data)} onInfoHEFeriadoClick={() => setShowDSRFeriasHEModal(true)} onInfoMesDescontoClick={() => setShowDSRMesDescontoModal(true)} hideFopag />
@@ -486,6 +481,29 @@ export default function StandaloneCalcWizard() {
       {showBancoHorasAcumuloModal && <BancoHorasAcumuloInfoModal onClose={() => setShowBancoHorasAcumuloModal(false)} />}
       {showDSRFeriasHEModal && <DSRFeriasHEInfoModal onClose={() => setShowDSRFeriasHEModal(false)} />}
       {showDSRMesDescontoModal && <DSRMesDescontoInfoModal onClose={() => setShowDSRMesDescontoModal(false)} />}
+
+      {showValidationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowValidationModal(false)}>
+          <div className="relative bg-white rounded-2xl max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowValidationModal(false)} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white hover:bg-slate-100 text-slate-400 hover:text-slate-600 shadow-sm border border-slate-200 transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+            <div className="p-6 pt-12 text-center">
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-amber-100 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-amber-600" />
+              </div>
+              <h3 className="text-base font-bold text-slate-800 mb-3">Preenchimento incompleto</h3>
+              <p className="text-sm text-slate-600 whitespace-pre-line leading-relaxed">{validationError}</p>
+              <button
+                onClick={() => setShowValidationModal(false)}
+                className="mt-5 w-full px-4 py-2.5 text-sm font-medium rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              >
+                Entendi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
