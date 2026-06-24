@@ -5,15 +5,15 @@ import { generateCalcRulesPDF } from "@/lib/calcRulesPdfExport";
 
 const COLUMNS = [
   { key: "pendente", label: "Pendente", color: "bg-slate-100 border-slate-300", badge: "bg-slate-200 text-slate-700" },
-  { key: "em_revisao", label: "Em Revisão", color: "bg-amber-50 border-amber-300", badge: "bg-amber-200 text-amber-700" },
-  { key: "validado", label: "Validado", color: "bg-blue-50 border-blue-300", badge: "bg-blue-200 text-blue-700" },
+  { key: "em_revisao", label: "Em Parametrização", color: "bg-amber-50 border-amber-300", badge: "bg-amber-200 text-amber-700" },
+  { key: "validado", label: "Pendente Info. Cliente", color: "bg-blue-50 border-blue-300", badge: "bg-blue-200 text-blue-700" },
   { key: "concluido", label: "Concluído", color: "bg-green-50 border-green-300", badge: "bg-green-200 text-green-700" },
 ];
 
 const STATUS_LABELS = {
   pendente: "Pendente",
-  em_revisao: "Em Revisão",
-  validado: "Validado",
+  em_revisao: "Em Parametrização",
+  validado: "Pendente Info. Cliente",
   concluido: "Concluído",
 };
 
