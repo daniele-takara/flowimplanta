@@ -5,7 +5,7 @@ import CopyFromRule from "@/components/project/tabs/calculation/CopyFromRule";
 const intervalInputClass = "w-12 px-1.5 py-0.5 text-center text-sm border-0 border-b border-black bg-transparent focus:outline-none focus:border-blue-500 focus:border-b-2";
 const intervalReadonlyClass = "w-12 px-1.5 py-0.5 text-center text-sm border-0 bg-slate-100 rounded";
 
-export default function IntervalosForm({ companyData, data, onChange, onInfoToleranciasClick, ruleConfigurations, onInfoPausaHoraExtraClick }) {
+export default function IntervalosForm({ companyData, data, onChange, onInfoToleranciasClick, ruleConfigurations, onInfoPausaHoraExtraClick, hideFopag }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
 
@@ -94,6 +94,7 @@ export default function IntervalosForm({ companyData, data, onChange, onInfoTole
             </div>
             )}
 
+            {!hideFopag && (
             <div className="border-t pt-4">
               <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Código de Verba</p>
               <div className="flex items-center gap-4">
@@ -104,6 +105,7 @@ export default function IntervalosForm({ companyData, data, onChange, onInfoTole
                 </label>
               </div>
             </div>
+            )}
             </div>
 
             <div className="border-t pt-4 mt-2">

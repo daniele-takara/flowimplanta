@@ -360,22 +360,22 @@ export default function StandaloneCalcWizard() {
             <RegrasForm companyData={stepData.company_data} data={stepData.rule_configurations} onChange={(data) => scheduleSave("rule_configurations", data)} />
           )}
           {step?.key === "overtime_rules" && (
-            <HorasExtrasForm companyData={stepData.company_data} data={stepData.overtime_rules} onChange={(data) => scheduleSave("overtime_rules", data)} onInfoDiariaClick={() => setShowCategorizacaoHEModal(true)} onInfoMensalClick={() => setShowCategorizacaoHEMensalModal(true)} />
+            <HorasExtrasForm companyData={stepData.company_data} data={stepData.overtime_rules} onChange={(data) => scheduleSave("overtime_rules", data)} onInfoDiariaClick={() => setShowCategorizacaoHEModal(true)} onInfoMensalClick={() => setShowCategorizacaoHEMensalModal(true)} hideFopag />
           )}
           {step?.key === "break_time_rules" && (
-            <IntervalosForm companyData={stepData.company_data} data={stepData.break_time_rules} onChange={(data) => scheduleSave("break_time_rules", data)} ruleConfigurations={stepData.rule_configurations} onInfoToleranciasClick={() => setShowToleranciasIntervaloModal(true)} onInfoPausaHoraExtraClick={() => setShowPausaHoraExtraModal(true)} />
+            <IntervalosForm companyData={stepData.company_data} data={stepData.break_time_rules} onChange={(data) => scheduleSave("break_time_rules", data)} ruleConfigurations={stepData.rule_configurations} onInfoToleranciasClick={() => setShowToleranciasIntervaloModal(true)} onInfoPausaHoraExtraClick={() => setShowPausaHoraExtraModal(true)} hideFopag />
           )}
           {step?.key === "night_shift_rules" && (
-            <AdicionalNoturnoForm companyData={stepData.company_data} data={stepData.night_shift_rules} onChange={(data) => scheduleSave("night_shift_rules", data)} onInfoReducaoClick={() => setShowAdicionalNoturnoModal(true)} onInfoProrrogacaoClick={() => setShowProrrogacaoNoturnoModal(true)} onInfoReducaoAmbosClick={() => setShowReducaoHoraNoturnaModal(true)} onInfoAdicionalPausaClick={() => setShowAdicionalIncluiPausaModal(true)} />
+            <AdicionalNoturnoForm companyData={stepData.company_data} data={stepData.night_shift_rules} onChange={(data) => scheduleSave("night_shift_rules", data)} onInfoReducaoClick={() => setShowAdicionalNoturnoModal(true)} onInfoProrrogacaoClick={() => setShowProrrogacaoNoturnoModal(true)} onInfoReducaoAmbosClick={() => setShowReducaoHoraNoturnaModal(true)} onInfoAdicionalPausaClick={() => setShowAdicionalIncluiPausaModal(true)} hideFopag />
           )}
           {step?.key === "shift_12x36_rules" && (
             <Jornada12x36Form companyData={stepData.company_data} data={stepData.shift_12x36_rules} onChange={(data) => scheduleSave("shift_12x36_rules", data)} onInfoFeriadoClick={() => setShowJornada12x36FeriadoModal(true)} />
           )}
           {step?.key === "bank_hours_rules" && (
-            <BancoHorasForm companyData={stepData.company_data} data={stepData.bank_hours_rules} onChange={(data) => scheduleSave("bank_hours_rules", data)} onInfoAcumuloClick={() => setShowBancoHorasAcumuloModal(true)} />
+            <BancoHorasForm companyData={stepData.company_data} data={stepData.bank_hours_rules} onChange={(data) => scheduleSave("bank_hours_rules", data)} onInfoAcumuloClick={() => setShowBancoHorasAcumuloModal(true)} hideFopag />
           )}
           {step?.key === "dsr_rules" && (
-            <DSRForm companyData={stepData.company_data} data={stepData.dsr_rules} onChange={(data) => scheduleSave("dsr_rules", data)} onInfoHEFeriadoClick={() => setShowDSRFeriasHEModal(true)} onInfoMesDescontoClick={() => setShowDSRMesDescontoModal(true)} />
+            <DSRForm companyData={stepData.company_data} data={stepData.dsr_rules} onChange={(data) => scheduleSave("dsr_rules", data)} onInfoHEFeriadoClick={() => setShowDSRFeriasHEModal(true)} onInfoMesDescontoClick={() => setShowDSRMesDescontoModal(true)} hideFopag />
           )}
           {step?.key === "other_verbs_rules" && (
             <OutrasVerbasForm companyData={stepData.company_data} data={stepData.other_verbs_rules} onChange={(data) => scheduleSave("other_verbs_rules", data)} />

@@ -4,7 +4,7 @@ import CopyFromRule from "@/components/project/tabs/calculation/CopyFromRule";
 
 const defaultFatores = FATORES_OPTIONS.map(f => ({ key: f.key, ativo: false, fator: "", fatorCustom: "" }));
 
-export default function BancoHorasForm({ companyData, data, onChange, onInfoAcumuloClick }) {
+export default function BancoHorasForm({ companyData, data, onChange, onInfoAcumuloClick, hideFopag }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
 
@@ -258,10 +258,12 @@ export default function BancoHorasForm({ companyData, data, onChange, onInfoAcum
                       ))}
                     </select>
                   </div>
+                  {!hideFopag && (
                   <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer mt-3">
                     <input type="checkbox" checked={!!v.envioE02} onChange={e => updateVerba(name, i, "envioE02", e.target.checked)} className="w-4 h-4 accent-purple-600 rounded" />
                     Enviar para arquivo de exportação para FOPAG (E02)?
                   </label>
+                  )}
                 </div>
               ))}
             </div>

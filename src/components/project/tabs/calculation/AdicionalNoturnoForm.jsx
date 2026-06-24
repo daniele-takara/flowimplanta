@@ -2,7 +2,7 @@ import { Info } from "lucide-react";
 import { inputClass, labelClass, selectClass } from "@/lib/calcRulesShared";
 import CopyFromRule from "@/components/project/tabs/calculation/CopyFromRule";
 
-export default function AdicionalNoturnoForm({ companyData, data, onChange, onInfoReducaoClick, onInfoProrrogacaoClick, onInfoReducaoAmbosClick, onInfoAdicionalPausaClick }) {
+export default function AdicionalNoturnoForm({ companyData, data, onChange, onInfoReducaoClick, onInfoProrrogacaoClick, onInfoReducaoAmbosClick, onInfoAdicionalPausaClick, hideFopag }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
 
@@ -105,6 +105,7 @@ export default function AdicionalNoturnoForm({ companyData, data, onChange, onIn
                             <option value="custom">Personalizado</option>
                           </select>
                         </div>
+                        {!hideFopag && (
                         <div className="flex-1 space-y-2">
                           <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
                             <input type="checkbox" checked={!!val[p.envioKey]} onChange={e => updateRule(name, p.envioKey, e.target.checked)} className="w-4 h-4 accent-purple-600 rounded" />
@@ -122,6 +123,7 @@ export default function AdicionalNoturnoForm({ companyData, data, onChange, onIn
                             </div>
                           )}
                         </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -129,7 +131,7 @@ export default function AdicionalNoturnoForm({ companyData, data, onChange, onIn
               )}
             </div>
 
-            {val.separarHENoturna !== "sim" && (
+            {val.separarHENoturna !== "sim" && !hideFopag && (
             <div className="border-t pt-4 mb-4">
               <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Código de Verba</p>
               <div className="flex items-center gap-4">

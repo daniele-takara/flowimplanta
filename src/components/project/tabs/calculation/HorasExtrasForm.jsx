@@ -6,7 +6,7 @@ const inputClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg 
 const labelClass = "block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5";
 const selectClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";
 
-export default function HorasExtrasForm({ companyData, data, onChange, onInfoDiariaClick, onInfoMensalClick }) {
+export default function HorasExtrasForm({ companyData, data, onChange, onInfoDiariaClick, onInfoMensalClick, hideFopag }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
 
@@ -114,6 +114,7 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
                           <option value="custom">Personalizado</option>
                         </select>
                       </div>
+                      {!hideFopag && (
                       <div className="flex-1 space-y-2">
                         <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
                           <input type="checkbox" checked={!!val[p.envioKey]} onChange={e => updateRule(name, p.envioKey, e.target.checked)} className="w-4 h-4 accent-purple-600 rounded" />
@@ -131,6 +132,7 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
                           </div>
                         )}
                       </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -193,6 +195,7 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
                       <option value="100">100%</option>
                     </select>
                   </div>
+                  {!hideFopag && (
                   <div className="mt-2 space-y-2">
                     <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
                       <input type="checkbox" checked={!!f.envioE02} onChange={e => updateFaixaLimite(name, "diaria", i, "envioE02", e.target.checked)} className="w-4 h-4 accent-purple-600 rounded" />
@@ -210,6 +213,7 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
                       </div>
                     )}
                   </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -244,6 +248,7 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
                       <option value="100">100%</option>
                     </select>
                   </div>
+                  {!hideFopag && (
                   <div className="mt-2 space-y-2">
                     <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
                       <input type="checkbox" checked={!!f.envioE02} onChange={e => updateFaixaLimite(name, "mensal", i, "envioE02", e.target.checked)} className="w-4 h-4 accent-purple-600 rounded" />
@@ -261,6 +266,7 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
                       </div>
                     )}
                   </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -291,6 +297,7 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
                     <input value={rate.percentage || ""} onChange={e => updateAdditionalRate(name, i, "percentage", e.target.value)} className={inputClass} placeholder="Percentual (ex: 70)" />
                     <input value={rate.explanation || ""} onChange={e => updateAdditionalRate(name, i, "explanation", e.target.value)} className={inputClass} placeholder="Justificativa" />
                   </div>
+                  {!hideFopag && (
                   <div className="mt-2 space-y-2">
                     <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
                       <input type="checkbox" checked={!!rate.envioE02} onChange={e => updateAdditionalRate(name, i, "envioE02", e.target.checked)} className="w-4 h-4 accent-purple-600 rounded" />
@@ -308,6 +315,7 @@ export default function HorasExtrasForm({ companyData, data, onChange, onInfoDia
                       </div>
                     )}
                   </div>
+                  )}
                 </div>
               ))}
             </div>

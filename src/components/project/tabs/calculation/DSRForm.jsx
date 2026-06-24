@@ -2,7 +2,7 @@ import { Info, Trash2 } from "lucide-react";
 import { inputClass, labelClass, selectClass } from "@/lib/calcRulesShared";
 import CopyFromRule from "@/components/project/tabs/calculation/CopyFromRule";
 
-export default function DSRForm({ companyData, data, onChange, onInfoHEFeriadoClick, onInfoMesDescontoClick }) {
+export default function DSRForm({ companyData, data, onChange, onInfoHEFeriadoClick, onInfoMesDescontoClick, hideFopag }) {
   const rules = companyData?.rulesNames || [];
   const d = data || {};
 
@@ -114,6 +114,7 @@ export default function DSRForm({ companyData, data, onChange, onInfoHEFeriadoCl
               </select>
             </div>
 
+            {!hideFopag && (
             <div className="border-t pt-4 mb-4">
               <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer mb-3">
                 <input type="checkbox" checked={!!val.envioE02} onChange={e => updateRule(name, "envioE02", e.target.checked)} className="w-4 h-4 accent-purple-600 rounded" />
@@ -131,6 +132,7 @@ export default function DSRForm({ companyData, data, onChange, onInfoHEFeriadoCl
                 </div>
               )}
             </div>
+            )}
 
             <div className="border-t pt-4">
               <div className="flex items-center justify-between mb-3">
