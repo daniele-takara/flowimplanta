@@ -227,8 +227,6 @@ export default function AlocacaoRecursos() {
     );
   }, [rawData]);
 
-  const { ganttStart, ganttEnd, totalDays } = useMemo(() => calcGanttWindow(filteredItems), [filteredItems]);
-
   // Lista de responsáveis únicos para o filtro
   const allLeaders = useMemo(() => {
     const set = new Set(allItems.map(i => i.leader || "(não atribuído)"));
@@ -241,6 +239,8 @@ export default function AlocacaoRecursos() {
     return allItems.filter(i => (i.leader || "(não atribuído)") === filterLeader);
   }, [allItems, filterLeader]);
 
+  const { ganttStart, ganttEnd, totalDays } = useMemo(() => calcGanttWindow(filteredItems), [filteredItems]);
+
   // Agrupar por cargo ou pessoa
   const groups = useMemo(() => {
     const map = {};
@@ -251,7 +251,7 @@ export default function AlocacaoRecursos() {
     });
     // Ordenar grupos alfabeticamente
     return Object.values(map).sort((a, b) => a.label.localeCompare(b.label));
-  }, [allItems, groupBy]);
+  }, [filteredItems, groupBy]);
 
   const toggleGroup = (label) => {
     setCollapsedGroups(prev => ({ ...prev, [label]: !prev[label] }));
