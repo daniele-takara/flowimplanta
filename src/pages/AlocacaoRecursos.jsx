@@ -78,7 +78,7 @@ function buildAllocation(projects, activitiesByProject, scopeByProject) {
       if (saved?.status === "Cancelado" && (saved?.history_observations || "").includes("[INATIVADO]")) return;
 
       // Determinar responsável
-      const leader = saved?.responsible_leader || project[`pontotel_${task.responsibleRole || ""}_name`] || "";
+      const leader = (saved?.responsible_leader || project[`pontotel_${task.responsibleRole || ""}_name`] || "").trim();
       const role = ROLE_LABELS[task.responsibleRole] || ROLE_LABELS[saved?.responsible_role] || "Equipe Pontotel";
 
       items.push({
@@ -229,14 +229,20 @@ export default function AlocacaoRecursos() {
 
   // Lista de responsáveis únicos para o filtro
   const allLeaders = useMemo(() => {
-    const set = new Set(allItems.map(i => i.leader || "(não atribuído)"));
-    return [...set].sort((a, b) => a.localeCompare(b));
+    const seen = new Map();
+    allItems.forEach(i => {
+      const raw = (i.leader || "(não atribuído)").trim();
+      const key = raw.toLowerCase();
+      if (!seen.has(key)) seen.set(key, raw);
+    });
+    return [...seen.values()].sort((a, b) => a.localeCompare(b));
   }, [allItems]);
 
   // Itens filtrados
   const filteredItems = useMemo(() => {
     if (!filterLeader) return allItems;
-    return allItems.filter(i => (i.leader || "(não atribuído)") === filterLeader);
+    const key = filterLeader.toLowerCase();
+    return allItems.filter(i => (i.leader || "(não atribuído)").toLowerCase() === key);
   }, [allItems, filterLeader]);
 
   const { ganttStart, ganttEnd, totalDays } = useMemo(() => calcGanttWindow(filteredItems), [filteredItems]);
