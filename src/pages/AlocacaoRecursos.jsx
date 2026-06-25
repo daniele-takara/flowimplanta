@@ -202,6 +202,7 @@ export default function AlocacaoRecursos() {
   const [rawData, setRawData] = useState(null);
   const [groupBy, setGroupBy] = useState("cargo"); // "cargo" | "pessoa"
   const [collapsedGroups, setCollapsedGroups] = useState({});
+  const [filterLeader, setFilterLeader] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -226,12 +227,24 @@ export default function AlocacaoRecursos() {
     );
   }, [rawData]);
 
-  const { ganttStart, ganttEnd, totalDays } = useMemo(() => calcGanttWindow(allItems), [allItems]);
+  const { ganttStart, ganttEnd, totalDays } = useMemo(() => calcGanttWindow(filteredItems), [filteredItems]);
+
+  // Lista de responsáveis únicos para o filtro
+  const allLeaders = useMemo(() => {
+    const set = new Set(allItems.map(i => i.leader || "(não atribuído)"));
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [allItems]);
+
+  // Itens filtrados
+  const filteredItems = useMemo(() => {
+    if (!filterLeader) return allItems;
+    return allItems.filter(i => (i.leader || "(não atribuído)") === filterLeader);
+  }, [allItems, filterLeader]);
 
   // Agrupar por cargo ou pessoa
   const groups = useMemo(() => {
     const map = {};
-    allItems.forEach(item => {
+    filteredItems.forEach(item => {
       const key = groupBy === "cargo" ? item.role : (item.leader || "(não atribuído)");
       if (!map[key]) map[key] = { label: key, items: [] };
       map[key].items.push(item);
@@ -246,9 +259,9 @@ export default function AlocacaoRecursos() {
 
   // Legend
   const usedPhases = useMemo(() => {
-    const phases = new Set(allItems.map(i => i.phase));
+    const phases = new Set(filteredItems.map(i => i.phase));
     return PHASE_ORDER.filter(p => phases.has(p));
-  }, [allItems]);
+  }, [filteredItems]);
 
   if (loading) {
     return (
@@ -295,6 +308,17 @@ export default function AlocacaoRecursos() {
               <Users className="w-3.5 h-3.5" /> Pessoa
             </button>
           </div>
+          {/* Filtro de responsável */}
+          <select
+            value={filterLeader}
+            onChange={e => setFilterLeader(e.target.value)}
+            className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[200px]"
+          >
+            <option value="">Todos os responsáveis</option>
+            {allLeaders.map(l => (
+              <option key={l} value={l}>{l}</option>
+            ))}
+          </select>
           <button
             onClick={load}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors"
