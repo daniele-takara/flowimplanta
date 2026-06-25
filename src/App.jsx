@@ -24,6 +24,7 @@ import Documentacao from './pages/Documentacao';
 import ClientCalcWizard from './pages/ClientCalcWizard';
 import StandaloneCalcWizard from './pages/StandaloneCalcWizard';
 import CalcRulesKanban from './pages/CalcRulesKanban';
+import AlocacaoRecursos from './pages/AlocacaoRecursos';
 import WebhookConfig from './pages/WebhookConfig';
 import MonitorIntegracoes from './pages/MonitorIntegracoes';
 import AppLayout from './components/layout/AppLayout';
@@ -109,6 +110,7 @@ const AuthenticatedApp = () => {
         } />
         <Route path="/bigquery" element={<BigQueryConsultas />} />
         <Route path="/calculo-kanban" element={<CalcRulesKanban />} />
+        <Route path="/alocacao" element={<AlocacaoRecursos />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
