@@ -365,7 +365,7 @@ export default function AlocacaoRecursos() {
                 </span>
               </div>
               {groups.map(group => (
-                <div key={group.label}>
+                <div key={`${groupBy}-${group.label}`}>
                   {/* Cabeçalho do grupo */}
                   <button
                     onClick={() => toggleGroup(group.label)}
@@ -380,7 +380,7 @@ export default function AlocacaoRecursos() {
                   {/* Linhas de atividades */}
                   {!collapsedGroups[group.label] && group.items.map((item, idx) => (
                     <div
-                      key={`${item.projectId}-${item.taskId}-${idx}`}
+                      key={`${groupBy}-${item.projectId}-${item.taskId}-${idx}`}
                       className="flex items-center px-3 h-7 border-b border-slate-100 hover:bg-slate-50"
                     >
                       <span className="text-[11px] text-slate-500 truncate" title={`${item.clientName} · ${item.activity}`}>
@@ -400,7 +400,7 @@ export default function AlocacaoRecursos() {
 
                 {/* Linhas */}
                 {groups.map(group => (
-                  <div key={group.label}>
+                  <div key={`${groupBy}-gantt-${group.label}`}>
                     {/* Linha do cabeçalho do grupo */}
                     <div className="h-9 bg-slate-50 border-b border-slate-200 relative">
                       <TodayLine ganttStart={ganttStart} totalDays={totalDays} />
@@ -408,7 +408,7 @@ export default function AlocacaoRecursos() {
                     {/* Linhas de atividades */}
                     {!collapsedGroups[group.label] && group.items.map((item, idx) => (
                       <div
-                        key={`${item.projectId}-${item.taskId}-${idx}`}
+                        key={`${groupBy}-gantt-${item.projectId}-${item.taskId}-${idx}`}
                         className="border-b border-slate-100 relative"
                       >
                         <TodayLine ganttStart={ganttStart} totalDays={totalDays} />
