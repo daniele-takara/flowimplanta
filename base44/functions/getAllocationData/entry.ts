@@ -6,8 +6,8 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Buscar todos os projetos Em andamento
-    const projects = await base44.asServiceRole.entities.Project.filter({ status: 'Em andamento' });
+    // Buscar projetos ativos (Em andamento ou Em aberto)
+    const projects = await base44.asServiceRole.entities.Project.filter({ status: { $in: ['Em andamento', 'Em aberto'] } });
 
     const projectIds = projects.map(p => p.id);
 

@@ -276,7 +276,7 @@ export default function AlocacaoRecursos() {
         <div>
           <h1 className="text-xl font-bold text-slate-800">Alocação de Recursos</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Projetos em andamento · {(rawData?.projects || []).length} projetos · {allItems.length} atividades
+            Projetos ativos · {(rawData?.projects || []).length} projetos · {allItems.length} atividades
           </p>
         </div>
         <div className="flex items-center gap-2">
