@@ -17,6 +17,7 @@ import PhaseOverrideModal from "./schedule/PhaseOverrideModal.jsx";
 import { generateSchedulePDF } from "@/lib/schedulePdfExport.js";
 import SchedulePDFColumnModal from "./schedule/SchedulePDFColumnModal.jsx";
 import { logAudit } from "@/lib/auditLog";
+import ScheduleAgentChat from "./schedule/ScheduleAgentChat.jsx";
 
 function fmtDate(d) {
   if (!d) return "—";
@@ -1376,6 +1377,13 @@ export default function ScheduleTab({
           onClose={() => { setShowOverrideModal(false); setOverrideModalPhase(null); }}
         />
       )}
+
+      {/* Agente de Cronograma — chat flutuante */}
+      <ScheduleAgentChat
+        project={project}
+        computedDates={computedDates}
+        savedActivities={savedActivities}
+      />
     </div>
   );
 }
