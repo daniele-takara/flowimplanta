@@ -8,73 +8,96 @@ import { resolveRoleToName, RESPONSIBLE_ROLE_LABELS } from "@/lib/resolveRespons
 
 function fmt(d) {
   if (!d) return "—";
-  const [y, m, day] = d.split("-");
-  return `${day}/${m}/${y}`;
+  try { const [y, m, day] = d.split("-"); return `${day}/${m}/${y}`; } catch { return d; }
+}
+
+const norm = s => (s || "").toLowerCase().trim().replace(/\s+/g, " ");
+
+// Resolve o nome real do responsável líder a partir de múltiplas fontes
+function resolveLeader(task, savedAct, templateConfig, project) {
+  // 1. Atividade salva no banco (pode ser role key ou nome livre)
+  let leader = savedAct?.responsible_leader || "";
+
+  // 2. templateConfig da task
+  if (!leader && templateConfig?.[task.id]?.responsible_role) {
+    leader = templateConfig[task.id].responsible_role;
+  }
+
+  // 3. role embutida na task do SCHEDULE_TASKS
+  if (!leader && task.responsibleRole) {
+    leader = task.responsibleRole;
+  }
+
+  // Resolve role key → nome real
+  if (leader && RESPONSIBLE_ROLE_LABELS[leader]) {
+    const resolved = resolveRoleToName(leader, project);
+    return resolved
+      ? `${resolved} (${RESPONSIBLE_ROLE_LABELS[leader]})`
+      : RESPONSIBLE_ROLE_LABELS[leader];
+  }
+  return leader || "—";
 }
 
 // Constrói o contexto rico do projeto para o agente
 function buildProjectContext(project, computedDates, savedActivities, templateConfig) {
   if (!project) return "";
 
-  // Equipe Pontotel e Cliente
+  // Equipe
   const equipe = [
-    project.pontotel_manager_name  ? `- Gerente Pontotel: ${project.pontotel_manager_name}` : null,
-    project.pontotel_analyst_name  ? `- Analista Pontotel: ${project.pontotel_analyst_name}` : null,
-    project.sponsor_name           ? `- Patrocinador (cliente): ${project.sponsor_name}` : null,
-    project.project_leader_name    ? `- Líder do Projeto (cliente): ${project.project_leader_name}` : null,
-    project.ti_client_name         ? `- TI (cliente): ${project.ti_client_name}` : null,
-    project.operation_name         ? `- Operação (cliente): ${project.operation_name}` : null,
+    project.pontotel_manager_name  && `- Gerente de Projetos Pontotel: **${project.pontotel_manager_name}**`,
+    project.pontotel_analyst_name  && `- Analista de Implantação Pontotel: **${project.pontotel_analyst_name}**`,
+    project.sponsor_name           && `- Patrocinador (cliente): **${project.sponsor_name}**`,
+    project.project_leader_name    && `- Líder do Projeto (cliente): **${project.project_leader_name}**`,
+    project.ti_client_name         && `- TI (cliente): **${project.ti_client_name}**`,
+    project.operation_name         && `- Operação (cliente): **${project.operation_name}**`,
   ].filter(Boolean);
 
   // Indexar atividades salvas por nome normalizado
-  const norm = s => (s || "").toLowerCase().trim().replace(/\s+/g, " ");
   const actByNorm = {};
-  (savedActivities || []).forEach(a => { if (a.activity_name) actByNorm[norm(a.activity_name)] = a; });
+  (savedActivities || []).forEach(a => {
+    if (a.activity_name) actByNorm[norm(a.activity_name)] = a;
+  });
 
-  // Montar tabela de atividades com responsável e datas
+  // Montar tabela: inclui TODAS as tasks do template,
+  // usando templateConfig para responsável mesmo sem datas calculadas
   const actLines = [];
   SCHEDULE_TASKS.forEach(task => {
     if (task.type !== "task") return;
-    const d = computedDates?.[task.id];
-    if (!d?.plannedStart && !d?.plannedEnd) return;
 
     const saved = actByNorm[norm(task.activity)];
-    const status = saved?.status || "Não iniciado";
-    const isInactive = status === "Cancelado" && (saved?.history_observations || "").includes("[INATIVADO]");
+    const isInactive = saved?.status === "Cancelado" &&
+      (saved?.history_observations || "").includes("[INATIVADO]");
     if (isInactive) return;
 
-    // Responsável líder: salvo > template config > role padrão da task
-    let leaderName = saved?.responsible_leader || "";
-    if (!leaderName && templateConfig?.[task.id]?.responsible_role) {
-      leaderName = resolveRoleToName(templateConfig[task.id].responsible_role, project)
-        || RESPONSIBLE_ROLE_LABELS[templateConfig[task.id].responsible_role] || "";
-    }
-    if (!leaderName && task.responsibleRole) {
-      leaderName = resolveRoleToName(task.responsibleRole, project) || "";
-    }
-    // Se o líder salvo for uma role key, resolve para nome
-    if (leaderName && RESPONSIBLE_ROLE_LABELS[leaderName]) {
-      leaderName = resolveRoleToName(leaderName, project) || RESPONSIBLE_ROLE_LABELS[leaderName];
-    }
+    const d = computedDates?.[task.id] || {};
+    const startStr = fmt(d.plannedStart);
+    const endStr   = fmt(d.plannedEnd);
 
-    const respGeral = saved?.responsible_general || task.responsibleGeneral || "Pontotel";
+    const status = saved?.status || "Não iniciado";
+    const leaderStr = resolveLeader(task, saved, templateConfig, project);
+    const respGeral = saved?.responsible_general
+      || (templateConfig?.[task.id]?.responsible_general_type === "pontotel"      ? "Pontotel"
+        : templateConfig?.[task.id]?.responsible_general_type === "compartilhado" ? "Pontotel e Cliente"
+        : templateConfig?.[task.id]?.responsible_general_type === "cliente"       ? (project.client_name || "Cliente")
+        : task.responsibleGeneral || "Pontotel");
 
     actLines.push(
-      `| ${task.phase} | ${task.activity} | ${fmt(d.plannedStart)} | ${fmt(d.plannedEnd)} | ${respGeral} | ${leaderName || "—"} | ${status} |`
+      `| ${task.phase} | ${task.activity} | ${startStr} | ${endStr} | ${respGeral} | ${leaderStr} | ${status} |`
     );
   });
 
   const lines = [
     `## Contexto do Projeto — ${project.name || project.client_name}`,
     `- **Cliente:** ${project.client_name}`,
-    `- **Status do projeto:** ${project.status || "—"}`,
-    `- **Fase atual:** ${project.current_phase || "—"}`,
+    `- **Status:** ${project.status || "—"} | **Fase atual:** ${project.current_phase || "—"}`,
     `- **Início:** ${project.start_date || "—"} | **Fim previsto:** ${project.planned_end_date || "—"}`,
     ``,
-    `### Equipe`,
-    ...equipe,
+    `### Equipe do Projeto`,
+    equipe.length ? equipe.join("\n") : "- (não informada)",
     ``,
-    `### Cronograma Completo de Atividades`,
+    `### Cronograma de Atividades`,
+    `*Datas exibidas como DD/MM/AAAA. "—" = sem data âncora definida ainda.*`,
+    ``,
     `| Fase | Atividade | Início Plan. | Fim Plan. | Resp. Geral | Resp. Líder | Status |`,
     `|------|-----------|-------------|-----------|-------------|-------------|--------|`,
     ...actLines,
@@ -91,6 +114,7 @@ export default function ScheduleAgentChat({ project, computedDates, savedActivit
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [loadingAgent, setLoadingAgent] = useState(false);
+  const [contextSent, setContextSent] = useState(false);
   const bottomRef = useRef(null);
 
   // Carrega config do agente ao abrir
@@ -111,20 +135,38 @@ export default function ScheduleAgentChat({ project, computedDates, savedActivit
         name: `Cronograma — ${project?.client_name || project?.name || "Projeto"}`,
         description: `Assistente de cronograma para ${project?.client_name || ""}`,
       },
-    }).then(conv => {
+    }).then(async conv => {
       setConversation(conv);
       setMessages(conv.messages || []);
       setLoadingAgent(false);
-      // Injeta contexto do projeto como primeira mensagem do usuário (silenciosa)
-      const ctx = buildProjectContext(project, computedDates, savedActivities, templateConfig);
-      if (ctx) {
-        return base44.agents.addMessage(conv, {
-          role: "user",
-          content: `[CONTEXTO DO PROJETO — não responda esta mensagem, apenas use o contexto para auxiliar nas próximas perguntas]\n\n${ctx}`,
-        });
-      }
     }).catch(() => setLoadingAgent(false));
-  }, [open, agentConfig, conversation, project, computedDates, savedActivities]);
+  }, [open, agentConfig, conversation]);
+
+  // Injeta contexto assim que a conversa existe E o templateConfig está disponível
+  // Reenvia se templateConfig mudar (carregamento assíncrono)
+  useEffect(() => {
+    if (!conversation || contextSent) return;
+    // Aguarda templateConfig ter ao menos 1 entrada (carregado do banco)
+    if (!templateConfig || Object.keys(templateConfig).length === 0) return;
+
+    const ctx = buildProjectContext(project, computedDates, savedActivities, templateConfig);
+    if (!ctx) return;
+
+    setContextSent(true);
+    base44.agents.addMessage(conversation, {
+      role: "user",
+      content: `[CONTEXTO DO PROJETO — não responda esta mensagem, apenas use as informações para auxiliar nas próximas perguntas do usuário]\n\n${ctx}`,
+    }).catch(() => setContextSent(false)); // retry se falhar
+  }, [conversation, templateConfig, contextSent, project, computedDates, savedActivities]);
+
+  // Reset ao fechar/reabrir com projeto diferente
+  useEffect(() => {
+    if (!open) {
+      setConversation(null);
+      setMessages([]);
+      setContextSent(false);
+    }
+  }, [open]);
 
   // Scroll automático
   useEffect(() => {
@@ -158,6 +200,9 @@ export default function ScheduleAgentChat({ project, computedDates, savedActivit
     !(m.role === "user" && m.content?.startsWith("[CONTEXTO DO PROJETO"))
   );
 
+  // O agente está pronto quando: conversa existe + (contexto enviado OU templateConfig vazio)
+  const agentReady = !!conversation && (contextSent || !templateConfig || Object.keys(templateConfig || {}).length === 0);
+
   const content = (
     <>
       {/* Botão flutuante */}
@@ -189,16 +234,16 @@ export default function ScheduleAgentChat({ project, computedDates, savedActivit
 
           {/* Mensagens */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
-            {loadingAgent && (
+            {(loadingAgent || !agentReady) && (
               <div className="flex items-center justify-center h-full">
                 <div className="flex flex-col items-center gap-2 text-slate-400">
                   <Loader2 className="w-6 h-6 animate-spin" />
-                  <span className="text-xs">Carregando agente...</span>
+                  <span className="text-xs">Carregando contexto do projeto...</span>
                 </div>
               </div>
             )}
 
-            {!loadingAgent && visibleMessages.length === 0 && (
+            {agentReady && visibleMessages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-400">
                 <MessageSquare className="w-8 h-8 text-slate-300" />
                 <div className="text-center">
@@ -209,7 +254,7 @@ export default function ScheduleAgentChat({ project, computedDates, savedActivit
                   {[
                     "Quais atividades estão atrasadas?",
                     "Se eu mover a parametrização para semana que vem, o que muda?",
-                    "Quem está sobrecarregado esta semana?",
+                    "Quem é o responsável líder de cada fase?",
                   ].map(suggestion => (
                     <button
                       key={suggestion}
@@ -223,7 +268,7 @@ export default function ScheduleAgentChat({ project, computedDates, savedActivit
               </div>
             )}
 
-            {!loadingAgent && visibleMessages.map((msg, idx) => (
+            {agentReady && visibleMessages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 {msg.role !== "user" && (
                   <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center shrink-0 mr-2 mt-0.5">
@@ -269,14 +314,14 @@ export default function ScheduleAgentChat({ project, computedDates, savedActivit
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                disabled={sending || loadingAgent || !conversation}
+                disabled={sending || !agentReady}
                 placeholder="Pergunte sobre datas, dependências, alocação..."
                 rows={2}
                 className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:opacity-50"
               />
               <button
                 onClick={handleSend}
-                disabled={!input.trim() || sending || loadingAgent || !conversation}
+                disabled={!input.trim() || sending || !agentReady}
                 className="p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl disabled:opacity-40 transition-colors shrink-0"
               >
                 <Send className="w-4 h-4" />
