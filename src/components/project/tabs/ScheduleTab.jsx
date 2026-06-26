@@ -1383,6 +1383,7 @@ export default function ScheduleTab({
         project={project}
         computedDates={computedDates}
         savedActivities={savedActivities}
+        templateConfig={templateConfig}
       />
     </div>
   );

@@ -3,72 +3,87 @@ import { createPortal } from "react-dom";
 import { base44 } from "@/api/base44Client";
 import { Bot, X, Send, Loader2, MessageSquare } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { SCHEDULE_TASKS } from "@/lib/scheduleTasks.js";
+import { resolveRoleToName, RESPONSIBLE_ROLE_LABELS } from "@/lib/resolveResponsibleRole.js";
 
-// Busca a config do agente e constrói as instruções dinâmicas
-function buildSystemPrompt(config) {
-  const toneMap = {
-    formal: "Use linguagem formal e técnica.",
-    direto: "Seja direto e objetivo. Evite explicações longas.",
-    didatico: "Explique o raciocínio passo a passo para cada cálculo ou sugestão.",
-  };
-  const c = config || {};
-  return `Você é o Especialista em Cronograma da FlowImplanta (Pontotel).
-Tom: ${toneMap[c.agent_tone] || toneMap.direto}
-
-## Regras Operacionais
-- Máximo de ${c.max_activities_per_day || 3} atividade(s) por recurso por dia.
-- Dependências obrigatórias: ${c.enforce_dependencies !== false ? "SIM — nunca quebre a cadeia de predecessoras." : "NÃO — datas podem ser ajustadas livremente."}
-- Horário de trabalho: ${c.work_hours_start || "09:00"} às ${c.work_hours_end || "18:00"}.
-- Reportar impacto ao sugerir mudanças: ${c.report_impact !== false ? "SIM" : "NÃO"}.
-- Confirmação antes de aplicar: ${c.confirm_before_apply !== false ? "SIM — sempre aguarde ok do usuário." : "NÃO — pode aplicar diretamente."}
-
-## Feriados (Brasil 2024-2026)
-Ignorar: fins de semana, 01/01, 21/04, 01/05, 07/09, 12/10, 02/11, 15/11, 25/12 e Sexta-feira Santa.
-
-## Formato de Resposta
-- Datas sempre em DD/MM/AAAA.
-- Ao mover uma tarefa, liste TODAS as tarefas impactadas com novas datas.
-- Nunca "alucine" datas — se faltar contexto, peça ao usuário.
-${c.extra_instructions ? `\n## Instruções Adicionais\n${c.extra_instructions}` : ""}`.trim();
+function fmt(d) {
+  if (!d) return "—";
+  const [y, m, day] = d.split("-");
+  return `${day}/${m}/${y}`;
 }
 
-// Constrói o contexto do projeto para injetar como primeira mensagem de sistema
-function buildProjectContext(project, computedDates, savedActivities) {
+// Constrói o contexto rico do projeto para o agente
+function buildProjectContext(project, computedDates, savedActivities, templateConfig) {
   if (!project) return "";
 
-  const lines = [
-    `## Contexto do Projeto Atual`,
-    `**Projeto:** ${project.name || project.client_name}`,
-    `**Cliente:** ${project.client_name}`,
-    `**Status:** ${project.status || "—"}`,
-    `**Fase atual:** ${project.current_phase || "—"}`,
-    `**Início:** ${project.start_date || "—"}`,
-    `**Fim previsto:** ${project.planned_end_date || "—"}`,
-    ``,
-    `### Datas Calculadas (resumo das principais atividades)`,
-  ];
+  // Equipe Pontotel e Cliente
+  const equipe = [
+    project.pontotel_manager_name  ? `- Gerente Pontotel: ${project.pontotel_manager_name}` : null,
+    project.pontotel_analyst_name  ? `- Analista Pontotel: ${project.pontotel_analyst_name}` : null,
+    project.sponsor_name           ? `- Patrocinador (cliente): ${project.sponsor_name}` : null,
+    project.project_leader_name    ? `- Líder do Projeto (cliente): ${project.project_leader_name}` : null,
+    project.ti_client_name         ? `- TI (cliente): ${project.ti_client_name}` : null,
+    project.operation_name         ? `- Operação (cliente): ${project.operation_name}` : null,
+  ].filter(Boolean);
 
-  // Adiciona até 15 datas calculadas para contexto
-  const entries = Object.entries(computedDates || {}).slice(0, 15);
-  entries.forEach(([id, d]) => {
-    if (d.plannedStart || d.plannedEnd) {
-      lines.push(`- **${id}**: ${d.plannedStart || "?"} → ${d.plannedEnd || "?"}`);
+  // Indexar atividades salvas por nome normalizado
+  const norm = s => (s || "").toLowerCase().trim().replace(/\s+/g, " ");
+  const actByNorm = {};
+  (savedActivities || []).forEach(a => { if (a.activity_name) actByNorm[norm(a.activity_name)] = a; });
+
+  // Montar tabela de atividades com responsável e datas
+  const actLines = [];
+  SCHEDULE_TASKS.forEach(task => {
+    if (task.type !== "task") return;
+    const d = computedDates?.[task.id];
+    if (!d?.plannedStart && !d?.plannedEnd) return;
+
+    const saved = actByNorm[norm(task.activity)];
+    const status = saved?.status || "Não iniciado";
+    const isInactive = status === "Cancelado" && (saved?.history_observations || "").includes("[INATIVADO]");
+    if (isInactive) return;
+
+    // Responsável líder: salvo > template config > role padrão da task
+    let leaderName = saved?.responsible_leader || "";
+    if (!leaderName && templateConfig?.[task.id]?.responsible_role) {
+      leaderName = resolveRoleToName(templateConfig[task.id].responsible_role, project)
+        || RESPONSIBLE_ROLE_LABELS[templateConfig[task.id].responsible_role] || "";
     }
+    if (!leaderName && task.responsibleRole) {
+      leaderName = resolveRoleToName(task.responsibleRole, project) || "";
+    }
+    // Se o líder salvo for uma role key, resolve para nome
+    if (leaderName && RESPONSIBLE_ROLE_LABELS[leaderName]) {
+      leaderName = resolveRoleToName(leaderName, project) || RESPONSIBLE_ROLE_LABELS[leaderName];
+    }
+
+    const respGeral = saved?.responsible_general || task.responsibleGeneral || "Pontotel";
+
+    actLines.push(
+      `| ${task.phase} | ${task.activity} | ${fmt(d.plannedStart)} | ${fmt(d.plannedEnd)} | ${respGeral} | ${leaderName || "—"} | ${status} |`
+    );
   });
 
-  if (savedActivities?.length) {
-    lines.push(``, `### Atividades com Status Registrado`);
-    savedActivities.slice(0, 10).forEach(a => {
-      if (a.status && a.status !== "Não iniciado") {
-        lines.push(`- **${a.activity_name}** (${a.phase_name}): ${a.status}`);
-      }
-    });
-  }
+  const lines = [
+    `## Contexto do Projeto — ${project.name || project.client_name}`,
+    `- **Cliente:** ${project.client_name}`,
+    `- **Status do projeto:** ${project.status || "—"}`,
+    `- **Fase atual:** ${project.current_phase || "—"}`,
+    `- **Início:** ${project.start_date || "—"} | **Fim previsto:** ${project.planned_end_date || "—"}`,
+    ``,
+    `### Equipe`,
+    ...equipe,
+    ``,
+    `### Cronograma Completo de Atividades`,
+    `| Fase | Atividade | Início Plan. | Fim Plan. | Resp. Geral | Resp. Líder | Status |`,
+    `|------|-----------|-------------|-----------|-------------|-------------|--------|`,
+    ...actLines,
+  ];
 
   return lines.join("\n");
 }
 
-export default function ScheduleAgentChat({ project, computedDates, savedActivities }) {
+export default function ScheduleAgentChat({ project, computedDates, savedActivities, templateConfig }) {
   const [open, setOpen] = useState(false);
   const [agentConfig, setAgentConfig] = useState(null);
   const [conversation, setConversation] = useState(null);
@@ -101,7 +116,7 @@ export default function ScheduleAgentChat({ project, computedDates, savedActivit
       setMessages(conv.messages || []);
       setLoadingAgent(false);
       // Injeta contexto do projeto como primeira mensagem do usuário (silenciosa)
-      const ctx = buildProjectContext(project, computedDates, savedActivities);
+      const ctx = buildProjectContext(project, computedDates, savedActivities, templateConfig);
       if (ctx) {
         return base44.agents.addMessage(conv, {
           role: "user",
