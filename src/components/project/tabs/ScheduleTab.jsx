@@ -899,57 +899,48 @@ export default function ScheduleTab({
   }, [phases, visibleLocalPhases, tasksByPhase, phaseOverrides]);
 
   const handleSaveOverride = useCallback(async (taskId, payload) => {
-    // 1. Atualiza estado imediatamente (UI responsiva)
-    let nextOverrides = {};
+    // Calcula nextOverrides ANTES do setState para garantir valor correto na persistência
     setManualOverrides(prev => {
-      nextOverrides = { ...prev, [taskId]: { ...(prev[taskId] || {}), ...payload } };
+      const nextOverrides = { ...prev, [taskId]: { ...(prev[taskId] || {}), ...payload } };
+
+      // Persiste no localStorage imediatamente (dentro do setState garante valor correto)
+      try {
+        localStorage.setItem(`schedule_overrides_${projectId}`, JSON.stringify(nextOverrides));
+      } catch {}
+
+      // Persiste no banco de forma assíncrona
+      base44.entities.Project.update(projectId, { schedule_overrides: nextOverrides })
+        .then(() => { if (onRefresh) onRefresh(); })
+        .catch(err => console.error("[ScheduleTab] Erro ao persistir schedule_overrides:", err));
+
       return nextOverrides;
     });
-
-    // 2. Persiste no localStorage como cache local (síncrono, fallback)
-    try {
-      localStorage.setItem(`schedule_overrides_${projectId}`, JSON.stringify(nextOverrides));
-    } catch {}
-
-    // 3. Persiste TUDO no banco — fonte de verdade compartilhada entre usuários
-    try {
-      await base44.entities.Project.update(projectId, { schedule_overrides: nextOverrides });
-      // Notifica o ProjectDetail para recarregar o projeto (atualiza estado global)
-      if (onRefresh) onRefresh();
-    } catch (err) {
-      console.error("[ScheduleTab] Erro ao persistir schedule_overrides no banco:", err);
-    }
   }, [projectId, onRefresh]);
 
-  const handleRemoveOverride = useCallback(async (taskId, field) => {
-    let nextOverrides = {};
+  const handleRemoveOverride = useCallback((taskId, field) => {
     setManualOverrides(prev => {
       const current = { ...(prev[taskId] || {}) };
       delete current[field];
       if (current._origin) delete current._origin[field];
-      // Remove entry se ficou vazio (sem campos restantes além de _origin)
       const keysLeft = Object.keys(current).filter(k => k !== "_origin");
+      let nextOverrides;
       if (keysLeft.length === 0) {
         nextOverrides = { ...prev };
         delete nextOverrides[taskId];
       } else {
         nextOverrides = { ...prev, [taskId]: current };
       }
+
+      try {
+        localStorage.setItem(`schedule_overrides_${projectId}`, JSON.stringify(nextOverrides));
+      } catch {}
+
+      base44.entities.Project.update(projectId, { schedule_overrides: nextOverrides })
+        .then(() => { if (onRefresh) onRefresh(); })
+        .catch(err => console.error("[ScheduleTab] Erro ao remover override:", err));
+
       return nextOverrides;
     });
-
-    // Persiste no localStorage
-    try {
-      localStorage.setItem(`schedule_overrides_${projectId}`, JSON.stringify(nextOverrides));
-    } catch {}
-
-    // Persiste no banco — fonte de verdade compartilhada
-    try {
-      await base44.entities.Project.update(projectId, { schedule_overrides: nextOverrides });
-      if (onRefresh) onRefresh();
-    } catch (err) {
-      console.error("[ScheduleTab] Erro ao persistir schedule_overrides no banco:", err);
-    }
   }, [projectId, onRefresh]);
 
   const handleSaveActivity = useCallback(async (task, data) => {
