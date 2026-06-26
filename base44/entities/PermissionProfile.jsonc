@@ -18,6 +18,7 @@
     "permissions": {
       "type": "object",
       "description": "Mapa de permiss\u00f5es por m\u00f3dulo",
+      "additionalProperties": true,
       "properties": {
         "projetos_ver": {
           "type": "boolean",
@@ -208,6 +209,10 @@
           "default": false
         },
         "kanban_excluir": {
+          "type": "boolean",
+          "default": false
+        },
+        "alocacao_ver": {
           "type": "boolean",
           "default": false
         }
