@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { base44 } from "@/api/base44Client";
-import { Bot, X, Send, Loader2, MessageSquare, ChevronDown } from "lucide-react";
+import { Bot, X, Send, Loader2, MessageSquare } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 // Busca a config do agente e constrói as instruções dinâmicas
@@ -142,13 +143,14 @@ export default function ScheduleAgentChat({ project, computedDates, savedActivit
     !(m.role === "user" && m.content?.startsWith("[CONTEXTO DO PROJETO"))
   );
 
-  return (
+  const content = (
     <>
       {/* Botão flutuante */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg transition-all font-medium text-sm"
+          style={{ position: "fixed", bottom: "24px", right: "24px", zIndex: 9999 }}
+          className="flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg transition-all font-medium text-sm"
         >
           <Bot className="w-4 h-4" />
           Agente de Cronograma
@@ -157,7 +159,7 @@ export default function ScheduleAgentChat({ project, computedDates, savedActivit
 
       {/* Painel do chat */}
       {open && (
-        <div className="fixed bottom-6 right-6 z-50 flex flex-col w-[400px] h-[560px] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+        <div style={{ position: "fixed", bottom: "24px", right: "24px", zIndex: 9999 }} className="flex flex-col w-[400px] h-[560px] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 bg-blue-600 text-white shrink-0">
             <Bot className="w-5 h-5" />
@@ -271,4 +273,6 @@ export default function ScheduleAgentChat({ project, computedDates, savedActivit
       )}
     </>
   );
+
+  return createPortal(content, document.body);
 }
