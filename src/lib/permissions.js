@@ -117,6 +117,13 @@ export const PERMISSION_MODULES = [
     ],
   },
   {
+    key: "alocacao",
+    label: "Alocação de Recursos",
+    permissions: [
+      { key: "alocacao_ver", label: "Visualizar" },
+    ],
+  },
+  {
     key: "parametrizacoes",
     label: "Parametrizações",
     permissions: [
@@ -152,6 +159,7 @@ export const DEFAULT_PROFILES = [
       regras_calculo_ver: true, regras_calculo_editar: true,
       regras_calculo_criar: true, regras_calculo_excluir: true, regras_calculo_finalizar: true,
       kanban_ver: true, kanban_editar: true, kanban_excluir: true,
+      alocacao_ver: true,
     },
   },
   {
@@ -178,6 +186,7 @@ export const DEFAULT_PROFILES = [
       regras_calculo_ver: true, regras_calculo_editar: true,
       regras_calculo_criar: true, regras_calculo_excluir: false, regras_calculo_finalizar: true,
       kanban_ver: true, kanban_editar: true, kanban_excluir: false,
+      alocacao_ver: true,
     },
   },
   {
@@ -204,6 +213,7 @@ export const DEFAULT_PROFILES = [
       regras_calculo_ver: true, regras_calculo_editar: true,
       regras_calculo_criar: true, regras_calculo_excluir: false, regras_calculo_finalizar: true,
       kanban_ver: true, kanban_editar: true, kanban_excluir: false,
+      alocacao_ver: true,
     },
   },
   {
@@ -230,6 +240,7 @@ export const DEFAULT_PROFILES = [
       regras_calculo_ver: true, regras_calculo_editar: false,
       regras_calculo_criar: false, regras_calculo_excluir: false, regras_calculo_finalizar: false,
       kanban_ver: true, kanban_editar: false, kanban_excluir: false,
+      alocacao_ver: false,
     },
   },
 ];

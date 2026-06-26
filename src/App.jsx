@@ -110,7 +110,11 @@ const AuthenticatedApp = () => {
         } />
         <Route path="/bigquery" element={<BigQueryConsultas />} />
         <Route path="/calculo-kanban" element={<CalcRulesKanban />} />
-        <Route path="/alocacao" element={<AlocacaoRecursos />} />
+        <Route path="/alocacao" element={
+          <ProtectedRoute allowed={perms.canViewAlocacao}>
+            <AlocacaoRecursos />
+          </ProtectedRoute>
+        } />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

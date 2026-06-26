@@ -8,13 +8,13 @@ import RoleBadge from "@/components/layout/RoleBadge";
 export default function Sidebar() {
   const location = useLocation();
   const { user, logout } = useAuth();
-  const { canAccessParametrizacoes, canAccessFluxo, canCreateProject } = usePermissions();
+  const { canAccessParametrizacoes, canAccessFluxo, canCreateProject, canViewAlocacao } = usePermissions();
 
   const mainItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/" },
     { icon: FolderKanban, label: "Projetos", path: "/projects" },
-    { icon: CalendarRange, label: "Alocação", path: "/alocacao" },
-  ];
+    canViewAlocacao && { icon: CalendarRange, label: "Alocação", path: "/alocacao" },
+  ].filter(Boolean);
 
   const configItems = [
     canAccessParametrizacoes && { icon: Settings, label: "Parametrizações", path: "/parametrizacoes" },

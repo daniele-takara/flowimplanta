@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { computeSchedule } from "@/lib/scheduleEngine";
 import { SCHEDULE_TASKS, PHASE_ORDER } from "@/lib/scheduleTasks";
-import { Users, Briefcase, RefreshCw, ChevronDown, ChevronRight, AlertCircle } from "lucide-react";
+import { Users, Briefcase, RefreshCw, ChevronDown, ChevronRight, AlertCircle, Lock } from "lucide-react";
+import { usePermissions } from "@/lib/usePermissions";
 
 // ── Cores por Fase ────────────────────────────────────────────
 const PHASE_COLORS = {
@@ -197,6 +198,7 @@ function TodayLine({ ganttStart, totalDays }) {
 
 // ── Componente principal ─────────────────────────────────────
 export default function AlocacaoRecursos() {
+  const { canViewAlocacao } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [rawData, setRawData] = useState(null);
@@ -216,7 +218,7 @@ export default function AlocacaoRecursos() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (canViewAlocacao) load(); else setLoading(false); }, [canViewAlocacao]);
 
   const allItems = useMemo(() => {
     if (!rawData) return [];
@@ -268,6 +270,16 @@ export default function AlocacaoRecursos() {
     const phases = new Set(filteredItems.map(i => i.phase));
     return PHASE_ORDER.filter(p => phases.has(p));
   }, [filteredItems]);
+
+  if (!canViewAlocacao) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-400">
+        <Lock className="w-10 h-10" />
+        <p className="text-base font-medium">Sem acesso</p>
+        <p className="text-sm">Você não tem permissão para visualizar a Alocação de Recursos.</p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

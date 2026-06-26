@@ -94,6 +94,9 @@ export function usePermissions() {
     canEditKanban: can("kanban_editar") || isSystemAdmin,
     canDeleteKanbanCards: can("kanban_excluir") || isSystemAdmin,
 
+    // Alocação de Recursos
+    canViewAlocacao: can("alocacao_ver") || isSystemAdmin,
+
     // Integrações / Ações
     canSyncPipedriveDados: can("integracao_sync_pipedrive_dados") || isSystemAdmin,
     canSyncPipedriveCronograma: can("integracao_sync_pipedrive_cronograma") || isSystemAdmin,
