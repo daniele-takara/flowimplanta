@@ -1,0 +1,50 @@
+{
+  "name": "ScheduleAgentConfig",
+  "type": "object",
+  "properties": {
+    "max_activities_per_day": {
+      "type": "number",
+      "default": 3,
+      "description": "M\u00e1ximo de atividades por recurso/dia"
+    },
+    "enforce_dependencies": {
+      "type": "boolean",
+      "default": true,
+      "description": "For\u00e7ar respeito \u00e0s depend\u00eancias (predecessoras)"
+    },
+    "confirm_before_apply": {
+      "type": "boolean",
+      "default": true,
+      "description": "Exigir confirma\u00e7\u00e3o do usu\u00e1rio antes de aplicar altera\u00e7\u00f5es"
+    },
+    "report_impact": {
+      "type": "boolean",
+      "default": true,
+      "description": "Reportar impacto em tarefas dependentes ao sugerir mudan\u00e7as"
+    },
+    "work_hours_start": {
+      "type": "string",
+      "default": "09:00",
+      "description": "In\u00edcio do hor\u00e1rio de trabalho"
+    },
+    "work_hours_end": {
+      "type": "string",
+      "default": "18:00",
+      "description": "Fim do hor\u00e1rio de trabalho"
+    },
+    "agent_tone": {
+      "type": "string",
+      "enum": [
+        "formal",
+        "direto",
+        "didatico"
+      ],
+      "default": "direto",
+      "description": "Tom de comunica\u00e7\u00e3o do agente"
+    },
+    "extra_instructions": {
+      "type": "string",
+      "description": "Instru\u00e7\u00f5es adicionais livres para o agente"
+    }
+  }
+}
