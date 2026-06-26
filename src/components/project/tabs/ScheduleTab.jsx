@@ -736,40 +736,30 @@ export default function ScheduleTab({
   useEffect(() => {
     if (!projectId) return;
 
+    // Já inicializado para este projeto: ignora atualizações do prop enquanto
+    // temos dados salvos localmente nesta sessão (evita sobrescrever âncoras recém-salvas)
+    if (initializedForProjectRef.current === projectId) {
+      // Só re-sincroniza se ainda não temos nada salvo localmente (ex: abertura inicial com delay)
+      if (localSavedOverridesRef.current !== null) return;
+    }
+
     const raw = project?.schedule_overrides;
     const dbOverrides = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {};
 
-    // Primeira inicialização para este projeto: carrega do banco
-    if (initializedForProjectRef.current !== projectId) {
-      initializedForProjectRef.current = projectId;
-      localSavedOverridesRef.current = null;
+    // Primeira inicialização para este projeto
+    initializedForProjectRef.current = projectId;
+    localSavedOverridesRef.current = null;
 
-      let overrides = { ...dbOverrides };
-      // Fallback legado: schedule_anchor_dates
-      if (Object.keys(overrides).length === 0) {
-        const dbAnchors = project?.schedule_anchor_dates || {};
-        Object.entries(dbAnchors).forEach(([taskId, dateStr]) => {
-          if (dateStr) overrides[taskId] = { plannedStart: dateStr };
-        });
-      }
-      setManualOverrides(overrides);
-      setAnchorsLoaded(true);
-      return;
-    }
-
-    // Projeto já inicializado: só re-sincroniza se o banco tem dados MAIS NOVOS
-    // que os que nós mesmos salvamos (ex: sync do Pipedrive que veio por outro usuário)
-    if (localSavedOverridesRef.current !== null) {
-      // Mescla: mantém o que salvamos localmente, adiciona chaves novas do banco
-      setManualOverrides(prev => {
-        const merged = { ...dbOverrides };
-        // Preserva overrides locais que não vieram do banco ainda
-        Object.entries(prev).forEach(([k, v]) => {
-          if (!merged[k]) merged[k] = v;
-        });
-        return merged;
+    let overrides = { ...dbOverrides };
+    // Fallback legado: schedule_anchor_dates
+    if (Object.keys(overrides).length === 0) {
+      const dbAnchors = project?.schedule_anchor_dates || {};
+      Object.entries(dbAnchors).forEach(([taskId, dateStr]) => {
+        if (dateStr) overrides[taskId] = { plannedStart: dateStr };
       });
     }
+    setManualOverrides(overrides);
+    setAnchorsLoaded(true);
   }, [projectId, project?.schedule_overrides, project?.schedule_anchor_dates]);
 
   const reloadActivities = useCallback(() => {
