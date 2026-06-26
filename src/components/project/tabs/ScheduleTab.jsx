@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import {
   ChevronDown, ChevronRight, Save, X, Anchor, Pencil, Lock,
@@ -728,50 +728,33 @@ export default function ScheduleTab({
   const [generatingPDF, setGeneratingPDF] = useState(false);
   const [showPDFModal, setShowPDFModal] = useState(false);
 
-  // Carregar overrides: DB (schedule_overrides) como fonte primária, localStorage como fallback de migração
+  // Carrega schedule_overrides do banco na primeira vez que o projectId/project chega
+  // Usa uma ref para rastrear o último schedule_overrides já carregado e evitar loops
+  const lastLoadedOverridesRef = useRef(null);
+
   useEffect(() => {
-    if (!projectId || anchorsLoaded) return;
-    
-    // 1. Carrega schedule_overrides do banco (fonte de verdade compartilhada entre usuários)
-    let dbOverrides = {};
-    try {
-      const raw = project?.schedule_overrides;
-      if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-        dbOverrides = raw;
-      }
-    } catch {}
-    
-    // 2. Carrega localStorage (fallback para dados não migrados)
-    let localOverrides = {};
-    try {
-      localOverrides = JSON.parse(localStorage.getItem(`schedule_overrides_${projectId}`) || "{}");
-    } catch {}
-    
-    // 3. Mescla: DB como fonte primária, localStorage apenas preenche lacunas
-    const merged = { ...localOverrides };
-    Object.entries(dbOverrides).forEach(([taskId, override]) => {
-      if (override && typeof override === "object") {
-        merged[taskId] = { ...(merged[taskId] || {}), ...override };
-      }
-    });
-    
-    // 4. Fallback legado: âncoras do schedule_anchor_dates se nenhum override encontrado
-    if (Object.keys(merged).length === 0) {
+    if (!projectId) return;
+
+    const raw = project?.schedule_overrides;
+    const dbOverrides = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {};
+    const dbKey = JSON.stringify(dbOverrides);
+
+    // Só re-inicializa se o conteúdo do banco realmente mudou (evita loop com onRefresh)
+    if (lastLoadedOverridesRef.current === dbKey) return;
+    lastLoadedOverridesRef.current = dbKey;
+
+    // Fallback legado: schedule_anchor_dates
+    let overrides = { ...dbOverrides };
+    if (Object.keys(overrides).length === 0) {
       const dbAnchors = project?.schedule_anchor_dates || {};
       Object.entries(dbAnchors).forEach(([taskId, dateStr]) => {
-        if (dateStr) merged[taskId] = { plannedStart: dateStr };
+        if (dateStr) overrides[taskId] = { plannedStart: dateStr };
       });
     }
-    
-    setManualOverrides(merged);
-    
-    // 5. Migração: se localStorage tem dados mas DB não, persiste no banco agora
-    if (Object.keys(localOverrides).length > 0 && Object.keys(dbOverrides).length === 0) {
-      base44.entities.Project.update(projectId, { schedule_overrides: merged }).catch(() => {});
-    }
-    
+
+    setManualOverrides(overrides);
     setAnchorsLoaded(true);
-  }, [projectId, project, anchorsLoaded]);
+  }, [projectId, project?.schedule_overrides, project?.schedule_anchor_dates]);
 
   const reloadActivities = useCallback(() => {
     if (!projectId) return;
@@ -908,9 +891,12 @@ export default function ScheduleTab({
         localStorage.setItem(`schedule_overrides_${projectId}`, JSON.stringify(nextOverrides));
       } catch {}
 
-      // Persiste no banco de forma assíncrona
+      // Persiste no banco de forma assíncrona (sem chamar onRefresh para evitar re-init do estado)
       base44.entities.Project.update(projectId, { schedule_overrides: nextOverrides })
-        .then(() => { if (onRefresh) onRefresh(); })
+        .then(() => {
+          // Atualiza a ref para evitar re-inicialização desnecessária quando onRefresh recarregar o projeto
+          lastLoadedOverridesRef.current = JSON.stringify(nextOverrides);
+        })
         .catch(err => console.error("[ScheduleTab] Erro ao persistir schedule_overrides:", err));
 
       return nextOverrides;
@@ -936,7 +922,9 @@ export default function ScheduleTab({
       } catch {}
 
       base44.entities.Project.update(projectId, { schedule_overrides: nextOverrides })
-        .then(() => { if (onRefresh) onRefresh(); })
+        .then(() => {
+          lastLoadedOverridesRef.current = JSON.stringify(nextOverrides);
+        })
         .catch(err => console.error("[ScheduleTab] Erro ao remover override:", err));
 
       return nextOverrides;
