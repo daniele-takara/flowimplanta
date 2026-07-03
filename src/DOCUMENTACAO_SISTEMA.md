@@ -1,6 +1,6 @@
-# Flowimplanta — Documentação Técnica v6.8
-**Última atualização:** 2026-06-18  
-**Status:** Validado (Sistema de status de projeto + Remoção botão "Integrar com Pipedrive" da ProjectList + Seletor de status no header + Botão "Atualizar dados do Pipedrive" mantido no OverviewTab)
+# Flowimplanta — Documentação Técnica v7.0
+**Última atualização:** 2026-07-03
+**Status:** Validado (Subgrupos no cronograma + Gantt de Alocação de Recursos + Agente de Cronograma com IA + Parametrização centralizada do agente + Persistência atômica de schedule_overrides + RBAC para alocação)
 
 ---
 
@@ -28,12 +28,12 @@ Google Sheets ──OAuth──────► savePipedriveRules (Deno)
 **Stack:**
 - Frontend: React 18 + Vite + Tailwind + shadcn/ui
 - Backend: Base44 BaaS + Deno Deploy
-- Banco: Base44 NoSQL (17 entidades)
-- Integrações: Pipedrive REST v1, Google Sheets OAuth v4
+- Banco: Base44 NoSQL (18 entidades)
+- Integrações: Pipedrive REST v1, Google Sheets OAuth v4, Agente de Cronograma (IA via InvokeLLM)
 
 ---
 
-## 2. ENTIDADES (17 total)
+## 2. ENTIDADES (18 total)
 
 ### Project (central)
 | Campo | Tipo | Uso |
@@ -127,6 +127,22 @@ Log de TODAS as execuções da integração Pipedrive → Cronograma.
 | `activities_updated/created` | Resultado da execução |
 | `match_errors` | JSON de erros de matching fase/atividade |
 | `debug_steps` | JSON com steps detalhados |
+
+### ScheduleAgentConfig (NOVO — v7.0)
+Parametrização centralizada das regras do agente de cronograma com IA. Singleton (1 registro por app).
+
+| Campo | Tipo | Default | Descrição |
+|-------|------|---------|-----------|
+| `max_activities_per_day` | number | 3 | Máximo de atividades por recurso/dia |
+| `enforce_dependencies` | boolean | true | Forçar respeito às dependências (predecessoras) |
+| `confirm_before_apply` | boolean | true | Exigir confirmação do usuário antes de aplicar alterações |
+| `report_impact` | boolean | true | Reportar impacto em tarefas dependentes ao sugerir mudanças |
+| `work_hours_start` | string | "09:00" | Início do horário de trabalho |
+| `work_hours_end` | string | "18:00" | Fim do horário de trabalho |
+| `agent_tone` | enum | "direto" | Tom de comunicação: formal, direto, didatico |
+| `extra_instructions` | string | "" | Instruções adicionais livres para o agente |
+
+**Gestão:** Aba "Agente de Cronograma" no painel de Parametrizações (`TabAgenteCronograma`).
 
 ### PipedriveWebhookEvent (legado)
 Mantida por compatibilidade. **Novos logs vão para IntegrationLog.**
@@ -359,6 +375,20 @@ Hash `e7f28ae86be385212be4b97a442150ee45ebbb56` = "Funcionários contratados" na
 - **Arquivo:** functions/deleteProject
 - **Auth:** Admin (role=admin) OU projetos_excluir=true
 - ⚠️ NÃO apaga entidades filhas (ScheduleActivity, ScopeItem etc. ficam órfãs)
+
+### applyAgentScheduleSuggestion *(NOVO — v7.0)*
+- **Arquivo:** functions/applyAgentScheduleSuggestion
+- **Chamada:** Frontend (ScheduleAgentChat) via base44.functions.invoke
+- **Auth:** Usuário logado (base44.auth.me())
+- **Entrada:** `{ project_id, suggestions: [{ taskId, plannedStart, plannedEnd }] }`
+- **Lógica:**
+  1. Carrega `ScheduleAgentConfig` do banco (regras do agente)
+  2. Verifica `enforce_dependencies` — valida que datas sugeridas respeitam predecessoras
+  3. Verifica `max_activities_per_day` — detecta conflitos de alocação por recurso
+  4. Se `confirm_before_apply=false`, aplica automaticamente; senão retorna análise para o usuário confirmar
+  5. Aplica sugestões como `schedule_overrides` no Project (com `_origin: "agent"`)
+  6. Se `report_impact=true`, retorna lista de tarefas dependentes impactadas
+- **Saída:** `{ ok, applied, conflicts, impacted_tasks, config_used }`
 
 ---
 
@@ -621,11 +651,18 @@ plannedStart              → self reference
 | `cronograma_excluir_atividade` | Excluir ou inativar atividade local |
 | `cronograma_gerar_pdf` | Gerar PDF do cronograma |
 
-### Todas as Flags (27 total)
+### Flag de Alocação de Recursos (adicionada na v7.0)
+
+| Flag | Descrição |
+|------|-----------|
+| `alocacao_ver` | Visualizar a página de Alocação de Recursos (Gantt) |
+
+### Todas as Flags (28 total)
 `projetos_ver/criar/editar/excluir`, `dados_iniciais_ver/editar`, `escopo_ver/editar/atualizar_template`,
 `cronograma_ver/editar/editar_planejado/concluir_fase/recalcular/criar_atividade/criar_fase/editar_fase/excluir_fase/editar_atividade/excluir_atividade/gerar_pdf`,
 `tap_ver/editar/gerar_pdf`, `status_report_ver/editar/atualizar/email`,
-`termo_ver/editar/pdf`, `integracao_sync_pipedrive_dados/cronograma/status`, `parametrizacoes_acessar/editar`
+`termo_ver/editar/pdf`, `integracao_sync_pipedrive_dados/cronograma/status`, `parametrizacoes_acessar/editar`,
+`regras_calculo_ver/editar/criar/excluir/finalizar`, `kanban_ver/editar/excluir`, `alocacao_ver`
 
 ---
 
@@ -1688,3 +1725,242 @@ O botão laranja **"Integrar com Pipedrive"** da tela de listagem de projetos (`
 ### Motivo
 
 Remover apenas o modal de importação em massa (que estava na ProjectList), mantendo a sincronização individual por projeto via OverviewTab, que é a operação mais comum e necessária no dia a dia.
+
+---
+
+## 20. SUBGRUPOS NO CRONOGRAMA (v7.0 — 2026-07-01)
+
+### Finalidade
+
+Permitir agrupar atividades relacionadas sob uma atividade mãe, com herança automática de datas. Criado para organizar atividades do tipo "Reunião sobre o uso" que compartilham contexto mas precisam de entradas individuais.
+
+### Estrutura
+
+| Tipo | Comportamento |
+|------|---------------|
+| `task` (normal) | Atividade padrão com datas próprias |
+| `group` | Grupo de primeiro nível — datas = min(início)/max(fim) dos filhos |
+| `subgroup` | Subgrupo dentro de uma fase — datas = min/max das subatividades |
+| `task` com `parentGroup` | Subatividade que herda contexto do subgrupo pai |
+
+### Renderização
+
+| Elemento | Estilo |
+|----------|--------|
+| GroupRow | Fundo cinza, colSpan, título em maiúsculas |
+| SubGroupRow | Fundo roxo claro, borda roxa, recuo visual (pl-6) |
+| Subatividade (indentada) | Marcador roxo à esquerda (w-1 h-3 bg-purple-300) |
+
+### Herança de datas
+
+O motor `computeSchedule` calcula datas de grupos/subgrupos a partir dos filhos visíveis:
+- **Grupo/Subgrupo:** `plannedStart = min(filhos.plannedStart)`, `plannedEnd = max(filhos.plannedEnd)`
+- **Subatividades com parentGroup:** não são contadas no rol da fase pai (evita duplicação)
+
+### Template para novos projetos
+
+Projetos novos criados a partir do template incluem a estrutura de subgrupos automaticamente. Projetos existentes mantêm sua estrutura original.
+
+### Arquivos
+
+| Arquivo | Função |
+|---------|--------|
+| `lib/scheduleTasks.js` | Definição de tasks com `type: "group"/"subgroup"` e `parentGroup` |
+| `lib/scheduleEngine.js` | Cálculo de datas de grupos/subgrupos a partir de filhos |
+| `components/project/tabs/ScheduleTab.jsx` | Renderização de GroupRow, SubGroupRow, TaskRow indentada |
+
+---
+
+## 21. GANTT DE ALOCAÇÃO DE RECURSOS (v7.0 — 2026-07-01)
+
+### Finalidade
+
+Visualização consolidada de alocação de recursos humanos em todos os projetos ativos, no formato Gantt, permitindo identificar conflitos de alocação e sobrecarga de recursos.
+
+### Rota
+
+`/alocacao` — protegida por `ProtectedRoute` com permissão `alocacao_ver`.
+
+### Fonte de dados
+
+A página usa `getAllocationData` (função backend) que consolida dados de múltiplos projetos:
+
+| Fonte | Uso |
+|-------|-----|
+| `Project` | Projetos com status "Em andamento" ou "Em aberto" |
+| `ScheduleActivity` | Atividades com responsáveis definidos |
+| `computeSchedule` (motor) | Datas planejadas calculadas por projeto |
+| `ScheduleTemplate` | Configuração de responsáveis (responsible_role, responsible_general_type) |
+| `resolveRoleToName` / `resolveGeneralResponsible` | Resolução de nomes de responsáveis a partir do projeto |
+
+### Agrupamento
+
+O Gantt suporta alternância entre dois modos de agrupamento:
+
+| Modo | Comportamento |
+|------|---------------|
+| **Por Cargo** | Atividades agrupadas por papel (gerente_projeto, analista_implantacao, etc.) |
+| **Por Pessoa** | Atividades agrupadas por nome do responsável resolvido |
+
+### Cores por fase
+
+Cada barra do Gantt é colorida conforme a fase do cronograma da atividade:
+
+| Fase | Cor |
+|------|-----|
+| Abertura de projeto | Azul |
+| Integração | Ciano |
+| Cadastros | Verde-água |
+| Parametrização | Ambar |
+| Treinamento e Validações | Laranja |
+| Operação Assistida | Rosa |
+| Fechamento de Folha | Vermelho |
+| Expansão | Roxo |
+| Encerramento | Cinza |
+
+### Filtros
+
+- **Responsável:** dropdown com lista normalizada (trim + case-insensitive) para evitar duplicatas
+- **Status do projeto:** "Em andamento" + "Em aberto" (ambos ativos por padrão)
+
+### Normalização de responsáveis
+
+A lista de responsáveis é normalizada (trim + lowercase + sem acentos) para evitar duplicatas como "Amanda Krugel" vs "amanda krugel " vs "AMANDA KRUGEL".
+
+### Arquivos
+
+| Arquivo | Função |
+|---------|--------|
+| `pages/AlocacaoRecursos.jsx` | Página principal com Gantt, filtros e agrupamento |
+| `base44/functions/getAllocationData/entry.ts` | Backend que consolida dados de alocação |
+| `lib/permissions.js` | Permissão `alocacao_ver` |
+| `components/layout/Sidebar.jsx` | Link no menu (visível apenas com `alocacao_ver`) |
+| `components/layout/ProtectedRoute.jsx` | Guarda de rota |
+
+---
+
+## 22. AGENTE DE CRONOGRAMA COM IA (v7.0 — 2026-07-02)
+
+### Finalidade
+
+Assistente de IA integrado ao cronograma que sugere datas, valida conflitos de alocação, reporta impactos em tarefas dependentes e aplica alterações diretamente no cronograma via chat.
+
+### Arquitetura
+
+```
+ScheduleTab (React)
+    │
+    ├─ ScheduleAgentChat (portal flutuante — renderizado no body)
+    │       ├─ Constrói contexto rico do projeto (markdown)
+    │       ├─ Envia mensagem + contexto ao agente (base44.agents)
+    │       ├─ Recebe sugestões (JSON estruturado)
+    │       └─ Aplica via applyAgentScheduleSuggestion (backend)
+    │
+    └─ Agente "cronograma_agente" (config em base44/agents/)
+            ├─ Model: automatic (InvokeLLM)
+            ├─ Tools: read-only em Project, ScheduleActivity, SchedulePhaseOverride
+            ├─ Memory: habilitada (contexto de conversa)
+            └─ Auth required: sim (apenas usuários autenticados)
+```
+
+### Contexto injetado no agente
+
+A cada mensagem, o `ScheduleAgentChat` injeta um resumo estruturado em markdown:
+
+| Dado | Conteúdo |
+|------|----------|
+| Equipe do projeto | Gerente, analista, patrocinador, líder, operação, TI |
+| Progresso de tarefas | Contagem por status (não iniciado, em andamento, concluído, atrasado) |
+| Atividades visíveis | Nome, fase, responsável resolvido, datas planejadas, status |
+| Configuração do agente | `ScheduleAgentConfig` (limites, horários, tom) |
+
+### Aplicação de sugestões
+
+Quando o agente sugere datas, o usuário pode aplicá-las:
+
+1. `ScheduleAgentChat` extrai JSON da mensagem do agente
+2. Chama `applyAgentScheduleSuggestion` (backend) com `{ project_id, suggestions }`
+3. Backend valida conforme `ScheduleAgentConfig`:
+   - `enforce_dependencies`: datas respeitam predecessoras?
+   - `max_activities_per_day`: conflito de alocação?
+   - `report_impact`: quais tarefas dependentes são impactadas?
+4. Se `confirm_before_apply=true`, retorna análise para o usuário confirmar no chat
+5. Ao confirmar, aplica como `schedule_overrides` com `_origin: "agent"`
+6. Feedback de sucesso/erro exibido no chat
+
+### Detecção de conflitos
+
+O backend cruza as datas sugeridas com as atividades existentes do mesmo responsável:
+
+```
+Para cada sugestão:
+  → Busca ScheduleActivity com mesmo responsável_leader
+  → Verifica sobreposição de [plannedStart, plannedEnd]
+  → Se sobreposição > 0 dias → conflito reportado
+```
+
+### Parametrização (ScheduleAgentConfig)
+
+A aba "Agente de Cronograma" no painel de Parametrizações permite ajustar:
+
+| Controle | Efeito |
+|----------|--------|
+| Máximo de atividades por dia | Limita sugestões que excedam alocação |
+| Forçar dependências | Bloqueia sugestões que violem predecessoras |
+| Confirmar antes de aplicar | Exige clique do usuário antes de persistir |
+| Reportar impacto | Lista tarefas dependentes afetadas |
+| Horário de trabalho | Janela considerada para alocação diária |
+| Tom do agente | formal, direto, ou didatico |
+| Instruções extras | Texto livre adicionado ao prompt do agente |
+
+### Arquivos
+
+| Arquivo | Função |
+|---------|--------|
+| `base44/agents/cronograma_agente.jsonc` | Configuração do agente (instruções, tools, model) |
+| `src/components/project/tabs/schedule/ScheduleAgentChat.jsx` | Chat flutuante (portal no body) |
+| `base44/functions/applyAgentScheduleSuggestion/entry.ts` | Backend de validação e aplicação |
+| `src/components/parametrizacoes/TabAgenteCronograma.jsx` | Aba de parametrização |
+| `base44/entities/ScheduleAgentConfig.jsonc` | Entidade de configuração |
+| `src/lib/resolveResponsibleRole.js` | Resolução de responsáveis (usada no contexto) |
+
+### Permissões do agente
+
+O agente `cronograma_agente` tem acesso read-only a:
+- `Project` (read)
+- `ScheduleActivity` (read)
+- `SchedulePhaseOverride` (read)
+- `applyAgentScheduleSuggestion` (backend function)
+
+E built-in `web_search` para buscar informações externas quando necessário.
+
+### Renderização via Portal
+
+O `ScheduleAgentChat` é renderizado via `createPortal` diretamente no `document.body`, garantindo independência de contexto de empilhamento (z-index) — o chat flutuante não é afetado por `overflow: hidden` ou `transform` de containers pais.
+
+---
+
+## 23. PERSISTÊNCIA ATÔMICA DE SCHEDULE_OVERRIDES (v7.0 — 2026-07-02)
+
+### Problema
+
+Race conditions no `ScheduleTab` causavam sobrescrita de `schedule_overrides` recém-salvos quando o prop `project` era atualizado pelo `ProjectDetail` após o save. O estado local era sincronizado com o banco, mas o re-render do componente re-inicializava o estado a partir do prop desatualizado.
+
+### Correção
+
+Dois refs controlam a sincronização:
+
+| Ref | Função |
+|-----|--------|
+| `initializedForProjectRef` | Rastreia se já inicializamos para este `projectId` |
+| `localSavedOverridesRef` | Guarda os overrides que NÓS salvamos nesta sessão |
+
+**Lógica:**
+1. Primeira inicialização: lê `project.schedule_overrides` do banco → seta estado
+2. Após salvar override: atualiza `localSavedOverridesRef.current` com o novo estado
+3. Re-render com prop atualizado: se `initializedForProjectRef.current === projectId` E `localSavedOverridesRef.current !== null`, **ignora** a re-sincronização do prop
+4. Só re-sincroniza do prop se não há nada salvo localmente (ex: abertura inicial com delay)
+
+### Resultado
+
+Overrides salvos pelo usuário não são mais sobrescritos por re-renders disparados pelo `ProjectDetail` após a persistência no banco.
