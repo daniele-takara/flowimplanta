@@ -115,7 +115,8 @@ const TYPE_BADGE = {
   decisão: { label: "Futuro", class: "bg-slate-100 text-slate-500" },
 };
 
-function FlowNode({ node, isLast, onSelect, isSelected }) {
+function FlowNode({ node, isLast, index, onSelect, isSelected }) {
+  const nextNode = FLOW_NODES[index + 1];
   const Icon = node.icon;
   return (
     <div className="flex flex-col items-center">
@@ -132,9 +133,12 @@ function FlowNode({ node, isLast, onSelect, isSelected }) {
         </div>
       </div>
       {!isLast && (
-        <div className="flex flex-col items-center my-1">
-          <div className="w-0.5 h-4 bg-slate-300" />
-          <ArrowRight className="w-3.5 h-3.5 text-slate-400 rotate-90" />
+        <div className="flex flex-col items-center my-1.5" aria-hidden="true">
+          <div
+            className="w-0.5 h-5 border-l-2 border-dashed border-slate-400"
+            title={`${node.label} → ${nextNode?.label}`}
+          />
+          <ArrowRight className="w-4 h-4 text-slate-400 rotate-90 -mt-1" />
         </div>
       )}
     </div>
@@ -164,6 +168,7 @@ export default function FluxoProjeto() {
               <FlowNode
                 key={node.id}
                 node={node}
+                index={i}
                 isLast={i === FLOW_NODES.length - 1}
                 onSelect={setSelected}
                 isSelected={selected?.id === node.id}
