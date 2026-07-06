@@ -817,15 +817,15 @@ export default function ScheduleTab({
     return grouped;
   }, [visible]);
 
-  // Atividades do template (match por nome)
+  // Atividades do template (match EXATO por nome normalizado — NFD resolve encoding NFC/NFD,
+  // mas sem includes/substring, que fazia atividades locais com nome parecido sumirem)
   const activitiesByTask = useMemo(() => {
     const norm = s => (s || "").toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
     const map = {};
     savedActivities.forEach(a => {
       if (!a.activity_name) return;
       const normA = norm(a.activity_name);
-      let found = SCHEDULE_TASKS.find(t => norm(t.activity) === normA);
-      if (!found) found = SCHEDULE_TASKS.find(t => norm(t.activity).includes(normA) || normA.includes(norm(t.activity)));
+      const found = SCHEDULE_TASKS.find(t => norm(t.activity) === normA);
       if (found) map[found.id] = a;
     });
     return map;
@@ -837,10 +837,7 @@ export default function ScheduleTab({
     return savedActivities.filter(a => {
       if (!a.activity_name) return false;
       const normA = norm(a.activity_name);
-      const foundInTemplate = SCHEDULE_TASKS.some(t => {
-        const nt = norm(t.activity);
-        return nt === normA || nt.includes(normA) || normA.includes(nt);
-      });
+      const foundInTemplate = SCHEDULE_TASKS.some(t => norm(t.activity) === normA);
       return !foundInTemplate;
     });
   }, [savedActivities]);
