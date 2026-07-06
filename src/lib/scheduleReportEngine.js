@@ -152,11 +152,12 @@ function _legacyComputeMacroSchedule(overrides, answersMap, project, savedActivi
       const actualStart  = tasks.map(t => t.actualStart).filter(Boolean).reduce((a,b) => a < b ? a : b, null);
       const actualEnd    = tasks.map(t => t.actualEnd).filter(Boolean).reduce((a,b) => a > b ? a : b, null);
       const total = tasks.length;
-      const completed = tasks.filter(t => !!t.actualEnd).length;
-      const started   = tasks.filter(t => !!t.actualStart).length;
+      // Concluído = status "Concluído" OU actual_end preenchido
+      const completed = tasks.filter(t => t.status === "Concluído" || !!t.actualEnd).length;
+      const started   = tasks.filter(t => !!t.actualStart || t.status === "Em andamento" || t.status === "Concluído").length;
       const progress  = total > 0 ? Math.round((completed / total) * 100) : 0;
       let status;
-      if (completed === total) status = "Concluído";
+      if (completed === total && total > 0) status = "Concluído";
       else if (started > 0)   status = "Em andamento";
       else if (plannedEnd && today > plannedEnd) status = "Atrasado";
       else                    status = "Não iniciado";

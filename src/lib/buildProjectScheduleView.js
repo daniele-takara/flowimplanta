@@ -184,8 +184,9 @@ export function buildProjectScheduleView({
           ? actualEnds.reduce((a, b) => a > b ? a : b) : null;
 
         const total = tasks.length;
-        const completed = tasks.filter(t => !!t.actualEnd).length;
-        const started = tasks.filter(t => !!t.actualStart).length;
+        // Concluído = status "Concluído" OU actual_end preenchido (status é a fonte de verdade do usuário)
+        const completed = tasks.filter(t => t.status === "Concluído" || !!t.actualEnd).length;
+        const started = tasks.filter(t => !!t.actualStart || t.status === "Em andamento" || t.status === "Concluído").length;
         const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
         let status;
@@ -244,7 +245,8 @@ export function buildProjectScheduleView({
         ? actualEnds.reduce((a, b) => a > b ? a : b) : null;
 
       const total = phaseActivities.length;
-      const completed = phaseActivities.filter(a => !!a.actual_end).length;
+      // Concluído = status "Concluído" OU actual_end preenchido (atividades inativadas já foram excluídas acima)
+      const completed = phaseActivities.filter(a => a.status === "Concluído" || !!a.actual_end).length;
       const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
       let status = phase.status || "Não iniciado";
