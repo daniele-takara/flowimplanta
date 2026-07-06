@@ -98,9 +98,12 @@ export function computeMacroSchedule(
 
     // % geral do projeto = média do progresso das fases macro (exclui Encerramento)
     const progressPhases = macroPhases.filter(p => p.phase !== "Encerramento de projeto");
-    const overallProgress = progressPhases.length > 0
+    let overallProgress = progressPhases.length > 0
       ? Math.round(progressPhases.reduce((sum, p) => sum + p.progress, 0) / progressPhases.length)
       : 0;
+
+    // Projeto marcado como "Concluído" → 100% (Encerramento é a única fase pendente e é excluída do cálculo)
+    if (project?.status === "Concluído") overallProgress = 100;
 
     return { macroPhases, overallProgress };
 
