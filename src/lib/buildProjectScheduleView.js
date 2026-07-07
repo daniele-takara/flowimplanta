@@ -99,18 +99,15 @@ export function buildProjectScheduleView({
       if (a.activity_name) activityByName[norm(a.activity_name)] = a;
     });
 
-    // Mapear template tasks → activity salva
+    // Mapear template tasks → activity salva (match EXATO por nome normalizado).
+    // Match exato evita que atividades locais variantes (ex: "Expansão de registro
+    // de ponto real (Bahia)") sejam atribuídas ao template task, o que as excluiria
+    // da contagem como atividade local da fase e inflaria o progresso.
     SCHEDULE_TASKS.forEach(task => {
       if (task.type !== "task") return;
       const normTask = norm(task.activity);
       if (activityByName[normTask]) {
         activityByTaskId[task.id] = activityByName[normTask];
-      } else {
-        // fallback includes
-        const found = Object.entries(activityByName).find(([k]) =>
-          k.includes(normTask) || normTask.includes(k)
-        );
-        if (found) activityByTaskId[task.id] = found[1];
       }
     });
 
@@ -154,12 +151,12 @@ export function buildProjectScheduleView({
         // Verificar também se há atividades locais nessa fase
         const hasLocalActivities = savedActivities.some(a => {
           if (!a.activity_name) return false;
+          if (a.phase_name !== phaseName) return false;
           const normA = norm(a.activity_name);
-          const inTemplate = SCHEDULE_TASKS.some(t => {
-            const nt = norm(t.activity);
-            return nt === normA || nt.includes(normA) || normA.includes(nt);
-          });
-          return !inTemplate && a.phase_name === phaseName;
+          const inTemplate = SCHEDULE_TASKS.some(t =>
+            t.type === "task" && norm(t.activity) === normA
+          );
+          return !inTemplate;
         });
         return hasTemplateTasks || hasLocalActivities;
       })
@@ -170,17 +167,15 @@ export function buildProjectScheduleView({
 
         const tasks = templatePhaseData[phaseName]?.tasks || [];
 
-        // Atividades locais ativas nesta fase do template (sem correspondência no template, não inativadas)
+        // Atividades locais ativas nesta fase do template (match EXATO; não inativadas)
         const localTasks = savedActivities.filter(a => {
           if (a.phase_name !== phaseName) return false;
           if ((a.history_observations || "").includes("[INATIVADO]")) return false;
           if (!a.activity_name) return false;
           const normA = norm(a.activity_name);
-          const inTemplate = SCHEDULE_TASKS.some(t => {
-            if (t.type !== "task") return false;
-            const nt = norm(t.activity);
-            return nt === normA || nt.includes(normA) || normA.includes(nt);
-          });
+          const inTemplate = SCHEDULE_TASKS.some(t =>
+            t.type === "task" && norm(t.activity) === normA
+          );
           return !inTemplate;
         }).map(a => ({
           taskId: `local-${a.id}`,
@@ -249,16 +244,15 @@ export function buildProjectScheduleView({
     const localPhaseViews = sortedLocalPhases.map((phase, idx) => {
       const isActive = phase.is_active !== false;
 
-      // Atividades locais desta fase (sem correspondência no template, excluindo inativadas)
+      // Atividades locais desta fase (match EXATO com template; excluindo inativadas)
       const phaseActivities = savedActivities.filter(a => {
         if (a.phase_name !== phase.phase_name) return false;
         // Pular atividades inativadas (detecção pelo marcador)
         if ((a.history_observations || "").includes("[INATIVADO]")) return false;
         const normA = norm(a.activity_name || "");
-        const inTemplate = SCHEDULE_TASKS.some(t => {
-          const nt = norm(t.activity);
-          return nt === normA || nt.includes(normA) || normA.includes(nt);
-        });
+        const inTemplate = SCHEDULE_TASKS.some(t =>
+          t.type === "task" && norm(t.activity) === normA
+        );
         return !inTemplate;
       });
 
