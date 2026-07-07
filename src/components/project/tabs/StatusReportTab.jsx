@@ -630,6 +630,9 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
       // 6. Atualizar progresso no projeto
       await base44.entities.Project.update(projectId, { progress_percent: progress }).catch(() => {});
 
+      // Recarrega o snapshot de reports no parent para sobreviver à troca de abas
+      if (onRefresh) { try { await onRefresh(); } catch {} }
+
       setUpdateResult({
         success: true,
         msg: `${registeredEmployees} ativos · ${recordingEmployees} no ponto · ${aderencia}% aderência · cronograma atualizado${bqFound ? " · BigQuery" : sheetFound ? " · planilha" : ""}`,
@@ -639,7 +642,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
     } finally {
       setUpdating(false);
     }
-  }, [project, projectId, form, report, savedActivities, answersMap]);
+  }, [project, projectId, form, report, savedActivities, answersMap, onRefresh]);
 
   // Salvar um campo individual — autosave onBlur (silencioso, sem refresh)
   // Usa cache de módulo para sobreviver a unmount/remount (troca de abas)
