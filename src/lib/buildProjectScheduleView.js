@@ -169,10 +169,34 @@ export function buildProjectScheduleView({
 
         const tasks = templatePhaseData[phaseName]?.tasks || [];
 
-        const plannedStarts = tasks.map(t => t.plannedStart).filter(Boolean);
-        const plannedEnds = tasks.map(t => t.plannedEnd).filter(Boolean);
-        const actualStarts = tasks.map(t => t.actualStart).filter(Boolean);
-        const actualEnds = tasks.map(t => t.actualEnd).filter(Boolean);
+        // Atividades locais ativas nesta fase do template (sem correspondência no template, não inativadas)
+        const localTasks = savedActivities.filter(a => {
+          if (a.phase_name !== phaseName) return false;
+          if (a.status === "Cancelado" && (a.history_observations || "").includes("[INATIVADO]")) return false;
+          if (!a.activity_name) return false;
+          const normA = norm(a.activity_name);
+          const inTemplate = SCHEDULE_TASKS.some(t => {
+            if (t.type !== "task") return false;
+            const nt = norm(t.activity);
+            return nt === normA || nt.includes(normA) || normA.includes(nt);
+          });
+          return !inTemplate;
+        }).map(a => ({
+          taskId: `local-${a.id}`,
+          activity: a.activity_name,
+          plannedStart: a.planned_start || null,
+          plannedEnd: a.planned_end || null,
+          actualStart: a.actual_start || null,
+          actualEnd: a.actual_end || null,
+          status: a.status || null,
+        }));
+
+        const allTasks = [...tasks, ...localTasks];
+
+        const plannedStarts = allTasks.map(t => t.plannedStart).filter(Boolean);
+        const plannedEnds = allTasks.map(t => t.plannedEnd).filter(Boolean);
+        const actualStarts = allTasks.map(t => t.actualStart).filter(Boolean);
+        const actualEnds = allTasks.map(t => t.actualEnd).filter(Boolean);
 
         const plannedStart = plannedStarts.length
           ? plannedStarts.reduce((a, b) => a < b ? a : b) : null;
@@ -183,10 +207,10 @@ export function buildProjectScheduleView({
         const actualEnd = actualEnds.length
           ? actualEnds.reduce((a, b) => a > b ? a : b) : null;
 
-        const total = tasks.length;
+        const total = allTasks.length;
         // Concluído = status "Concluído" OU actual_end preenchido (status é a fonte de verdade do usuário)
-        const completed = tasks.filter(t => t.status === "Concluído" || !!t.actualEnd).length;
-        const started = tasks.filter(t => !!t.actualStart || t.status === "Em andamento" || t.status === "Concluído").length;
+        const completed = allTasks.filter(t => t.status === "Concluído" || !!t.actualEnd).length;
+        const started = allTasks.filter(t => !!t.actualStart || t.status === "Em andamento" || t.status === "Concluído").length;
         const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
         let status;
