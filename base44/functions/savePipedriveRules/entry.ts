@@ -38,6 +38,17 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
+    // ── Permissão: editar parametrizações (regras de integração) ──
+    const isSystemAdmin = user.role === 'admin';
+    let canEdit = isSystemAdmin;
+    if (!isSystemAdmin && user.permission_profile_id) {
+      try {
+        const profiles = await base44.asServiceRole.entities.PermissionProfile.filter({ id: user.permission_profile_id });
+        if (profiles?.[0]?.permissions?.parametrizacoes_editar === true) canEdit = true;
+      } catch { canEdit = false; }
+    }
+    if (!canEdit) return Response.json({ error: 'Sem permissão para editar regras de integração' }, { status: 403 });
+
     const { accessToken } = await base44.asServiceRole.connectors.getConnection("googlesheets");
     const syncedAt = new Date().toISOString();
 

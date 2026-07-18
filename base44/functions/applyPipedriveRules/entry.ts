@@ -162,9 +162,9 @@ Deno.serve(async (req) => {
   const startTime = Date.now();
   const base44 = createClientFromRequest(req);
 
-  // Auth flexível: aceita usuário logado OU chamada interna sem token
-  // Todas as operações de banco usam asServiceRole, então a auth é apenas para auditoria
-  const user = await base44.auth.me().catch(() => null);
+  // Auth obrigatória + checagem de permissão específica (fecha brecha de falsificação anônima)
+  const user = await base44.auth.me();
+  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
   const {
@@ -176,6 +176,17 @@ Deno.serve(async (req) => {
     pipedrive_current,
     dry_run = false,
   } = body;
+
+  // ── Permissão: sincronizar cronograma via Pipedrive ──
+  const isSystemAdmin = user.role === 'admin';
+  let canSync = isSystemAdmin;
+  if (!isSystemAdmin && user.permission_profile_id) {
+    try {
+      const profiles = await base44.asServiceRole.entities.PermissionProfile.filter({ id: user.permission_profile_id });
+      if (profiles?.[0]?.permissions?.integracao_sync_pipedrive_cronograma === true) canSync = true;
+    } catch { canSync = false; }
+  }
+  if (!canSync) return Response.json({ error: 'Sem permissão para sincronizar cronograma' }, { status: 403 });
 
   if (!project_id) return Response.json({ error: 'project_id obrigatório' }, { status: 400 });
 
@@ -248,7 +259,9 @@ Deno.serve(async (req) => {
     }
 
     // ── STEP 3: Buscar dados do Pipedrive ─────────────────────────────────
-    let deal = pipedrive_current;
+    // pipedrive_current só é honrado em dry_run (diagnóstico). Em gravação real,
+    // SEMPRE busca o deal no Pipedrive — evita falsificação de datas/status via body.
+    let deal = (dry_run && pipedrive_current) ? pipedrive_current : null;
     let pipeActivities = [];
 
     if (!deal) {

@@ -166,6 +166,16 @@ Deno.serve(async (req) => {
     return Response.json({ error: "Invalid JSON payload" }, { status: 400 });
   }
 
+  // ── Validação de origem: secret do webhook do Pipedrive ──
+  const webhookSecret = Deno.env.get("PIPEDRIVE_WEBHOOK_SECRET");
+  if (webhookSecret) {
+    const url = new URL(req.url);
+    const providedSecret = req.headers.get("x-webhook-secret") || url.searchParams.get("secret");
+    if (providedSecret !== webhookSecret) {
+      return Response.json({ error: "Unauthorized: webhook secret inválido" }, { status: 403 });
+    }
+  }
+
   const rawEvent = body.event || "";
   const meta = body.meta || {};
   const current = body.current || {};

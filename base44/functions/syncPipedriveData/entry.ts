@@ -49,6 +49,17 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'project_id e deal_id são obrigatórios' }, { status: 400 });
     }
 
+    // ── Permissão: sincronizar dados iniciais via Pipedrive ──
+    const isSystemAdmin = user.role === 'admin';
+    let canSync = isSystemAdmin;
+    if (!isSystemAdmin && user.permission_profile_id) {
+      try {
+        const profiles = await base44.asServiceRole.entities.PermissionProfile.filter({ id: user.permission_profile_id });
+        if (profiles?.[0]?.permissions?.integracao_sync_pipedrive_dados === true) canSync = true;
+      } catch { canSync = false; }
+    }
+    if (!canSync) return Response.json({ error: 'Sem permissão para sincronizar dados do Pipedrive' }, { status: 403 });
+
     const apiToken = Deno.env.get("API_PIpedrive");
     if (!apiToken) return Response.json({ error: 'API_PIpedrive não configurado' }, { status: 500 });
 

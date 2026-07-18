@@ -100,13 +100,26 @@ Deno.serve(async (req) => {
   const startTime = Date.now();
   try {
     const base44 = createClientFromRequest(req);
-    // Aceita chamada autenticada (manual) ou interna (sem usuário)
-    const user = await base44.auth.me().catch(() => null);
+    // Auth obrigatória + checagem de permissão (sync de status ou dados — este endpoint
+    // é invocado tanto pelo fluxo de status quanto internamente pelo sync de dados)
+    const user = await base44.auth.me();
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
     const { project_id, deal_id, dry_run = false } = body;
 
     if (!project_id) return Response.json({ error: 'project_id obrigatório' }, { status: 400 });
+
+    const isSystemAdmin = user.role === 'admin';
+    let canDo = isSystemAdmin;
+    if (!isSystemAdmin && user.permission_profile_id) {
+      try {
+        const profiles = await base44.asServiceRole.entities.PermissionProfile.filter({ id: user.permission_profile_id });
+        const p = profiles?.[0]?.permissions || {};
+        if (p.integracao_sync_pipedrive_status === true || p.integracao_sync_pipedrive_dados === true) canDo = true;
+      } catch { canDo = false; }
+    }
+    if (!canDo) return Response.json({ error: 'Sem permissão para sincronizar status report' }, { status: 403 });
 
     const apiToken = Deno.env.get("API_PIpedrive");
     if (!apiToken) return Response.json({ error: 'API_PIpedrive não configurado' }, { status: 500 });

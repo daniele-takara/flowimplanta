@@ -94,10 +94,22 @@ const AuthenticatedApp = () => {
             <UsersPermissions />
           </ProtectedRoute>
         } />
-        <Route path="/diagnostico-pipedrive" element={<DiagnosticoPipedrive />} />
+        <Route path="/diagnostico-pipedrive" element={
+          <ProtectedRoute allowed={perms.canAccessParametrizacoes}>
+            <DiagnosticoPipedrive />
+          </ProtectedRoute>
+        } />
         <Route path="/documentacao" element={<Documentacao />} />
-        <Route path="/webhook-config" element={<WebhookConfig />} />
-        <Route path="/monitor-integracoes" element={<MonitorIntegracoes />} />
+        <Route path="/webhook-config" element={
+          <ProtectedRoute allowed={perms.canAccessParametrizacoes}>
+            <WebhookConfig />
+          </ProtectedRoute>
+        } />
+        <Route path="/monitor-integracoes" element={
+          <ProtectedRoute allowed={perms.canAccessParametrizacoes}>
+            <MonitorIntegracoes />
+          </ProtectedRoute>
+        } />
         <Route path="/rbac-report" element={
           <ProtectedRoute allowed={perms.canAccessParametrizacoes}>
             <RBACReport />
@@ -108,8 +120,16 @@ const AuthenticatedApp = () => {
             <FluxoProjeto />
           </ProtectedRoute>
         } />
-        <Route path="/bigquery" element={<BigQueryConsultas />} />
-        <Route path="/calculo-kanban" element={<CalcRulesKanban />} />
+        <Route path="/bigquery" element={
+          <ProtectedRoute allowed={perms.canAccessParametrizacoes}>
+            <BigQueryConsultas />
+          </ProtectedRoute>
+        } />
+        <Route path="/calculo-kanban" element={
+          <ProtectedRoute allowed={perms.canViewKanban}>
+            <CalcRulesKanban />
+          </ProtectedRoute>
+        } />
         <Route path="/alocacao" element={
           <ProtectedRoute allowed={perms.canViewAlocacao}>
             <AlocacaoRecursos />
