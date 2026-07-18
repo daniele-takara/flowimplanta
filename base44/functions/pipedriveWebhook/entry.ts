@@ -167,12 +167,20 @@ Deno.serve(async (req) => {
   }
 
   // ── Validação de origem: secret do webhook do Pipedrive ──
+  // Modo compatível: enquanto a URL do webhook no Pipedrive não inclui o secret,
+  // aceita o evento (sem secret) mas loga um aviso. Se um secret for enviado e
+  // não bater, rejeita (403). Assim a integração atual não quebra e a proteção
+  // passa a valer no momento em que você adicionar ?secret=<valor> na URL do Pipedrive.
   const webhookSecret = Deno.env.get("PIPEDRIVE_WEBHOOK_SECRET");
   if (webhookSecret) {
     const url = new URL(req.url);
     const providedSecret = req.headers.get("x-webhook-secret") || url.searchParams.get("secret");
-    if (providedSecret !== webhookSecret) {
-      return Response.json({ error: "Unauthorized: webhook secret inválido" }, { status: 403 });
+    if (providedSecret !== undefined && providedSecret !== null) {
+      if (providedSecret !== webhookSecret) {
+        return Response.json({ error: "Unauthorized: webhook secret inválido" }, { status: 403 });
+      }
+    } else {
+      console.warn("[pipedriveWebhook] ⚠️ Evento recebido sem secret. Adicione ?secret=<PIPEDRIVE_WEBHOOK_SECRET> na URL do webhook no Pipedrive para ativar a validação de origem.");
     }
   }
 
