@@ -59,13 +59,8 @@ Deno.serve(async (req) => {
       loadSheetByGid(accessToken, STATUS_REPORT_GID),
     ]);
 
-    // 2. Apagar TODAS as regras existentes
+    // 2. Capturar regras existentes (apagadas DEPOIS de criar as novas — evita perda em caso de falha)
     const existing = await base44.asServiceRole.entities.PipedriveIntegrationRule.list();
-    if (existing.length > 0) {
-      await Promise.all(
-        existing.map(r => base44.asServiceRole.entities.PipedriveIntegrationRule.delete(r.id))
-      );
-    }
 
     // 3. Converter e salvar regras de dados_iniciais
     const dadosRules = dadosResult.rows.map((row, i) => ({
@@ -114,10 +109,17 @@ Deno.serve(async (req) => {
         synced_at: syncedAt,
       }));
 
-    // 6. Salvar todas as novas regras em bulk
+    // 6. Salvar todas as novas regras em bulk PRIMEIRO (antes de apagar as antigas)
     const allRules = [...dadosRules, ...cronoRules, ...statusReportRules];
     if (allRules.length > 0) {
       await base44.asServiceRole.entities.PipedriveIntegrationRule.bulkCreate(allRules);
+    }
+
+    // 7. Apagar regras antigas (após criar as novas com sucesso)
+    if (existing.length > 0) {
+      await Promise.all(
+        existing.map(r => base44.asServiceRole.entities.PipedriveIntegrationRule.delete(r.id))
+      );
     }
 
     return Response.json({

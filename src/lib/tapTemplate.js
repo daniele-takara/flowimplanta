@@ -3,6 +3,7 @@
 // ============================================================
 
 import { CONTRACTED_MODULES_OPTIONS } from "@/lib/scopeTemplate";
+import { PHASE_ORDER } from "@/lib/scheduleTasks";
 
 // Extrai resposta de uma questão pelo ID a partir dos scopeItems ou answersMap
 export function getAnswer(answersMap, questionId) {
@@ -234,15 +235,23 @@ export function buildEntregas(answersMap, project) {
   return ENTREGAS_CONDICIONAIS.filter(e => e.condition(answersMap, project));
 }
 
-// Cronograma macro — fases padrão do projeto
-export const FASES_MACRO = [
-  { fase: "Abertura de Projeto", descricao: "Kick-off, alinhamento de escopo e apresentação da equipe" },
-  { fase: "Parametrização", descricao: "Configuração do sistema conforme escopo técnico definido" },
-  { fase: "Homologação", descricao: "Validação das parametrizações com o cliente" },
-  { fase: "Rollout", descricao: "Expansão do sistema para os demais usuários e filiais" },
-  { fase: "Go-live", descricao: "Entrada em produção e acompanhamento inicial" },
-  { fase: "Pós Go-live", descricao: "Suporte e monitoramento no período inicial de operação" },
-];
+// Cronograma macro — sincronizado com PHASE_ORDER (scheduleTasks) para consistência total
+const FASE_DESCRICAO = {
+  "Abertura de projeto": "Kick-off, alinhamento de escopo e apresentação da equipe",
+  "Integração": "Integração com sistemas do cliente (ex: Sankhya) quando aplicável",
+  "Cadastros": "Importação de cadastros e configuração de locais de trabalho",
+  "Parametrização": "Configuração do sistema conforme escopo técnico definido",
+  "Treinamento e Validações": "Treinamentos e validações das parametrizações com o cliente",
+  "Operação Assistida": "Início de registro de ponto e operação assistida (Go-live)",
+  "Fechamento de Folha": "Fechamento de folha de ponto com o cliente",
+  "Expansão": "Expansão do sistema para 100% da base de funcionários",
+  "Encerramento": "Assinatura do termo de encerramento e passagem para Sucesso do Cliente",
+};
+
+export const FASES_MACRO = PHASE_ORDER.map(fase => ({
+  fase,
+  descricao: FASE_DESCRICAO[fase] || fase,
+}));
 
 // Texto de conclusão padrão
 export function buildConclusao(project) {

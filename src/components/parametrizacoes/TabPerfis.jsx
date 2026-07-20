@@ -147,17 +147,29 @@ function ProfileForm({ profile, userCount, onSave, onClose }) {
 }
 
 function DeleteConfirm({ count, onConfirm, onCancel }) {
+  const hasUsers = count > 0;
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
-        <h3 className="text-base font-bold text-slate-800 mb-2">Confirmar exclusão</h3>
-        {count > 0
-          ? <p className="text-sm text-red-600 mb-1 font-medium">⚠️ {count} usuário(s) vinculados perderão o perfil!</p>
-          : null}
-        <p className="text-sm text-slate-500 mb-5">Esta ação não pode ser desfeita.</p>
-        <div className="flex justify-end gap-2">
+        <h3 className="text-base font-bold text-slate-800 mb-2">
+          {hasUsers ? "Exclusão bloqueada" : "Confirmar exclusão"}
+        </h3>
+        {hasUsers ? (
+          <p className="text-sm text-red-600 mb-1 font-medium">
+            ⚠️ {count} usuário(s) vinculados a este perfil. Remova ou reatribua esses usuários antes de excluir o perfil.
+          </p>
+        ) : (
+          <p className="text-sm text-slate-500 mb-5">Esta ação não pode ser desfeita.</p>
+        )}
+        <div className="flex justify-end gap-2 mt-5">
           <button onClick={onCancel} className="px-4 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50">Cancelar</button>
-          <button onClick={onConfirm} className="px-4 py-2 text-sm font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700">Excluir</button>
+          <button
+            onClick={onConfirm}
+            disabled={hasUsers}
+            className="px-4 py-2 text-sm font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Excluir
+          </button>
         </div>
       </div>
     </div>

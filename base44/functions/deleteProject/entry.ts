@@ -43,15 +43,41 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── Excluir — NÃO afeta Pipedrive ───────────────────────────────────────
+    // ── Cascata: excluir todas as entidades relacionadas ao projeto ──────────
+    // Cada deleteMany filtra por project_id; se uma entidade não tiver registros,
+    // o filtro simplesmente não casa nada. Feito em paralelo para velocidade.
+    const cascadeEntities = [
+      'ScheduleActivity',
+      'LocalSchedulePhase',
+      'SchedulePhaseOverride',
+      'SchedulePhase',
+      'ActionPlan',
+      'Meeting',
+      'ProjectTeamMember',
+      'AuditLog',
+      'ProjectDocument',
+      'ClientUsability',
+      'CalculationRule',
+    ];
+    const cascadeResults = await Promise.allSettled(
+      cascadeEntities.map(name =>
+        base44.asServiceRole.entities[name].deleteMany({ project_id })
+      )
+    );
+    const cascadeFailures = cascadeResults
+      .map((r, i) => r.status === 'rejected' ? `${cascadeEntities[i]}: ${r.reason?.message || r.reason}` : null)
+      .filter(Boolean);
+
+    // ── Excluir o projeto — NÃO afeta Pipedrive ─────────────────────────────
     // O SDK lança exceção se não encontrar; capturada pelo catch externo
     await base44.asServiceRole.entities.Project.delete(project_id);
-    const project = { pipedrive_deal_id: null }; // fallback caso delete não retorne
 
     return Response.json({
       success: true,
       deleted_project_id: project_id,
-      message: 'Projeto excluído com sucesso. O deal no Pipedrive não foi afetado.',
+      cascade_deleted: cascadeEntities,
+      cascade_failures: cascadeFailures,
+      message: 'Projeto e dados relacionados excluídos com sucesso. O deal no Pipedrive não foi afetado.',
     });
 
   } catch (error) {
