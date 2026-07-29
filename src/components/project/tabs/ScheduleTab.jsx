@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { SCHEDULE_TASKS, PHASE_ORDER } from "@/lib/scheduleTasks.js";
 import { computeSchedule } from "@/lib/scheduleEngine.js";
+import { classifyScheduleActivities } from "@/lib/scheduleActivityMatch.js";
 import { resolveRoleToName, RESPONSIBLE_ROLE_LABELS, RESPONSIBLE_ROLE_OPTIONS, resolveGeneralResponsible, RESPONSIBLE_GENERAL_TYPE_OPTIONS } from "@/lib/resolveResponsibleRole.js";
 import AddActivityModal from "./schedule/AddActivityModal.jsx";
 import LocalActivityRow from "./schedule/LocalActivityRow.jsx";
@@ -817,30 +818,17 @@ export default function ScheduleTab({
     return grouped;
   }, [visible]);
 
-  // Atividades do template (match EXATO por nome normalizado — NFD resolve encoding NFC/NFD,
-  // mas sem includes/substring, que fazia atividades locais com nome parecido sumirem)
-  const activitiesByTask = useMemo(() => {
-    const norm = s => (s || "").toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
-    const map = {};
-    savedActivities.forEach(a => {
-      if (!a.activity_name) return;
-      const normA = norm(a.activity_name);
-      const found = SCHEDULE_TASKS.find(t => norm(t.activity) === normA);
-      if (found) map[found.id] = a;
-    });
-    return map;
-  }, [savedActivities]);
-
-  // Atividades locais — inclui inativas (o LocalActivityRow filtra por showInactive)
-  const localActivities = useMemo(() => {
-    const norm = s => (s || "").toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
-    return savedActivities.filter(a => {
-      if (!a.activity_name) return false;
-      const normA = norm(a.activity_name);
-      const foundInTemplate = SCHEDULE_TASKS.some(t => norm(t.activity) === normA);
-      return !foundInTemplate;
-    });
-  }, [savedActivities]);
+  // Classificação consistente com buildProjectScheduleView: casamento por nome + fase,
+  // com fallback para atividades órfãs (fase que não é template, nem local, nem custom_name)
+  // — mantém visibilidade (anexa ao template task) como no comportamento anterior.
+  const { activitiesByTask, localActivities } = useMemo(
+    () => classifyScheduleActivities(
+      savedActivities,
+      localPhases.map(p => p.phase_name),
+      Object.values(phaseOverrides).map(o => o.custom_name).filter(Boolean),
+    ),
+    [savedActivities, localPhases, phaseOverrides],
+  );
 
   // Fases visíveis (respeita toggle showInactive)
   const visibleLocalPhases = useMemo(() => {

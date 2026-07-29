@@ -37,6 +37,7 @@
 
 import { SCHEDULE_TASKS, PHASE_ORDER } from "@/lib/scheduleTasks.js";
 import { computeSchedule } from "@/lib/scheduleEngine.js";
+import { classifyScheduleActivities } from "@/lib/scheduleActivityMatch.js";
 
 const TODAY = () => new Date().toISOString().split("T")[0];
 
@@ -89,27 +90,14 @@ export function buildProjectScheduleView({
       SCHEDULE_TASKS, overrides, answersMap, project
     );
 
-    // 2. Indexar atividades salvas por nome (normalizado) para busca de datas executadas
-    const norm = s => (s || "").toLowerCase().trim()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
-
-    const activityByTaskId = {};
-    const activityByName = {};
-    savedActivities.forEach(a => {
-      if (a.activity_name) activityByName[norm(a.activity_name)] = a;
-    });
-
-    // Mapear template tasks → activity salva (match EXATO por nome normalizado).
-    // Match exato evita que atividades locais variantes (ex: "Expansão de registro
-    // de ponto real (Bahia)") sejam atribuídas ao template task, o que as excluiria
-    // da contagem como atividade local da fase e inflaria o progresso.
-    SCHEDULE_TASKS.forEach(task => {
-      if (task.type !== "task") return;
-      const normTask = norm(task.activity);
-      if (activityByName[normTask]) {
-        activityByTaskId[task.id] = activityByName[normTask];
-      }
-    });
+    // 2. Classificar atividades em "do template" (activityByTaskId) e "locais"
+    //    (localActivities) — mesma lógica do ScheduleTab: nome + fase, com fallback
+    //    para órfãs. Mantém consistência entre a UI e o motor de progresso.
+    const { activitiesByTask: activityByTaskId, localActivities } = classifyScheduleActivities(
+      savedActivities,
+      (localPhases || []).map(p => p.phase_name),
+      Object.values(phaseOverridesMap || {}).map(o => o.custom_name).filter(Boolean),
+    );
 
     // 3. Agrupar tasks visíveis por fase do template
     const templatePhaseData = {}; // { phaseName: { tasks: [], dates: { start, end, actualStart, actualEnd } } }
@@ -149,15 +137,7 @@ export function buildProjectScheduleView({
       .filter(phaseName => {
         const hasTemplateTasks = !!templatePhaseData[phaseName]?.tasks?.length;
         // Verificar também se há atividades locais nessa fase
-        const hasLocalActivities = savedActivities.some(a => {
-          if (!a.activity_name) return false;
-          if (a.phase_name !== phaseName) return false;
-          const normA = norm(a.activity_name);
-          const inTemplate = SCHEDULE_TASKS.some(t =>
-            t.type === "task" && norm(t.activity) === normA
-          );
-          return !inTemplate;
-        });
+        const hasLocalActivities = localActivities.some(a => a.phase_name === phaseName);
         return hasTemplateTasks || hasLocalActivities;
       })
       .map((phaseName, idx) => {
@@ -168,15 +148,10 @@ export function buildProjectScheduleView({
         const tasks = templatePhaseData[phaseName]?.tasks || [];
 
         // Atividades locais ativas nesta fase do template (match EXATO; não inativadas)
-        const localTasks = savedActivities.filter(a => {
+        const localTasks = localActivities.filter(a => {
           if (a.phase_name !== phaseName) return false;
           if ((a.history_observations || "").includes("[INATIVADO]")) return false;
-          if (!a.activity_name) return false;
-          const normA = norm(a.activity_name);
-          const inTemplate = SCHEDULE_TASKS.some(t =>
-            t.type === "task" && norm(t.activity) === normA
-          );
-          return !inTemplate;
+          return true;
         }).map(a => ({
           taskId: `local-${a.id}`,
           activity: a.activity_name,
@@ -245,15 +220,10 @@ export function buildProjectScheduleView({
       const isActive = phase.is_active !== false;
 
       // Atividades locais desta fase (match EXATO com template; excluindo inativadas)
-      const phaseActivities = savedActivities.filter(a => {
+      const phaseActivities = localActivities.filter(a => {
         if (a.phase_name !== phase.phase_name) return false;
-        // Pular atividades inativadas (detecção pelo marcador)
         if ((a.history_observations || "").includes("[INATIVADO]")) return false;
-        const normA = norm(a.activity_name || "");
-        const inTemplate = SCHEDULE_TASKS.some(t =>
-          t.type === "task" && norm(t.activity) === normA
-        );
-        return !inTemplate;
+        return true;
       });
 
       const actualStarts = phaseActivities.map(a => a.actual_start).filter(Boolean);
