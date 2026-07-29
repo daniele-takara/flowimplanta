@@ -1,18 +1,11 @@
+import { BR_HOLIDAYS } from "@/lib/brHolidays";
+
 // ============================================================
 // MOTOR DE CRONOGRAMA — baseado no JSON da especificação
 // Implementa WORKDAY, regras condicionais e cálculo de datas
 // ============================================================
 
 // ── WORKDAY (dias úteis, sem fins de semana) ─────────────────
-// Feriados podem ser adicionados futuramente via holidaySource
-const BR_HOLIDAYS_2024_2026 = new Set([
-  "2024-01-01","2024-04-21","2024-05-01","2024-09-07","2024-10-12",
-  "2024-11-02","2024-11-15","2024-12-25",
-  "2025-01-01","2025-04-18","2025-04-21","2025-05-01","2025-09-07",
-  "2025-10-12","2025-11-02","2025-11-15","2025-12-25",
-  "2026-01-01","2026-04-03","2026-04-21","2026-05-01","2026-09-07",
-  "2026-10-12","2026-11-02","2026-11-15","2026-12-25",
-]);
 
 function toISODate(d) {
   if (!d) return null;
@@ -25,7 +18,7 @@ function isBusinessDay(dateStr) {
   const d = new Date(dateStr + "T12:00:00");
   const dow = d.getDay();
   if (dow === 0 || dow === 6) return false;
-  if (BR_HOLIDAYS_2024_2026.has(dateStr)) return false;
+  if (BR_HOLIDAYS.has(dateStr)) return false;
   return true;
 }
 

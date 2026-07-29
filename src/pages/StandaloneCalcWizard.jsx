@@ -46,7 +46,9 @@ function useStandaloneWizard() {
     });
     try {
       await base44.functions.invoke('saveStandaloneCalcRule', payload);
-    } catch (e) {}
+    } catch (e) {
+      toast({ title: "Erro ao salvar. Tente novamente.", variant: "destructive" });
+    }
     setSaving(false);
   }, [record?.id]);
 

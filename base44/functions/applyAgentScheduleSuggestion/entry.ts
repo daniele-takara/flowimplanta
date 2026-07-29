@@ -8,14 +8,28 @@ const ANCHOR_IDS = new Set([
   'agenda_encerramento_projeto',
 ]);
 
-const BR_HOLIDAYS = new Set([
-  "2024-01-01","2024-04-21","2024-05-01","2024-09-07","2024-10-12",
-  "2024-11-02","2024-11-15","2024-12-25",
-  "2025-01-01","2025-04-18","2025-04-21","2025-05-01","2025-09-07",
-  "2025-10-12","2025-11-02","2025-11-15","2025-12-25",
-  "2026-01-01","2026-04-03","2026-04-21","2026-05-01","2026-09-07",
-  "2026-10-12","2026-11-02","2026-11-15","2026-12-25",
-]);
+// FONTE DA VERDADE: src/lib/brHolidays.js — manter em sincronia.
+// Feriados nacionais: fixos por ano + Sexta-feira Santa (calculada via Páscoa).
+function easterSunday(year) {
+  const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+  const d = Math.floor(b / 4), e = b % 4;
+  const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(Date.UTC(year, month - 1, day));
+}
+function toISODate(d) { return d.toISOString().substring(0, 10); }
+const BR_HOLIDAYS = new Set();
+for (let y = 2024; y <= 2035; y++) {
+  BR_HOLIDAYS.add(toISODate(new Date(easterSunday(y).getTime() - 2 * 86400000))); // Sexta-feira Santa
+  for (const [m, d] of [["01","01"],["04","21"],["05","01"],["09","07"],["10","12"],["11","02"],["11","15"],["12","25"]]) {
+    BR_HOLIDAYS.add(`${y}-${m}-${d}`);
+  }
+}
 
 function isBusinessDay(dateStr) {
   if (!dateStr) return false;
