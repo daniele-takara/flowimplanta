@@ -23,9 +23,8 @@ function extractDate(val) {
 }
 
 /**
- * Pipedrive é a FONTE DE VERDADE para datas de execução.
- * syncScheduleFromPipedrive (manual via frontend) SEMPRE sobrescreve actual_start/actual_end.
- * isDateEmpty mantida apenas para criação de novas atividades.
+ * Regra B: data manual tem prioridade — Pipedrive só preenche campos vazios.
+ * isDateEmpty decide se um campo pode ser preenchido pela integração.
  */
 function isDateEmpty(val) {
   if (val == null) return true;
@@ -279,18 +278,26 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Pipedrive é fonte de verdade: SEMPRE sobrescreve actual_start e actual_end
+        // Regra B: data manual tem prioridade — Pipedrive só preenche campos vazios
         for (const act of phaseActs) {
           if (base44Atv && base44Atv !== "*" && normalize(act.activity_name) !== normalize(base44Atv)) continue;
           const patch = {};
           if (fazInicio) {
-            console.log(`[syncSchedule]   atividade="${act.activity_name}" actual_start: "${act.actual_start}" → "${dateStr}" (sobrescrita Pipedrive)`);
-            patch.actual_start = dateStr;
+            if (isDateEmpty(act.actual_start)) {
+              console.log(`[syncSchedule]   atividade="${act.activity_name}" actual_start preenchido (vazio) → "${dateStr}"`);
+              patch.actual_start = dateStr;
+            } else {
+              console.log(`[syncSchedule]   atividade="${act.activity_name}" actual_start mantido (manual): "${act.actual_start}"`);
+            }
           }
           if (fazFim) {
-            console.log(`[syncSchedule]   atividade="${act.activity_name}" actual_end: "${act.actual_end}" → "${dateStr}" (sobrescrita Pipedrive)`);
-            patch.actual_end = dateStr;
-            patch.status = "Concluído";
+            if (isDateEmpty(act.actual_end)) {
+              console.log(`[syncSchedule]   atividade="${act.activity_name}" actual_end preenchido (vazio) → "${dateStr}"`);
+              patch.actual_end = dateStr;
+              patch.status = "Concluído";
+            } else {
+              console.log(`[syncSchedule]   atividade="${act.activity_name}" actual_end mantido (manual): "${act.actual_end}"`);
+            }
           }
           if (Object.keys(patch).length > 0) {
             await base44.asServiceRole.entities.ScheduleActivity.update(act.id, patch);
@@ -328,18 +335,26 @@ Deno.serve(async (req) => {
             break;
           }
 
-          // Pipedrive é fonte de verdade: SEMPRE sobrescreve actual_start e actual_end
+          // Regra B: data manual tem prioridade — Pipedrive só preenche campos vazios
           for (const act of phaseActs) {
             if (base44Atv && base44Atv !== "*" && normalize(act.activity_name) !== normalize(base44Atv)) continue;
             const patch = {};
             if (fazFim) {
-              console.log(`[syncSchedule]   atividade="${act.activity_name}" actual_end: "${act.actual_end}" → "${dateStr}" (sobrescrita Pipedrive)`);
-              patch.actual_end = dateStr;
-              patch.status = "Concluído";
+              if (isDateEmpty(act.actual_end)) {
+                console.log(`[syncSchedule]   atividade="${act.activity_name}" actual_end preenchido (vazio) → "${dateStr}"`);
+                patch.actual_end = dateStr;
+                patch.status = "Concluído";
+              } else {
+                console.log(`[syncSchedule]   atividade="${act.activity_name}" actual_end mantido (manual): "${act.actual_end}"`);
+              }
             }
             if (fazInicio) {
-              console.log(`[syncSchedule]   atividade="${act.activity_name}" actual_start: "${act.actual_start}" → "${dateStr}" (sobrescrita Pipedrive)`);
-              patch.actual_start = dateStr;
+              if (isDateEmpty(act.actual_start)) {
+                console.log(`[syncSchedule]   atividade="${act.activity_name}" actual_start preenchido (vazio) → "${dateStr}"`);
+                patch.actual_start = dateStr;
+              } else {
+                console.log(`[syncSchedule]   atividade="${act.activity_name}" actual_start mantido (manual): "${act.actual_start}"`);
+              }
             }
             if (Object.keys(patch).length > 0) {
               await base44.asServiceRole.entities.ScheduleActivity.update(act.id, patch);

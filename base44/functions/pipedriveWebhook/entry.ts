@@ -27,9 +27,8 @@ function extractDate(val) {
 }
 
 /**
- * Pipedrive é a FONTE DE VERDADE para datas de execução.
- * Via integração (webhook/sync): sempre sobrescreve actual_start e actual_end.
- * Via edição manual: preserva valor existente.
+ * Regra B: data manual tem prioridade — Pipedrive só preenche campos vazios.
+ * Via integração (webhook/sync): preenche apenas campos vazios, nunca sobrescreve.
  */
 function isDateEmpty(val) {
   if (val == null) return true;
@@ -409,7 +408,7 @@ Deno.serve(async (req) => {
         }
 
         // Aplicar em atividades existentes
-        // Pipedrive é fonte de verdade: SEMPRE sobrescreve actual_start e actual_end
+        // Regra B: data manual tem prioridade — Pipedrive só preenche campos vazios
         let actsProcessed = 0;
         for (const act of phaseActs) {
           // Wildcard "*" = todas; senão filtra por nome
@@ -419,15 +418,23 @@ Deno.serve(async (req) => {
           }
           const patch = {};
           if (fazInicio) {
-            console.log(`[pipedriveWebhook]   atividade="${act.activity_name}" actual_start: "${act.actual_start}" → "${dateStr}" (sobrescrita Pipedrive)`);
-            patch.actual_start = dateStr;
-            ruleEntry.actions.push(`SOBRESCREVEU actual_start: "${act.actual_start}" → "${dateStr}"`);
+            if (isDateEmpty(act.actual_start)) {
+              patch.actual_start = dateStr;
+              ruleEntry.actions.push(`PREENCHEU actual_start (vazio): "" → "${dateStr}"`);
+            } else {
+              ruleEntry.actions.push(`MANTIDA actual_start (manual): "${act.actual_start}"`);
+              datesIgnored.push({ id: act.id, name: act.activity_name, field: "actual_start", existing: act.actual_start, incoming: dateStr });
+            }
           }
           if (fazFim) {
-            console.log(`[pipedriveWebhook]   atividade="${act.activity_name}" actual_end: "${act.actual_end}" → "${dateStr}" (sobrescrita Pipedrive)`);
-            patch.actual_end = dateStr;
-            patch.status = "Concluído";
-            ruleEntry.actions.push(`SOBRESCREVEU actual_end: "${act.actual_end}" → "${dateStr}"`);
+            if (isDateEmpty(act.actual_end)) {
+              patch.actual_end = dateStr;
+              patch.status = "Concluído";
+              ruleEntry.actions.push(`PREENCHEU actual_end (vazio): "" → "${dateStr}"`);
+            } else {
+              ruleEntry.actions.push(`MANTIDA actual_end (manual): "${act.actual_end}"`);
+              datesIgnored.push({ id: act.id, name: act.activity_name, field: "actual_end", existing: act.actual_end, incoming: dateStr });
+            }
           }
           if (Object.keys(patch).length > 0) {
             await base44.asServiceRole.entities.ScheduleActivity.update(act.id, patch);
@@ -486,20 +493,28 @@ Deno.serve(async (req) => {
             break;
           }
 
-          // Pipedrive é fonte de verdade: SEMPRE sobrescreve actual_start e actual_end
+          // Regra B: data manual tem prioridade — Pipedrive só preenche campos vazios
           for (const act of phaseActs) {
             if (base44Atv && base44Atv !== "*" && normalize(act.activity_name) !== normalize(base44Atv)) continue;
             const patch = {};
             if (fazFim) {
-              console.log(`[pipedriveWebhook]   atividade="${act.activity_name}" actual_end: "${act.actual_end}" → "${dateStr}" (sobrescrita Pipedrive)`);
-              patch.actual_end = dateStr;
-              patch.status = "Concluído";
-              ruleEntry.actions.push(`SOBRESCREVEU actual_end: "${act.actual_end}" → "${dateStr}"`);
+              if (isDateEmpty(act.actual_end)) {
+                patch.actual_end = dateStr;
+                patch.status = "Concluído";
+                ruleEntry.actions.push(`PREENCHEU actual_end (vazio): "" → "${dateStr}"`);
+              } else {
+                ruleEntry.actions.push(`MANTIDA actual_end (manual): "${act.actual_end}"`);
+                datesIgnored.push({ id: act.id, name: act.activity_name, field: "actual_end", existing: act.actual_end, incoming: dateStr });
+              }
             }
             if (fazInicio) {
-              console.log(`[pipedriveWebhook]   atividade="${act.activity_name}" actual_start: "${act.actual_start}" → "${dateStr}" (sobrescrita Pipedrive)`);
-              patch.actual_start = dateStr;
-              ruleEntry.actions.push(`SOBRESCREVEU actual_start: "${act.actual_start}" → "${dateStr}"`);
+              if (isDateEmpty(act.actual_start)) {
+                patch.actual_start = dateStr;
+                ruleEntry.actions.push(`PREENCHEU actual_start (vazio): "" → "${dateStr}"`);
+              } else {
+                ruleEntry.actions.push(`MANTIDA actual_start (manual): "${act.actual_start}"`);
+                datesIgnored.push({ id: act.id, name: act.activity_name, field: "actual_start", existing: act.actual_start, incoming: dateStr });
+              }
             }
             if (Object.keys(patch).length > 0) {
               await base44.asServiceRole.entities.ScheduleActivity.update(act.id, patch);
