@@ -56,28 +56,26 @@ export default function AddPhaseModal({ projectId, phase, existingPhases = [], o
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
 
-  // Calcula order a partir da posição relativa
+  // Calcula order a partir da posição relativa (midpoint fracionário — nunca colide)
   const computedOrder = useMemo(() => {
+    const STEP = 100;
     if (existingPhases.length === 0) return 0;
-    if (form.position === "first") return 0;
-    if (form.position === "last") return (existingPhases[existingPhases.length - 1]?.order ?? 0) + 1;
+    if (form.position === "first") return (existingPhases[0]?.order ?? 0) - STEP;
+    if (form.position === "last") return (existingPhases[existingPhases.length - 1]?.order ?? 0) + STEP;
 
     const refIdx = existingPhases.findIndex(p => p.phase_name === form.reference_phase);
-    if (refIdx < 0) return 99;
+    if (refIdx < 0) return (existingPhases[existingPhases.length - 1]?.order ?? 0) + STEP;
 
     if (form.position === "before") {
-      // Insere antes da referência: usa o mesmo order, depois recalcula
-      const refOrder = existingPhases[refIdx]?.order ?? refIdx;
-      // Se é a primeira, fica com order 0
-      if (refIdx === 0) return Math.max(0, refOrder - 1);
-      const prevOrder = existingPhases[refIdx - 1]?.order ?? refIdx - 1;
-      return Math.round((prevOrder + refOrder) / 2);
+      const refOrder = existingPhases[refIdx]?.order ?? refIdx * STEP;
+      if (refIdx === 0) return refOrder - STEP;
+      const prevOrder = existingPhases[refIdx - 1]?.order ?? (refIdx - 1) * STEP;
+      return (prevOrder + refOrder) / 2; // sem Math.round — mantém fracionário, nunca colide
     }
-    // "after": insere depois da referência
-    const refOrder = existingPhases[refIdx]?.order ?? refIdx;
-    if (refIdx === existingPhases.length - 1) return refOrder + 1;
-    const nextOrder = existingPhases[refIdx + 1]?.order ?? refIdx + 1;
-    return Math.round((refOrder + nextOrder) / 2);
+    const refOrder = existingPhases[refIdx]?.order ?? refIdx * STEP;
+    if (refIdx === existingPhases.length - 1) return refOrder + STEP;
+    const nextOrder = existingPhases[refIdx + 1]?.order ?? (refIdx + 1) * STEP;
+    return (refOrder + nextOrder) / 2;
   }, [form.position, form.reference_phase, existingPhases]);
 
   const handleSave = async () => {
