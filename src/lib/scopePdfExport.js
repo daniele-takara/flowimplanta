@@ -5,6 +5,7 @@
 
 import { SCOPE_MODULES, getModuleQuestions, isModuleVisible } from "@/lib/scopeTemplate";
 import { formatDate } from "@/lib/utils";
+import { toast } from "@/components/ui/use-toast";
 
 function sanitize(text) {
   if (!text) return "";
@@ -337,7 +338,7 @@ ${modulesHTML}
 
   const w = window.open("", "_blank");
   if (!w) {
-    alert("Pop-up bloqueado. Permita pop-ups para este site e tente novamente.");
+    toast({ title: "Pop-up bloqueado. Permita pop-ups para este site e tente novamente.", variant: "destructive" });
     return;
   }
   w.document.write(html);
