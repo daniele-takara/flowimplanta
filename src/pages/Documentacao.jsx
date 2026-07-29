@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  ArrowLeft, ChevronDown, ChevronRight, Database, Zap, Shield, Server,
-  Layers, FileText, BarChart2, Calendar, Settings, Link2, Package,
-  AlertTriangle, CheckCircle2, BookOpen, Search, GitBranch, Activity, Users, Info, Code2
+  ArrowLeft, ChevronDown, ChevronRight, Database, Shield, Server,
+  Layers, FileText, Calendar, Link2,
+  AlertTriangle, CheckCircle2, BookOpen, GitBranch, Users, Info
 } from "lucide-react";
 
 // ── Utility Components ───────────────────────────────────────────────────────

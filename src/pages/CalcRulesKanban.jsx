@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { Copy, ChevronRight, Clock, Search, User, Hash, AlertTriangle, FileDown, Loader2, Trash2, Undo2, ChevronDown, ChevronUp, History } from "lucide-react";
+import { Copy, ChevronRight, Clock, Search, User, Hash, AlertTriangle, FileDown, Loader2, Trash2, Undo2, ChevronUp, History } from "lucide-react";
 import { generateCalcRulesPDF } from "@/lib/calcRulesPdfExport";
 import { uploadAndOpenPDF } from "@/lib/pdfDownload";
 import { usePermissions } from "@/lib/usePermissions";

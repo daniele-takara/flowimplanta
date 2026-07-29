@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Download, X, ChevronDown, ChevronUp, Search, Trash2, Settings } from "lucide-react";
+import { Plus, Download, X, ChevronDown, ChevronUp, Search, Trash2 } from "lucide-react";
 import { logAudit } from "@/lib/auditLog";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────

@@ -13,7 +13,6 @@ import DSRForm from "@/components/standalone-calc/DSRForm";
 import TimesheetConfigForm from "@/components/standalone-calc/TimesheetConfigForm";
 import RevisaoFinal from "@/components/standalone-calc/RevisaoFinal";
 import { STEPS } from "@/lib/calcRulesStandaloneShared";
-import { FATORES_OPTIONS } from "@/lib/calcRulesShared";
 import { validateStep } from "@/lib/wizardValidations";
 import { base44 } from "@/api/base44Client";
 import CalculationModelsInfoModal from "@/components/project/tabs/calculation/CalculationModelsInfoModal";

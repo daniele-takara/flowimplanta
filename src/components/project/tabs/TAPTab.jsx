@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { formatDate } from "@/lib/utils";
 import {
   Download, RefreshCw, CheckCircle2, XCircle, Clock, Lock,
-  History, Send, ChevronDown, ChevronUp, AlertCircle, Info, AlertTriangle
+  History, Send, ChevronDown, ChevronUp, AlertCircle, Info
 } from "lucide-react";
 import {
   buildParticipants, buildDatas, buildEntregas, FASES_MACRO, getAnswer

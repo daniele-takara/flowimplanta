@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import {
-  Pencil, X, Plus, Trash2, ChevronDown, ChevronRight,
+  Pencil, X, Plus, ChevronDown, ChevronRight,
   Calendar, FileText, AlertTriangle, CheckCircle2, Link,
   FlaskConical, History
 } from "lucide-react";

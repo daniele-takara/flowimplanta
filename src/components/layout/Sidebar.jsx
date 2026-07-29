@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, FolderKanban, Plus, Settings, GitBranch, LogOut, Users, FileBarChart, Activity, Database, CalendarRange } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Plus, Settings, GitBranch, LogOut, FileBarChart, Activity, Database, CalendarRange } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { usePermissions } from "@/lib/usePermissions";

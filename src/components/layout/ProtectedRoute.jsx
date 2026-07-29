@@ -1,5 +1,4 @@
 import { Navigate } from "react-router-dom";
-import { usePermissions } from "@/lib/usePermissions";
 
 /**
  * Protege uma rota verificando uma permissão específica.

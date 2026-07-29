@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { RefreshCw, Zap, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { RefreshCw, Zap } from "lucide-react";
 
 export default function DealTestPanel() {
   const [projectId, setProjectId] = useState("");

@@ -9,7 +9,7 @@ import {
 import { SCHEDULE_TASKS, PHASE_ORDER } from "@/lib/scheduleTasks.js";
 import { computeSchedule } from "@/lib/scheduleEngine.js";
 import { classifyScheduleActivities } from "@/lib/scheduleActivityMatch.js";
-import { resolveRoleToName, RESPONSIBLE_ROLE_LABELS, RESPONSIBLE_ROLE_OPTIONS, resolveGeneralResponsible, RESPONSIBLE_GENERAL_TYPE_OPTIONS } from "@/lib/resolveResponsibleRole.js";
+import { resolveRoleToName, RESPONSIBLE_ROLE_LABELS, RESPONSIBLE_ROLE_OPTIONS, resolveGeneralResponsible } from "@/lib/resolveResponsibleRole.js";
 import AddActivityModal from "./schedule/AddActivityModal.jsx";
 import LocalActivityRow from "./schedule/LocalActivityRow.jsx";
 import AddPhaseModal from "./schedule/AddPhaseModal.jsx";

@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import {
-  ArrowLeft, RefreshCw, Activity, CheckCircle2, XCircle, Minus,
-  AlertTriangle, Zap, Shield, TestTube2, Play, Clock, Filter, Search
+  ArrowLeft, RefreshCw, Activity, Zap, Shield, TestTube2, Clock, Filter, Search
 } from "lucide-react";
 import IntegrationLogRow from "@/components/monitor/IntegrationLogRow";
 import ValidationChecklist from "@/components/monitor/ValidationChecklist";

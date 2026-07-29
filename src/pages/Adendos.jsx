@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Pencil, Trash2, CheckCircle, XCircle, Filter, FileText, Scale, Settings, DollarSign, Zap, GripVertical, X, Type, Database } from "lucide-react";
+import { Plus, Pencil, Trash2, CheckCircle, XCircle, Filter, FileText, Scale, Settings, DollarSign, Zap, X, Type, Database } from "lucide-react";
 import { ADENDO_VARIABLES, CATEGORY_LABELS } from "@/lib/adendoVariables";
 
 const TYPE_COLORS = {

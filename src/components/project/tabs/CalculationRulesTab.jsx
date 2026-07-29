@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { ChevronLeft, ChevronRight, ChevronDown, Users, Save, CheckCircle, Loader2, FileDown, RotateCcw, AlertCircle, Lock, Info, Trash2, Maximize2, Minimize2, Link, Copy } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Users, CheckCircle, Loader2, FileDown, Lock, Info, Trash2, Maximize2, Minimize2, Link, Copy } from "lucide-react";
 import { usePermissions } from "@/lib/usePermissions";
 import CopyFromRule from "@/components/project/tabs/calculation/CopyFromRule";
 import CalculationModelsInfoModal from "@/components/project/tabs/calculation/CalculationModelsInfoModal";

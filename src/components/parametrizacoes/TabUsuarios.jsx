@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Users, UserPlus, Pencil, ChevronDown, CheckCircle, XCircle, X } from "lucide-react";
+import { Users, UserPlus, ChevronDown, CheckCircle, XCircle, X } from "lucide-react";
 
 const inputClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";
 

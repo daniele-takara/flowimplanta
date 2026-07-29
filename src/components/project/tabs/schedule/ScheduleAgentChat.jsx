@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { base44 } from "@/api/base44Client";
 import { Bot, X, Send, Loader2, MessageSquare, CheckCircle2, AlertTriangle, RefreshCw } from "lucide-react";

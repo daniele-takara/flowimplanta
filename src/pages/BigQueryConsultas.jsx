@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Search, Database, Loader2, Users, Clock, Calendar, TrendingUp, Activity, Building, Hash, MapPin, DollarSign } from "lucide-react";
+import { Search, Database, Loader2, Users, Clock, Calendar, TrendingUp, Activity, Building, Hash, MapPin } from "lucide-react";
 
 const inputClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";
 

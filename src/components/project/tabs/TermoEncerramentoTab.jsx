@@ -1,12 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { formatDate } from "@/lib/utils";
 import { computeMacroSchedule } from "@/lib/scheduleReportEngine.js";
-import { SCHEDULE_TASKS } from "@/lib/scheduleTasks.js";
-import { computeSchedule } from "@/lib/scheduleEngine.js";
 import {
-  RefreshCw, Download, Plus, Trash2, Save, Clock, CheckCircle2,
-  XCircle, Lock, Send, History, ChevronDown, ChevronUp, AlertCircle,
+  RefreshCw, Download, Plus, Trash2, Clock, CheckCircle2, Lock, Send, History, ChevronDown, ChevronUp, AlertCircle,
   FileSignature, Zap, Pencil
 } from "lucide-react";
 import { logAudit } from "@/lib/auditLog";

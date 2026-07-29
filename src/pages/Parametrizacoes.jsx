@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import {
   FileText, Users, LayoutTemplate, Plus, Pencil, Trash2, Copy,
   CheckCircle, XCircle, Filter, Scale, Settings, DollarSign,
-  Mail, ChevronRight, Shield, Zap, Type, Database, GripVertical, X, Bot
+  Mail, ChevronRight, Shield, Zap, Type, Database, X, Bot
 } from "lucide-react";
 import { ADENDO_VARIABLES, CATEGORY_LABELS } from "@/lib/adendoVariables";
 import TabUsuarios from "@/components/parametrizacoes/TabUsuarios";

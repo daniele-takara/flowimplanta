@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import StatsCard from "@/components/dashboard/StatsCard";
-import ProjectCard from "@/components/dashboard/ProjectCard";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ProgressBar from "@/components/ui/ProgressBar";
 import { formatDate, formatCurrency, phaseColor } from "@/lib/utils";

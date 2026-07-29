@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { SCHEDULE_TASKS, PHASE_ORDER, ANCHOR_IDS } from "@/lib/scheduleTasks.js";
+import { SCHEDULE_TASKS, PHASE_ORDER } from "@/lib/scheduleTasks.js";
 import {
   RESPONSIBLE_ROLE_OPTIONS,
-  RESPONSIBLE_ROLE_LABELS,
   RESPONSIBLE_GENERAL_TYPE_OPTIONS,
 } from "@/lib/resolveResponsibleRole.js";
 import {

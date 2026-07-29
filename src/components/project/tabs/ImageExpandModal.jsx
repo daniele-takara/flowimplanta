@@ -1,4 +1,3 @@
-import { X } from "lucide-react";
 
 export default function ImageExpandModal({ src, alt, onClose }) {
   return (

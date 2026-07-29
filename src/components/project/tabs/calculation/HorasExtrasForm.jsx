@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Info, Trash2 } from "lucide-react";
 import CopyFromRule from "@/components/project/tabs/calculation/CopyFromRule";
 

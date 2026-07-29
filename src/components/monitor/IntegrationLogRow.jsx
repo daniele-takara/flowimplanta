@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Copy, CheckCircle2, AlertCircle, Clock, Minus, RotateCcw } from "lucide-react";
+import { ChevronDown, ChevronRight, Copy, CheckCircle2, AlertCircle, Clock, RotateCcw } from "lucide-react";
 
 function fmtDate(d) {
   if (!d) return "—";

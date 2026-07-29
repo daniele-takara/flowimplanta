@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { inputClass, labelClass, selectClass } from "@/lib/calcRulesShared";
 import CopyFromRule from "@/components/project/tabs/calculation/CopyFromRule";
 

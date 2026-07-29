@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { SCOPE_MODULES, getModuleQuestions } from "@/lib/scopeTemplate.js";
 import { ChevronDown, ChevronRight, EyeOff, Search, Info, RefreshCw } from "lucide-react";
-import { buildImpactMap, TAP_IMPACT, INTEGRATION_IMPACT, getRiskLevel, getAllQuestions } from "@/lib/scopeImpactHelpers.js";
+import { buildImpactMap, getRiskLevel, getAllQuestions } from "@/lib/scopeImpactHelpers.js";
 import QuestionEditor from "@/components/parametrizacoes/escopo/QuestionEditor.jsx";
 
 const IMPACT_MAP = buildImpactMap();

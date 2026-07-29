@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { formatDate } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import StatusBadge from "@/components/ui/StatusBadge";
-import ProgressBar from "@/components/ui/ProgressBar";
 import { Pencil, RefreshCw, CheckCircle2, AlertCircle, AlertTriangle, Link2 } from "lucide-react";
 
 function InfoRow({ label, value }) {

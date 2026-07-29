@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { X, Save } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { RESPONSIBLE_ROLE_LABELS, RESPONSIBLE_ROLE_OPTIONS, resolveRoleToName } from "@/lib/resolveResponsibleRole.js";
+import { RESPONSIBLE_ROLE_OPTIONS, resolveRoleToName } from "@/lib/resolveResponsibleRole.js";
 
 const STATUS_OPTIONS = ["Não iniciado", "Em andamento", "Concluído", "Atrasado", "Bloqueado", "Cancelado"];
 
