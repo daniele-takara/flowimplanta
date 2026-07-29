@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { toast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import { ChevronLeft, ChevronRight, ChevronDown, Users, CheckCircle, Loader2, FileDown, Lock, Info, Trash2, Maximize2, Minimize2, Link, Copy } from "lucide-react";
 import { usePermissions } from "@/lib/usePermissions";
@@ -1731,7 +1732,7 @@ export default function CalculationRulesTab({ projectId, project }) {
 
   const copyClientLink = () => {
     navigator.clipboard.writeText(clientLink);
-    alert("Link copiado!");
+    toast({ title: "Link copiado!" });
   };
 
   const switchView = async (mode) => {
@@ -1914,7 +1915,7 @@ export default function CalculationRulesTab({ projectId, project }) {
                   // Carrega versão cliente se existir
                   const clientRules = await base44.entities.CalculationRule.filter({ project_id: projectId, rule_type: "client" });
                   if (clientRules.length === 0) {
-                    alert("Nenhuma versão do cliente encontrada. Gere um link primeiro.");
+                    toast({ title: "Nenhuma versão do cliente encontrada. Gere um link primeiro.", variant: "destructive" });
                     return;
                   }
                   switchView("client");
@@ -2012,7 +2013,7 @@ export default function CalculationRulesTab({ projectId, project }) {
                 URL.revokeObjectURL(url);
               } catch (err) {
                 console.error("Erro ao gerar PDF das regras:", err);
-                alert("Erro ao gerar PDF. Tente novamente.");
+                toast({ title: "Erro ao gerar PDF. Tente novamente.", variant: "destructive" });
               }
               setGeneratingCalcPDF(false);
             }}
@@ -2289,7 +2290,7 @@ export default function CalculationRulesTab({ projectId, project }) {
                   });
                 }
 
-                alert("Regras de cálculo finalizadas com sucesso! E data atualizada em cronograma");
+                toast({ title: "Regras de cálculo finalizadas com sucesso! E data atualizada em cronograma" });
               }}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-green-600 bg-green-600 text-white hover:bg-green-700"
             >

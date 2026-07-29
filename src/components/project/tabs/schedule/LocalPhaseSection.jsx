@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import {
   ChevronDown, ChevronRight, Plus, Pencil, Trash2,
@@ -73,7 +74,7 @@ export default function LocalPhaseSection({
       }
     } catch (e) {
       console.error("[LocalPhaseSection] Erro ao processar fase:", e);
-      alert("Erro ao " + (confirmAction === "excluir" ? "excluir" : "inativar") + " fase. Verifique suas permissões.");
+      toast({ title: "Erro ao " + (confirmAction === "excluir" ? "excluir" : "inativar") + " fase. Verifique suas permissões.", variant: "destructive" });
     }
     setProcessing(false);
     setConfirmAction(null);

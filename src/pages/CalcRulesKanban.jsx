@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import { Copy, ChevronRight, Clock, Search, User, Hash, AlertTriangle, FileDown, Loader2, Trash2, Undo2, ChevronUp, History } from "lucide-react";
 import { generateCalcRulesPDF } from "@/lib/calcRulesPdfExport";
@@ -52,7 +53,7 @@ function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUse
       });
       await uploadAndOpenPDF(pdfBytes, `Regras_${(rule.client_name || "cliente").replace(/\s+/g, "_")}.pdf`);
     } catch (e) {
-      alert("Erro ao gerar PDF. Tente novamente.");
+      toast({ title: "Erro ao gerar PDF. Tente novamente.", variant: "destructive" });
     }
     setGeneratingPdf(false);
   };
@@ -137,7 +138,7 @@ function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUse
       });
       onDelete(rule.id);
     } catch (e) {
-      alert("Erro ao excluir. Tente novamente.");
+      toast({ title: "Erro ao excluir. Tente novamente.", variant: "destructive" });
     }
     setDeleting(false);
     setShowDeleteConfirm(false);
@@ -152,7 +153,7 @@ function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUse
       });
       onReactivate(rule.id);
     } catch (e) {
-      alert("Erro ao reativar. Tente novamente.");
+      toast({ title: "Erro ao reativar. Tente novamente.", variant: "destructive" });
     }
     setReactivating(false);
   };
@@ -298,7 +299,7 @@ function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUse
           )}
           {canEdit && (
             <button
-              onClick={() => { navigator.clipboard.writeText(link); alert("Link copiado!"); }}
+              onClick={() => { navigator.clipboard.writeText(link); toast({ title: "Link copiado!" }); }}
               className="text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-500 hover:border-purple-300 hover:bg-purple-50"
               title="Copiar link do cliente"
             >
@@ -356,7 +357,7 @@ function DetailModal({ rule, onClose, onRefresh, canEdit }) {
       await base44.functions.invoke("updateStandaloneStatus", { id: rule.id, status: rule.status, reviewer_notes: notes });
       onRefresh();
     } catch (e) {
-      alert("Erro ao salvar anotações");
+      toast({ title: "Erro ao salvar anotações", variant: "destructive" });
     }
     setSaving(false);
   };
@@ -373,7 +374,7 @@ function DetailModal({ rule, onClose, onRefresh, canEdit }) {
       });
       await uploadAndOpenPDF(pdfBytes, `Regras_${(rule.client_name || "cliente").replace(/\s+/g, "_")}.pdf`);
     } catch (e) {
-      alert("Erro ao gerar PDF. Tente novamente.");
+      toast({ title: "Erro ao gerar PDF. Tente novamente.", variant: "destructive" });
     }
     setGeneratingPdf(false);
   };
@@ -578,7 +579,7 @@ export default function CalcRulesKanban() {
           <p className="text-sm text-slate-500 mt-0.5">Gerencie as submissões de regras de cálculo dos clientes</p>
         </div>
         <button
-          onClick={() => { navigator.clipboard.writeText(fixedLink); alert("Link copiado!"); }}
+          onClick={() => { navigator.clipboard.writeText(fixedLink); toast({ title: "Link copiado!" }); }}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors"
         >
           <Copy className="w-4 h-4" />

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "@/components/ui/use-toast";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import {
@@ -117,7 +118,7 @@ export default function MonitorIntegracoes() {
       });
       await loadLogs();
     } catch (e) {
-      alert("Erro ao reprocessar: " + e.message);
+      toast({ title: "Erro ao reprocessar: " + e.message, variant: "destructive" });
     }
   };
 

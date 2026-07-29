@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { toast } from "@/components/ui/use-toast";
 import { ChevronLeft, ChevronRight, CheckCircle, Loader2, Lock, Info, FileDown, AlertTriangle, X } from "lucide-react";
 import { generateCalcRulesPDF } from "@/lib/calcRulesPdfExport";
 import { uploadAndOpenPDF } from "@/lib/pdfDownload";
@@ -64,7 +65,7 @@ function useStandaloneWizard() {
         return true;
       }
     } catch (e) {
-      alert("Erro ao iniciar. Tente novamente.");
+      toast({ title: "Erro ao iniciar. Tente novamente.", variant: "destructive" });
     }
     return false;
   };
@@ -200,7 +201,7 @@ export default function StandaloneCalcWizard() {
       });
       await uploadAndOpenPDF(pdfBytes, `Regras_Calculo_${(clientName || "empresa").replace(/\s+/g, "_")}.pdf`);
     } catch (err) {
-      alert("Erro ao gerar PDF. Tente novamente.");
+      toast({ title: "Erro ao gerar PDF. Tente novamente.", variant: "destructive" });
     }
     setGeneratingPDF(false);
   };

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "@/components/ui/use-toast";
 import { Save, X, Trash2, Loader2, EyeOff, AlertTriangle, Pencil } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
@@ -64,7 +65,7 @@ export default function LocalActivityRow({ activity, onUpdated, onRemoved, readO
       setEditing(false);
     } catch (err) {
       console.error("[LocalActivityRow] Erro ao salvar:", err);
-      alert("Erro ao salvar atividade. Verifique suas permissões.");
+      toast({ title: "Erro ao salvar atividade. Verifique suas permissões.", variant: "destructive" });
     }
     setSaving(false);
   };
@@ -85,7 +86,7 @@ export default function LocalActivityRow({ activity, onUpdated, onRemoved, readO
       setConfirm(false);
     } catch (err) {
       console.error("[LocalActivityRow] Erro ao remover/inativar:", err);
-      alert("Erro ao remover atividade. Verifique suas permissões.");
+      toast({ title: "Erro ao remover atividade. Verifique suas permissões.", variant: "destructive" });
     }
     setRemoving(false);
   };

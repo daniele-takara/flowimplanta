@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { toast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import { formatDate } from "@/lib/utils";
 import {
@@ -700,7 +701,7 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
 
   // Visualizar versão histórica
   const viewHistoricVersion = (v) => {
-    window.alert(`Visualização de versão histórica v${v.version_number} (${v.status}) — em desenvolvimento. Para export, use o PDF da versão atual.`);
+    toast({ title: `Visualização de versão histórica v${v.version_number} (${v.status}) — em desenvolvimento. Para export, use o PDF da versão atual.` });
   };
 
   // Blocos de entregas conforme JSON

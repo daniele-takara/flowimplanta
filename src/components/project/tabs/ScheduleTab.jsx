@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { toast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import {
   ChevronDown, ChevronRight, Save, X, Anchor, Pencil, Lock,
@@ -209,7 +210,7 @@ function TaskRow({
       setEditing(false);
     } catch (err) {
       console.error("[TaskRow] Erro ao salvar:", task.id, err);
-      alert("Erro ao salvar. Verifique suas permissões ou tente novamente.");
+      toast({ title: "Erro ao salvar. Verifique suas permissões ou tente novamente.", variant: "destructive" });
     }
     setSaving(false);
   };
@@ -399,7 +400,7 @@ function TaskRow({
                     setConfirmInactivate(false);
                   } catch (err) {
                     console.error("[TaskRow] Erro ao inativar:", err);
-                    alert("Erro ao inativar atividade. Verifique suas permissões.");
+                    toast({ title: "Erro ao inativar atividade. Verifique suas permissões.", variant: "destructive" });
                   }
                   setSaving(false);
                 }}
@@ -981,7 +982,7 @@ export default function ScheduleTab({
       setPhaseOverrides(prev => ({ ...prev, [phaseName]: saved }));
     } catch (err) {
       console.error("[ScheduleTab] Erro ao inativar fase:", phaseName, err);
-      alert("Erro ao inativar fase. Verifique suas permissões ou tente novamente.");
+      toast({ title: "Erro ao inativar fase. Verifique suas permissões ou tente novamente.", variant: "destructive" });
     }
   }, [phaseOverrides, projectId]);
 
@@ -995,7 +996,7 @@ export default function ScheduleTab({
       setPhaseOverrides(prev => ({ ...prev, [phaseName]: { ...existing, ...payload } }));
     } catch (err) {
       console.error("[ScheduleTab] Erro ao reativar fase:", phaseName, err);
-      alert("Erro ao reativar fase. Verifique suas permissões ou tente novamente.");
+      toast({ title: "Erro ao reativar fase. Verifique suas permissões ou tente novamente.", variant: "destructive" });
     }
   }, [phaseOverrides]);
 
@@ -1062,7 +1063,7 @@ export default function ScheduleTab({
       doc.save(`Cronograma_${(project?.client_name || project?.name || "projeto").replace(/\s+/g, "_")}.pdf`);
     } catch (err) {
       console.error("[ScheduleTab] Erro ao gerar PDF:", err);
-      alert("Erro ao gerar PDF do cronograma. Tente novamente.");
+      toast({ title: "Erro ao gerar PDF do cronograma. Tente novamente.", variant: "destructive" });
     }
     setGeneratingPDF(false);
   }, [project, scopeItems, savedActivities, localPhases, phaseOverrides, manualOverrides, templateConfig]);

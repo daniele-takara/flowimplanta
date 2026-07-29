@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { toast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import { computeMacroSchedule } from "@/lib/scheduleReportEngine.js";
 import {
@@ -555,12 +556,12 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
         });
         setCurrent(c => ({ ...c, status: "Enviado", d4sign_doc_uuid: docUuid, d4sign_status: "enviado", d4sign_sent_at: new Date().toISOString(), status_assinatura: "enviado", data_envio_assinatura: new Date().toISOString() }));
         setTermos(ts => ts.map(t => t.id === current.id ? { ...t, status: "Enviado" } : t));
-        alert("Documento enviado para assinatura com sucesso!");
+        toast({ title: "Documento enviado para assinatura com sucesso!" });
       } else {
-        alert("Erro ao enviar: " + (result?.data?.error || "Erro desconhecido"));
+        toast({ title: "Erro ao enviar: " + (result?.data?.error || "Erro desconhecido"), variant: "destructive" });
       }
     } catch (e) {
-      alert("Erro ao conectar com D4Sign: " + (e?.message || e));
+      toast({ title: "Erro ao conectar com D4Sign: " + (e?.message || e), variant: "destructive" });
     }
     setSendingToD4Sign(false);
   };

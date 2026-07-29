@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { toast } from "@/components/ui/use-toast";
 import { useParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, CheckCircle, Loader2, Lock, Info, FileDown } from "lucide-react";
 import { generateCalcRulesPDF } from "@/lib/calcRulesPdfExport";
@@ -204,7 +205,7 @@ export default function ClientCalcWizard() {
       link.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      alert("Erro ao gerar PDF. Tente novamente.");
+      toast({ title: "Erro ao gerar PDF. Tente novamente.", variant: "destructive" });
     }
     setGeneratingPDF(false);
   };
