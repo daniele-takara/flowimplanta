@@ -490,6 +490,7 @@ export default function CalcRulesKanban() {
   const [implantacaoUsers, setImplantacaoUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [deletedExpanded, setDeletedExpanded] = useState(false);
+  const [preenchimentoExpanded, setPreenchimentoExpanded] = useState(false);
   const fixedLink = `${window.location.origin}/calculo`;
 
   const load = useCallback(async () => {
@@ -607,41 +608,66 @@ export default function CalcRulesKanban() {
       </div>
 
       <div className="flex gap-4">
-        <div className="grid grid-cols-5 gap-4 flex-1">
         {COLUMNS.map(col => {
           const items = filteredRules.filter(r => r.status === col.key);
+          const isPreenchimento = col.key === "preenchimento";
+          const expanded = !isPreenchimento || preenchimentoExpanded;
           return (
-            <div key={col.key} className={`rounded-xl border-2 ${col.color} p-3 min-h-[300px]`}>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-slate-700">{col.label}</h3>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${col.badge}`}>{items.length}</span>
-              </div>
-              <div className="space-y-2">
-                {items.length === 0 && (
-                  <p className="text-xs text-slate-400 text-center py-8 italic">Nenhuma submissão</p>
-                )}
-                {items.map(rule => (
-                  <Card
-                    key={rule.id}
-                    rule={rule}
-                    onStatusChange={handleStatusChange}
-                    onOpenDetail={setSelectedRule}
-                    implantacaoUsers={implantacaoUsers}
-                    loadingUsers={loadingUsers}
-                    onSaveEmpresaId={handleSaveEmpresaId}
-                    onSaveImplantacao={handleSaveImplantacao}
-                    onDelete={handleDelete}
-                    onReactivate={handleReactivate}
-                    canEdit={canEdit}
-                    canDelete={canDelete}
-                  />
-                ))}
-              </div>
+            <div
+              key={col.key}
+              className={`rounded-xl border-2 ${col.color} min-h-[300px] transition-all duration-200 ${
+                expanded ? "flex-1 min-w-0 p-3" : "w-10 cursor-pointer hover:bg-purple-100 flex flex-col items-center justify-start pt-3"
+              }`}
+              onClick={() => isPreenchimento && !expanded && setPreenchimentoExpanded(true)}
+            >
+              {expanded ? (
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-slate-700">{col.label}</h3>
+                    <div className="flex items-center gap-1.5">
+                      {isPreenchimento && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setPreenchimentoExpanded(false); }}
+                          className="text-slate-400 hover:text-slate-600"
+                          title="Recolher coluna"
+                        >
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${col.badge}`}>{items.length}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {items.length === 0 && (
+                      <p className="text-xs text-slate-400 text-center py-8 italic">Nenhuma submissão</p>
+                    )}
+                    {items.map(rule => (
+                      <Card
+                        key={rule.id}
+                        rule={rule}
+                        onStatusChange={handleStatusChange}
+                        onOpenDetail={setSelectedRule}
+                        implantacaoUsers={implantacaoUsers}
+                        loadingUsers={loadingUsers}
+                        onSaveEmpresaId={handleSaveEmpresaId}
+                        onSaveImplantacao={handleSaveImplantacao}
+                        onDelete={handleDelete}
+                        onReactivate={handleReactivate}
+                        canEdit={canEdit}
+                        canDelete={canDelete}
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-1.5">
+                  <span className="text-[10px] text-purple-600 font-semibold text-center leading-tight [writing-mode:vertical-rl] rotate-180">{col.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${col.badge}`}>{items.length}</span>
+                </div>
+              )}
             </div>
           );
         })}
-
-        </div>
 
         {/* Excluídos — collapsed column */}
         <div className={`rounded-xl border-2 ${DELETED_COLUMN.color} min-h-[300px] transition-all duration-200 ${deletedExpanded ? "p-3 flex-1" : "w-10 cursor-pointer hover:bg-red-50 flex flex-col items-center justify-start pt-3"}`} onClick={() => !deletedExpanded && setDeletedExpanded(true)}>
