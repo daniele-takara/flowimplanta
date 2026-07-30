@@ -218,10 +218,20 @@ export async function generateCalcRulesPDF({ project, companyData, allStepData }
   resetRowCount();
   infoRow("Nome da Empresa", clientName);
   infoRow("Nome do Responsável pelo Preenchimento", companyData?.responsibleName || "—");
+  if (companyData?.apuracao_inicio || companyData?.apuracao_fim) {
+    infoRow("Período de Apuração da Folha de Ponto", `Dia ${companyData.apuracao_inicio || 1} a ${companyData.apuracao_fim || 30}`);
+  }
+  if (companyData?.modo_registro) {
+    infoRow("Modo de Registro de Ponto", companyData.modo_registro === "individual" ? "Registro individual" : "Registro coletivo");
+  }
+  if ((companyData?.aparelho_registro || []).length > 0) {
+    const aparelhoLabels = { celular_pessoal: "Celular pessoal", celular_coletivo: "Celular coletivo", tablet_coletivo: "Tablet coletivo", computador: "Computador" };
+    infoRow("Aparelho de Registro de Ponto", companyData.aparelho_registro.map(a => aparelhoLabels[a] || a).join(", "));
+  }
   infoRow("Nomes das Regras", rulesNames.length > 0 ? rulesNames.join(", ") : "Nenhuma");
   infoRow("Funcionários em jornada noturna", companyData?.hasNightShift !== false ? "Sim" : "Não");
   infoRow("Funcionários em jornada 12x36", companyData?.has12x36Shift !== false ? "Sim" : "Não");
-  infoRow("Funcionários de sobreaviso", companyData?.hasOnCallWorkers !== false ? "Sim" : "Não");
+  infoRow("Funcionários de sobreaviso", companyData?.hasOnCallWorkers ? "Sim" : "Não");
   infoRow("Banco de horas", companyData?.hasTimeBank !== false ? "Sim" : "Não");
   if (companyData?.incluirObservacoes && companyData?.observacoes) {
     infoRow("Observações", companyData.observacoes);
@@ -295,35 +305,41 @@ export async function generateCalcRulesPDF({ project, companyData, allStepData }
     if (heCfg._inheritingFrom) {
       resetRowCount(); infoRow("Configuração", `Igual à regra: ${heCfg._inheritingFrom}`);
     } else {
-      const heCols = [
-        { label: "Tipo", w: 50 },
-        { label: "Porcentagem", w: 32 },
-        { label: "Envio Fopag", w: 28 },
-        { label: "Código", w: 36 },
-        { label: "Formato", w: 36 },
-      ];
-      tableHeader(heCols);
       const heTypes = [
         { label: "Porcentagem Dias Comuns", key: "percDiasComuns", envKey: "envioE02DiasComuns", codKey: "codigoVerbaDiasComuns", fmtKey: "formatoDiasComuns", def: "50" },
         { label: "Porcentagem Sábado",      key: "percSabado",     envKey: "envioE02Sabado",     codKey: "codigoVerbaSabado",     fmtKey: "formatoSabado",     def: "50" },
         { label: "Porcentagem Domingo",     key: "percDomingo",    envKey: "envioE02Domingo",    codKey: "codigoVerbaDomingo",    fmtKey: "formatoDomingo",    def: "100" },
         { label: "Porcentagem Feriado",     key: "percFeriado",    envKey: "envioE02Feriado",    codKey: "codigoVerbaFeriado",    fmtKey: "formatoFeriado",    def: "100" },
       ];
+      const heHasFopag = heTypes.some(t => heCfg[t.envKey] || heCfg[t.codKey]);
+      const heCols = heHasFopag
+        ? [ { label: "Tipo", w: 50 }, { label: "Porcentagem", w: 32 }, { label: "Envio Fopag", w: 28 }, { label: "Código", w: 36 }, { label: "Formato", w: PW - 146 } ]
+        : [ { label: "Tipo", w: 90 }, { label: "Porcentagem", w: PW - 90 } ];
+      tableHeader(heCols);
       heTypes.forEach((t, i) => {
         const perc = heCfg[t.key] || t.def;
         const percLabel = perc === "custom" ? (heCfg[t.key + "Custom"] || "—") + "% (custom)" : `H.E. ${perc}%`;
-        tableRow(heCols, [
-          t.label,
-          percLabel,
-          heCfg[t.envKey] ? "Sim" : "Não",
-          heCfg[t.codKey] || "A definir",
-          heCfg[t.fmtKey] || "N/A",
-        ], i % 2 !== 0);
+        if (heHasFopag) {
+          tableRow(heCols, [ t.label, percLabel, heCfg[t.envKey] ? "Sim" : "Não", heCfg[t.codKey] || "A definir", heCfg[t.fmtKey] || "N/A" ], i % 2 !== 0);
+        } else {
+          tableRow(heCols, [ t.label, percLabel ], i % 2 !== 0);
+        }
       });
-      spacer(3);
-      resetRowCount();
-      infoRow("Categorização de Hora Extra Diária",  heCfg.categorizacaoHEDiaria  || "Não configurado");
-      infoRow("Categorização de Hora Extra Mensal", heCfg.categorizacaoHEMensal || "Não configurado");
+      if (heCfg.categorizacaoHEDiaria === "Sim" || heCfg.categorizacaoHEMensal === "Sim") {
+        spacer(3);
+        resetRowCount();
+        infoRow("Categorização de Hora Extra Diária",  heCfg.categorizacaoHEDiaria  || "Não");
+        infoRow("Categorização de Hora Extra Mensal", heCfg.categorizacaoHEMensal || "Não");
+      }
+      if ((heCfg.additionalRates || []).length > 0) {
+        spacer(3);
+        subSection("Percentuais Adicionais de Hora Extra");
+        const arCols = [ { label: "Nome", w: 50 }, { label: "Percentual", w: 30 }, { label: "Justificativa", w: PW - 80 } ];
+        tableHeader(arCols);
+        heCfg.additionalRates.forEach((r, i) => {
+          tableRow(arCols, [ r.name || "—", r.percentage ? `${r.percentage}%` : "—", r.explanation || "—" ], i % 2 !== 0);
+        });
+      }
       if (heCfg.incluirObservacoes && heCfg.observacoes) infoRow("Observações", heCfg.observacoes);
     }
     spacer(4);
@@ -376,24 +392,25 @@ export async function generateCalcRulesPDF({ project, companyData, allStepData }
           infoRow("Adicional noturno deve incidir sobre a pausa", anCfg.adicionalIncluiTempoPausa === "sim" ? "Sim" : "Não");
           spacer(3);
           // Noturno % table
-          const ntCols = [
-            { label: "Tipo", w: 50 },
-            { label: "Porcentagem", w: 36 },
-            { label: "Envio Fopag", w: 28 },
-            { label: "Código", w: 34 },
-            { label: "Formato", w: PW - 148 },
-          ];
+          const ntTypes = anCfg.separarHENoturna === "sim" ? [
+            { label: "Porcentagem Adicional Noturno", key: "percHENoturnaComuns", envKey: "envioE02Comuns", codKey: "codigoVerbaComuns", fmtKey: "formatoComuns" },
+            { label: "Sábado", key: "percHENoturnaSabado", envKey: "envioE02Sabado", codKey: "codigoVerbaSabado", fmtKey: "formatoSabado" },
+            { label: "Domingo", key: "percHENoturnaDomingo", envKey: "envioE02Domingo", codKey: "codigoVerbaDomingo", fmtKey: "formatoDomingo" },
+            { label: "Feriado", key: "percHENoturnaFeriado", envKey: "envioE02Feriado", codKey: "codigoVerbaFeriado", fmtKey: "formatoFeriado" },
+          ] : [];
+          const ntHasFopag = !!(anCfg.envioE02 || anCfg.codigoVerba) || ntTypes.some(t => anCfg[t.envKey] || anCfg[t.codKey]);
+          const ntCols = ntHasFopag
+            ? [ { label: "Tipo", w: 50 }, { label: "Porcentagem", w: 36 }, { label: "Envio Fopag", w: 28 }, { label: "Código", w: 34 }, { label: "Formato", w: PW - 148 } ]
+            : [ { label: "Tipo", w: 90 }, { label: "Porcentagem", w: PW - 90 } ];
           tableHeader(ntCols);
           if (anCfg.separarHENoturna === "sim") {
-            const ntTypes = [
-              { label: "Porcentagem Adicional Noturno", key: "percHENoturnaComuns", envKey: "envioE02Comuns", codKey: "codigoVerbaComuns", fmtKey: "formatoComuns" },
-              { label: "Sábado", key: "percHENoturnaSabado", envKey: "envioE02Sabado", codKey: "codigoVerbaSabado", fmtKey: "formatoSabado" },
-              { label: "Domingo", key: "percHENoturnaDomingo", envKey: "envioE02Domingo", codKey: "codigoVerbaDomingo", fmtKey: "formatoDomingo" },
-              { label: "Feriado", key: "percHENoturnaFeriado", envKey: "envioE02Feriado", codKey: "codigoVerbaFeriado", fmtKey: "formatoFeriado" },
-            ];
-            ntTypes.forEach((t, i) => tableRow(ntCols, [t.label, `${anCfg[t.key] || "50"}%`, anCfg[t.envKey] ? "Sim" : "Não", anCfg[t.codKey] || "A definir", anCfg[t.fmtKey] || "N/A"], i % 2 !== 0));
+            ntTypes.forEach((t, i) => {
+              if (ntHasFopag) tableRow(ntCols, [t.label, `${anCfg[t.key] || "50"}%`, anCfg[t.envKey] ? "Sim" : "Não", anCfg[t.codKey] || "A definir", anCfg[t.fmtKey] || "N/A"], i % 2 !== 0);
+              else tableRow(ntCols, [t.label, `${anCfg[t.key] || "50"}%`], i % 2 !== 0);
+            });
           } else {
-            tableRow(ntCols, ["Porcentagem Adicional Noturno", percAd, anCfg.envioE02 ? "Sim" : "Não", anCfg.codigoVerba || "A definir", "N/A"], false);
+            if (ntHasFopag) tableRow(ntCols, ["Porcentagem Adicional Noturno", percAd, anCfg.envioE02 ? "Sim" : "Não", anCfg.codigoVerba || "A definir", "N/A"], false);
+            else tableRow(ntCols, ["Porcentagem Adicional Noturno", percAd], false);
           }
           spacer(3);
           resetRowCount();
@@ -460,12 +477,19 @@ export async function generateCalcRulesPDF({ project, companyData, allStepData }
         tableHeader(expCols);
         tableRow(expCols, ["Sim", dsrCfg.codigoVerba || "A definir", dsrCfg.formatoVerba || "N/A"], false);
       }
+      if ((dsrCfg.verbas || []).length > 0) {
+        spacer(3);
+        subSection("Outras Verbas (Folga/Feriado/DSR)");
+        const dsrVbCols = [ { label: "Nome", w: 60 }, { label: "Código", w: 30 }, { label: "Percentual", w: PW - 90 } ];
+        tableHeader(dsrVbCols);
+        dsrCfg.verbas.forEach((v, i) => tableRow(dsrVbCols, [v.nome || "—", v.codigo || "—", v.percentual ? `${v.percentual}%` : "—"], i % 2 !== 0));
+      }
       if (dsrCfg.incluirObservacoes && dsrCfg.observacoes) { spacer(2); resetRowCount(); infoRow("Observações", dsrCfg.observacoes); }
     }
     spacer(4);
 
     // ── SOBREAVISO ──
-    if (companyData?.hasOnCallWorkers !== false) {
+    if (companyData?.hasOnCallWorkers === true) {
       sectionBanner(`SOBREAVISO - ${name.toUpperCase()}`);
       const sbCfg = sb[name] || {};
       resetRowCount();
@@ -499,6 +523,10 @@ export async function generateCalcRulesPDF({ project, companyData, allStepData }
           const limitLabel = bhCfg.limiteDias === "custom" ? `${bhCfg.limiteDiasCustom || "—"} DIAS` : bhCfg.limiteDias ? `${bhCfg.limiteDias} DIAS` : "Não informado";
           infoRow("Qual o limite de dias para acúmulo/vencimento do banco de horas?", limitLabel);
           if (bhCfg.criterioAcumulo) infoRow("Qual o critério para o início de acúmulo das horas no banco?", bhCfg.criterioAcumulo === "data_admissao" ? "Data de admissão" : "A partir da data informada acima (fixo)");
+        if (bhCfg.formato === "por_janela" && bhCfg.prazoVencimento) {
+          const prazoLabel = bhCfg.prazoVencimento === "custom" ? `${bhCfg.prazoVencimentoCustom || "—"} meses` : `${bhCfg.prazoVencimento} meses`;
+          infoRow("Prazo de Vencimento", prazoLabel);
+        }
 
           // Fatores de transformação
           if ((bhCfg.fatoresTransformacao || []).some(f => f.ativo)) {
@@ -523,14 +551,14 @@ export async function generateCalcRulesPDF({ project, companyData, allStepData }
 
           spacer(3);
           resetRowCount();
-          const tipos = bhCfg.limiteAcumuloTipos || [];
-          const tiposDisplay = tipos.length === 0 ? "Não informado"
-            : tipos.includes("sem_acumulo") ? "Sem acúmulo"
-            : tipos.map(t => {
-                const label = { diario: "Diário", semanal: "Semanal", mensal: "Mensal", geral: "Geral" }[t] || t;
-                const val = (bhCfg.limiteAcumuloValores || {})[t];
+          const limiteTipo = bhCfg.limiteAcumuloTipo || "";
+          const tiposDisplay = !limiteTipo ? "Não informado"
+            : limiteTipo === "sem_acumulo" ? "Sem acúmulo"
+            : (() => {
+                const label = { diario: "Diário", semanal: "Semanal", mensal: "Mensal", geral: "Geral" }[limiteTipo] || limiteTipo;
+                const val = bhCfg.limiteAcumuloValor;
                 return val ? `${label} (${val}h)` : label;
-              }).join(", ");
+              })();
           infoRow("Tipo de Limite de Acúmulo", tiposDisplay);
           infoRow("Entrada Automática no Banco de Horas", bhCfg.saldoAutomatico === "sim" ? "Sim" : bhCfg.saldoAutomatico === "nao" ? "Não" : "Não informado");
           infoRow("Visualizar Histórico Após Baixa",
@@ -540,11 +568,29 @@ export async function generateCalcRulesPDF({ project, companyData, allStepData }
               ? "Não, após a baixa o saldo é zerado e o histórico de horas já pagas não será exibido."
               : "Não informado"
           );
+          if ((bhCfg.verbas || []).length > 0) {
+            spacer(3);
+            subSection("Outras Verbas (Banco de Horas)");
+            const bhVbCols = [ { label: "Apontamento", w: PW - 40 }, { label: "Envio FOPAG", w: 40 } ];
+            tableHeader(bhVbCols);
+            const APONTAMENTO_LABELS = { baixa_negativa: "Baixa Negativa", baixa_parcial_negativa: "Baixa Parcial Negativa", baixa_parcial_positiva: "Baixa Parcial Positiva", baixa_positiva: "Baixa Positiva", outra_forma: "Outra forma de baixa" };
+            bhCfg.verbas.forEach((v, i) => tableRow(bhVbCols, [v.apontamento ? (APONTAMENTO_LABELS[v.apontamento] || v.apontamento) : "—", v.envioE02 ? "Sim" : "Não"], i % 2 !== 0));
+          }
           if (bhCfg.incluirObservacoes && bhCfg.observacoes) infoRow("Observações", bhCfg.observacoes);
         }
       }
       spacer(4);
     }
+  }
+
+  // ═══ CONFIGURAÇÃO DA FOLHA DE PONTO ══════════════════════════════════════
+  const ts = allStepData?.timesheet_config || {};
+  if (ts.somatoriaFinal || ts.abreviarLegendas) {
+    sectionBanner("CONFIGURAÇÃO DA FOLHA DE PONTO");
+    resetRowCount();
+    if (ts.somatoriaFinal) infoRow("Somatória final na folha/espelho de ponto", ts.somatoriaFinal === "sim" ? "Sim" : "Não");
+    if (ts.abreviarLegendas) infoRow("Abreviar legendas na folha de ponto", ts.abreviarLegendas === "sim" ? "Sim" : "Não");
+    spacer(4);
   }
 
   // ═══ OUTRAS VERBAS ═══════════════════════════════════════════════════════
