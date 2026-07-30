@@ -59,11 +59,11 @@ function useStandaloneWizard() {
     try { return JSON.parse(raw); } catch { return raw; }
   }, [record]);
 
-  const identify = async (name, email) => {
+  const identify = async (name, email, cnpj) => {
     try {
-      const res = await base44.functions.invoke('createStandaloneRule', { client_name: name, client_email: email });
+      const res = await base44.functions.invoke('createStandaloneRule', { client_name: name, client_email: email, cnpj });
       if (res.data?.id) {
-        setRecord({ id: res.data.id, client_name: name, client_email: email, status: 'preenchimento', current_step: 1 });
+        setRecord({ id: res.data.id, client_name: name, client_email: email, cnpj, status: 'preenchimento', current_step: 1 });
         return true;
       }
     } catch (e) {
@@ -83,6 +83,7 @@ export default function StandaloneCalcWizard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
+  const [clientCnpj, setClientCnpj] = useState("");
   const [identified, setIdentified] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
@@ -109,6 +110,7 @@ export default function StandaloneCalcWizard() {
       setCurrentStep(record.current_step || 1);
       setClientName(record.client_name || "");
       setClientEmail(record.client_email || "");
+      setClientCnpj(record.cnpj || "");
       setIdentified(true);
       if (record.status !== 'preenchimento') setSubmitted(true);
     }
@@ -187,17 +189,23 @@ export default function StandaloneCalcWizard() {
   };
 
   const handleIdentify = async () => {
-    if (!clientName.trim() || !clientEmail.trim()) return;
-    const ok = await identify(clientName.trim(), clientEmail.trim());
+    if (!clientName.trim() || !clientEmail.trim() || !clientCnpj.trim()) return;
+    const ok = await identify(clientName.trim(), clientEmail.trim(), clientCnpj.trim());
     if (!ok) return;
     setIdentified(true);
   };
+
+  const formatCnpj = (v) => v.replace(/\D/g, "").slice(0, 14)
+    .replace(/^(\d{2})(\d)/, "$1.$2")
+    .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1/$2")
+    .replace(/(\d{4})(\d)/, "$1-$2");
 
   const handleGeneratePDF = async () => {
     setGeneratingPDF(true);
     try {
       const pdfBytes = await generateCalcRulesPDF({
-        project: { client_name: clientName },
+        project: { client_name: clientName, cnpj: clientCnpj },
         companyData: stepData.company_data,
         allStepData: stepData,
       });
@@ -252,11 +260,21 @@ export default function StandaloneCalcWizard() {
                 onKeyDown={e => e.key === "Enter" && handleIdentify()}
               />
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">CNPJ</label>
+              <input
+                value={clientCnpj}
+                onChange={e => setClientCnpj(formatCnpj(e.target.value))}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                placeholder="00.000.000/0000-00"
+                onKeyDown={e => e.key === "Enter" && handleIdentify()}
+              />
+            </div>
           </div>
 
           <button
             onClick={handleIdentify}
-            disabled={!clientName.trim() || !clientEmail.trim()}
+            disabled={!clientName.trim() || !clientEmail.trim() || !clientCnpj.trim()}
             className="w-full mt-6 px-6 py-3 text-sm font-medium rounded-xl bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Começar

@@ -17,6 +17,7 @@ Deno.serve(async (req) => {
     return Response.json({
       project: {
         client_name: rule.client_name,
+        cnpj: rule.cnpj,
       },
       companyData: parseJSON(rule.company_data),
       allStepData: {

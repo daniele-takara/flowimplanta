@@ -167,6 +167,7 @@ function Card({ rule, onStatusChange, onOpenDetail, implantacaoUsers, loadingUse
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-slate-800 truncate">{rule.client_name || "Sem nome"}</p>
           <p className="text-xs text-slate-500 truncate">{rule.client_email || "Sem e-mail"}</p>
+          {rule.cnpj && <p className="text-xs text-slate-400 truncate">CNPJ: {rule.cnpj}</p>}
         </div>
         <button
           onClick={() => onOpenDetail(rule)}

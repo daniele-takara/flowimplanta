@@ -21,6 +21,7 @@ Deno.serve(async (req) => {
     if (data.status !== undefined) updatePayload.status = data.status;
     if (data.client_name !== undefined) updatePayload.client_name = data.client_name;
     if (data.client_email !== undefined) updatePayload.client_email = data.client_email;
+    if (data.cnpj !== undefined) updatePayload.cnpj = data.cnpj;
 
     await base44.asServiceRole.entities.StandaloneCalcRule.update(id, updatePayload);
 

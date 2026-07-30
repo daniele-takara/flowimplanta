@@ -28,6 +28,7 @@ function fmt(d) {
 export async function generateCalcRulesPDF({ project, companyData, allStepData }) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const clientName = project?.client_name || "Cliente";
+  const cnpj = project?.cnpj || "";
   const today = new Date().toLocaleDateString("pt-BR");
   const rulesNames = companyData?.rulesNames || [];
 
@@ -217,6 +218,7 @@ export async function generateCalcRulesPDF({ project, companyData, allStepData }
   sectionBanner("DADOS DA EMPRESA");
   resetRowCount();
   infoRow("Nome da Empresa", clientName);
+  if (cnpj) infoRow("CNPJ", cnpj);
   infoRow("Nome do Responsável pelo Preenchimento", companyData?.responsibleName || "—");
   if (companyData?.apuracao_inicio || companyData?.apuracao_fim) {
     infoRow("Período de Apuração da Folha de Ponto", `Dia ${companyData.apuracao_inicio || 1} a ${companyData.apuracao_fim || 30}`);
