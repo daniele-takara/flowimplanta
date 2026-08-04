@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { FileDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import {
   MOCK_PROJECTS, MOCK_SCOPE_ITEMS, MOCK_SCHEDULE_PHASES,
@@ -17,6 +18,7 @@ import TermoEncerramentoTab from "@/components/project/tabs/TermoEncerramentoTab
 import CalculationRulesTab from "@/components/project/tabs/CalculationRulesTab.jsx";
 import AuditLogTab from "@/components/project/tabs/AuditLogTab.jsx";
 import EditProjectModal from "@/components/project/EditProjectModal";
+import BoasPraticasModal from "@/components/project/BoasPraticasModal";
 import { usePermissions } from "@/lib/usePermissions";
 import { logAudit } from "@/lib/auditLog";
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
@@ -52,6 +54,7 @@ export default function ProjectDetail() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showBoasPraticas, setShowBoasPraticas] = useState(false);
 
   const perms = usePermissions();
   const isMock = id && id.startsWith("proj-");
@@ -203,21 +206,35 @@ export default function ProjectDetail() {
         />
       )}
 
+      {showBoasPraticas && (
+        <BoasPraticasModal onClose={() => setShowBoasPraticas(false)} />
+      )}
+
       <div className="bg-white border-b border-slate-200 px-8 overflow-x-auto">
-        <div className="flex gap-0 min-w-max">
-          {visibleTabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-5 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === tab.id
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-0 min-w-max">
+          <div className="flex gap-0">
+            {visibleTabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-5 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowBoasPraticas(true)}
+            className="ml-auto shrink-0 flex items-center gap-1.5 px-3 py-1.5 my-1.5 mr-2 text-xs font-medium rounded-lg border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors"
+            title="Gerar PDFs de boas práticas de cada aba"
+          >
+            <FileDown className="w-3.5 h-3.5" />
+            Boas Práticas
+          </button>
         </div>
       </div>
 
