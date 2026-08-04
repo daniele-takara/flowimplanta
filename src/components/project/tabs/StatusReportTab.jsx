@@ -2,12 +2,13 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { computeMacroSchedule } from "@/lib/scheduleReportEngine.js";
 import { generateStatusReportEmail } from "@/lib/statusReportEmailTemplate.js";
+import { downloadStatusReportPDF } from "@/lib/statusReportPdfExport.js";
 import EmailPreviewModal from "@/components/project/EmailPreviewModal.jsx";
 import { logAudit } from "@/lib/auditLog";
 import {
   RefreshCw, Mail, Clock, CheckCircle2, AlertTriangle,
   AlertCircle, Users, Activity, Calendar,
-  Plus, Trash2, Maximize2, Minimize2
+  Plus, Trash2, Maximize2, Minimize2, FileDown, Loader2
 } from "lucide-react";
 
 // Cache de campos salvos — sobrevive a unmount/remount do componente
@@ -415,6 +416,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
   const [emailHtml, setEmailHtml]         = useState("");
   const [showConfirm, setShowConfirm]     = useState(false);
   const [updateResult, setUpdateResult]   = useState(null);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
 
   // Mantém formRef sempre atualizado com o form mais recente (evita closure stale)
   formRef.current = form;
@@ -724,6 +726,25 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
     setShowEmailPreview(true);
   };
 
+  // Gerar PDF — mesmos dados do e-mail + todas as seções
+  const handleGeneratePDF = async () => {
+    setGeneratingPDF(true);
+    try {
+      const usabilityForPdf = {
+        numero_funcionarios: kpiData.cadastrados,
+        empregados_batendo_ponto_ultimos_15_dias: kpiData.batendoPonto,
+      };
+      await downloadStatusReportPDF({
+        project, form, macroPhases, overallProgress,
+        usabilityData: usabilityForPdf,
+        report,
+      });
+    } catch (e) {
+      console.error("[StatusReportTab] Erro ao gerar PDF:", e);
+    }
+    setGeneratingPDF(false);
+  };
+
   return (
     <div>
       {/* Toolbar */}
@@ -755,6 +776,16 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
               >
                 <Mail className="w-4 h-4" />
                 Gerar e-mail
+              </button>
+            )}
+            {canGenerateEmail && (
+              <button
+                onClick={handleGeneratePDF}
+                disabled={generatingPDF}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-slate-200 bg-white text-slate-600 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                {generatingPDF ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+                {generatingPDF ? "Gerando..." : "Gerar PDF"}
               </button>
             )}
             <button
