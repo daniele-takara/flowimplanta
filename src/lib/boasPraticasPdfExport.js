@@ -720,13 +720,21 @@ export async function generateBoasPraticasPDF(tabKey) {
 
 export async function downloadBoasPraticasPDF(tabKey) {
   const { doc, fileName } = await generateBoasPraticasPDF(tabKey);
-  doc.save(fileName);
+  const blob = doc.output("blob");
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 export async function downloadAllBoasPraticasPDFs() {
-  for (const tab of TABS_META) {
-    await downloadBoasPraticasPDF(tab.key);
-    await new Promise(r => setTimeout(r, 350));
+  for (let i = 0; i < TABS_META.length; i++) {
+    await downloadBoasPraticasPDF(TABS_META[i].key);
+    await new Promise(r => setTimeout(r, 800));
   }
 }
 
