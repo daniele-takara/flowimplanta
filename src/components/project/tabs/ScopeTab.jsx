@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { SCOPE_MODULES, getModuleQuestions, isModuleVisible } from "@/lib/scopeTemplate";
 import { generateScopePDF } from "@/lib/scopePdfExport";
+import { downloadScopeTemplatePDF } from "@/lib/scopeTemplatePdfExport";
 import ScopeItemRow from "@/components/project/tabs/ScopeItemRow";
 import { ChevronLeft, ChevronRight, Plus, Minus, FileDown, Check, LayoutList, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
 import ScopeSyncModal from "@/components/project/tabs/ScopeSyncModal.jsx";
@@ -397,6 +398,14 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
           >
             <FileDown className="w-3.5 h-3.5" />
             Gerar PDF
+          </button>
+          <button
+            onClick={() => downloadScopeTemplatePDF()}
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border border-purple-200 bg-purple-50 text-purple-700 hover:border-purple-400 hover:bg-purple-100 transition-colors"
+            title="Baixar modelo em branco com todas as perguntas possíveis"
+          >
+            <LayoutList className="w-3.5 h-3.5" />
+            Modelo em branco
           </button>
           <button
             onClick={() => {
