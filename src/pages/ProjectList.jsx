@@ -24,6 +24,7 @@ export default function ProjectList() {
   const [allProjects, setAllProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteProject, setDeleteProject] = useState(null);
+  const [assignees, setAssignees] = useState({ managers: [], analysts: [] });
 
   const loadProjects = () => {
     base44.entities.Project.list("-created_date").then(p => {
@@ -32,18 +33,57 @@ export default function ProjectList() {
     });
   };
 
+  useEffect(() => {
+    base44.functions.invoke("getProjectAssignees")
+      .then(res => setAssignees(res.data || { managers: [], analysts: [] }))
+      .catch(() => setAssignees({ managers: [], analysts: [] }));
+  }, []);
+
   useEffect(() => { loadProjects(); }, []);
 
+  // Composite key: projects with _id group by "id:<id>" (shows real User full_name);
+  // projects still in text-only transition group by "text:<name>".
+  const managerKey = (p) => {
+    if (p.pontotel_manager_id) return `id:${p.pontotel_manager_id}`;
+    if (p.pontotel_manager_name) return `text:${p.pontotel_manager_name}`;
+    return null;
+  };
+  const analystKey = (p) => {
+    if (p.pontotel_analyst_id) return `id:${p.pontotel_analyst_id}`;
+    if (p.pontotel_analyst_name) return `text:${p.pontotel_analyst_name}`;
+    return null;
+  };
+
+  const managerLabel = (key) => {
+    if (key?.startsWith("id:")) {
+      const id = key.slice(3);
+      const u = assignees.managers.find(m => m.id === id);
+      return u?.full_name || id;
+    }
+    if (key?.startsWith("text:")) return key.slice(5);
+    return key || "";
+  };
+  const analystLabel = (key) => {
+    if (key?.startsWith("id:")) {
+      const id = key.slice(3);
+      const u = assignees.analysts.find(a => a.id === id);
+      return u?.full_name || id;
+    }
+    if (key?.startsWith("text:")) return key.slice(5);
+    return key || "";
+  };
+
   const managerOptions = useMemo(() => {
-    const names = allProjects.map(p => p.pontotel_manager_name).filter(Boolean);
-    return [...new Set(names)].sort();
+    const keys = allProjects.map(managerKey).filter(Boolean);
+    return [...new Set(keys)].sort();
   }, [allProjects]);
 
   const analystOptions = useMemo(() => {
-    const names = allProjects.map(p => p.pontotel_analyst_name).filter(Boolean);
-    return [...new Set(names)].sort();
+    const keys = allProjects.map(analystKey).filter(Boolean);
+    return [...new Set(keys)].sort();
   }, [allProjects]);
 
+  const currentUserId = user?.id || "";
   const currentUserName = user?.full_name || user?.email || "";
 
   const filtered = useMemo(() => {
@@ -54,14 +94,16 @@ export default function ProjectList() {
         (p.id || "").toLowerCase().includes(searchLower);
       const matchStatus = filterStatus === "Todos" || p.status === filterStatus;
       const matchMy = !myProjects || (
-        (p.pontotel_manager_name && p.pontotel_manager_name === currentUserName) ||
-        (p.pontotel_analyst_name && p.pontotel_analyst_name === currentUserName)
+        (p.pontotel_manager_id && p.pontotel_manager_id === currentUserId) ||
+        (p.pontotel_analyst_id && p.pontotel_analyst_id === currentUserId) ||
+        (!p.pontotel_manager_id && p.pontotel_manager_name && p.pontotel_manager_name === currentUserName) ||
+        (!p.pontotel_analyst_id && p.pontotel_analyst_name && p.pontotel_analyst_name === currentUserName)
       );
-      const matchManager = filterManagers.length === 0 || filterManagers.includes(p.pontotel_manager_name);
-      const matchAnalyst = filterAnalysts.length === 0 || filterAnalysts.includes(p.pontotel_analyst_name);
+      const matchManager = filterManagers.length === 0 || filterManagers.includes(managerKey(p));
+      const matchAnalyst = filterAnalysts.length === 0 || filterAnalysts.includes(analystKey(p));
       return matchSearch && matchStatus && matchMy && matchManager && matchAnalyst;
     });
-  }, [allProjects, search, filterStatus, myProjects, filterManagers, filterAnalysts, currentUserName]);
+  }, [allProjects, search, filterStatus, myProjects, filterManagers, filterAnalysts, currentUserId, currentUserName]);
 
   const toggleMulti = (value, list, setList) => {
     setList(prev => prev.includes(value) ? prev.filter(x => x !== value) : [...prev, value]);
@@ -179,17 +221,17 @@ export default function ProjectList() {
             <div>
               <p className="text-xs font-semibold text-slate-500 mb-1.5">Gerente do projeto</p>
               <div className="flex flex-wrap gap-1.5">
-                {managerOptions.map(name => (
+                {managerOptions.map(key => (
                   <button
-                    key={name}
-                    onClick={() => toggleMulti(name, filterManagers, setFilterManagers)}
+                    key={key}
+                    onClick={() => toggleMulti(key, filterManagers, setFilterManagers)}
                     className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-colors ${
-                      filterManagers.includes(name)
+                      filterManagers.includes(key)
                         ? "bg-indigo-600 text-white border-indigo-600"
                         : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                     }`}
                   >
-                    {name}
+                    {managerLabel(key)}
                   </button>
                 ))}
               </div>
@@ -200,17 +242,17 @@ export default function ProjectList() {
             <div>
               <p className="text-xs font-semibold text-slate-500 mb-1.5">Analista de implantação</p>
               <div className="flex flex-wrap gap-1.5">
-                {analystOptions.map(name => (
+                {analystOptions.map(key => (
                   <button
-                    key={name}
-                    onClick={() => toggleMulti(name, filterAnalysts, setFilterAnalysts)}
+                    key={key}
+                    onClick={() => toggleMulti(key, filterAnalysts, setFilterAnalysts)}
                     className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-colors ${
-                      filterAnalysts.includes(name)
+                      filterAnalysts.includes(key)
                         ? "bg-purple-600 text-white border-purple-600"
                         : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                     }`}
                   >
-                    {name}
+                    {analystLabel(key)}
                   </button>
                 ))}
               </div>
@@ -221,16 +263,16 @@ export default function ProjectList() {
         {(filterManagers.length > 0 || filterAnalysts.length > 0) && (
           <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-slate-100">
             <span className="text-xs text-slate-400">Filtros ativos:</span>
-            {filterManagers.map(n => (
-              <span key={n} className="flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2 py-0.5">
-                Gerente: {n}
-                <button onClick={() => toggleMulti(n, filterManagers, setFilterManagers)}><X className="w-3 h-3" /></button>
+            {filterManagers.map(k => (
+              <span key={k} className="flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2 py-0.5">
+                Gerente: {managerLabel(k)}
+                <button onClick={() => toggleMulti(k, filterManagers, setFilterManagers)}><X className="w-3 h-3" /></button>
               </span>
             ))}
-            {filterAnalysts.map(n => (
-              <span key={n} className="flex items-center gap-1 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded-full px-2 py-0.5">
-                Analista: {n}
-                <button onClick={() => toggleMulti(n, filterAnalysts, setFilterAnalysts)}><X className="w-3 h-3" /></button>
+            {filterAnalysts.map(k => (
+              <span key={k} className="flex items-center gap-1 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded-full px-2 py-0.5">
+                Analista: {analystLabel(k)}
+                <button onClick={() => toggleMulti(k, filterAnalysts, setFilterAnalysts)}><X className="w-3 h-3" /></button>
               </span>
             ))}
           </div>

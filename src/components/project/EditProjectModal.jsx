@@ -97,9 +97,11 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
     ti_client_name: project?.ti_client_name || "",
     ti_client_email: project?.ti_client_email || tiClientLegacy.email,
     ti_client_phone: project?.ti_client_phone || tiClientLegacy.phone,
+    pontotel_manager_id: project?.pontotel_manager_id || "",
     pontotel_manager_name: project?.pontotel_manager_name || "",
     pontotel_manager_email: project?.pontotel_manager_email || pontotelManagerLegacy.email,
     pontotel_manager_phone: project?.pontotel_manager_phone || pontotelManagerLegacy.phone,
+    pontotel_analyst_id: project?.pontotel_analyst_id || "",
     pontotel_analyst_name: project?.pontotel_analyst_name || "",
     pontotel_analyst_email: project?.pontotel_analyst_email || pontotelAnalystLegacy.email,
     pontotel_analyst_phone: project?.pontotel_analyst_phone || pontotelAnalystLegacy.phone,
@@ -111,6 +113,8 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
   const [membersLoaded, setMembersLoaded] = useState(false);
+  const [assignees, setAssignees] = useState({ managers: [], analysts: [] });
+  const [loadingAssignees, setLoadingAssignees] = useState(true);
 
   // Carrega membros dinâmicos
   useEffect(() => {
@@ -119,6 +123,14 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
       .then(list => { setTeamMembers(list || []); setMembersLoaded(true); })
       .catch(() => setMembersLoaded(true));
   }, [project?.id, membersLoaded]);
+
+  // Carrega usuários elegíveis (gerente = Gestor de Projetos, analista = Implantação)
+  useEffect(() => {
+    base44.functions.invoke("getProjectAssignees")
+      .then(res => setAssignees(res.data || { managers: [], analysts: [] }))
+      .catch(() => setAssignees({ managers: [], analysts: [] }))
+      .finally(() => setLoadingAssignees(false));
+  }, []);
 
   const addMember = (team) => {
     setTeamMembers(prev => [...prev, { team, name: "", role: "", email: "", phone: "", _new: true }]);
@@ -138,6 +150,28 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
 
+  const handleManagerChange = (e) => {
+    const id = e.target.value;
+    const u = assignees.managers.find(m => m.id === id);
+    setForm(f => ({
+      ...f,
+      pontotel_manager_id: id,
+      pontotel_manager_name: u?.full_name || "",
+      pontotel_manager_email: u?.email || "",
+    }));
+  };
+
+  const handleAnalystChange = (e) => {
+    const id = e.target.value;
+    const u = assignees.analysts.find(a => a.id === id);
+    setForm(f => ({
+      ...f,
+      pontotel_analyst_id: id,
+      pontotel_analyst_name: u?.full_name || "",
+      pontotel_analyst_email: u?.email || "",
+    }));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     // Registra alterações no log de auditoria
@@ -148,8 +182,8 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
       "project_leader_name", "project_leader_email", "project_leader_phone",
       "operation_name", "operation_email", "operation_phone",
       "ti_client_name", "ti_client_email", "ti_client_phone",
-      "pontotel_manager_name", "pontotel_manager_email", "pontotel_manager_phone",
-      "pontotel_analyst_name", "pontotel_analyst_email", "pontotel_analyst_phone",
+      "pontotel_manager_id", "pontotel_manager_name", "pontotel_manager_email", "pontotel_manager_phone",
+      "pontotel_analyst_id", "pontotel_analyst_name", "pontotel_analyst_email", "pontotel_analyst_phone",
     ];
     for (const field of auditFields) {
       const oldVal = project?.[field];
@@ -264,20 +298,26 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
           <div className="border-t border-slate-100 pt-4">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Equipe Pontotel</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <Field label="Gerente — Nome">
-                <input value={form.pontotel_manager_name} onChange={set("pontotel_manager_name")} className={inputClass} />
+              <Field label="Gerente do Projeto">
+                <select value={form.pontotel_manager_id} onChange={handleManagerChange} className={inputClass} disabled={loadingAssignees}>
+                  <option value="">{loadingAssignees ? "Carregando..." : "Selecionar..."}</option>
+                  {assignees.managers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                </select>
               </Field>
-              <Field label="Gerente — E-mail">
-                <input type="email" value={form.pontotel_manager_email} onChange={set("pontotel_manager_email")} className={inputClass} />
+              <Field label="Gerente — E-mail (auto)">
+                <input type="email" value={form.pontotel_manager_email} readOnly className={`${inputClass} bg-slate-50 text-slate-500`} />
               </Field>
               <Field label="Gerente — Telefone">
                 <input value={form.pontotel_manager_phone} onChange={set("pontotel_manager_phone")} className={inputClass} />
               </Field>
-              <Field label="Analista de Implantação — Nome">
-                <input value={form.pontotel_analyst_name} onChange={set("pontotel_analyst_name")} className={inputClass} />
+              <Field label="Analista de Implantação">
+                <select value={form.pontotel_analyst_id} onChange={handleAnalystChange} className={inputClass} disabled={loadingAssignees}>
+                  <option value="">{loadingAssignees ? "Carregando..." : "Selecionar..."}</option>
+                  {assignees.analysts.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                </select>
               </Field>
-              <Field label="Analista — E-mail">
-                <input type="email" value={form.pontotel_analyst_email} onChange={set("pontotel_analyst_email")} className={inputClass} />
+              <Field label="Analista — E-mail (auto)">
+                <input type="email" value={form.pontotel_analyst_email} readOnly className={`${inputClass} bg-slate-50 text-slate-500`} />
               </Field>
               <Field label="Analista — Telefone">
                 <input value={form.pontotel_analyst_phone} onChange={set("pontotel_analyst_phone")} className={inputClass} />

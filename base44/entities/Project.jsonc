@@ -161,6 +161,10 @@
       "type": "string",
       "description": "Telefone do gerente Pontotel"
     },
+    "pontotel_manager_id": {
+      "type": "string",
+      "description": "ID do User real vinculado como gerente Pontotel (fonte da verdade)"
+    },
     "pontotel_analyst_name": {
       "type": "string"
     },
@@ -174,6 +178,10 @@
     "pontotel_analyst_phone": {
       "type": "string",
       "description": "Telefone do analista de implanta\u00e7\u00e3o"
+    },
+    "pontotel_analyst_id": {
+      "type": "string",
+      "description": "ID do User real vinculado como analista de implanta\u00e7\u00e3o (fonte da verdade)"
     },
     "contracted_modules": {
       "type": "array",
