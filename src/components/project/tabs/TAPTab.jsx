@@ -17,12 +17,30 @@ import { logAudit } from "@/lib/auditLog";
 
 function buildAnswersMap(scopeItems) {
   const map = {};
-  (scopeItems || []).forEach(item => {
-    if (item.question_id) map[item.question_id] = item.answer || "";
-    if (item.order_number) {
-      const key = `q${String(item.order_number).padStart(3, "0")}`;
-      if (!map[key]) map[key] = item.answer || "";
+  // Deduplicate: for each key (question_id and order_number), keep the item with a non-empty answer.
+  // If both have answers, keep the most recently updated. Prevents empty duplicates from overwriting filled ones.
+  const dedup = (key, item, store) => {
+    const cur = store[key];
+    if (!cur) { store[key] = item; return; }
+    const curHas = !!(cur.answer || "").trim();
+    const itemHas = !!(item.answer || "").trim();
+    if (itemHas && !curHas) { store[key] = item; return; }
+    if (itemHas && curHas) {
+      const curUp = new Date(cur.updated_date || cur.created_date || 0).getTime();
+      const itemUp = new Date(item.updated_date || item.created_date || 0).getTime();
+      if (itemUp > curUp) store[key] = item;
     }
+  };
+  const byQid = {};
+  const byOrder = {};
+  (scopeItems || []).forEach(item => {
+    if (item.question_id) dedup(item.question_id, item, byQid);
+    if (item.order_number) dedup(`q${String(item.order_number).padStart(3, "0")}`, item, byOrder);
+  });
+  Object.values(byQid).forEach(item => { map[item.question_id] = item.answer || ""; });
+  Object.values(byOrder).forEach(item => {
+    const key = `q${String(item.order_number).padStart(3, "0")}`;
+    if (!map[key]) map[key] = item.answer || "";
   });
   return map;
 }
