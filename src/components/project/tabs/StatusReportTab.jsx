@@ -421,11 +421,29 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
   // Mantém formRef sempre atualizado com o form mais recente (evita closure stale)
   formRef.current = form;
 
-  // answersMap para o motor de cronograma
-  const answersMap = {};
-  (scopeItems || []).forEach(item => {
-    if (item.order_number) answersMap[`q${String(item.order_number).padStart(3, "0")}`] = item.answer || "";
-  });
+  // answersMap para o motor de cronograma (deduplicado: mantém resposta não-vazia quando há duplicatas)
+  const answersMap = (() => {
+    const map = {};
+    const best = {};
+    (scopeItems || []).forEach(item => {
+      if (!item.order_number) return;
+      const key = `q${String(item.order_number).padStart(3, "0")}`;
+      const cur = best[key];
+      if (!cur) { best[key] = item; return; }
+      const curHas = !!(cur.answer || "").trim();
+      const itemHas = !!(item.answer || "").trim();
+      if (itemHas && !curHas) { best[key] = item; return; }
+      if (itemHas && curHas) {
+        const curUp = new Date(cur.updated_date || cur.created_date || 0).getTime();
+        const itemUp = new Date(item.updated_date || item.created_date || 0).getTime();
+        if (itemUp > curUp) best[key] = item;
+      }
+    });
+    Object.values(best).forEach(item => {
+      map[`q${String(item.order_number).padStart(3, "0")}`] = item.answer || "";
+    });
+    return map;
+  })();
 
   /**
    * BOTÃO ÚNICO — executa em sequência:
