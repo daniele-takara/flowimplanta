@@ -4,8 +4,9 @@ import { SCOPE_MODULES, getModuleQuestions, isModuleVisible } from "@/lib/scopeT
 import { generateScopePDF } from "@/lib/scopePdfExport";
 import { downloadScopeTemplatePDF } from "@/lib/scopeTemplatePdfExport";
 import ScopeItemRow from "@/components/project/tabs/ScopeItemRow";
-import { ChevronLeft, ChevronRight, Plus, Minus, FileDown, Check, LayoutList, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Minus, FileDown, Check, CheckCircle2, AlertCircle, LayoutList, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
 import ScopeSyncModal from "@/components/project/tabs/ScopeSyncModal.jsx";
+import { toast } from "@/components/ui/use-toast";
 import { logAudit } from "@/lib/auditLog";
 
 // Aplica overrides do banco sobre uma lista de perguntas do template estático.
@@ -353,6 +354,42 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
     );
   }
 
+  // Validação global: verifica se todos os módulos visíveis estão completos
+  const getIncompleteModules = () => {
+    return visibleModules.filter(mod => {
+      const total = getCountableQuestions(mod).length;
+      const answered = getModuleAnsweredCount(mod);
+      return total > 0 && answered < total;
+    });
+  };
+
+  const isScopeComplete = () => getIncompleteModules().length === 0;
+
+  const handleConclude = () => {
+    const incomplete = getIncompleteModules();
+    if (incomplete.length > 0) {
+      const missingCount = incomplete.reduce((sum, mod) => {
+        const total = getCountableQuestions(mod).length;
+        const answered = getModuleAnsweredCount(mod);
+        return sum + (total - answered);
+      }, 0);
+      const moduleNames = incomplete.map(m => m.moduleLabel.replace(/^(MÓDULO:|PROCESSO:)\s*/i, "")).join(", ");
+      toast({
+        title: "Não é possível concluir o escopo",
+        description: `${missingCount} pergunta(s) obrigatória(s) não respondida(s) em: ${moduleNames}.`,
+        variant: "destructive",
+      });
+      // Navega para o primeiro módulo incompleto
+      const firstIncompleteIdx = visibleModules.indexOf(incomplete[0]);
+      setCurrentIndex(firstIncompleteIdx);
+      return;
+    }
+    toast({
+      title: "Escopo concluído!",
+      description: "Todas as perguntas obrigatórias foram respondidas.",
+    });
+  };
+
   const currentMod = visibleModules[safeIndex];
   const allCurrentQs = getCountableQuestions(currentMod);
   const answeredCurrent = getModuleAnsweredCount(currentMod);
@@ -366,6 +403,11 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
           <h2 className="text-base font-semibold text-slate-800">Escopo Técnico</h2>
           <p className="text-sm text-slate-400">
             Módulo {safeIndex + 1} de {totalModules} &nbsp;·&nbsp; {answeredCurrent}/{allCurrentQs.length} respondidas
+            {!isScopeComplete() && (
+              <span className="ml-2 text-amber-500 font-medium">
+                · {getIncompleteModules().length} módulo(s) com pendências
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -533,18 +575,39 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
           Anterior
         </button>
 
-        <span className="text-xs text-slate-400">
-          {safeIndex + 1} / {totalModules}
-        </span>
+        <div className="flex items-center gap-3">
+          {!isScopeComplete() && safeIndex === totalModules - 1 && (
+            <span className="flex items-center gap-1.5 text-xs text-amber-600">
+              <AlertCircle className="w-3.5 h-3.5" />
+              Pendências em módulos anteriores
+            </span>
+          )}
+          <span className="text-xs text-slate-400">
+            {safeIndex + 1} / {totalModules}
+          </span>
+        </div>
 
-        <button
-          onClick={() => setCurrentIndex(i => Math.min(totalModules - 1, i + 1))}
-          disabled={safeIndex === totalModules - 1}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-blue-600 bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          Próximo
-          <ChevronRight className="w-4 h-4" />
-        </button>
+        {safeIndex === totalModules - 1 ? (
+          <button
+            onClick={handleConclude}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+              isScopeComplete()
+                ? "bg-green-600 text-white hover:bg-green-700"
+                : "border border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
+            }`}
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            Concluir Escopo
+          </button>
+        ) : (
+          <button
+            onClick={() => setCurrentIndex(i => Math.min(totalModules - 1, i + 1))}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-blue-600 bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+          >
+            Próximo
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   );
