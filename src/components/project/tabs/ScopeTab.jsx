@@ -4,9 +4,8 @@ import { SCOPE_MODULES, getModuleQuestions, isModuleVisible } from "@/lib/scopeT
 import { generateScopePDF } from "@/lib/scopePdfExport";
 import { downloadScopeTemplatePDF } from "@/lib/scopeTemplatePdfExport";
 import ScopeItemRow from "@/components/project/tabs/ScopeItemRow";
-import { ChevronLeft, ChevronRight, Plus, Minus, FileDown, Check, CheckCircle2, AlertCircle, LayoutList, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Minus, FileDown, Check, LayoutList, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
 import ScopeSyncModal from "@/components/project/tabs/ScopeSyncModal.jsx";
-import { toast } from "@/components/ui/use-toast";
 import { logAudit } from "@/lib/auditLog";
 
 // Aplica overrides do banco sobre uma lista de perguntas do template estático.
@@ -354,42 +353,6 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
     );
   }
 
-  // Validação global: verifica se todos os módulos visíveis estão completos
-  const getIncompleteModules = () => {
-    return visibleModules.filter(mod => {
-      const total = getCountableQuestions(mod).length;
-      const answered = getModuleAnsweredCount(mod);
-      return total > 0 && answered < total;
-    });
-  };
-
-  const isScopeComplete = () => getIncompleteModules().length === 0;
-
-  const handleConclude = () => {
-    const incomplete = getIncompleteModules();
-    if (incomplete.length > 0) {
-      const missingCount = incomplete.reduce((sum, mod) => {
-        const total = getCountableQuestions(mod).length;
-        const answered = getModuleAnsweredCount(mod);
-        return sum + (total - answered);
-      }, 0);
-      const moduleNames = incomplete.map(m => m.moduleLabel.replace(/^(MÓDULO:|PROCESSO:)\s*/i, "")).join(", ");
-      toast({
-        title: "Não é possível concluir o escopo",
-        description: `${missingCount} pergunta(s) obrigatória(s) não respondida(s) em: ${moduleNames}.`,
-        variant: "destructive",
-      });
-      // Navega para o primeiro módulo incompleto
-      const firstIncompleteIdx = visibleModules.indexOf(incomplete[0]);
-      setCurrentIndex(firstIncompleteIdx);
-      return;
-    }
-    toast({
-      title: "Escopo concluído!",
-      description: "Todas as perguntas obrigatórias foram respondidas.",
-    });
-  };
-
   const currentMod = visibleModules[safeIndex];
   const allCurrentQs = getCountableQuestions(currentMod);
   const answeredCurrent = getModuleAnsweredCount(currentMod);
@@ -402,12 +365,7 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
         <div>
           <h2 className="text-base font-semibold text-slate-800">Escopo Técnico</h2>
           <p className="text-sm text-slate-400">
-            Módulo {safeIndex + 1} de {totalModules} &nbsp;·&nbsp; {answeredCurrent}/{allCurrentQs.length} respondidas
-            {!isScopeComplete() && (
-              <span className="ml-2 text-amber-500 font-medium">
-                · {getIncompleteModules().length} módulo(s) com pendências
-              </span>
-            )}
+            Etapa {safeIndex + 1} de {totalModules} &nbsp;·&nbsp; {answeredCurrent}/{allCurrentQs.length} respondidas
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -466,31 +424,66 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
         </div>
       </div>
 
-      {/* Module stepper nav */}
-      <div className="flex gap-1.5 mb-5 overflow-x-auto pb-1">
-        {visibleModules.map((mod, idx) => {
-          const total = getCountableQuestions(mod).length;
-          const answered = getModuleAnsweredCount(mod);
-          const complete = total > 0 && answered === total;
-          const active = idx === safeIndex;
-          return (
-            <button
-              key={mod.moduleKey}
-              onClick={() => setCurrentIndex(idx)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${
-                active
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : complete
-                  ? "bg-green-50 text-green-700 border-green-200 hover:border-green-400"
-                  : "bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50"
-              }`}
-            >
-              {complete && !active && <Check className="w-3 h-3 text-green-500" />}
-              <span className="text-xs opacity-60 font-mono">{idx + 1}</span>
-              <span className="hidden sm:inline">{mod.moduleLabel.replace(/^(MÓDULO:|PROCESSO:)\s*/i, "")}</span>
-            </button>
-          );
-        })}
+      {/* Stepper visual de etapas */}
+      <div className="mb-5">
+        <div className="flex items-center gap-1 overflow-x-auto pb-2">
+          {visibleModules.map((mod, idx) => {
+            const total = getCountableQuestions(mod).length;
+            const answered = getModuleAnsweredCount(mod);
+            const complete = total > 0 && answered === total;
+            const partial = answered > 0 && answered < total;
+            const active = idx === safeIndex;
+            const isLast = idx === visibleModules.length - 1;
+            return (
+              <div key={mod.moduleKey} className="flex items-center shrink-0">
+                <button
+                  onClick={() => setCurrentIndex(idx)}
+                  className="flex items-center gap-2 group"
+                >
+                  {/* Círculo numerado / check */}
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all shrink-0 ${
+                      active
+                        ? "bg-blue-600 text-white ring-4 ring-blue-100 scale-110"
+                        : complete
+                        ? "bg-green-500 text-white group-hover:bg-green-600"
+                        : partial
+                        ? "bg-amber-100 text-amber-700 border-2 border-amber-300 group-hover:bg-amber-200"
+                        : "bg-slate-100 text-slate-400 border-2 border-slate-200 group-hover:bg-slate-200"
+                    }`}
+                  >
+                    {complete && !active ? (
+                      <Check className="w-4 h-4" />
+                    ) : (
+                      idx + 1
+                    )}
+                  </div>
+                  {/* Label da etapa */}
+                  <div className="hidden md:block text-left">
+                    <p
+                      className={`text-xs font-semibold leading-tight max-w-[140px] truncate ${
+                        active ? "text-blue-700" : complete ? "text-green-700" : partial ? "text-amber-600" : "text-slate-400"
+                      }`}
+                    >
+                      {mod.moduleLabel.replace(/^(MÓDULO:|PROCESSO:)\s*/i, "")}
+                    </p>
+                    <p className="text-[10px] text-slate-400 leading-tight">
+                      {complete ? "Concluído" : partial ? `${answered}/${total}` : total > 0 ? `${total} perguntas` : "—"}
+                    </p>
+                  </div>
+                </button>
+                {/* Linha conectora entre etapas */}
+                {!isLast && (
+                  <div
+                    className={`w-6 md:w-10 h-0.5 mx-1 rounded-full transition-colors ${
+                      complete || idx < safeIndex ? "bg-green-400" : "bg-slate-200"
+                    }`}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Progress bar */}
@@ -575,39 +568,18 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
           Anterior
         </button>
 
-        <div className="flex items-center gap-3">
-          {!isScopeComplete() && safeIndex === totalModules - 1 && (
-            <span className="flex items-center gap-1.5 text-xs text-amber-600">
-              <AlertCircle className="w-3.5 h-3.5" />
-              Pendências em módulos anteriores
-            </span>
-          )}
-          <span className="text-xs text-slate-400">
-            {safeIndex + 1} / {totalModules}
-          </span>
-        </div>
+        <span className="text-xs text-slate-400">
+          {safeIndex + 1} / {totalModules}
+        </span>
 
-        {safeIndex === totalModules - 1 ? (
-          <button
-            onClick={handleConclude}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
-              isScopeComplete()
-                ? "bg-green-600 text-white hover:bg-green-700"
-                : "border border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
-            }`}
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            Concluir Escopo
-          </button>
-        ) : (
-          <button
-            onClick={() => setCurrentIndex(i => Math.min(totalModules - 1, i + 1))}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-blue-600 bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-          >
-            Próximo
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        )}
+        <button
+          onClick={() => setCurrentIndex(i => Math.min(totalModules - 1, i + 1))}
+          disabled={safeIndex === totalModules - 1}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-blue-600 bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          Próximo
+          <ChevronRight className="w-4 h-4" />
+        </button>
       </div>
     </div>
   );
