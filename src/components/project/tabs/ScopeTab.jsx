@@ -4,7 +4,7 @@ import { SCOPE_MODULES, getModuleQuestions, isModuleVisible } from "@/lib/scopeT
 import { generateScopePDF } from "@/lib/scopePdfExport";
 import { downloadScopeTemplatePDF } from "@/lib/scopeTemplatePdfExport";
 import ScopeItemRow from "@/components/project/tabs/ScopeItemRow";
-import { ChevronLeft, ChevronRight, Plus, Minus, FileDown, Check, LayoutList, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Minus, FileDown, Check, LayoutList, RefreshCw, Maximize2, Minimize2, AlertCircle } from "lucide-react";
 import ScopeSyncModal from "@/components/project/tabs/ScopeSyncModal.jsx";
 import { logAudit } from "@/lib/auditLog";
 
@@ -181,11 +181,14 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
   const sankhyaAutoVisible = origin === sankhyaMod?.autoShowWhen?.value;
   const sankhyaManualEnabled = manualOverrides[SANKHYA_KEY] === true;
 
-  // Current module index (stepper)
+  // Current module index (stepper) — navega por TODOS os módulos (effectiveModules)
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showSyncModal, setShowSyncModal] = useState(false);
-  // Clamp index when visible modules change
-  const safeIndex = Math.min(currentIndex, Math.max(0, visibleModules.length - 1));
+  // Clamp index against all modules (navegação livre por todos os módulos)
+  const safeIndex = Math.min(currentIndex, Math.max(0, effectiveModules.length - 1));
+
+  // Helper: verifica se um módulo está contratado/visível para o projeto
+  const isModActive = (mod) => isModuleVisible(mod, contractedModules, origin, manualOverrides);
 
   const saveOverrides = (overrides) => {
     localStorage.setItem(`scope_overrides_${projectId}`, JSON.stringify(overrides));
@@ -340,23 +343,19 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
     return getCountableQuestions(mod).filter(q => localAnswers[q.id]?.answer).length;
   };
 
-  if (visibleModules.length === 0) {
+  if (effectiveModules.length === 0) {
     return (
       <div className="text-center py-12 text-slate-400">
-        <p className="text-sm">Nenhum módulo visível para este projeto.</p>
-        <p className="text-xs mt-1">
-          {contractedModules.length === 0
-            ? "Nenhum módulo contratado cadastrado nos Dados Iniciais. Clique em \"Editar\" na aba Dados Iniciais para adicionar."
-            : "Verifique os módulos contratados nas informações do projeto."}
-        </p>
+        <p className="text-sm">Nenhum módulo disponível.</p>
       </div>
     );
   }
 
-  const currentMod = visibleModules[safeIndex];
+  const currentMod = effectiveModules[safeIndex];
   const allCurrentQs = getCountableQuestions(currentMod);
   const answeredCurrent = getModuleAnsweredCount(currentMod);
-  const totalModules = visibleModules.length;
+  const totalModules = effectiveModules.length;
+  const currentModActive = isModActive(currentMod);
 
   return (
     <div>
@@ -424,16 +423,17 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
         </div>
       </div>
 
-      {/* Stepper visual de etapas */}
+      {/* Stepper visual de etapas — mostra TODOS os módulos */}
       <div className="mb-5">
         <div className="flex items-center gap-1 overflow-x-auto pb-2">
-          {visibleModules.map((mod, idx) => {
+          {effectiveModules.map((mod, idx) => {
             const total = getCountableQuestions(mod).length;
             const answered = getModuleAnsweredCount(mod);
-            const complete = total > 0 && answered === total;
-            const partial = answered > 0 && answered < total;
-            const active = idx === safeIndex;
-            const isLast = idx === visibleModules.length - 1;
+            const active = isModActive(mod);
+            const complete = active && total > 0 && answered === total;
+            const partial = active && answered > 0 && answered < total;
+            const isCurrent = idx === safeIndex;
+            const isLast = idx === effectiveModules.length - 1;
             return (
               <div key={mod.moduleKey} className="flex items-center shrink-0">
                 <button
@@ -443,16 +443,18 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
                   {/* Círculo numerado / check */}
                   <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all shrink-0 ${
-                      active
+                      isCurrent
                         ? "bg-blue-600 text-white ring-4 ring-blue-100 scale-110"
                         : complete
                         ? "bg-green-500 text-white group-hover:bg-green-600"
                         : partial
                         ? "bg-amber-100 text-amber-700 border-2 border-amber-300 group-hover:bg-amber-200"
-                        : "bg-slate-100 text-slate-400 border-2 border-slate-200 group-hover:bg-slate-200"
+                        : active
+                        ? "bg-slate-100 text-slate-500 border-2 border-slate-200 group-hover:bg-slate-200"
+                        : "bg-slate-50 text-slate-300 border-2 border-dashed border-slate-200 group-hover:bg-slate-100"
                     }`}
                   >
-                    {complete && !active ? (
+                    {complete && !isCurrent ? (
                       <Check className="w-4 h-4" />
                     ) : (
                       idx + 1
@@ -462,13 +464,23 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
                   <div className="hidden md:block text-left">
                     <p
                       className={`text-xs font-semibold leading-tight max-w-[140px] truncate ${
-                        active ? "text-blue-700" : complete ? "text-green-700" : partial ? "text-amber-600" : "text-slate-400"
+                        isCurrent ? "text-blue-700" : complete ? "text-green-700" : partial ? "text-amber-600" : active ? "text-slate-500" : "text-slate-300"
                       }`}
                     >
                       {mod.moduleLabel.replace(/^(MÓDULO:|PROCESSO:)\s*/i, "")}
                     </p>
-                    <p className="text-[10px] text-slate-400 leading-tight">
-                      {complete ? "Concluído" : partial ? `${answered}/${total}` : total > 0 ? `${total} perguntas` : "—"}
+                    <p className="text-[10px] leading-tight">
+                      {!active ? (
+                        <span className="text-slate-300 italic">não contratado</span>
+                      ) : complete ? (
+                        <span className="text-green-600">Concluído</span>
+                      ) : partial ? (
+                        <span className="text-amber-500">{answered}/{total}</span>
+                      ) : total > 0 ? (
+                        <span className="text-slate-400">{total} perguntas</span>
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
                     </p>
                   </div>
                 </button>
@@ -505,7 +517,21 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
         <div className="px-5 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
           <LayoutList className="w-4 h-4 text-slate-400" />
           <span className="text-sm font-semibold text-slate-700">{currentMod.moduleLabel}</span>
+          {!currentModActive && (
+            <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 border border-slate-200 italic">
+              não contratado
+            </span>
+          )}
         </div>
+
+        {!currentModActive && (
+          <div className="px-5 py-3 bg-amber-50 border-b border-amber-100 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+            <p className="text-xs text-amber-700">
+              Este módulo não está contratado para este projeto. O preenchimento é opcional — as respostas serão salvas, mas não geram entregas no TAP nem entram no PDF do escopo.
+            </p>
+          </div>
+        )}
 
         <div className="px-5 pb-5">
           {currentMod.subsections ? (
