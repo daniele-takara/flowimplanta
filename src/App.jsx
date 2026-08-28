@@ -25,6 +25,7 @@ import ClientCalcWizard from './pages/ClientCalcWizard';
 import StandaloneCalcWizard from './pages/StandaloneCalcWizard';
 import CalcRulesKanban from './pages/CalcRulesKanban';
 import AlocacaoRecursos from './pages/AlocacaoRecursos';
+import CarteiraIndividual from './pages/CarteiraIndividual';
 import WebhookConfig from './pages/WebhookConfig';
 import MonitorIntegracoes from './pages/MonitorIntegracoes';
 import AppLayout from './components/layout/AppLayout';
@@ -133,6 +134,11 @@ const AuthenticatedApp = () => {
         <Route path="/alocacao" element={
           <ProtectedRoute allowed={perms.canViewAlocacao}>
             <AlocacaoRecursos />
+          </ProtectedRoute>
+        } />
+        <Route path="/carteira" element={
+          <ProtectedRoute allowed={perms.canReadProject}>
+            <CarteiraIndividual />
           </ProtectedRoute>
         } />
       </Route>

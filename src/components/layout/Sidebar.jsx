@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, FolderKanban, Plus, Settings, GitBranch, LogOut, FileBarChart, Activity, Database, CalendarRange } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Plus, Settings, GitBranch, LogOut, FileBarChart, Activity, Database, CalendarRange, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { usePermissions } from "@/lib/usePermissions";
@@ -14,6 +14,7 @@ export default function Sidebar() {
     { icon: LayoutDashboard, label: "Dashboard", path: "/" },
     { icon: FolderKanban, label: "Projetos", path: "/projects" },
     canViewAlocacao && { icon: CalendarRange, label: "Alocação", path: "/alocacao" },
+    { icon: Briefcase, label: "Carteira Individual", path: "/carteira" },
   ].filter(Boolean);
 
   const configItems = [
