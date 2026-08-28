@@ -97,6 +97,35 @@ Deno.serve(async (req) => {
     // 4. Analista = owner do deal
     const analystName = deal.user_id?.name || "";
 
+    // 4b. Resolver IDs de usuários a partir dos nomes (gerente e analista)
+    // O ENUM do Pipedrive traz nomes curtos (ex: "Felipe"); aqui fazemos o match
+    // com o User real e preenchemos pontotel_manager_id + email automaticamente.
+    const allUsers = await base44.asServiceRole.entities.User.list();
+    function normalizeName(s: string): string {
+      return (s || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+    }
+    function resolveUserByName(name: string): { id: string; email: string; full_name: string } | null {
+      if (!name) return null;
+      const normN = normalizeName(name);
+      if (!normN) return null;
+      // 1. Match exato normalizado
+      const exact = (allUsers || []).filter(u => normalizeName(u.full_name) === normN);
+      if (exact.length === 1) return { id: exact[0].id, email: exact[0].email, full_name: exact[0].full_name };
+      if (exact.length > 1) return null; // ambíguo — não resolve
+      // 2. Match parcial: nome do Pipedrive é substring do full_name do User
+      //    (ex: "Felipe" → "Felipe Chaves"). Só resolve se houver exatamente 1 candidato.
+      const partial = (allUsers || []).filter(u => {
+        const normFull = normalizeName(u.full_name);
+        return normFull.includes(normN) && normN.length >= 3;
+      });
+      if (partial.length === 1) return { id: partial[0].id, email: partial[0].email, full_name: partial[0].full_name };
+      return null;
+    }
+    const managerUser = resolveUserByName(gerenteName);
+    const analystUser = resolveUserByName(analystName);
+    if (managerUser) console.log(`[syncPipedriveData] Gerente resolvido: "${gerenteName}" → ${managerUser.full_name} (id=${managerUser.id})`);
+    if (analystUser) console.log(`[syncPipedriveData] Analista resolvido: "${analystName}" → ${analystUser.full_name} (id=${analystUser.id})`);
+
     // 5. Canal → Origem
     const canal = normalizeField(org?.["64fcc82db764fdd7f6bbc3add7735d6751bb5935"]);
     const origin = normalizeOrigin(canal);
@@ -241,10 +270,14 @@ Deno.serve(async (req) => {
       planned_end_date: extractDate(deal.expected_close_date) || undefined,
       // Deal.88d64f... → aligned_end_date
       aligned_end_date: extractDate(deal["88d64f1a3b63ae0b5f7df83305a918dbec8503dd"]) || undefined,
-      // Deal.user_id → pontotel_analyst_name
-      pontotel_analyst_name: analystName || undefined,
-      // Deal.30e71c... → pontotel_manager_name
-      pontotel_manager_name: gerenteName || undefined,
+      // Deal.user_id → pontotel_analyst_name (usa full_name canônico se resolveu User)
+      pontotel_analyst_name: analystUser?.full_name || analystName || undefined,
+      pontotel_analyst_id: analystUser?.id || undefined,
+      pontotel_analyst_email: analystUser?.email || undefined,
+      // Deal.30e71c... → pontotel_manager_name (usa full_name canônico se resolveu User)
+      pontotel_manager_name: managerUser?.full_name || gerenteName || undefined,
+      pontotel_manager_id: managerUser?.id || undefined,
+      pontotel_manager_email: managerUser?.email || undefined,
       // Org.Canal → origin
       origin: origin || undefined,
       // Org.lar21 → lar21

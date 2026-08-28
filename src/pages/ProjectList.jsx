@@ -11,6 +11,8 @@ import { usePermissions } from "@/lib/usePermissions";
 
 const STATUS_OPTIONS = ["Todos", "Em aberto", "Em andamento", "Concluído", "Perdido", "Pausado"];
 
+const normalize = (s) => (s || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+
 export default function ProjectList() {
   const { user } = useAuth();
   const { canCreateProject, canDeleteProject } = usePermissions();
@@ -93,11 +95,12 @@ export default function ProjectList() {
         (p.name || "").toLowerCase().includes(searchLower) ||
         (p.id || "").toLowerCase().includes(searchLower);
       const matchStatus = filterStatus === "Todos" || p.status === filterStatus;
+      const normUserName = normalize(currentUserName);
       const matchMy = !myProjects || (
         (p.pontotel_manager_id && p.pontotel_manager_id === currentUserId) ||
         (p.pontotel_analyst_id && p.pontotel_analyst_id === currentUserId) ||
-        (!p.pontotel_manager_id && p.pontotel_manager_name && p.pontotel_manager_name === currentUserName) ||
-        (!p.pontotel_analyst_id && p.pontotel_analyst_name && p.pontotel_analyst_name === currentUserName)
+        (!p.pontotel_manager_id && p.pontotel_manager_name && normalize(p.pontotel_manager_name) === normUserName) ||
+        (!p.pontotel_analyst_id && p.pontotel_analyst_name && normalize(p.pontotel_analyst_name) === normUserName)
       );
       const matchManager = filterManagers.length === 0 || filterManagers.includes(managerKey(p));
       const matchAnalyst = filterAnalysts.length === 0 || filterAnalysts.includes(analystKey(p));

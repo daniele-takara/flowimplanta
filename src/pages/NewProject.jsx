@@ -25,6 +25,15 @@ export default function NewProject() {
     setSaving(true);
     setError(null);
     try {
+      // Verifica se já existe projeto com o mesmo pipedrive_deal_id
+      const existing = await base44.entities.Project.filter({ pipedrive_deal_id: numId });
+      if (existing.length > 0) {
+        const existingProject = existing[0];
+        setError(`Já existe um projeto "${existingProject.name}" vinculado ao deal #${numId}. Redirecionando...`);
+        setTimeout(() => navigate(`/projects/${existingProject.id}`), 1500);
+        return;
+      }
+
       const project = await base44.entities.Project.create({
         name: `Projeto #${numId}`,
         client_name: "—",
