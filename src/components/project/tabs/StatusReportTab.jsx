@@ -557,20 +557,24 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         });
       } catch {}
 
-      // Carregar overrides de fases e fases locais para sincronizar com o cronograma real
+      // Carregar overrides de fases, fases locais e ATIVIDADES do banco
+      // (atividades frescas = fonte da verdade do progresso, evita dados stale do prop)
       let phaseOverridesMap = {};
       let localPhases = [];
+      let freshActivities = savedActivities || [];
       try {
-        const [phaseOverrideList, localPhaseList] = await Promise.all([
+        const [phaseOverrideList, localPhaseList, activityList] = await Promise.all([
           base44.entities.SchedulePhaseOverride.filter({ project_id: projectId }),
           base44.entities.LocalSchedulePhase.filter({ project_id: projectId }),
+          base44.entities.ScheduleActivity.filter({ project_id: projectId }),
         ]);
         (phaseOverrideList || []).forEach(o => { phaseOverridesMap[o.phase_name] = o; });
         localPhases = (localPhaseList || []).filter(p => p.is_active !== false);
+        if (activityList && activityList.length > 0) freshActivities = activityList;
       } catch {}
 
       const { macroPhases: phases, overallProgress: progress } = computeMacroSchedule(
-        overrides, answersMap, freshProject, savedActivities || [], phaseOverridesMap, localPhases
+        overrides, answersMap, freshProject, freshActivities, phaseOverridesMap, localPhases
       );
       setMacroPhases(phases);
       setOverallProgress(progress);
