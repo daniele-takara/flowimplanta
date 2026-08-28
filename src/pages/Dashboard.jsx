@@ -9,6 +9,7 @@ import {
   LayoutDashboard, FolderKanban, CheckCircle2, AlertTriangle, Clock, Plus,
   TrendingUp, Users, ChevronRight, Filter
 } from "lucide-react";
+import CarteiraIndividual from "@/pages/CarteiraIndividual";
 
 export default function Dashboard() {
   const [filterStatus, setFilterStatus] = useState("Todos");
@@ -195,6 +196,9 @@ export default function Dashboard() {
           </table>
         </div>
       </div>
+
+      {/* Carteira Individual */}
+      <CarteiraIndividual />
     </div>
   );
 }

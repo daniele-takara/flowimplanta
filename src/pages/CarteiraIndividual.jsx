@@ -84,13 +84,13 @@ export default function CarteiraIndividual() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      {/* Header */}
+    <div className="mt-8 pt-8 border-t border-slate-200">
+      {/* Section header */}
       <div className="flex items-center gap-2 text-slate-400 text-sm mb-1">
         <Briefcase className="w-4 h-4" />
         <span>Carteira Individual</span>
       </div>
-      <h1 className="text-2xl font-bold text-slate-800 mb-5">Carteira Individual</h1>
+      <h2 className="text-xl font-bold text-slate-800 mb-5">Carteira Individual</h2>
 
       {/* Seletor de papel + chips de pessoas */}
       <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm mb-6">
