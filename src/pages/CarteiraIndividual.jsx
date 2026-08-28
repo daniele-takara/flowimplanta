@@ -11,6 +11,7 @@ import { computeCurrentStage } from "@/lib/computeCurrentStage";
 export default function CarteiraIndividual() {
   const [role, setRole] = useState("manager");
   const [selectedPerson, setSelectedPerson] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("all");
   const [projects, setProjects] = useState([]);
   const [activities, setActivities] = useState([]);
   const [assignees, setAssignees] = useState({ managers: [], analysts: [] });
@@ -59,15 +60,22 @@ export default function CarteiraIndividual() {
     return projects.filter(p => p[idField] === selectedPerson);
   }, [selectedPerson, projects, idField, unassignedProjects]);
 
+  // Projetos filtrados por status (para tabelas e gráficos)
+  const statusFilteredProjects = useMemo(() => {
+    if (statusFilter === "all") return filteredProjects;
+    if (statusFilter === "ativos") return filteredProjects.filter(p => ["Em andamento", "Em aberto"].includes(p.status));
+    return filteredProjects.filter(p => p.status === statusFilter);
+  }, [filteredProjects, statusFilter]);
+
   // Distribuição por etapa
   const stageCounts = useMemo(() => {
     const counts = {};
-    filteredProjects.forEach(p => {
+    statusFilteredProjects.forEach(p => {
       const { stage } = computeCurrentStage(p, activities);
       counts[stage] = (counts[stage] || 0) + 1;
     });
     return counts;
-  }, [filteredProjects, activities]);
+  }, [statusFilteredProjects, activities]);
 
   const selectedPersonName = useMemo(() => {
     if (!selectedPerson) return null;
@@ -111,7 +119,7 @@ export default function CarteiraIndividual() {
 
           {/* Cards de resumo */}
           <div className="mb-6">
-            <SummaryCards projects={filteredProjects} />
+            <SummaryCards projects={filteredProjects} onFilter={setStatusFilter} activeFilter={statusFilter} />
           </div>
 
           {/* Gráfico de distribuição por etapa */}
@@ -121,11 +129,11 @@ export default function CarteiraIndividual() {
 
           {/* Próximos de encerramento */}
           <div className="mb-6">
-            <ClosingSoonTable projects={filteredProjects} activities={activities} />
+            <ClosingSoonTable projects={statusFilteredProjects} activities={activities} />
           </div>
 
           {/* Todos os projetos */}
-          <AllProjectsTable projects={filteredProjects} activities={activities} assignees={assignees} />
+          <AllProjectsTable projects={statusFilteredProjects} activities={activities} assignees={assignees} />
         </>
       )}
     </div>
