@@ -7,11 +7,12 @@ import ProgressBar from "@/components/ui/ProgressBar";
 import { formatDate, formatCurrency, phaseColor } from "@/lib/utils";
 import {
   LayoutDashboard, FolderKanban, CheckCircle2, AlertTriangle, Clock, Plus,
-  TrendingUp, Users, ChevronRight, Filter
+  TrendingUp, Users, ChevronRight, Filter, Briefcase
 } from "lucide-react";
 import CarteiraIndividual from "@/pages/CarteiraIndividual";
 
 export default function Dashboard() {
+  const [view, setView] = useState("portfolio");
   const [filterStatus, setFilterStatus] = useState("Todos");
   const [filterManager, setFilterManager] = useState("Todos");
   const [projects, setProjects] = useState([]);
@@ -60,19 +61,57 @@ export default function Dashboard() {
             <LayoutDashboard className="w-4 h-4" />
             <span>Dashboard</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">Portfólio de Implantações</h1>
-          <p className="text-slate-400 text-sm mt-1">Visão consolidada de todos os projetos</p>
+          <h1 className="text-2xl font-bold text-slate-800">
+            {view === "portfolio" ? "Portfólio de Implantações" : "Carteira Individual"}
+          </h1>
+          <p className="text-slate-400 text-sm mt-1">
+            {view === "portfolio" ? "Visão consolidada de todos os projetos" : "Gestão segmentada por colaborador"}
+          </p>
         </div>
-        <Link
-          to="/projects/new"
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Novo Projeto
-        </Link>
+        {view === "portfolio" && (
+          <Link
+            to="/projects/new"
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Novo Projeto
+          </Link>
+        )}
       </div>
 
-      {/* Stats Grid */}
+      {/* Layout com menu lateral interno */}
+      <div className="flex gap-6">
+        <aside className="w-56 shrink-0">
+          <nav className="bg-white rounded-xl border border-slate-200 p-2 space-y-1 sticky top-4">
+            <button
+              onClick={() => setView("portfolio")}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border ${
+                view === "portfolio"
+                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                  : "text-slate-600 hover:bg-slate-50 border-transparent"
+              }`}
+            >
+              <LayoutDashboard className="w-4 h-4 shrink-0" />
+              <span className="text-left">Portfólio de Implantações</span>
+            </button>
+            <button
+              onClick={() => setView("carteira")}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border ${
+                view === "carteira"
+                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                  : "text-slate-600 hover:bg-slate-50 border-transparent"
+              }`}
+            >
+              <Briefcase className="w-4 h-4 shrink-0" />
+              <span className="text-left">Carteira Individual</span>
+            </button>
+          </nav>
+        </aside>
+
+        <div className="flex-1 min-w-0">
+          {view === "portfolio" && (
+            <>
+              {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatsCard title="Total de Projetos" value={stats.total} icon={FolderKanban} color="blue" subtitle={`${formatCurrency(stats.totalMRR)} MRR total`} />
         <StatsCard title="Em Andamento" value={stats.inProgress} icon={Clock} color="blue" subtitle={`${Math.round(stats.inProgress / stats.total * 100)}% do portfólio`} />
@@ -195,10 +234,12 @@ export default function Dashboard() {
             </tbody>
           </table>
         </div>
+            </div>
+          </>
+          )}
+          {view === "carteira" && <CarteiraIndividual />}
+        </div>
       </div>
-
-      {/* Carteira Individual */}
-      <CarteiraIndividual />
     </div>
   );
 }
