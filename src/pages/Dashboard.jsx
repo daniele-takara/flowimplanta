@@ -6,8 +6,8 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import ProgressBar from "@/components/ui/ProgressBar";
 import { formatDate, formatCurrency, phaseColor } from "@/lib/utils";
 import {
-  LayoutDashboard, FolderKanban, CheckCircle2, AlertTriangle, Clock, Plus,
-  TrendingUp, Users, ChevronRight, Filter, Briefcase
+  LayoutDashboard, FolderKanban, CheckCircle2, Plus,
+  TrendingUp, Users, ChevronRight, Filter, Briefcase, Activity, Pause
 } from "lucide-react";
 import CarteiraIndividual from "@/pages/CarteiraIndividual";
 
@@ -35,19 +35,19 @@ export default function Dashboard() {
 
   const stats = {
     total: projects.length,
-    inProgress: projects.filter(p => p.status === "Em andamento").length,
+    ativos: projects.filter(p => ["Em andamento", "Em aberto"].includes(p.status)).length,
     completed: projects.filter(p => p.status === "Concluído").length,
-    lost: projects.filter(p => p.status === "Perdido").length,
     paused: projects.filter(p => p.status === "Pausado").length,
     totalMRR: projects.reduce((acc, p) => acc + (p.mrr || 0), 0),
     totalEmployees: projects.reduce((acc, p) => acc + (p.contracted_employees || 0), 0)
   };
 
   const managers = ["Todos", ...new Set(projects.map(p => p.pontotel_manager_name).filter(Boolean))];
-  const statuses = ["Todos", "Em aberto", "Em andamento", "Concluído", "Perdido", "Pausado"];
+  const statuses = ["Todos", "Ativos", "Em aberto", "Em andamento", "Concluído", "Perdido", "Pausado"];
 
   const filtered = projects.filter(p => {
-    const matchStatus = filterStatus === "Todos" || p.status === filterStatus;
+    const matchStatus = filterStatus === "Todos" ||
+      (filterStatus === "Ativos" ? ["Em andamento", "Em aberto"].includes(p.status) : p.status === filterStatus);
     const matchManager = filterManager === "Todos" || p.pontotel_manager_name === filterManager;
     return matchStatus && matchManager;
   });
@@ -113,10 +113,10 @@ export default function Dashboard() {
             <>
               {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatsCard title="Total de Projetos" value={stats.total} icon={FolderKanban} color="blue" subtitle={`${formatCurrency(stats.totalMRR)} MRR total`} />
-        <StatsCard title="Em Andamento" value={stats.inProgress} icon={Clock} color="blue" subtitle={`${Math.round(stats.inProgress / stats.total * 100)}% do portfólio`} />
-        <StatsCard title="Concluídos" value={stats.completed} icon={CheckCircle2} color="green" subtitle="No período atual" />
-        <StatsCard title="Perdidos / Pausados" value={stats.lost + stats.paused} icon={AlertTriangle} color="red" subtitle={`${stats.lost} perdidos · ${stats.paused} pausados`} />
+        <StatsCard title="Total de Projetos" value={stats.total} icon={FolderKanban} color="blue" subtitle={`${formatCurrency(stats.totalMRR)} MRR total`} onClick={() => setFilterStatus("Todos")} active={filterStatus === "Todos"} />
+        <StatsCard title="Ativos" value={stats.ativos} icon={Activity} color="purple" subtitle={`${Math.round(stats.ativos / stats.total * 100)}% do portfólio`} onClick={() => setFilterStatus("Ativos")} active={filterStatus === "Ativos"} />
+        <StatsCard title="Pausados" value={stats.paused} icon={Pause} color="orange" subtitle="Projetos pausados" onClick={() => setFilterStatus("Pausado")} active={filterStatus === "Pausado"} />
+        <StatsCard title="Concluídos" value={stats.completed} icon={CheckCircle2} color="green" subtitle="No período atual" onClick={() => setFilterStatus("Concluído")} active={filterStatus === "Concluído"} />
       </div>
 
       {/* Secondary stats */}
