@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { CalendarClock, CalendarX, CalendarOff, Filter } from "lucide-react";
+import { CalendarClock, CalendarX, CalendarDays, Filter } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
+import MultiSelectFilter from "@/components/project/MultiSelectFilter";
 import { computeCurrentStage } from "@/lib/computeCurrentStage";
 
 const CATEGORIES = [
@@ -25,7 +26,7 @@ const CATEGORIES = [
     key: "sem_atualizacao",
     label: "Sem atualização de cronograma",
     color: "#6366f1",
-    icon: CalendarOff,
+    icon: CalendarDays,
     description: "Cronograma planejado, mas sem nenhum avanço de execução registrado",
   },
 ];
@@ -61,7 +62,7 @@ export default function CronogramaDashboard({ projects, inProgressActivities }) 
   const [allActivities, setAllActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterManager, setFilterManager] = useState("Todos");
-  const [filterStatus, setFilterStatus] = useState("Todos");
+  const [filterStatus, setFilterStatus] = useState([]);
   const [filterCategory, setFilterCategory] = useState("Todos");
 
   useEffect(() => {
@@ -75,12 +76,19 @@ export default function CronogramaDashboard({ projects, inProgressActivities }) 
     () => ["Todos", ...new Set(projects.map(p => p.pontotel_manager_name).filter(Boolean))],
     [projects]
   );
-  const statuses = ["Todos", "Ativos", "Em aberto", "Em andamento", "Concluído", "Perdido", "Pausado"];
+  const statusOptions = [
+    { value: "Ativos", label: "Ativos (Em aberto + Em andamento)" },
+    { value: "Em aberto", label: "Em aberto" },
+    { value: "Em andamento", label: "Em andamento" },
+    { value: "Concluído", label: "Concluído" },
+    { value: "Perdido", label: "Perdido" },
+    { value: "Pausado", label: "Pausado" },
+  ];
 
   const filteredProjects = useMemo(() => {
     return projects.filter(p => {
-      const matchStatus = filterStatus === "Todos" ||
-        (filterStatus === "Ativos" ? ["Em andamento", "Em aberto"].includes(p.status) : p.status === filterStatus);
+      const matchStatus = filterStatus.length === 0 ||
+        filterStatus.some(s => s === "Ativos" ? ["Em andamento", "Em aberto"].includes(p.status) : p.status === s);
       const matchManager = filterManager === "Todos" || p.pontotel_manager_name === filterManager;
       return matchStatus && matchManager;
     });
@@ -140,13 +148,13 @@ export default function CronogramaDashboard({ projects, inProgressActivities }) 
         </div>
         <div className="flex items-center gap-2">
           <label className="text-xs text-slate-400">Status</label>
-          <select
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value)}
-            className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {statuses.map(s => <option key={s}>{s}</option>)}
-          </select>
+          <MultiSelectFilter
+            label="Status"
+            options={statusOptions}
+            selected={filterStatus}
+            onChange={setFilterStatus}
+            accentColor="blue"
+          />
         </div>
         <div className="flex items-center gap-2">
           <label className="text-xs text-slate-400">Categoria</label>
