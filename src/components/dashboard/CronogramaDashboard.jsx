@@ -65,24 +65,6 @@ export default function CronogramaDashboard({ projects, inProgressActivities }) 
   const [filterStatus, setFilterStatus] = useState([]);
   const [filterCategory, setFilterCategory] = useState("Todos");
 
-  useEffect(() => {
-    if (filteredProjects.length === 0) {
-      setAllActivities([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const projectIds = filteredProjects.map(p => p.id);
-    Promise.all(
-      projectIds.map(id =>
-        base44.entities.ScheduleActivity.filter({ project_id: id }).catch(() => [])
-      )
-    )
-      .then(results => setAllActivities(results.flat()))
-      .catch(() => setAllActivities([]))
-      .finally(() => setLoading(false));
-  }, [filteredProjects]);
-
   const managers = useMemo(
     () => ["Todos", ...new Set(projects.map(p => p.pontotel_manager_name).filter(Boolean))],
     [projects]
@@ -104,6 +86,25 @@ export default function CronogramaDashboard({ projects, inProgressActivities }) 
       return matchStatus && matchManager;
     });
   }, [projects, filterStatus, filterManager]);
+
+  // Busca atividades apenas dos projetos filtrados (sem limite global de 500)
+  useEffect(() => {
+    if (filteredProjects.length === 0) {
+      setAllActivities([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const projectIds = filteredProjects.map(p => p.id);
+    Promise.all(
+      projectIds.map(id =>
+        base44.entities.ScheduleActivity.filter({ project_id: id }).catch(() => [])
+      )
+    )
+      .then(results => setAllActivities(results.flat()))
+      .catch(() => setAllActivities([]))
+      .finally(() => setLoading(false));
+  }, [filteredProjects]);
 
   // Classifica cada projeto filtrado
   const classified = useMemo(
