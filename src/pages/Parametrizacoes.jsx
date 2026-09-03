@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import {
   FileText, Users, LayoutTemplate, Plus, Pencil, Trash2, Copy,
   CheckCircle, XCircle, Filter, Scale, Settings, DollarSign,
-  Mail, ChevronRight, Shield, Zap, Type, Database, X, Bot
+  Mail, ChevronRight, Shield, Zap, Type, Database, X, Bot, KeyRound
 } from "lucide-react";
 import { ADENDO_VARIABLES, CATEGORY_LABELS } from "@/lib/adendoVariables";
 import TabUsuarios from "@/components/parametrizacoes/TabUsuarios";
@@ -12,6 +12,7 @@ import TabCronogramaTemplate from "@/components/parametrizacoes/TabCronogramaTem
 import TabEscopoTemplate from "@/components/parametrizacoes/TabEscopoTemplate";
 import TabIntegracaoPipedrive from "@/components/parametrizacoes/TabIntegracaoPipedrive";
 import TabAgenteCronograma from "@/components/parametrizacoes/TabAgenteCronograma";
+import TabApiParceiros from "@/components/parametrizacoes/TabApiParceiros";
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -553,6 +554,7 @@ const TABS = [
   { id: "templates",   label: "Templates",            icon: LayoutTemplate, description: "Estrutura dos documentos" },
   { id: "pipedrive",   label: "Integração Pipedrive", icon: Zap,            description: "Webhook e automações" },
   { id: "agente",      label: "Agente de Cronograma", icon: Bot,            description: "IA assistente de datas" },
+  { id: "api",         label: "API Parceiros",        icon: KeyRound,      description: "Chaves de acesso externo" },
 ];
 
 export default function Parametrizacoes() {
@@ -586,6 +588,7 @@ export default function Parametrizacoes() {
       {activeTab === "templates"   && <TabTemplates />}
       {activeTab === "pipedrive"   && <TabIntegracaoPipedrive />}
       {activeTab === "agente"      && <TabAgenteCronograma />}
+      {activeTab === "api"         && <TabApiParceiros />}
     </div>
   );
 }

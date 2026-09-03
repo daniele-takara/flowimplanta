@@ -1,0 +1,53 @@
+{
+  "name": "PartnerApiKey",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome/identifica\u00e7\u00e3o do parceiro"
+    },
+    "api_key": {
+      "type": "string",
+      "description": "Chave de API est\u00e1tica (prefixo ptl_ + hex)"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true,
+      "description": "false = chave desativada (retorna 401 na API)"
+    },
+    "last_used_at": {
+      "type": "string",
+      "description": "ISO datetime do \u00faltimo uso da chave na API"
+    },
+    "last_used_ip": {
+      "type": "string",
+      "description": "IP do \u00faltimo uso da chave na API"
+    }
+  },
+  "required": [
+    "name",
+    "api_key"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
