@@ -1,40 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-async function fetchWithRetry(url, retries = 3, delayMs = 3000) {
-  for (let i = 0; i < retries; i++) {
-    const res = await fetch(url);
-    if (res.status === 429) { await sleep(delayMs); continue; }
-    const text = await res.text();
-    try { return JSON.parse(text); } catch { return {}; }
-  }
-  return {};
-}
-
-function extractDate(val) {
-  if (!val) return "";
-  return String(val).substring(0, 10);
-}
-
-function normalizeOrigin(val) {
-  const map = {
-    "pontotel": "Pontotel",
-    "parceiro": "Parceiro",
-    "indicação": "Indicação", "indicacao": "Indicação",
-    "inbound": "Inbound",
-    "outbound": "Outbound",
-    // "Sankhya" no campo Canal indica origem via parceiro Sankhya → mapeado para "Parceiro"
-    "sankhya": "Parceiro",
-  };
-  return map[(val || "").toLowerCase().trim()] || "";
-}
-
-function normalizeField(val) {
-  if (!val) return "";
-  if (typeof val === "object" && val.name) return val.name;
-  return String(val).trim();
-}
+import {
+  sleep, fetchWithRetry, extractDate, normalizeField, normalizeOrigin,
+  norm, normalizeName, resolveModule, resolveUserByName,
+  OFFICIAL_MODULES, MODULE_ALIASES,
+} from "../../shared/pipedriveUtils.ts";
 
 Deno.serve(async (req) => {
   try {
@@ -101,28 +70,8 @@ Deno.serve(async (req) => {
     // O ENUM do Pipedrive traz nomes curtos (ex: "Felipe"); aqui fazemos o match
     // com o User real e preenchemos pontotel_manager_id + email automaticamente.
     const allUsers = await base44.asServiceRole.entities.User.list();
-    function normalizeName(s: string): string {
-      return (s || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
-    }
-    function resolveUserByName(name: string): { id: string; email: string; full_name: string } | null {
-      if (!name) return null;
-      const normN = normalizeName(name);
-      if (!normN) return null;
-      // 1. Match exato normalizado
-      const exact = (allUsers || []).filter(u => normalizeName(u.full_name) === normN);
-      if (exact.length === 1) return { id: exact[0].id, email: exact[0].email, full_name: exact[0].full_name };
-      if (exact.length > 1) return null; // ambíguo — não resolve
-      // 2. Match parcial: nome do Pipedrive é substring do full_name do User
-      //    (ex: "Felipe" → "Felipe Chaves"). Só resolve se houver exatamente 1 candidato.
-      const partial = (allUsers || []).filter(u => {
-        const normFull = normalizeName(u.full_name);
-        return normFull.includes(normN) && normN.length >= 3;
-      });
-      if (partial.length === 1) return { id: partial[0].id, email: partial[0].email, full_name: partial[0].full_name };
-      return null;
-    }
-    const managerUser = resolveUserByName(gerenteName);
-    const analystUser = resolveUserByName(analystName);
+    const managerUser = resolveUserByName(gerenteName, allUsers);
+    const analystUser = resolveUserByName(analystName, allUsers);
     if (managerUser) console.log(`[syncPipedriveData] Gerente resolvido: "${gerenteName}" → ${managerUser.full_name} (id=${managerUser.id})`);
     if (analystUser) console.log(`[syncPipedriveData] Analista resolvido: "${analystName}" → ${analystUser.full_name} (id=${analystUser.id})`);
 
@@ -138,67 +87,8 @@ Deno.serve(async (req) => {
     // Mapa canônico: normaliza QUALQUER variação de nome de módulo que venha do Pipedrive
     // para o nome exato esperado pelo sistema (contractedModules enum do Base44).
     // Chaves: lowercase + sem acentos (NFD stripped). Valores: nome canônico exato.
-    // ── Módulos oficiais do sistema ─────────────────────────────────────────────
-    const OFFICIAL_MODULES = [
-      "Registro de Ponto",
-      "Redução de Riscos no Registro",
-      "Cálculos e Tratamento",
-      "Gestão de Ponto Participativa",
-      "Controle de Custos",
-      "Gestão de Férias e Ausências",
-      "Timesheet",
-    ];
-
-    // Aliases conhecidos: nome não-oficial → nome canônico oficial
-    // Qualquer entrada aqui representa um cadastro fora do padrão no Pipedrive.
-    const MODULE_ALIASES = {
-      // Registro de Ponto
-      "ponto eletronico": "Registro de Ponto",
-      "ponto eletrônico": "Registro de Ponto",
-      "registro ponto": "Registro de Ponto",
-      "ponto": "Registro de Ponto",
-      // Redução de Riscos no Registro
-      "reducao de riscos": "Redução de Riscos no Registro",
-      "reducao riscos registro": "Redução de Riscos no Registro",
-      // Cálculos e Tratamento
-      "calculos e fechamento": "Cálculos e Tratamento",   // ← alias histórico principal
-      "calculos fechamento": "Cálculos e Tratamento",
-      "calculo e tratamento": "Cálculos e Tratamento",
-      "calculo e fechamento": "Cálculos e Tratamento",
-      "banco de horas": "Cálculos e Tratamento",
-      "tratamento de ponto": "Cálculos e Tratamento",
-      // Gestão de Ponto Participativa
-      "gestao participativa": "Gestão de Ponto Participativa",
-      "ponto participativo": "Gestão de Ponto Participativa",
-      // Controle de Custos
-      "controle custos": "Controle de Custos",
-      "custos": "Controle de Custos",
-      // Gestão de Férias e Ausências
-      "gestao de ferias": "Gestão de Férias e Ausências",
-      "ferias e ausencias": "Gestão de Férias e Ausências",
-      "ferias": "Gestão de Férias e Ausências",
-      "gestao ferias": "Gestão de Férias e Ausências",
-    };
-
-    function norm(s) {
-      return (s || "").toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    }
-
     // Pré-computar chaves normalizadas dos módulos oficiais para lookup rápido
     const OFFICIAL_NORMS = OFFICIAL_MODULES.map(m => ({ original: m, normed: norm(m) }));
-
-    // Retorna { canonical, isAlias, isUnknown }
-    function resolveModule(raw) {
-      const key = norm(raw);
-      // 1. Match exato com nome oficial (caso correto)
-      const exactMatch = OFFICIAL_NORMS.find(o => o.normed === key);
-      if (exactMatch) return { canonical: exactMatch.original, isAlias: false, isUnknown: false };
-      // 2. Match com alias conhecido (cadastro fora do padrão, mas normalizável)
-      const aliasCanonical = MODULE_ALIASES[key];
-      if (aliasCanonical) return { canonical: aliasCanonical, isAlias: true, isUnknown: false };
-      // 3. Desconhecido — não normalizar silenciosamente
-      return { canonical: null, isAlias: false, isUnknown: true };
-    }
 
     let contractedModules = [];
     const moduleAlerts = [];   // alertas de divergência para retornar ao frontend
