@@ -120,6 +120,32 @@ export default function TabApiParceiros() {
         <p className="text-xs text-slate-400 mt-2">
           Parâmetros opcionais: <code className="text-slate-500">?id=&lt;projectId&gt;</code> ou <code className="text-slate-500">?cnpj=&lt;cnpj&gt;</code> para consultar um projeto específico.
         </p>
+
+        {/* Formato da resposta */}
+        <div className="mt-4 pt-4 border-t border-slate-200">
+          <span className="text-xs font-semibold text-slate-500">Formato da resposta</span>
+          <p className="text-xs text-slate-400 mt-1 mb-2">
+            Sem parâmetros → <strong>array</strong> de objetos. Com <code className="text-slate-500">?id=</code> ou <code className="text-slate-500">?cnpj=</code> → <strong>objeto único</strong>.
+          </p>
+          <pre className="text-xs text-slate-600 bg-white border border-slate-200 rounded-lg p-3 overflow-x-auto font-mono">{`[
+  {
+    "id": "abc123",
+    "cnpj": "00.000.000/0000-00",
+    "nome_cliente": "Empresa XYZ",
+    "origem": "Parceiro",
+    "status": "Em andamento",
+    "data_prevista_encerramento": "2026-12-31",
+    "gerente_projeto": {
+      "nome": "João Barbosa",
+      "email": "joao@pontotel.com.br"
+    }
+  }
+]`}</pre>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            <span className="px-2 py-1 bg-red-50 text-red-600 border border-red-200 rounded-lg font-mono">401 — chave ausente, inválida ou inativa</span>
+            <span className="px-2 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded-lg font-mono">404 — projeto não encontrado</span>
+          </div>
+        </div>
       </div>
 
       {/* Lista de chaves */}
