@@ -10,17 +10,23 @@ import {
   TrendingUp, Users, ChevronRight, Filter, Briefcase, Activity, Pause
 } from "lucide-react";
 import CarteiraIndividual from "@/pages/CarteiraIndividual";
+import ClosingSoonTable from "@/components/carteira/ClosingSoonTable";
 
 export default function Dashboard() {
   const [view, setView] = useState("portfolio");
   const [filterStatus, setFilterStatus] = useState("Todos");
   const [filterManager, setFilterManager] = useState("Todos");
   const [projects, setProjects] = useState([]);
+  const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    base44.entities.Project.list("-created_date").then(data => {
-      setProjects(data);
+    Promise.all([
+      base44.entities.Project.list("-created_date"),
+      base44.entities.ScheduleActivity.filter({ status: "Em andamento" }),
+    ]).then(([projs, acts]) => {
+      setProjects(projs);
+      setActivities(acts);
       setLoading(false);
     });
   }, []);
@@ -159,6 +165,11 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Próximos de Encerramento — projetos a 30 dias ou menos do encerramento */}
+      <div className="mb-8">
+        <ClosingSoonTable projects={projects} activities={activities} />
       </div>
 
       {/* Filters + Project list */}
