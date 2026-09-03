@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import CarteiraIndividual from "@/pages/CarteiraIndividual";
 import ClosingSoonTable from "@/components/carteira/ClosingSoonTable";
+import CronogramaDashboard from "@/components/dashboard/CronogramaDashboard";
+import { CalendarClock } from "lucide-react";
 
 export default function Dashboard() {
   const [view, setView] = useState("portfolio");
@@ -68,10 +70,10 @@ export default function Dashboard() {
             <span>Dashboard</span>
           </div>
           <h1 className="text-2xl font-bold text-slate-800">
-            {view === "portfolio" ? "Portfólio de Implantações" : "Carteira Individual"}
+            {view === "portfolio" ? "Portfólio de Implantações" : view === "carteira" ? "Carteira Individual" : "Saúde dos Cronogramas"}
           </h1>
           <p className="text-slate-400 text-sm mt-1">
-            {view === "portfolio" ? "Visão consolidada de todos os projetos" : "Gestão segmentada por colaborador"}
+            {view === "portfolio" ? "Visão consolidada de todos os projetos" : view === "carteira" ? "Gestão segmentada por colaborador" : "Acompanhamento de cronogramas do time"}
           </p>
         </div>
         {view === "portfolio" && (
@@ -110,6 +112,17 @@ export default function Dashboard() {
             >
               <Briefcase className="w-4 h-4 shrink-0" />
               <span className="text-left">Carteira Individual</span>
+            </button>
+            <button
+              onClick={() => setView("cronograma")}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border ${
+                view === "cronograma"
+                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                  : "text-slate-600 hover:bg-slate-50 border-transparent"
+              }`}
+            >
+              <CalendarClock className="w-4 h-4 shrink-0" />
+              <span className="text-left">Cronogramas</span>
             </button>
           </nav>
         </aside>
@@ -249,6 +262,7 @@ export default function Dashboard() {
           </>
           )}
           {view === "carteira" && <CarteiraIndividual />}
+          {view === "cronograma" && <CronogramaDashboard projects={projects} inProgressActivities={activities} />}
         </div>
       </div>
     </div>
