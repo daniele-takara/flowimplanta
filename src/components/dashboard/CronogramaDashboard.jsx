@@ -66,11 +66,22 @@ export default function CronogramaDashboard({ projects, inProgressActivities }) 
   const [filterCategory, setFilterCategory] = useState("Todos");
 
   useEffect(() => {
-    base44.entities.ScheduleActivity.list("-updated_date", 500)
-      .then(acts => setAllActivities(acts || []))
+    if (filteredProjects.length === 0) {
+      setAllActivities([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const projectIds = filteredProjects.map(p => p.id);
+    Promise.all(
+      projectIds.map(id =>
+        base44.entities.ScheduleActivity.filter({ project_id: id }).catch(() => [])
+      )
+    )
+      .then(results => setAllActivities(results.flat()))
       .catch(() => setAllActivities([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [filteredProjects]);
 
   const managers = useMemo(
     () => ["Todos", ...new Set(projects.map(p => p.pontotel_manager_name).filter(Boolean))],
