@@ -167,13 +167,13 @@ export default function ProjectDetail() {
       <div className="flex flex-col min-h-screen bg-slate-50">
         <div className="flex-1 p-4 md:p-8">
           <div className={activeTab === "schedule" ? "" : "max-w-6xl mx-auto"}>
-            {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} project={project} onRefresh={loadData} onScopeSaved={reloadScopeItems} readOnly={!perms.canEditScope} canUpdateTemplate={perms.canUpdateScopeTemplate} />}
+            {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} project={project} onRefresh={loadData} onScopeSaved={reloadScopeItems} onStatusPromoted={reloadProject} readOnly={!perms.canEditScope} canUpdateTemplate={perms.canUpdateScopeTemplate} />}
             {activeTab === "calc" && (
               <ProtectedRoute allowed={perms.canReadCalcRules}>
                 <CalculationRulesTab projectId={id} project={project} />
               </ProtectedRoute>
             )}
-            {activeTab === "schedule" && <ScheduleTab scopeItems={scopeItems} project={project} projectId={id} onRefresh={reloadProject} readOnly={!perms.canEditSchedule} canEditPlanned={perms.canEditSchedulePlanned} canEditExecuted={perms.canEditSchedule} canCompletePhase={perms.canCompletePhase} canRecalculate={perms.canRecalculateSchedule} canSyncPipedrive={perms.canSyncPipedriveCronograma} canAddActivity={perms.canAddScheduleActivity} canCreatePhase={perms.canCreateSchedulePhase} canEditPhase={perms.canEditSchedulePhase} canExcluirPhase={perms.canExcluirSchedulePhase} canExcluirActivity={perms.canExcluirScheduleActivity} canGeneratePDF={perms.canGenerateSchedulePDF} />}
+            {activeTab === "schedule" && <ScheduleTab scopeItems={scopeItems} project={project} projectId={id} onRefresh={reloadProject} onStatusPromoted={reloadProject} readOnly={!perms.canEditSchedule} canEditPlanned={perms.canEditSchedulePlanned} canEditExecuted={perms.canEditSchedule} canCompletePhase={perms.canCompletePhase} canRecalculate={perms.canRecalculateSchedule} canSyncPipedrive={perms.canSyncPipedriveCronograma} canAddActivity={perms.canAddScheduleActivity} canCreatePhase={perms.canCreateSchedulePhase} canEditPhase={perms.canEditSchedulePhase} canExcluirPhase={perms.canExcluirSchedulePhase} canExcluirActivity={perms.canExcluirScheduleActivity} canGeneratePDF={perms.canGenerateSchedulePDF} />}
             {activeTab === "status" && <StatusReportTab reports={reports} projectId={id} projectClientName={project.client_name} project={project} scopeItems={scopeItems} savedActivities={activities} onRefresh={reloadReports} readOnly={!perms.canEditStatusReport} canUpdate={perms.canUpdateStatusReport} canGenerateEmail={perms.canGenerateStatusReportEmail} canSyncPipedrive={perms.canSyncPipedriveStatus} />}
           </div>
         </div>
@@ -274,8 +274,8 @@ export default function ProjectDetail() {
               setProject(prev => ({ ...prev, ...updated }));
             }
           }} />}
-          {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} project={project} onRefresh={loadData} onScopeSaved={reloadScopeItems} readOnly={!perms.canEditScope} canUpdateTemplate={perms.canUpdateScopeTemplate} />}
-          {activeTab === "tap" && <TAPTab project={project} scopeItems={scopeItems} documents={documents} projectId={id} onRefresh={loadData} readOnly={!perms.canEditTAP} canGeneratePDF={perms.canGenerateTAPPDF} />}
+          {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} project={project} onRefresh={loadData} onScopeSaved={reloadScopeItems} onStatusPromoted={reloadProject} readOnly={!perms.canEditScope} canUpdateTemplate={perms.canUpdateScopeTemplate} />}
+          {activeTab === "tap" && <TAPTab project={project} scopeItems={scopeItems} documents={documents} projectId={id} onRefresh={loadData} onStatusPromoted={reloadProject} readOnly={!perms.canEditTAP} canGeneratePDF={perms.canGenerateTAPPDF} />}
           {activeTab === "schedule" && <ScheduleTab scopeItems={scopeItems} project={project} projectId={id} onRefresh={reloadProject} readOnly={!perms.canEditSchedule} canEditPlanned={perms.canEditSchedulePlanned} canEditExecuted={perms.canEditSchedule} canCompletePhase={perms.canCompletePhase} canRecalculate={perms.canRecalculateSchedule} canSyncPipedrive={perms.canSyncPipedriveCronograma} canAddActivity={perms.canAddScheduleActivity} canCreatePhase={perms.canCreateSchedulePhase} canEditPhase={perms.canEditSchedulePhase} canExcluirPhase={perms.canExcluirSchedulePhase} canExcluirActivity={perms.canExcluirScheduleActivity} canGeneratePDF={perms.canGenerateSchedulePDF} />}
           {activeTab === "status" && <StatusReportTab reports={reports} projectId={id} projectClientName={project.client_name} project={project} scopeItems={scopeItems} savedActivities={activities} onRefresh={reloadReports} readOnly={!perms.canEditStatusReport} canUpdate={perms.canUpdateStatusReport} canGenerateEmail={perms.canGenerateStatusReportEmail} canSyncPipedrive={perms.canSyncPipedriveStatus} />}
           {activeTab === "actions" && <ActionPlanTab actions={actions} projectId={id} project={project} onRefresh={loadData} readOnly={!perms.canEditActionPlan} canDelete={perms.canDeleteActionPlan} />}

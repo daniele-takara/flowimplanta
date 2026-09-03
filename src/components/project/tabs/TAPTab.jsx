@@ -12,6 +12,7 @@ import {
 import { CONTRACTED_MODULES_OPTIONS } from "@/lib/scopeTemplate";
 import { buildProjectScheduleView } from "@/lib/buildProjectScheduleView.js";
 import { logAudit } from "@/lib/auditLog";
+import { autoPromoteToInProgress } from "@/lib/autoPromoteStatus";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -485,7 +486,7 @@ function VersionBadge({ status }) {
 
 const DEBOUNCE_MS = 1500;
 
-export default function TAPTab({ project, scopeItems, documents, projectId, onRefresh, readOnly = false, canGeneratePDF = true }) {
+export default function TAPTab({ project, scopeItems, documents, projectId, onRefresh, onStatusPromoted, readOnly = false, canGeneratePDF = true }) {
   const [versions, setVersions] = useState([]);
   const [currentVersion, setCurrentVersion] = useState(null);
   const [saveStatus, setSaveStatus] = useState(null);
@@ -618,11 +619,15 @@ export default function TAPTab({ project, scopeItems, documents, projectId, onRe
       clearTimeout(savedTimerRef.current);
       savedTimerRef.current = setTimeout(() => setSaveStatus(null), 2500);
       console.log("[TAPTab] saveVersion — FIM");
+
+      // Promoção automática "Em aberto" → "Em andamento" ao editar a TAP
+      const newStatus = await autoPromoteToInProgress(projectId, project?.status);
+      if (newStatus !== project?.status && onStatusPromoted) onStatusPromoted();
     } catch (e) {
       console.error("[TAPTab] saveVersion — ERRO:", e);
       setSaveStatus("error");
     }
-  }, [currentVersion, isLocked, projectId, answersMap, participants, datas]);
+  }, [currentVersion, isLocked, projectId, answersMap, participants, datas, project?.status, onStatusPromoted]);
 
   // Ao editar após versão enviada: cria nova versão
   const createNewVersionIfNeeded = useCallback(async (formData) => {

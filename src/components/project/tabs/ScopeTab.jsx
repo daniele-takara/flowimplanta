@@ -7,6 +7,7 @@ import ScopeItemRow from "@/components/project/tabs/ScopeItemRow";
 import { ChevronLeft, ChevronRight, Plus, Minus, FileDown, Check, LayoutList, RefreshCw, Maximize2, Minimize2, AlertCircle } from "lucide-react";
 import ScopeSyncModal from "@/components/project/tabs/ScopeSyncModal.jsx";
 import { logAudit } from "@/lib/auditLog";
+import { autoPromoteToInProgress } from "@/lib/autoPromoteStatus";
 
 // Aplica overrides do banco sobre uma lista de perguntas do template estático.
 // Retorna novas perguntas com prompt/description/type/options/etc. do override quando existir.
@@ -48,7 +49,7 @@ function buildEffectiveModules(overridesMap) {
 
 const SANKHYA_KEY = "sankhya_manual_override";
 
-export default function ScopeTab({ scopeItems, projectId, project, onRefresh, onScopeSaved, readOnly = false, canUpdateTemplate = true }) {
+export default function ScopeTab({ scopeItems, projectId, project, onRefresh, onScopeSaved, onStatusPromoted, readOnly = false, canUpdateTemplate = true }) {
   // manualOverrides: { sankhya_manual_override: true/false }
   const [manualOverrides, setManualOverrides] = useState(() => {
     try {
@@ -272,6 +273,11 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
         lastSavedAt.current[questionId] = Date.now();
         pendingKeys.current.delete(questionId);
         if (onScopeSaved) onScopeSaved();
+        // Promoção automática "Em aberto" → "Em andamento" ao preencher o escopo
+        if (answer) {
+          const newStatus = await autoPromoteToInProgress(projectId, project?.status);
+          if (newStatus !== project?.status && onStatusPromoted) onStatusPromoted();
+        }
         return;
       }
       // Find question metadata from effective modules (overrides already applied)
@@ -320,6 +326,12 @@ export default function ScopeTab({ scopeItems, projectId, project, onRefresh, on
     // garantindo que TAP, Cronograma e Termo de Encerramento recebam o answersMap atualizado
     console.log(`[ScopeTab] ⏱ ${ts} handleSave — FIM → chamando onScopeSaved()`);
     if (onScopeSaved) onScopeSaved();
+
+    // Promoção automática "Em aberto" → "Em andamento" ao preencher o escopo
+    if (answer) {
+      const newStatus = await autoPromoteToInProgress(projectId, project?.status);
+      if (newStatus !== project?.status && onStatusPromoted) onStatusPromoted();
+    }
   };
 
   const isQuestionVisible = (question) => {

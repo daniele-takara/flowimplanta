@@ -20,6 +20,7 @@ import { generateSchedulePDF } from "@/lib/schedulePdfExport.js";
 import SchedulePDFColumnModal from "./schedule/SchedulePDFColumnModal.jsx";
 import { logAudit } from "@/lib/auditLog";
 import ScheduleAgentChat from "./schedule/ScheduleAgentChat.jsx";
+import { autoPromoteToInProgress } from "@/lib/autoPromoteStatus";
 
 function fmtDate(d) {
   if (!d) return "—";
@@ -698,7 +699,7 @@ function CompleteProjectButton({ onComplete }) {
 
 // ── Componente principal ────────────────────────────────────────────────────────
 export default function ScheduleTab({
-  scopeItems, project, projectId, onRefresh, readOnly = false, onSyncSuccess,
+  scopeItems, project, projectId, onRefresh, onStatusPromoted, readOnly = false, onSyncSuccess,
   canEditPlanned = true, canCompletePhase = true, canRecalculate = true, canSyncPipedrive = true,
   canEditExecuted = true, canAddActivity = true,
   canCreatePhase = true, canEditPhase = true, canExcluirPhase = true,
@@ -884,9 +885,14 @@ export default function ScheduleTab({
       base44.entities.Project.update(projectId, { schedule_overrides: nextOverrides })
         .catch(err => console.error("[ScheduleTab] Erro ao persistir schedule_overrides:", err));
 
+      // Promoção automática "Em aberto" → "Em andamento" ao editar o cronograma
+      autoPromoteToInProgress(projectId, project?.status).then(ns => {
+        if (ns !== project?.status && onStatusPromoted) onStatusPromoted();
+      });
+
       return nextOverrides;
     });
-  }, [projectId]);
+  }, [projectId, project?.status, onStatusPromoted]);
 
   const handleRemoveOverride = useCallback((taskId, field) => {
     setManualOverrides(prev => {
@@ -932,7 +938,10 @@ export default function ScheduleTab({
       setSavedActivities(prev => [...prev, created]);
       logAudit({ project_id: projectId, screen: "Cronograma", field: `Atividade (criada): ${task.activity}`, new_value: payload.status });
     }
-  }, [activitiesByTask, projectId]);
+    // Promoção automática "Em aberto" → "Em andamento" ao editar o cronograma
+    const newStatus = await autoPromoteToInProgress(projectId, project?.status);
+    if (newStatus !== project?.status && onStatusPromoted) onStatusPromoted();
+  }, [activitiesByTask, projectId, project?.status, onStatusPromoted]);
 
   const handleCompleteAsTasks = useCallback(async (tasks) => {
     await Promise.all(
