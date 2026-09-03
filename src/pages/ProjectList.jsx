@@ -4,9 +4,10 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import ProjectCard from "@/components/dashboard/ProjectCard";
 import DeleteProjectDialog from "@/components/project/DeleteProjectDialog";
-import { FolderKanban, Plus, Search, LayoutGrid, List, X, User, Trash2 } from "lucide-react";
+import { FolderKanban, Plus, Search, LayoutGrid, List, X, User, Trash2, Filter, UserCog, UserCheck } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import StatusBadge from "@/components/ui/StatusBadge";
+import MultiSelectFilter from "@/components/project/MultiSelectFilter";
 import { usePermissions } from "@/lib/usePermissions";
 
 const STATUS_OPTIONS = ["Todos", "Em aberto", "Em andamento", "Concluído", "Perdido", "Pausado"];
@@ -154,7 +155,7 @@ export default function ProjectList() {
       {/* Filters bar */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 mb-5 shadow-sm space-y-3">
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-[220px] max-w-sm">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
@@ -169,6 +170,38 @@ export default function ProjectList() {
               </button>
             )}
           </div>
+
+          <MultiSelectFilter
+            single
+            label="Status"
+            icon={Filter}
+            options={STATUS_OPTIONS.map(s => ({ value: s, label: s }))}
+            selected={filterStatus}
+            onChange={setFilterStatus}
+            emptyValue="Todos"
+          />
+
+          {managerOptions.length > 0 && (
+            <MultiSelectFilter
+              label="Gerente"
+              icon={UserCog}
+              options={managerOptions.map(key => ({ value: key, label: managerLabel(key) }))}
+              selected={filterManagers}
+              onChange={setFilterManagers}
+              accentColor="indigo"
+            />
+          )}
+
+          {analystOptions.length > 0 && (
+            <MultiSelectFilter
+              label="Analista"
+              icon={UserCheck}
+              options={analystOptions.map(key => ({ value: key, label: analystLabel(key) }))}
+              selected={filterAnalysts}
+              onChange={setFilterAnalysts}
+              accentColor="purple"
+            />
+          )}
 
           <button
             onClick={() => setMyProjects(m => !m)}
@@ -205,67 +238,15 @@ export default function ProjectList() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {STATUS_OPTIONS.map(s => (
-            <button
-              key={s}
-              onClick={() => setFilterStatus(s)}
-              className={`px-3 py-1 text-xs rounded-full font-medium border transition-colors ${
-                filterStatus === s ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-start gap-6 flex-wrap">
-          {managerOptions.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-slate-500 mb-1.5">Gerente do projeto</p>
-              <div className="flex flex-wrap gap-1.5">
-                {managerOptions.map(key => (
-                  <button
-                    key={key}
-                    onClick={() => toggleMulti(key, filterManagers, setFilterManagers)}
-                    className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-colors ${
-                      filterManagers.includes(key)
-                        ? "bg-indigo-600 text-white border-indigo-600"
-                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    {managerLabel(key)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {analystOptions.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-slate-500 mb-1.5">Analista de implantação</p>
-              <div className="flex flex-wrap gap-1.5">
-                {analystOptions.map(key => (
-                  <button
-                    key={key}
-                    onClick={() => toggleMulti(key, filterAnalysts, setFilterAnalysts)}
-                    className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-colors ${
-                      filterAnalysts.includes(key)
-                        ? "bg-purple-600 text-white border-purple-600"
-                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    {analystLabel(key)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {(filterManagers.length > 0 || filterAnalysts.length > 0) && (
+        {(filterManagers.length > 0 || filterAnalysts.length > 0 || filterStatus !== "Todos") && (
           <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-slate-100">
             <span className="text-xs text-slate-400">Filtros ativos:</span>
+            {filterStatus !== "Todos" && (
+              <span className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5">
+                Status: {filterStatus}
+                <button onClick={() => setFilterStatus("Todos")}><X className="w-3 h-3" /></button>
+              </span>
+            )}
             {filterManagers.map(k => (
               <span key={k} className="flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2 py-0.5">
                 Gerente: {managerLabel(k)}
