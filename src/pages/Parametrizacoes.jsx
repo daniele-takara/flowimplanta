@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import {
   FileText, Users, LayoutTemplate, Plus, Pencil, Trash2, Copy,
   CheckCircle, XCircle, Filter, Scale, Settings, DollarSign,
-  Mail, ChevronRight, Shield, Zap, Type, Database, X, Bot, KeyRound
+  Mail, ChevronRight, Shield, Zap, Type, Database, X, Bot, KeyRound, PauseCircle
 } from "lucide-react";
 import { ADENDO_VARIABLES, CATEGORY_LABELS } from "@/lib/adendoVariables";
 import TabUsuarios from "@/components/parametrizacoes/TabUsuarios";
@@ -13,6 +13,7 @@ import TabEscopoTemplate from "@/components/parametrizacoes/TabEscopoTemplate";
 import TabIntegracaoPipedrive from "@/components/parametrizacoes/TabIntegracaoPipedrive";
 import TabAgenteCronograma from "@/components/parametrizacoes/TabAgenteCronograma";
 import TabApiParceiros from "@/components/parametrizacoes/TabApiParceiros";
+import TabMotivosPausa from "@/components/parametrizacoes/TabMotivosPausa";
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -555,6 +556,8 @@ const TABS = [
   { id: "pipedrive",   label: "Integração Pipedrive", icon: Zap,            description: "Webhook e automações" },
   { id: "agente",      label: "Agente de Cronograma", icon: Bot,            description: "IA assistente de datas" },
   { id: "api",         label: "API Parceiros",        icon: KeyRound,      description: "Chaves de acesso externo" },
+  { id: "pausas",      label: "Motivos de Pausa",     icon: PauseCircle,   description: "Configuração de motivos" },
+  { id: "pausas",      label: "Motivos de Pausa",     icon: PauseCircle,   description: "Configuração de motivos" },
 ];
 
 export default function Parametrizacoes() {
@@ -589,6 +592,7 @@ export default function Parametrizacoes() {
       {activeTab === "pipedrive"   && <TabIntegracaoPipedrive />}
       {activeTab === "agente"      && <TabAgenteCronograma />}
       {activeTab === "api"         && <TabApiParceiros />}
+      {activeTab === "pausas"      && <TabMotivosPausa />}
     </div>
   );
 }

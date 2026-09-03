@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Users, TrendingUp, Building2, ChevronDown } from "lucide-react";
+import { ArrowLeft, Calendar, Users, TrendingUp, Building2, ChevronDown, PauseCircle } from "lucide-react";
+import { base44 } from "@/api/base44Client";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ProgressBar from "@/components/ui/ProgressBar";
 import { formatDate, formatCurrency, calcDaysLeft, phaseColor } from "@/lib/utils";
@@ -17,14 +18,39 @@ const STATUS_DOT = {
 
 export default function ProjectHeader({ project, onChangeStatus }) {
   const [statusOpen, setStatusOpen] = useState(false);
+  const [pauseReasonOpen, setPauseReasonOpen] = useState(false);
+  const [pauseReasons, setPauseReasons] = useState([]);
+  const [selectedReason, setSelectedReason] = useState("");
+  const [loadingReasons, setLoadingReasons] = useState(false);
   const daysLeft = calcDaysLeft(project.planned_end_date);
   const currentStatus = project.status || "Em aberto";
 
-  const handleStatusChange = (newStatus) => {
-    setStatusOpen(false);
-    if (newStatus !== currentStatus && onChangeStatus) {
-      onChangeStatus(newStatus);
+  const loadPauseReasons = async () => {
+    setLoadingReasons(true);
+    try {
+      const reasons = await base44.entities.PauseReason.filter({ active: true }, "order");
+      setPauseReasons(reasons || []);
+    } catch {
+      setPauseReasons([]);
     }
+    setLoadingReasons(false);
+  };
+
+  const handleStatusChange = (newStatus) => {
+    if (newStatus === currentStatus) { setStatusOpen(false); return; }
+    setStatusOpen(false);
+    if (newStatus === "Pausado") {
+      setSelectedReason(project.pause_reason || "");
+      loadPauseReasons();
+      setPauseReasonOpen(true);
+      return;
+    }
+    if (onChangeStatus) onChangeStatus(newStatus, "");
+  };
+
+  const confirmPauseReason = () => {
+    setPauseReasonOpen(false);
+    if (onChangeStatus) onChangeStatus("Pausado", selectedReason);
   };
 
   return (
@@ -43,6 +69,12 @@ export default function ProjectHeader({ project, onChangeStatus }) {
           <div className="flex items-center gap-3 flex-wrap">
             <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">{project.client_name}</p>
             <StatusBadge status={currentStatus} />
+            {currentStatus === "Pausado" && project.pause_reason && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium flex items-center gap-1">
+                <PauseCircle className="w-3 h-3" />
+                {project.pause_reason}
+              </span>
+            )}
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${phaseColor(project.current_phase)}`}>
               {project.current_phase}
             </span>
@@ -82,6 +114,37 @@ export default function ProjectHeader({ project, onChangeStatus }) {
                       )}
                     </button>
                   ))}
+                </div>
+              </>
+            )}
+            {pauseReasonOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setPauseReasonOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-slate-200 rounded-lg shadow-lg z-30 p-3">
+                  <p className="text-xs font-semibold text-slate-500 mb-2 flex items-center gap-1">
+                    <PauseCircle className="w-3.5 h-3.5 text-amber-500" />
+                    Motivo da pausa
+                  </p>
+                  {loadingReasons ? (
+                    <div className="flex items-center justify-center py-2">
+                      <div className="w-4 h-4 border-2 border-slate-200 border-t-amber-500 rounded-full animate-spin" />
+                    </div>
+                  ) : pauseReasons.length === 0 ? (
+                    <p className="text-xs text-slate-400 mb-2">Nenhum motivo cadastrado. Configure em Parametrizações.</p>
+                  ) : (
+                    <select
+                      value={selectedReason}
+                      onChange={e => setSelectedReason(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg mb-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    >
+                      <option value="">Selecione um motivo...</option>
+                      {pauseReasons.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+                    </select>
+                  )}
+                  <div className="flex gap-2">
+                    <button onClick={() => setPauseReasonOpen(false)} className="flex-1 px-2 py-1.5 text-xs border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50">Cancelar</button>
+                    <button onClick={confirmPauseReason} disabled={!selectedReason && pauseReasons.length > 0} className="flex-1 px-2 py-1.5 text-xs bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-40">Confirmar</button>
+                  </div>
                 </div>
               </>
             )}

@@ -44,6 +44,10 @@
       ],
       "default": "Em aberto"
     },
+    "pause_reason": {
+      "type": "string",
+      "description": "Motivo da pausa (preenchido quando status = Pausado)"
+    },
     "current_phase": {
       "type": "string",
       "enum": [

@@ -110,6 +110,7 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
     contracted_services: project?.contracted_services || [],
     observations: project?.observations || "",
     drive_folder: project?.drive_folder || "",
+    pause_reason: project?.pause_reason || "",
   });
   const [saving, setSaving] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
@@ -185,6 +186,7 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
       "ti_client_name", "ti_client_email", "ti_client_phone",
       "pontotel_manager_id", "pontotel_manager_name", "pontotel_manager_email", "pontotel_manager_phone",
       "pontotel_analyst_id", "pontotel_analyst_name", "pontotel_analyst_email", "pontotel_analyst_phone",
+      "pause_reason",
     ];
     for (const field of auditFields) {
       const oldVal = project?.[field];
@@ -298,6 +300,14 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
               <input type="number" value={form.contracted_employees} onChange={set("contracted_employees")} className={inputClass} placeholder="0" />
             </Field>
           </div>
+
+          {project?.status === "Pausado" && (
+            <div className="p-3 bg-amber-50/50 rounded-lg border border-amber-100">
+              <Field label="Motivo da pausa">
+                <input value={form.pause_reason} onChange={set("pause_reason")} className={inputClass} placeholder="Motivo da pausa do projeto" />
+              </Field>
+            </div>
+          )}
 
           <div className="border-t border-slate-100 pt-4">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Equipe Pontotel</p>

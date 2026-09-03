@@ -185,10 +185,17 @@ export default function ProjectDetail() {
     <div className="flex flex-col min-h-screen">
       <ProjectHeader
         project={project}
-        onChangeStatus={!isMock ? async (newStatus) => {
+        onChangeStatus={!isMock ? async (newStatus, pauseReason) => {
           const oldStatus = project.status;
-          setProject(prev => ({ ...prev, status: newStatus }));
-          await base44.entities.Project.update(id, { status: newStatus });
+          const oldReason = project.pause_reason || "";
+          const updates = { status: newStatus };
+          if (newStatus === "Pausado") {
+            updates.pause_reason = pauseReason || "";
+          } else {
+            updates.pause_reason = "";
+          }
+          setProject(prev => ({ ...prev, ...updates }));
+          await base44.entities.Project.update(id, updates);
           await logAudit({
             project_id: id,
             screen: "Dados Iniciais",
@@ -196,6 +203,15 @@ export default function ProjectDetail() {
             old_value: oldStatus,
             new_value: newStatus,
           });
+          if (oldReason !== updates.pause_reason) {
+            await logAudit({
+              project_id: id,
+              screen: "Dados Iniciais",
+              field: "pause_reason",
+              old_value: oldReason,
+              new_value: updates.pause_reason,
+            });
+          }
         } : null}
       />
       {showEditModal && (
