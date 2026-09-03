@@ -53,6 +53,16 @@ export default function NewProject() {
       }));
       await base44.entities.SchedulePhase.bulkCreate(phases);
 
+      // Sincronizar dados do Pipedrive automaticamente (nome, cliente, responsáveis, módulos)
+      try {
+        await base44.functions.invoke("syncPipedriveData", {
+          project_id: project.id,
+          deal_id: numId,
+        });
+      } catch (_) {
+        // Falha na sincronização não impede a criação — o usuário pode sincronizar depois
+      }
+
       navigate(`/projects/${project.id}`);
     } catch (e) {
       setError(e.message || "Erro ao criar projeto.");
