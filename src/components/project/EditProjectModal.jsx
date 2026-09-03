@@ -79,6 +79,7 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
   const [form, setForm] = useState({
     name: project?.name || "",
     client_name: project?.client_name || "",
+    cnpj: project?.cnpj || "",
     origin: project?.origin || "",
     mrr: project?.mrr || "",
     start_date: project?.start_date || "",
@@ -176,7 +177,7 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
     setSaving(true);
     // Registra alterações no log de auditoria
     const auditFields = [
-      "name", "client_name", "origin", "start_date", "planned_end_date", "aligned_end_date",
+      "name", "client_name", "cnpj", "origin", "start_date", "planned_end_date", "aligned_end_date",
       "contracted_employees", "mrr", "observations", "drive_folder",
       "sponsor_name", "sponsor_email", "sponsor_phone",
       "project_leader_name", "project_leader_email", "project_leader_phone",
@@ -271,6 +272,9 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
             </Field>
             <Field label="Cliente / Empresa">
               <input value={form.client_name} onChange={set("client_name")} className={inputClass} placeholder="Nome do cliente" />
+            </Field>
+            <Field label="CNPJ">
+              <input value={form.cnpj} onChange={set("cnpj")} className={inputClass} placeholder="00.000.000/0000-00" />
             </Field>
             <Field label="Origem do cliente">
               <select value={form.origin} onChange={set("origin")} className={inputClass}>

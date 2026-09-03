@@ -279,6 +279,7 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
             </div>
           )}
           <InfoRow label="Cliente" value={project.client_name} />
+          <InfoRow label="CNPJ" value={project.cnpj} />
           <InfoRow label="ID da Empresa" value={project.empresa_id} />
           <InfoRow label="Origem" value={project.origin} />
           <InfoRow label="Tipo de Implantação" value={project.implantation_type} />
