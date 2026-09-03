@@ -9,6 +9,8 @@ export default function ClosingSoonTable({ projects, activities }) {
     .filter(p => p.status !== "Concluído" && p.status !== "Perdido")
     .map(p => ({ project: p, closingDate: getClosingDate(p) }))
     .filter(r => r.closingDate)
+    .map(r => ({ ...r, daysLeft: calcDaysLeft(r.closingDate) }))
+    .filter(r => Math.abs(r.daysLeft) <= 30)
     .sort((a, b) => new Date(a.closingDate) - new Date(b.closingDate));
 
   return (
@@ -32,9 +34,8 @@ export default function ClosingSoonTable({ projects, activities }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ project, closingDate }) => {
+              {rows.map(({ project, closingDate, daysLeft }) => {
                 const { stage, hasActiveActivity } = computeCurrentStage(project, activities);
-                const daysLeft = calcDaysLeft(closingDate);
                 return (
                   <tr key={project.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
                     <td className="px-5 py-3">
