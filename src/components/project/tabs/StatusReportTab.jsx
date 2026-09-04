@@ -865,7 +865,7 @@ export default function StatusReportTab({ reports, projectId, projectClientName,
         )}
       </div>
 
-      {showEmailPreview && <EmailPreviewModal html={emailHtml} onClose={() => setShowEmailPreview(false)} />}
+      {showEmailPreview && <EmailPreviewModal html={emailHtml} project={project} onClose={() => setShowEmailPreview(false)} />}
 
       {/* Alerta de Lar21 ausente */}
       {!project?.lar21 && (
