@@ -93,7 +93,8 @@ export default function EmailPreviewModal({ html, onClose, project }) {
         setSendResult({ success: false, error: res.data?.error || "Falha ao enviar e-mail." });
       }
     } catch (e) {
-      setSendResult({ success: false, error: "Erro ao chamar a função de envio." });
+      const msg = e?.response?.data?.error || e?.data?.error || e?.message || "Erro ao chamar a função de envio.";
+      setSendResult({ success: false, error: msg });
     }
     setSending(false);
   };
