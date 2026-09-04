@@ -10,7 +10,7 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import MultiSelectFilter from "@/components/project/MultiSelectFilter";
 import { usePermissions } from "@/lib/usePermissions";
 
-const STATUS_OPTIONS = ["Todos", "Em aberto", "Em andamento", "Concluído", "Perdido", "Pausado"];
+const STATUS_OPTIONS = ["Em aberto", "Em andamento", "Concluído", "Perdido", "Pausado"];
 
 const normalize = (s) => (s || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
 
@@ -19,7 +19,7 @@ export default function ProjectList() {
   const { canCreateProject, canDeleteProject } = usePermissions();
 
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("Todos");
+  const [filterStatus, setFilterStatus] = useState([]);
   const [filterManagers, setFilterManagers] = useState([]);
   const [filterAnalysts, setFilterAnalysts] = useState([]);
   const [myProjects, setMyProjects] = useState(true);
@@ -95,7 +95,7 @@ export default function ProjectList() {
       const matchSearch = !search ||
         (p.name || "").toLowerCase().includes(searchLower) ||
         (p.id || "").toLowerCase().includes(searchLower);
-      const matchStatus = filterStatus === "Todos" || p.status === filterStatus;
+      const matchStatus = filterStatus.length === 0 || filterStatus.includes(p.status);
       const normUserName = normalize(currentUserName);
       const matchMy = !myProjects || (
         (p.pontotel_manager_id && p.pontotel_manager_id === currentUserId) ||
@@ -113,11 +113,11 @@ export default function ProjectList() {
     setList(prev => prev.includes(value) ? prev.filter(x => x !== value) : [...prev, value]);
   };
 
-  const hasActiveFilters = filterStatus !== "Todos" || filterManagers.length > 0 || filterAnalysts.length > 0 || !myProjects || search;
+  const hasActiveFilters = filterStatus.length > 0 || filterManagers.length > 0 || filterAnalysts.length > 0 || !myProjects || search;
 
   const clearAll = () => {
     setSearch("");
-    setFilterStatus("Todos");
+    setFilterStatus([]);
     setFilterManagers([]);
     setFilterAnalysts([]);
     setMyProjects(false);
@@ -172,13 +172,13 @@ export default function ProjectList() {
           </div>
 
           <MultiSelectFilter
-            single
             label="Status"
             icon={Filter}
             options={STATUS_OPTIONS.map(s => ({ value: s, label: s }))}
             selected={filterStatus}
             onChange={setFilterStatus}
             emptyValue="Todos"
+            accentColor="blue"
           />
 
           {managerOptions.length > 0 && (
@@ -238,15 +238,15 @@ export default function ProjectList() {
           </div>
         </div>
 
-        {(filterManagers.length > 0 || filterAnalysts.length > 0 || filterStatus !== "Todos") && (
+        {(filterManagers.length > 0 || filterAnalysts.length > 0 || filterStatus.length > 0) && (
           <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-slate-100">
             <span className="text-xs text-slate-400">Filtros ativos:</span>
-            {filterStatus !== "Todos" && (
-              <span className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5">
-                Status: {filterStatus}
-                <button onClick={() => setFilterStatus("Todos")}><X className="w-3 h-3" /></button>
+            {filterStatus.map(s => (
+              <span key={s} className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5">
+                Status: {s}
+                <button onClick={() => toggleMulti(s, filterStatus, setFilterStatus)}><X className="w-3 h-3" /></button>
               </span>
-            )}
+            ))}
             {filterManagers.map(k => (
               <span key={k} className="flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2 py-0.5">
                 Gerente: {managerLabel(k)}
