@@ -4,6 +4,8 @@ import { base44 } from "@/api/base44Client";
 
 const GMAIL_CONNECTOR_ID = "6a9acfd915942e418033757b";
 
+const ALWAYS_CC = "implantacao@pontotel.com.br";
+
 function buildDefaultTo(project) {
   const emails = [
     project?.sponsor_email,
@@ -27,6 +29,7 @@ export default function EmailPreviewModal({ html, onClose, project }) {
   const [sendResult, setSendResult] = useState(null);
   const [showSendForm, setShowSendForm] = useState(false);
   const [to, setTo] = useState("");
+  const [cc, setCc] = useState(ALWAYS_CC);
   const [subject, setSubject] = useState("");
 
   // Verifica conexão Gmail ao montar (Rule 2: data fetch = connection check)
@@ -80,6 +83,7 @@ export default function EmailPreviewModal({ html, onClose, project }) {
     try {
       const res = await base44.functions.invoke("sendStatusReportGmail", {
         to: to.trim(),
+        cc: cc.trim(),
         subject: subject.trim(),
         html,
       });
@@ -175,6 +179,15 @@ export default function EmailPreviewModal({ html, onClose, project }) {
                       value={to}
                       onChange={e => setTo(e.target.value)}
                       placeholder="destinatario@email.com"
+                      className="w-full mt-0.5 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400">Cc (sempre incluído)</label>
+                    <input
+                      type="text"
+                      value={cc}
+                      onChange={e => setCc(e.target.value)}
                       className="w-full mt-0.5 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     />
                   </div>

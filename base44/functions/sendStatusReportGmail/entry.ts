@@ -22,10 +22,11 @@ function encodeHeader(str) {
 }
 
 // Monta mensagem RFC 2822 com headers UTF-8 + corpo HTML
-function buildMimeMessage({ to, subject, html, fromName }) {
+function buildMimeMessage({ to, cc, subject, html, fromName }) {
   const headers = [
     fromName ? `From: ${encodeHeader(fromName)} <${"me"}>` : "From: me",
     `To: ${to}`,
+    ...(cc ? [`Cc: ${cc}`] : []),
     `Subject: ${encodeHeader(subject)}`,
     "MIME-Version: 1.0",
     "Content-Type: text/html; charset=UTF-8",
@@ -74,6 +75,7 @@ export default async function(req) {
 
     const mimeMessage = buildMimeMessage({
       to: body.to,
+      cc: body.cc || null,
       subject: body.subject,
       html: body.html,
       fromName: body.fromName || null,
