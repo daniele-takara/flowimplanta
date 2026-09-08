@@ -38,6 +38,7 @@ export default function LocalPhaseSection({
   canEditActivity = true,
   canExcluirActivity = true,
   showInactive,
+  dependencies = [], activitiesMap = {}, onOpenDependencyModal,
 }) {
   const [open, setOpen] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -325,6 +326,9 @@ export default function LocalPhaseSection({
                   onDragEnd={handleDragEnd}
                   isDragged={draggedId === act.id}
                   isDragOver={dragOverId === act.id}
+                  dependencies={dependencies}
+                  activitiesMap={activitiesMap}
+                  onOpenDependencyModal={onOpenDependencyModal}
                 />
               ))}
             </tbody>

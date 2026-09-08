@@ -8,7 +8,7 @@ import {
   Maximize2, Minimize2
 } from "lucide-react";
 import { SCHEDULE_TASKS, PHASE_ORDER } from "@/lib/scheduleTasks.js";
-import { computeSchedule } from "@/lib/scheduleEngine.js";
+import { computeSchedule, workday } from "@/lib/scheduleEngine.js";
 import { classifyScheduleActivities } from "@/lib/scheduleActivityMatch.js";
 import { resolveRoleToName, RESPONSIBLE_ROLE_LABELS, RESPONSIBLE_ROLE_OPTIONS, resolveGeneralResponsible } from "@/lib/resolveResponsibleRole.js";
 import AddActivityModal from "./schedule/AddActivityModal.jsx";
@@ -21,6 +21,12 @@ import SchedulePDFColumnModal from "./schedule/SchedulePDFColumnModal.jsx";
 import { logAudit } from "@/lib/auditLog";
 import ScheduleAgentChat from "./schedule/ScheduleAgentChat.jsx";
 import { autoPromoteToInProgress } from "@/lib/autoPromoteStatus";
+import DependencyModal from "./schedule/DependencyModal.jsx";
+import DependencyBadge from "./schedule/DependencyBadge.jsx";
+import {
+  buildRef, parseRef, wouldCreateCycle, computeSuccessorStart,
+  getActivityEnd, cascadeRecalculate, computeTemplateEnd, computeDurationDays,
+} from "@/lib/scheduleDependencies.js";
 
 function fmtDate(d) {
   if (!d) return "—";
@@ -103,6 +109,7 @@ function TaskRow({
   task, computedDates, manualOverrides, onSaveOverride, onRemoveOverride,
   onSaveActivity, onInactivateTask, existingActivity, project, templateConfig,
   readOnly, canEditPlanned, canEditExecuted, indented = false,
+  dependencies, activitiesMap, onOpenDependencyModal,
 }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -122,6 +129,11 @@ function TaskRow({
 
   const isInactive = existingActivity?.status === "Cancelado" &&
     (existingActivity?.history_observations || "").includes("[INATIVADO]");
+
+  // Dependências
+  const taskRef = buildRef("tmpl", task.id);
+  const myDeps = (dependencies || []).filter(d => d.successor_ref === taskRef);
+  const depNames = myDeps.map(d => activitiesMap?.[d.predecessor_ref]?.name || parseRef(d.predecessor_ref).id);
 
   const override = manualOverrides?.[task.id] || {};
   const dates    = computedDates[task.id] || {};
@@ -266,6 +278,12 @@ function TaskRow({
                   <Anchor className="w-2.5 h-2.5" />Âncora
                 </span>
               )}
+              <DependencyBadge
+                count={myDeps.length}
+                predecessorNames={depNames}
+                onClick={() => onOpenDependencyModal(taskRef, task.activity)}
+                readOnly={readOnly}
+              />
             </div>
           </div>
         </td>
@@ -542,6 +560,7 @@ function PhaseSection({
   canCompletePhase, canEditPlanned, canEditExecuted, canAddActivity, canEditActivity = true, canExcluirActivity = true, showInactive,
   phaseOverride, onEditOverride, onInactivate, onReactivate,
   canEditPhase, canExcluirPhase,
+  dependencies, activitiesMap, onOpenDependencyModal,
 }) {
   const [open, setOpen] = useState(true);
   const [completing, setCompleting] = useState(false);
@@ -697,6 +716,7 @@ function PhaseSection({
                       existingActivity={activitiesByTask[task.id]} project={project} templateConfig={templateConfig}
                       readOnly={readOnly} canEditPlanned={canEditPlanned} canEditExecuted={canEditExecuted}
                       indented={isSubActivity}
+                      dependencies={dependencies} activitiesMap={activitiesMap} onOpenDependencyModal={onOpenDependencyModal}
                     />
                   );
                 }
@@ -711,6 +731,7 @@ function PhaseSection({
                   showInactive={showInactive}
                   canEdit={canEditActivity}
                   canExcluir={canExcluirActivity}
+                  dependencies={dependencies} activitiesMap={activitiesMap} onOpenDependencyModal={onOpenDependencyModal}
                 />
               ))}
             </tbody>
@@ -815,6 +836,11 @@ export default function ScheduleTab({
   const [generatingPDF, setGeneratingPDF] = useState(false);
   const [showPDFModal, setShowPDFModal] = useState(false);
 
+  // Dependências
+  const [dependencies, setDependencies] = useState([]);
+  const [showDependencyModal, setShowDependencyModal] = useState(false);
+  const [dependencyModalInfo, setDependencyModalInfo] = useState(null);
+
   // Ref para rastrear se já inicializamos para este projectId
   const initializedForProjectRef = useRef(null);
   // Ref para guardar os overrides que NÓS salvamos (para não serem sobrescritos pelo prop)
@@ -887,6 +913,14 @@ export default function ScheduleTab({
     }).catch(() => {});
   }, []);
 
+  // Carregar dependências
+  useEffect(() => {
+    if (!projectId) return;
+    base44.entities.ScheduleDependency.filter({ project_id: projectId })
+      .then(list => setDependencies(list || []))
+      .catch(() => setDependencies([]));
+  }, [projectId]);
+
   const answersMap = useMemo(() => buildAnswersMap(scopeItems), [scopeItems]);
 
   const { dates: computedDates, visible } = useMemo(() => {
@@ -904,6 +938,58 @@ export default function ScheduleTab({
     return grouped;
   }, [visible]);
 
+  // ── Cascata de dependências ──────────────────────────────────
+  // Recalcula datas de sucessoras quando predecessoras mudam.
+  // Só afeta atividades COM dependências definidas — projetos sem
+  // dependências não são tocados. É idempotente (não gera loop).
+  useEffect(() => {
+    if (!dependencies || dependencies.length === 0) return;
+
+    const timer = setTimeout(() => {
+      const { overrideUpdates, localUpdates } = cascadeRecalculate({
+        dependencies, computedDates, overrides: manualOverrides, localActivities: savedActivities,
+      });
+
+      const hasOverride = Object.keys(overrideUpdates).length > 0;
+      const hasLocal = Object.keys(localUpdates).length > 0;
+      if (!hasOverride && !hasLocal) return;
+
+      (async () => {
+        try {
+          if (hasOverride) {
+            const newOverrides = { ...manualOverrides };
+            Object.entries(overrideUpdates).forEach(([taskId, { plannedStart, plannedEnd }]) => {
+              newOverrides[taskId] = {
+                ...(newOverrides[taskId] || {}),
+                plannedStart,
+                ...(plannedEnd ? { plannedEnd } : {}),
+                _origin: {
+                  ...(newOverrides[taskId]?._origin || {}),
+                  plannedStart: "dependency",
+                  ...(plannedEnd ? { plannedEnd: "dependency" } : {}),
+                },
+              };
+            });
+            await base44.entities.Project.update(projectId, { schedule_overrides: newOverrides });
+            localSavedOverridesRef.current = newOverrides;
+            setManualOverrides(newOverrides);
+          }
+          if (hasLocal) {
+            const updates = Object.entries(localUpdates).map(([id, data]) => ({ id, ...data }));
+            await base44.entities.ScheduleActivity.bulkUpdate(updates);
+            setSavedActivities(prev => prev.map(a =>
+              localUpdates[a.id] ? { ...a, ...localUpdates[a.id] } : a
+            ));
+          }
+        } catch (err) {
+          console.error("[ScheduleTab] Erro no recálculo de dependências:", err);
+        }
+      })();
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [dependencies, computedDates, manualOverrides, savedActivities, projectId]);
+
   // Classificação consistente com buildProjectScheduleView: casamento por nome + fase,
   // com fallback para atividades órfãs (fase que não é template, nem local, nem custom_name)
   // — mantém visibilidade (anexa ao template task) como no comportamento anterior.
@@ -915,6 +1001,38 @@ export default function ScheduleTab({
     ),
     [savedActivities, localPhases, phaseOverrides],
   );
+
+  // Lista unificada de atividades para o modal de dependências
+  const allActivitiesForModal = useMemo(() => {
+    const list = [];
+    SCHEDULE_TASKS.forEach(t => {
+      if (t.type !== "task" || !visible.has(t.id)) return;
+      const start = manualOverrides[t.id]?.plannedStart || computedDates[t.id]?.plannedStart;
+      list.push({
+        ref: buildRef("tmpl", t.id),
+        name: t.activity,
+        phase: t.phase,
+        dateLabel: start ? fmtDate(start) : "—",
+      });
+    });
+    (savedActivities || []).forEach(a => {
+      if (a.status === "Cancelado" && (a.history_observations || "").includes("[INATIVADO]")) return;
+      list.push({
+        ref: buildRef("local", a.id),
+        name: a.activity_name,
+        phase: a.phase_name,
+        dateLabel: a.planned_start ? fmtDate(a.planned_start) : "—",
+      });
+    });
+    return list;
+  }, [visible, manualOverrides, computedDates, savedActivities]);
+
+  // Mapa ref → atividade (para lookup de nomes nas badges)
+  const activitiesMap = useMemo(() => {
+    const map = {};
+    allActivitiesForModal.forEach(a => { map[a.ref] = a; });
+    return map;
+  }, [allActivitiesForModal]);
 
   // Fases visíveis (respeita toggle showInactive)
   const visibleLocalPhases = useMemo(() => {
@@ -1035,6 +1153,113 @@ export default function ScheduleTab({
     const newStatus = await autoPromoteToInProgress(projectId, project?.status);
     if (newStatus !== project?.status && onStatusPromoted) onStatusPromoted();
   }, [activitiesByTask, projectId, project?.status, onStatusPromoted]);
+
+  // ── Dependências ──────────────────────────────────────────────
+  const handleOpenDependencyModal = useCallback((ref, name) => {
+    setDependencyModalInfo({ ref, name });
+    setShowDependencyModal(true);
+  }, []);
+
+  const handleSaveDependencies = useCallback(async (successorRef, selectedRefs, offset) => {
+    // Validação de ciclos
+    const otherDeps = dependencies.filter(d => d.successor_ref !== successorRef);
+    for (const ref of selectedRefs) {
+      if (wouldCreateCycle(otherDeps, successorRef, ref)) {
+        throw new Error("Dependência circular detectada. Não é possível criar este vínculo.");
+      }
+    }
+
+    const currentDeps = dependencies.filter(d => d.successor_ref === successorRef);
+    const currentPreds = new Set(currentDeps.map(d => d.predecessor_ref));
+
+    // Deletar removidas
+    await Promise.all(
+      currentDeps
+        .filter(d => !selectedRefs.includes(d.predecessor_ref))
+        .map(d => base44.entities.ScheduleDependency.delete(d.id))
+    );
+    // Criar novas
+    await Promise.all(
+      selectedRefs
+        .filter(ref => !currentPreds.has(ref))
+        .map(ref => base44.entities.ScheduleDependency.create({
+          project_id: projectId, successor_ref: successorRef,
+          predecessor_ref: ref, start_offset_days: offset,
+        }))
+    );
+    // Atualizar offset das existentes
+    await Promise.all(
+      currentDeps
+        .filter(d => selectedRefs.includes(d.predecessor_ref) && d.start_offset_days !== offset)
+        .map(d => base44.entities.ScheduleDependency.update(d.id, { start_offset_days: offset }))
+    );
+
+    // Recarregar dependências
+    const refreshed = await base44.entities.ScheduleDependency.filter({ project_id: projectId });
+    setDependencies(refreshed || []);
+
+    // Forçar recálculo da sucessora
+    const { type, id } = parseRef(successorRef);
+
+    if (selectedRefs.length === 0) {
+      // Sem predecessoras — remover override de dependência (template volta à fórmula)
+      if (type === "tmpl") {
+        const existing = manualOverrides[id];
+        if (existing?._origin?.plannedStart === "dependency") {
+          const newOverrides = { ...manualOverrides };
+          const updated = { ...existing };
+          delete updated.plannedStart;
+          if (updated._origin) {
+            delete updated._origin.plannedStart;
+            if (Object.keys(updated._origin).length === 0) delete updated._origin;
+          }
+          const hasContent = Object.keys(updated).some(k => k !== "_origin") || updated._origin;
+          if (!hasContent) delete newOverrides[id];
+          else newOverrides[id] = updated;
+          await base44.entities.Project.update(projectId, { schedule_overrides: newOverrides });
+          localSavedOverridesRef.current = newOverrides;
+          setManualOverrides(newOverrides);
+        }
+      }
+    } else {
+      const depsForThis = selectedRefs.map(ref => ({ predecessor_ref: ref, start_offset_days: offset }));
+      const newStart = computeSuccessorStart(depsForThis, (ref) =>
+        getActivityEnd(ref, computedDates, manualOverrides, savedActivities)
+      );
+
+      if (newStart) {
+        if (type === "tmpl") {
+          const task = SCHEDULE_TASKS.find(t => t.id === id);
+          const currentEnd = getActivityEnd(successorRef, computedDates, manualOverrides, savedActivities);
+          const newEnd = computeTemplateEnd(task, newStart, currentEnd);
+          const newOverrides = {
+            ...manualOverrides,
+            [id]: {
+              ...(manualOverrides[id] || {}),
+              plannedStart: newStart,
+              ...(newEnd ? { plannedEnd: newEnd } : {}),
+              _origin: {
+                ...(manualOverrides[id]?._origin || {}),
+                plannedStart: "dependency",
+                ...(newEnd ? { plannedEnd: "dependency" } : {}),
+              },
+            },
+          };
+          await base44.entities.Project.update(projectId, { schedule_overrides: newOverrides });
+          localSavedOverridesRef.current = newOverrides;
+          setManualOverrides(newOverrides);
+        } else if (type === "local") {
+          const act = savedActivities.find(a => a.id === id);
+          const oldStart = act?.planned_start;
+          const oldEnd = act?.planned_end;
+          const durationDays = computeDurationDays(oldStart, oldEnd);
+          const newEnd = durationDays > 0 ? workday(newStart, durationDays) : (oldEnd || null);
+          await base44.entities.ScheduleActivity.update(id, { planned_start: newStart, planned_end: newEnd });
+          setSavedActivities(prev => prev.map(a => a.id === id ? { ...a, planned_start: newStart, planned_end: newEnd } : a));
+        }
+      }
+    }
+  }, [dependencies, projectId, manualOverrides, computedDates, savedActivities]);
 
   const handleCompleteAsTasks = useCallback(async (tasks) => {
     await Promise.all(
@@ -1388,6 +1613,7 @@ export default function ScheduleTab({
                 onReactivate={handleReactivateTemplatePhase}
                 canEditPhase={canEditPhase && !readOnly}
                 canExcluirPhase={canExcluirPhase && !readOnly}
+                dependencies={dependencies} activitiesMap={activitiesMap} onOpenDependencyModal={handleOpenDependencyModal}
               />
             );
           }
@@ -1410,6 +1636,7 @@ export default function ScheduleTab({
               canEditActivity={!readOnly && canEditExecuted}
               canExcluirActivity={!readOnly && canExcluirActivity}
               showInactive={showInactive}
+              dependencies={dependencies} activitiesMap={activitiesMap} onOpenDependencyModal={handleOpenDependencyModal}
             />
           );
         })
@@ -1467,6 +1694,29 @@ export default function ScheduleTab({
         savedActivities={savedActivities}
         templateConfig={templateConfig}
       />
+
+      {/* Modal de dependências */}
+      {showDependencyModal && dependencyModalInfo && (
+        <DependencyModal
+          successorName={dependencyModalInfo.name}
+          activities={allActivitiesForModal}
+          currentPredecessors={new Set(
+            dependencies
+              .filter(d => d.successor_ref === dependencyModalInfo.ref)
+              .map(d => d.predecessor_ref)
+          )}
+          currentOffset={(() => {
+            const d = dependencies.find(d => d.successor_ref === dependencyModalInfo.ref);
+            return d?.start_offset_days || 0;
+          })()}
+          onSave={async (selectedRefs, offset) => {
+            await handleSaveDependencies(dependencyModalInfo.ref, selectedRefs, offset);
+            setShowDependencyModal(false);
+            setDependencyModalInfo(null);
+          }}
+          onClose={() => { setShowDependencyModal(false); setDependencyModalInfo(null); }}
+        />
+      )}
     </div>
   );
 }

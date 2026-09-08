@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { Save, X, Trash2, Loader2, EyeOff, AlertTriangle, Pencil, GripVertical } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import DependencyBadge from "./DependencyBadge.jsx";
+import { buildRef, parseRef } from "@/lib/scheduleDependencies.js";
 
 const STATUS_OPTIONS = ["Não iniciado", "Em andamento", "Concluído", "Atrasado", "Bloqueado", "Cancelado"];
 const STATUS_COLORS = {
@@ -23,6 +25,8 @@ export default function LocalActivityRow({
   canEdit = true, canExcluir = true,
   // Drag & drop props (opcionais)
   draggable = false, onDragStart, onDragOver, onDrop, onDragEnd, isDragged, isDragOver,
+  // Dependências
+  dependencies = [], activitiesMap = {}, onOpenDependencyModal,
 }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -54,6 +58,11 @@ export default function LocalActivityRow({
 
   const isInactive = activity.status === "Cancelado" &&
     (activity.history_observations || "").includes("[INATIVADO]");
+
+  // Dependências
+  const actRef = buildRef("local", activity.id);
+  const myDeps = (dependencies || []).filter(d => d.successor_ref === actRef);
+  const depNames = myDeps.map(d => activitiesMap?.[d.predecessor_ref]?.name || parseRef(d.predecessor_ref).id);
 
   // Ocultar inativas se não solicitado
   if (isInactive && !showInactive) return null;
@@ -155,6 +164,12 @@ export default function LocalActivityRow({
               <div className="flex items-center gap-1 flex-wrap">
                 <span className="text-xs bg-purple-100 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded font-medium">Local</span>
                 {isInactive && <span className="text-xs bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded font-medium">Inativo</span>}
+                <DependencyBadge
+                  count={myDeps.length}
+                  predecessorNames={depNames}
+                  onClick={() => onOpenDependencyModal(actRef, activity.activity_name)}
+                  readOnly={readOnly}
+                />
               </div>
             </div>
           </div>

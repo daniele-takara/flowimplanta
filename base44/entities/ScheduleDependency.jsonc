@@ -1,0 +1,28 @@
+{
+  "name": "ScheduleDependency",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "ID do projeto"
+    },
+    "successor_ref": {
+      "type": "string",
+      "description": "Refer\u00eancia \u00e0 atividade sucessora: 'tmpl:task_id' (template) ou 'local:entity_id' (local)"
+    },
+    "predecessor_ref": {
+      "type": "string",
+      "description": "Refer\u00eancia \u00e0 atividade predecessora: 'tmpl:task_id' (template) ou 'local:entity_id' (local)"
+    },
+    "start_offset_days": {
+      "type": "number",
+      "default": 0,
+      "description": "Dias \u00fateis ap\u00f3s o fim da predecessora para iniciar a sucessora"
+    }
+  },
+  "required": [
+    "project_id",
+    "successor_ref",
+    "predecessor_ref"
+  ]
+}
