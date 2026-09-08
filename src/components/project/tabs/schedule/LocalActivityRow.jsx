@@ -28,7 +28,9 @@ export default function LocalActivityRow({
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [removing, setRemoving] = useState(false);
-  const [obsExpanded, setObsExpanded] = useState(false);
+  const [obsEditing, setObsEditing] = useState(false);
+  const [obsText, setObsText] = useState("");
+  const [obsSaving, setObsSaving] = useState(false);
   const [form, setForm] = useState({
     activity_name:        activity.activity_name || "",
     planned_start:        activity.planned_start || "",
@@ -95,6 +97,20 @@ export default function LocalActivityRow({
       toast({ title: "Erro ao remover atividade. Verifique suas permissões.", variant: "destructive" });
     }
     setRemoving(false);
+  };
+
+  const handleSaveObs = async () => {
+    setObsSaving(true);
+    try {
+      await base44.entities.ScheduleActivity.update(activity.id, { history_observations: obsText });
+      onUpdated({ ...activity, history_observations: obsText });
+      setForm(f => ({ ...f, history_observations: obsText }));
+      setObsEditing(false);
+    } catch (err) {
+      console.error("[LocalActivityRow] Erro ao salvar observação:", err);
+      toast({ title: "Erro ao salvar observação. Verifique suas permissões.", variant: "destructive" });
+    }
+    setObsSaving(false);
   };
 
   const rowClass = isInactive
@@ -167,16 +183,21 @@ export default function LocalActivityRow({
           }
         </td>
         <td className="px-1 py-2.5 max-w-[140px]">
-          {editing ? <input value={form.history_observations} onChange={e => setForm(f => ({ ...f, history_observations: e.target.value }))} className={inputClass} />
-            : form.history_observations
-              ? <span
-                  onClick={() => setObsExpanded(e => !e)}
-                  className={`text-xs text-slate-500 cursor-pointer hover:text-slate-700 ${obsExpanded ? "whitespace-normal" : "truncate block"}`}
-                  title={obsExpanded ? "Clique para recolher" : "Clique para expandir"}
-                >
-                  {form.history_observations}
-                </span>
-              : <span className="text-xs text-slate-300">—</span>}
+          {editing
+            ? <input value={form.history_observations} onChange={e => setForm(f => ({ ...f, history_observations: e.target.value }))} className={inputClass} />
+            : (
+              <button
+                onClick={() => { if (!readOnly && !isInactive) { setObsText(form.history_observations); setObsEditing(true); } }}
+                disabled={readOnly || isInactive}
+                className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 px-0.5 group"
+                title={form.history_observations ? "Clique para expandir/editar" : "Adicionar observação"}
+              >
+                {form.history_observations
+                  ? <span className="truncate block max-w-[110px]">{form.history_observations}</span>
+                  : <span className="text-slate-300 group-hover:text-slate-400">—</span>}
+                {form.history_observations && <span className="w-1.5 h-1.5 bg-blue-500 rounded-full shrink-0" />}
+              </button>
+            )}
         </td>
         <td className="px-1 py-2.5">
           {!readOnly && !isInactive && (
@@ -234,6 +255,51 @@ export default function LocalActivityRow({
               <button onClick={() => setConfirm(false)} className="px-3 py-1.5 text-xs font-medium border border-red-200 text-red-600 rounded-lg hover:bg-red-100">
                 Cancelar
               </button>
+            </div>
+          </td>
+        </tr>
+      )}
+
+      {/* Editor de observações inline expansível */}
+      {obsEditing && (
+        <tr className="bg-slate-50">
+          <td colSpan={10} className="px-4 py-3">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm max-w-2xl">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100">
+                <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Observações</span>
+                <button onClick={() => setObsEditing(false)} className="text-slate-400 hover:text-slate-600">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="px-4 pt-3 pb-1">
+                <p className="text-sm font-semibold text-slate-700">{activity.activity_name}</p>
+              </div>
+              <div className="px-4 pb-3">
+                <textarea
+                  value={obsText}
+                  onChange={e => setObsText(e.target.value)}
+                  rows={4}
+                  placeholder="Adicione observações, comentários ou histórico..."
+                  className="w-full px-3 py-2 text-sm text-slate-700 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 resize-y"
+                  autoFocus
+                />
+              </div>
+              <div className="flex justify-end gap-2 px-4 py-3 border-t border-slate-100">
+                <button
+                  onClick={() => setObsEditing(false)}
+                  className="px-4 py-1.5 text-sm font-medium border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSaveObs}
+                  disabled={obsSaving}
+                  className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-60"
+                >
+                  {obsSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  Salvar
+                </button>
+              </div>
             </div>
           </td>
         </tr>
