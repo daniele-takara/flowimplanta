@@ -875,47 +875,56 @@ export default function ScheduleTab({
   }, [phases, visibleLocalPhases, tasksByPhase, phaseOverrides]);
 
   const handleSaveOverride = useCallback(async (taskId, payload) => {
-    setManualOverrides(prev => {
-      const nextOverrides = { ...prev, [taskId]: { ...(prev[taskId] || {}), ...payload } };
+    const prevOverrides = manualOverrides;
+    const nextOverrides = { ...prevOverrides, [taskId]: { ...(prevOverrides[taskId] || {}), ...payload } };
 
-      // Marca localmente que salvamos esses overrides (impede re-init pelo prop)
-      localSavedOverridesRef.current = nextOverrides;
+    // Optimistic update — atualiza UI imediatamente
+    localSavedOverridesRef.current = nextOverrides;
+    setManualOverrides(nextOverrides);
 
-      // Persiste no banco de forma assíncrona
-      base44.entities.Project.update(projectId, { schedule_overrides: nextOverrides })
-        .catch(err => console.error("[ScheduleTab] Erro ao persistir schedule_overrides:", err));
+    // Persiste no banco (await — se falhar, reverte e propaga erro para o caller)
+    try {
+      await base44.entities.Project.update(projectId, { schedule_overrides: nextOverrides });
+    } catch (err) {
+      console.error("[ScheduleTab] Erro ao persistir schedule_overrides:", err);
+      // Reverte optimistic update para evitar dados "fantasmas" que somem ao remontar
+      localSavedOverridesRef.current = prevOverrides;
+      setManualOverrides(prevOverrides);
+      throw err;
+    }
 
-      // Promoção automática "Em aberto" → "Em andamento" ao editar o cronograma
-      autoPromoteToInProgress(projectId, project?.status).then(ns => {
-        if (ns !== project?.status && onStatusPromoted) onStatusPromoted();
-      });
+    // Promoção automática "Em aberto" → "Em andamento" ao editar o cronograma
+    const newStatus = await autoPromoteToInProgress(projectId, project?.status);
+    if (newStatus !== project?.status && onStatusPromoted) onStatusPromoted();
+  }, [projectId, project?.status, onStatusPromoted, manualOverrides]);
 
-      return nextOverrides;
-    });
-  }, [projectId, project?.status, onStatusPromoted]);
+  const handleRemoveOverride = useCallback(async (taskId, field) => {
+    const prevOverrides = manualOverrides;
+    const current = { ...(prevOverrides[taskId] || {}) };
+    delete current[field];
+    if (current._origin) delete current._origin[field];
+    const keysLeft = Object.keys(current).filter(k => k !== "_origin");
+    let nextOverrides;
+    if (keysLeft.length === 0) {
+      nextOverrides = { ...prevOverrides };
+      delete nextOverrides[taskId];
+    } else {
+      nextOverrides = { ...prevOverrides, [taskId]: current };
+    }
 
-  const handleRemoveOverride = useCallback((taskId, field) => {
-    setManualOverrides(prev => {
-      const current = { ...(prev[taskId] || {}) };
-      delete current[field];
-      if (current._origin) delete current._origin[field];
-      const keysLeft = Object.keys(current).filter(k => k !== "_origin");
-      let nextOverrides;
-      if (keysLeft.length === 0) {
-        nextOverrides = { ...prev };
-        delete nextOverrides[taskId];
-      } else {
-        nextOverrides = { ...prev, [taskId]: current };
-      }
+    // Optimistic update
+    localSavedOverridesRef.current = nextOverrides;
+    setManualOverrides(nextOverrides);
 
-      localSavedOverridesRef.current = nextOverrides;
-
-      base44.entities.Project.update(projectId, { schedule_overrides: nextOverrides })
-        .catch(err => console.error("[ScheduleTab] Erro ao remover override:", err));
-
-      return nextOverrides;
-    });
-  }, [projectId]);
+    // Persiste no banco (await — se falhar, reverte)
+    try {
+      await base44.entities.Project.update(projectId, { schedule_overrides: nextOverrides });
+    } catch (err) {
+      console.error("[ScheduleTab] Erro ao remover override:", err);
+      localSavedOverridesRef.current = prevOverrides;
+      setManualOverrides(prevOverrides);
+    }
+  }, [projectId, manualOverrides]);
 
   const handleSaveActivity = useCallback(async (task, data) => {
     const existing = activitiesByTask[task.id];
@@ -1191,7 +1200,8 @@ export default function ScheduleTab({
                     if (readOnly || !canEditPlanned) return;
                     const newVal = e.target.value;
                     if (newVal !== persistedVal) {
-                      handleSaveOverride(anchor.id, { plannedStart: newVal, _origin: { plannedStart: "manual" } });
+                      handleSaveOverride(anchor.id, { plannedStart: newVal, _origin: { plannedStart: "manual" } })
+                        .catch(() => { /* erro já logado e revertido em handleSaveOverride */ });
                     }
                     setAnchorEditValues(prev => {
                       const next = { ...prev };
