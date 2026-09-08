@@ -359,21 +359,17 @@ function TaskRow({
         </td>
 
         <td className="px-1 py-2.5 max-w-[140px]">
-          {editing
-            ? <input value={form.history_observations} onChange={e => setForm(f => ({ ...f, history_observations: e.target.value }))} className={inputClass} placeholder="Obs..." />
-            : (
-              <button
-                onClick={() => { if (!readOnly && !isInactive) { setObsText(form.history_observations); setObsEditing(true); } }}
-                disabled={readOnly || isInactive}
-                className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 px-0.5 group"
-                title={form.history_observations ? "Clique para expandir/editar" : "Adicionar observação"}
-              >
-                {form.history_observations
-                  ? <span className="truncate block max-w-[110px]">{form.history_observations}</span>
-                  : <span className="text-slate-300 group-hover:text-slate-400">—</span>}
-                {form.history_observations && <span className="w-1.5 h-1.5 bg-blue-500 rounded-full shrink-0" />}
-              </button>
-            )}
+          <button
+            onClick={() => { if (!readOnly && !isInactive) { setObsText(form.history_observations); setObsEditing(true); } }}
+            disabled={readOnly || isInactive}
+            className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 px-0.5 group"
+            title={form.history_observations ? "Clique para expandir/editar" : "Adicionar observação"}
+          >
+            {form.history_observations
+              ? <span className="truncate block max-w-[110px]">{form.history_observations}</span>
+              : <span className="text-slate-300 group-hover:text-slate-400">—</span>}
+            {form.history_observations && <span className="w-1.5 h-1.5 bg-blue-500 rounded-full shrink-0" />}
+          </button>
         </td>
 
         <td className="px-1 py-2.5">
