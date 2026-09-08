@@ -110,6 +110,15 @@ function TaskRow({
   const [obsEditing, setObsEditing] = useState(false);
   const [obsText, setObsText] = useState("");
   const [obsSaving, setObsSaving] = useState(false);
+  const obsTextareaRef = useRef(null);
+
+  useEffect(() => {
+    if (obsEditing && obsTextareaRef.current) {
+      obsTextareaRef.current.focus();
+      const len = obsTextareaRef.current.value.length;
+      obsTextareaRef.current.setSelectionRange(len, len);
+    }
+  }, [obsEditing]);
 
   const isInactive = existingActivity?.status === "Cancelado" &&
     (existingActivity?.history_observations || "").includes("[INATIVADO]");
@@ -469,12 +478,12 @@ function TaskRow({
               </div>
               <div className="px-4 pb-3">
                 <textarea
+                  ref={obsTextareaRef}
                   value={obsText}
                   onChange={e => setObsText(e.target.value)}
                   rows={4}
                   placeholder="Adicione observações, comentários ou histórico..."
                   className="w-full px-3 py-2 text-sm text-slate-700 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 resize-y"
-                  autoFocus
                 />
               </div>
               <div className="flex justify-end gap-2 px-4 py-3 border-t border-slate-100">
