@@ -3,7 +3,7 @@ import { toast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import {
   ChevronDown, ChevronRight, Plus, Pencil, Trash2,
-  Loader2, AlertTriangle, MoreHorizontal, EyeOff
+  Loader2, AlertTriangle, MoreHorizontal, EyeOff, ArrowUpDown
 } from "lucide-react";
 import LocalActivityRow from "./LocalActivityRow.jsx";
 
@@ -30,6 +30,7 @@ export default function LocalPhaseSection({
   onAddActivity,
   onActivityUpdated,
   onActivityRemoved,
+  onReorder,
   readOnly,
   canEditPhase,
   canExcluirPhase,
@@ -40,10 +41,18 @@ export default function LocalPhaseSection({
 }) {
   const [open, setOpen] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [confirmAction, setConfirmAction] = useState(null); // "inativar" | "excluir"
+  const [confirmAction, setConfirmAction] = useState(null);
   const [processing, setProcessing] = useState(false);
+  const [sorting, setSorting] = useState(false);
 
-  const phaseActivities = (localActivities || []).filter(a => a.phase_name === phase.phase_name);
+  // Drag & drop state
+  const [draggedId, setDraggedId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
+
+  const phaseActivities = (localActivities || [])
+    .filter(a => a.phase_name === phase.phase_name)
+    .sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+
   const hasHistory = phaseActivities.some(a =>
     a.actual_start || a.actual_end || a.history_observations
   );
@@ -53,7 +62,6 @@ export default function LocalPhaseSection({
     if (action === "editar") { onEditPhase(phase); return; }
     if (action === "inativar") { setConfirmAction("inativar"); return; }
     if (action === "excluir") {
-      // Fase com histórico → só inativar
       if (phaseActivities.length > 0 || hasHistory) {
         setConfirmAction("inativar");
       } else {
@@ -78,6 +86,50 @@ export default function LocalPhaseSection({
     }
     setProcessing(false);
     setConfirmAction(null);
+  };
+
+  // Feature 2: Ordenar por data de início (planejada)
+  const handleSortByDate = async () => {
+    if (!onReorder || phaseActivities.length < 2) return;
+    setSorting(true);
+    const sorted = [...phaseActivities].sort((a, b) => {
+      const aDate = a.planned_start || "9999-12-31";
+      const bDate = b.planned_start || "9999-12-31";
+      return aDate.localeCompare(bDate);
+    });
+    const orderedIds = sorted.map(a => a.id);
+    await onReorder(orderedIds);
+    setSorting(false);
+  };
+
+  // Feature 1: Drag & drop handlers
+  const handleDragStart = (id) => setDraggedId(id);
+  const handleDragOver = (e, id) => {
+    e.preventDefault();
+    if (id === draggedId) return;
+    setDragOverId(id);
+  };
+  const handleDrop = async (e, targetId) => {
+    e.preventDefault();
+    if (!draggedId || draggedId === targetId) {
+      setDraggedId(null);
+      setDragOverId(null);
+      return;
+    }
+    const reordered = [...phaseActivities];
+    const fromIdx = reordered.findIndex(a => a.id === draggedId);
+    const toIdx = reordered.findIndex(a => a.id === targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    const orderedIds = reordered.map(a => a.id);
+    setDraggedId(null);
+    setDragOverId(null);
+    if (onReorder) await onReorder(orderedIds);
+  };
+  const handleDragEnd = () => {
+    setDraggedId(null);
+    setDragOverId(null);
   };
 
   return (
@@ -111,6 +163,18 @@ export default function LocalPhaseSection({
 
         {/* Ações — stopPropagation para não colapsar */}
         <div className="flex items-center gap-1 ml-2 shrink-0" onClick={e => e.stopPropagation()}>
+          {!readOnly && onReorder && phase.is_active !== false && phaseActivities.length > 1 && (
+            <button
+              onClick={handleSortByDate}
+              disabled={sorting}
+              className="flex items-center gap-1 text-xs bg-white/20 hover:bg-white/30 text-white border border-white/30 rounded-lg px-2.5 py-1 font-medium disabled:opacity-60"
+              title="Ordenar por data de início"
+            >
+              {sorting ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowUpDown className="w-3 h-3" />}
+              Ordenar por data
+            </button>
+          )}
+
           {!readOnly && canAddActivity && phase.is_active !== false && (
             <button
               onClick={() => onAddActivity(phase.phase_name)}
@@ -254,6 +318,13 @@ export default function LocalPhaseSection({
                   showInactive={showInactive}
                   canEdit={canEditActivity}
                   canExcluir={canExcluirActivity}
+                  draggable={!readOnly && !!onReorder && phase.is_active !== false}
+                  onDragStart={handleDragStart}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                  onDragEnd={handleDragEnd}
+                  isDragged={draggedId === act.id}
+                  isDragOver={dragOverId === act.id}
                 />
               ))}
             </tbody>

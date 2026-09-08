@@ -981,6 +981,25 @@ export default function ScheduleTab({
     }
   };
 
+  // Reordena atividades locais dentro de uma fase — persiste novo `order` via bulkUpdate
+  const handleReorderLocalActivities = useCallback(async (orderedIds) => {
+    if (!orderedIds || orderedIds.length === 0) return;
+    // Atualiza estado local imediatamente (optimistic)
+    setSavedActivities(prev => {
+      const orderMap = {};
+      orderedIds.forEach((id, i) => { orderMap[id] = i; });
+      return prev.map(a => orderMap[a.id] !== undefined ? { ...a, order: orderMap[a.id] } : a);
+    });
+    // Persiste no banco
+    try {
+      const updates = orderedIds.map((id, i) => ({ id, order: i }));
+      await base44.entities.ScheduleActivity.bulkUpdate(updates);
+    } catch (err) {
+      console.error("[ScheduleTab] Erro ao reordenar atividades:", err);
+      toast({ title: "Erro ao reordenar atividades. Tente novamente.", variant: "destructive" });
+    }
+  }, []);
+
   // Handlers para overrides de fases do template
   const handleInactivateTemplatePhase = useCallback(async (phaseName) => {
     try {
@@ -1299,6 +1318,7 @@ export default function ScheduleTab({
               onAddActivity={(phaseName) => { setAddModalPhase(phaseName); setShowAddModal(true); }}
               onActivityUpdated={(act) => setSavedActivities(prev => prev.map(a => a.id === act.id ? act : a))}
               onActivityRemoved={(id) => setSavedActivities(prev => prev.filter(a => a.id !== id))}
+              onReorder={handleReorderLocalActivities}
               readOnly={readOnly}
               canEditPhase={canEditPhase}
               canExcluirPhase={canExcluirPhase}

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { toast } from "@/components/ui/use-toast";
-import { Save, X, Trash2, Loader2, EyeOff, AlertTriangle, Pencil } from "lucide-react";
+import { Save, X, Trash2, Loader2, EyeOff, AlertTriangle, Pencil, GripVertical, MessageSquare } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import ObservationsModal from "./ObservationsModal.jsx";
 
 const STATUS_OPTIONS = ["Não iniciado", "Em andamento", "Concluído", "Atrasado", "Bloqueado", "Cancelado"];
 const STATUS_COLORS = {
@@ -18,11 +19,17 @@ function fmtDate(d) {
   try { const [y, m, day] = d.substring(0, 10).split("-"); return `${day}/${m}/${y}`; } catch { return d; }
 }
 
-export default function LocalActivityRow({ activity, onUpdated, onRemoved, readOnly, showInactive, canEdit = true, canExcluir = true }) {
+export default function LocalActivityRow({
+  activity, onUpdated, onRemoved, readOnly, showInactive,
+  canEdit = true, canExcluir = true,
+  // Drag & drop props (opcionais)
+  draggable = false, onDragStart, onDragOver, onDrop, onDragEnd, isDragged, isDragOver,
+}) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [showObs, setShowObs] = useState(false);
   const [form, setForm] = useState({
     activity_name:        activity.activity_name || "",
     planned_start:        activity.planned_start || "",
@@ -43,7 +50,9 @@ export default function LocalActivityRow({ activity, onUpdated, onRemoved, readO
 
   const hasData = activity.actual_start || activity.actual_end ||
     (activity.history_observations && !activity.history_observations.includes("[INATIVADO]"));
-  
+
+  const hasObservations = !!(activity.history_observations && !activity.history_observations.includes("[INATIVADO]"));
+
   const inputClass = "px-1.5 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 w-full bg-white";
 
   const handleSave = async () => {
@@ -93,20 +102,38 @@ export default function LocalActivityRow({ activity, onUpdated, onRemoved, readO
 
   const rowClass = isInactive
     ? "border-b border-slate-50 bg-slate-50/60 opacity-60"
-    : "border-b border-slate-50 hover:bg-purple-50/30 transition-colors";
+    : isDragged
+      ? "border-b border-slate-50 bg-purple-100/50 opacity-40"
+      : isDragOver
+        ? "border-b border-slate-50 bg-purple-50/50 border-t-2 border-t-purple-400"
+        : "border-b border-slate-50 hover:bg-purple-50/30 transition-colors";
 
   return (
     <>
-      <tr className={rowClass}>
+      <tr
+        className={rowClass}
+        draggable={draggable && !isInactive}
+        onDragStart={draggable ? () => onDragStart?.(activity.id) : undefined}
+        onDragOver={draggable ? (e) => onDragOver?.(e, activity.id) : undefined}
+        onDrop={draggable ? (e) => onDrop?.(e, activity.id) : undefined}
+        onDragEnd={draggable ? onDragEnd : undefined}
+      >
         <td className="px-2 py-2.5 text-sm text-slate-700 max-w-[280px]">
-          <div className="flex flex-col gap-0.5">
-            {editing
-              ? <input value={form.activity_name} onChange={e => setForm(f => ({ ...f, activity_name: e.target.value }))} className={inputClass} />
-              : <span className={isInactive ? "line-through text-slate-400" : ""}>{form.activity_name}</span>
-            }
-            <div className="flex items-center gap-1 flex-wrap">
-              <span className="text-xs bg-purple-100 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded font-medium">Local</span>
-              {isInactive && <span className="text-xs bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded font-medium">Inativo</span>}
+          <div className="flex items-start gap-1.5">
+            {draggable && !readOnly && !isInactive && (
+              <span className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 mt-0.5 shrink-0" title="Arraste para reordenar">
+                <GripVertical className="w-3.5 h-3.5" />
+              </span>
+            )}
+            <div className="flex flex-col gap-0.5 min-w-0">
+              {editing
+                ? <input value={form.activity_name} onChange={e => setForm(f => ({ ...f, activity_name: e.target.value }))} className={inputClass} />
+                : <span className={isInactive ? "line-through text-slate-400" : ""}>{form.activity_name}</span>
+              }
+              <div className="flex items-center gap-1 flex-wrap">
+                <span className="text-xs bg-purple-100 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded font-medium">Local</span>
+                {isInactive && <span className="text-xs bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded font-medium">Inativo</span>}
+              </div>
             </div>
           </div>
         </td>
@@ -164,6 +191,14 @@ export default function LocalActivityRow({ activity, onUpdated, onRemoved, readO
                     <Pencil className="w-3 h-3" /> Editar
                   </button>
                 )}
+                <button
+                  onClick={() => setShowObs(true)}
+                  className="flex items-center gap-1 text-xs text-purple-600 hover:underline px-1 relative w-fit"
+                  title="Observações da atividade"
+                >
+                  <MessageSquare className="w-3 h-3" />
+                  {hasObservations && <span className="absolute -top-0.5 left-2.5 w-1.5 h-1.5 bg-purple-500 rounded-full" />}
+                </button>
                 {canExcluir && (
                   <button
                     onClick={() => setConfirm(true)}
@@ -203,6 +238,22 @@ export default function LocalActivityRow({ activity, onUpdated, onRemoved, readO
                 Cancelar
               </button>
             </div>
+          </td>
+        </tr>
+      )}
+
+      {/* Modal de observações */}
+      {showObs && (
+        <tr>
+          <td colSpan={10} className="p-0">
+            <ObservationsModal
+              activity={activity}
+              onSaved={(updated) => {
+                onUpdated(updated);
+                setForm(f => ({ ...f, history_observations: updated.history_observations || "" }));
+              }}
+              onClose={() => setShowObs(false)}
+            />
           </td>
         </tr>
       )}
