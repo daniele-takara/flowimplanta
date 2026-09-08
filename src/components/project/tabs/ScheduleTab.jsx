@@ -841,6 +841,10 @@ export default function ScheduleTab({
   const [showDependencyModal, setShowDependencyModal] = useState(false);
   const [dependencyModalInfo, setDependencyModalInfo] = useState(null);
 
+  // Drag & drop entre fases (estado compartilhado entre todas as fases locais)
+  const [draggedId, setDraggedId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
+
   // Ref para rastrear se já inicializamos para este projectId
   const initializedForProjectRef = useRef(null);
   // Ref para guardar os overrides que NÓS salvamos (para não serem sobrescritos pelo prop)
@@ -1309,6 +1313,109 @@ export default function ScheduleTab({
     }
   }, []);
 
+  // ── Drag & drop entre fases (handlers compartilhados) ──────────────────────
+  const handleDragStartActivity = useCallback((id) => {
+    setDraggedId(id);
+  }, []);
+
+  const handleDragOverActivity = useCallback((e, id) => {
+    e.preventDefault();
+    if (id === draggedId) return;
+    setDragOverId(id);
+  }, [draggedId]);
+
+  const handleDragEndActivity = useCallback(() => {
+    setDraggedId(null);
+    setDragOverId(null);
+  }, []);
+
+  // Drop sobre uma atividade — reordena (mesma fase) ou move (fase diferente)
+  const handleDropOnActivity = useCallback(async (e, targetActivityId) => {
+    e.preventDefault();
+    if (!draggedId || draggedId === targetActivityId) {
+      setDraggedId(null); setDragOverId(null);
+      return;
+    }
+    const draggedAct = savedActivities.find(a => a.id === draggedId);
+    const targetAct = savedActivities.find(a => a.id === targetActivityId);
+    if (!draggedAct || !targetAct) {
+      setDraggedId(null); setDragOverId(null);
+      return;
+    }
+    const sourcePhase = draggedAct.phase_name;
+    const targetPhase = targetAct.phase_name;
+
+    if (sourcePhase === targetPhase) {
+      // Mesma fase — reordenar
+      const phaseActs = savedActivities
+        .filter(a => a.phase_name === sourcePhase && !(a.status === "Cancelado" && (a.history_observations || "").includes("[INATIVADO]")))
+        .sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+      const reordered = [...phaseActs];
+      const fromIdx = reordered.findIndex(a => a.id === draggedId);
+      const toIdx = reordered.findIndex(a => a.id === targetActivityId);
+      if (fromIdx !== -1 && toIdx !== -1) {
+        const [moved] = reordered.splice(fromIdx, 1);
+        reordered.splice(toIdx, 0, moved);
+        await handleReorderLocalActivities(reordered.map(a => a.id));
+      }
+    } else {
+      // Fase diferente — mover atividade para a fase destino
+      const targetPhaseActs = savedActivities
+        .filter(a => a.phase_name === targetPhase)
+        .sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+      const newOrder = targetPhaseActs.length > 0
+        ? Math.max(...targetPhaseActs.map(a => a.order ?? 0)) + 1
+        : 0;
+      // Optimistic update
+      setSavedActivities(prev => prev.map(a =>
+        a.id === draggedId ? { ...a, phase_name: targetPhase, order: newOrder } : a
+      ));
+      try {
+        await base44.entities.ScheduleActivity.update(draggedId, { phase_name: targetPhase, order: newOrder });
+      } catch (err) {
+        console.error("[ScheduleTab] Erro ao mover atividade entre fases:", err);
+        toast({ title: "Erro ao mover atividade. Tente novamente.", variant: "destructive" });
+        // Reverte
+        setSavedActivities(prev => prev.map(a =>
+          a.id === draggedId ? { ...a, phase_name: sourcePhase, order: draggedAct.order } : a
+        ));
+      }
+    }
+    setDraggedId(null); setDragOverId(null);
+  }, [draggedId, savedActivities, handleReorderLocalActivities]);
+
+  // Drop sobre o cabeçalho da fase — move atividade para o final da fase destino
+  const handleDropOnPhaseHeader = useCallback(async (e, targetPhaseName) => {
+    e.preventDefault();
+    if (!draggedId) { setDraggedId(null); setDragOverId(null); return; }
+    const draggedAct = savedActivities.find(a => a.id === draggedId);
+    if (!draggedAct) { setDraggedId(null); setDragOverId(null); return; }
+    const sourcePhase = draggedAct.phase_name;
+    if (sourcePhase === targetPhaseName) {
+      setDraggedId(null); setDragOverId(null);
+      return;
+    }
+    const targetPhaseActs = savedActivities
+      .filter(a => a.phase_name === targetPhaseName)
+      .sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+    const newOrder = targetPhaseActs.length > 0
+      ? Math.max(...targetPhaseActs.map(a => a.order ?? 0)) + 1
+      : 0;
+    setSavedActivities(prev => prev.map(a =>
+      a.id === draggedId ? { ...a, phase_name: targetPhaseName, order: newOrder } : a
+    ));
+    try {
+      await base44.entities.ScheduleActivity.update(draggedId, { phase_name: targetPhaseName, order: newOrder });
+    } catch (err) {
+      console.error("[ScheduleTab] Erro ao mover atividade para fase:", err);
+      toast({ title: "Erro ao mover atividade. Tente novamente.", variant: "destructive" });
+      setSavedActivities(prev => prev.map(a =>
+        a.id === draggedId ? { ...a, phase_name: sourcePhase, order: draggedAct.order } : a
+      ));
+    }
+    setDraggedId(null); setDragOverId(null);
+  }, [draggedId, savedActivities]);
+
   // Handlers para overrides de fases do template
   const handleInactivateTemplatePhase = useCallback(async (phaseName) => {
     try {
@@ -1637,6 +1744,12 @@ export default function ScheduleTab({
               canExcluirActivity={!readOnly && canExcluirActivity}
               showInactive={showInactive}
               dependencies={dependencies} activitiesMap={activitiesMap} onOpenDependencyModal={handleOpenDependencyModal}
+              draggedId={draggedId} dragOverId={dragOverId}
+              onDragStartActivity={handleDragStartActivity}
+              onDragOverActivity={handleDragOverActivity}
+              onDropOnActivity={handleDropOnActivity}
+              onDragEndActivity={handleDragEndActivity}
+              onDropOnPhaseHeader={handleDropOnPhaseHeader}
             />
           );
         })

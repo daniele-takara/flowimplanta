@@ -39,16 +39,17 @@ export default function LocalPhaseSection({
   canExcluirActivity = true,
   showInactive,
   dependencies = [], activitiesMap = {}, onOpenDependencyModal,
+  // Drag & drop (estado compartilhado entre fases — vem do ScheduleTab)
+  draggedId, dragOverId,
+  onDragStartActivity, onDragOverActivity, onDropOnActivity, onDragEndActivity,
+  onDropOnPhaseHeader,
 }) {
   const [open, setOpen] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [sorting, setSorting] = useState(false);
-
-  // Drag & drop state
-  const [draggedId, setDraggedId] = useState(null);
-  const [dragOverId, setDragOverId] = useState(null);
+  const [headerDragOver, setHeaderDragOver] = useState(false);
 
   const phaseActivities = (localActivities || [])
     .filter(a => a.phase_name === phase.phase_name)
@@ -103,42 +104,15 @@ export default function LocalPhaseSection({
     setSorting(false);
   };
 
-  // Feature 1: Drag & drop handlers
-  const handleDragStart = (id) => setDraggedId(id);
-  const handleDragOver = (e, id) => {
-    e.preventDefault();
-    if (id === draggedId) return;
-    setDragOverId(id);
-  };
-  const handleDrop = async (e, targetId) => {
-    e.preventDefault();
-    if (!draggedId || draggedId === targetId) {
-      setDraggedId(null);
-      setDragOverId(null);
-      return;
-    }
-    const reordered = [...phaseActivities];
-    const fromIdx = reordered.findIndex(a => a.id === draggedId);
-    const toIdx = reordered.findIndex(a => a.id === targetId);
-    if (fromIdx === -1 || toIdx === -1) return;
-    const [moved] = reordered.splice(fromIdx, 1);
-    reordered.splice(toIdx, 0, moved);
-    const orderedIds = reordered.map(a => a.id);
-    setDraggedId(null);
-    setDragOverId(null);
-    if (onReorder) await onReorder(orderedIds);
-  };
-  const handleDragEnd = () => {
-    setDraggedId(null);
-    setDragOverId(null);
-  };
-
   return (
     <div className={`mb-2 rounded-xl border overflow-hidden shadow-sm ${phase.is_active === false ? "border-slate-200 opacity-60" : "border-purple-200"}`}>
       {/* Header */}
       <div
-        className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none ${phase.is_active === false ? "bg-slate-400" : "bg-purple-600"}`}
+        className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none transition-all ${phase.is_active === false ? "bg-slate-400" : "bg-purple-600"} ${headerDragOver ? "ring-2 ring-purple-300 ring-inset" : ""}`}
         onClick={() => setOpen(o => !o)}
+        onDragOver={(e) => { if (draggedId) { e.preventDefault(); setHeaderDragOver(true); } }}
+        onDragLeave={() => setHeaderDragOver(false)}
+        onDrop={(e) => { setHeaderDragOver(false); if (onDropOnPhaseHeader) onDropOnPhaseHeader(e, phase.phase_name); }}
       >
         {open ? <ChevronDown className="w-4 h-4 text-white shrink-0" /> : <ChevronRight className="w-4 h-4 text-white shrink-0" />}
 
@@ -320,10 +294,10 @@ export default function LocalPhaseSection({
                   canEdit={canEditActivity}
                   canExcluir={canExcluirActivity}
                   draggable={!readOnly && !!onReorder && phase.is_active !== false}
-                  onDragStart={handleDragStart}
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop}
-                  onDragEnd={handleDragEnd}
+                  onDragStart={onDragStartActivity}
+                  onDragOver={onDragOverActivity}
+                  onDrop={onDropOnActivity}
+                  onDragEnd={onDragEndActivity}
                   isDragged={draggedId === act.id}
                   isDragOver={dragOverId === act.id}
                   dependencies={dependencies}
