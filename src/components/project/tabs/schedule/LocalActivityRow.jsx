@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { toast } from "@/components/ui/use-toast";
-import { Save, X, Trash2, Loader2, EyeOff, AlertTriangle, Pencil, GripVertical, MessageSquare } from "lucide-react";
+import { Save, X, Trash2, Loader2, EyeOff, AlertTriangle, Pencil, GripVertical } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import ObservationsModal from "./ObservationsModal.jsx";
 
 const STATUS_OPTIONS = ["Não iniciado", "Em andamento", "Concluído", "Atrasado", "Bloqueado", "Cancelado"];
 const STATUS_COLORS = {
@@ -29,7 +28,7 @@ export default function LocalActivityRow({
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [removing, setRemoving] = useState(false);
-  const [showObs, setShowObs] = useState(false);
+  const [obsExpanded, setObsExpanded] = useState(false);
   const [form, setForm] = useState({
     activity_name:        activity.activity_name || "",
     planned_start:        activity.planned_start || "",
@@ -50,8 +49,6 @@ export default function LocalActivityRow({
 
   const hasData = activity.actual_start || activity.actual_end ||
     (activity.history_observations && !activity.history_observations.includes("[INATIVADO]"));
-
-  const hasObservations = !!(activity.history_observations && !activity.history_observations.includes("[INATIVADO]"));
 
   const inputClass = "px-1.5 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 w-full bg-white";
 
@@ -171,7 +168,15 @@ export default function LocalActivityRow({
         </td>
         <td className="px-1 py-2.5 max-w-[140px]">
           {editing ? <input value={form.history_observations} onChange={e => setForm(f => ({ ...f, history_observations: e.target.value }))} className={inputClass} />
-            : <span className="text-xs text-slate-400 truncate block">{form.history_observations || "—"}</span>}
+            : form.history_observations
+              ? <span
+                  onClick={() => setObsExpanded(e => !e)}
+                  className={`text-xs text-slate-500 cursor-pointer hover:text-slate-700 ${obsExpanded ? "whitespace-normal" : "truncate block"}`}
+                  title={obsExpanded ? "Clique para recolher" : "Clique para expandir"}
+                >
+                  {form.history_observations}
+                </span>
+              : <span className="text-xs text-slate-300">—</span>}
         </td>
         <td className="px-1 py-2.5">
           {!readOnly && !isInactive && (
@@ -191,14 +196,6 @@ export default function LocalActivityRow({
                     <Pencil className="w-3 h-3" /> Editar
                   </button>
                 )}
-                <button
-                  onClick={() => setShowObs(true)}
-                  className="flex items-center gap-1 text-xs text-purple-600 hover:underline px-1 relative w-fit"
-                  title="Observações da atividade"
-                >
-                  <MessageSquare className="w-3 h-3" />
-                  {hasObservations && <span className="absolute -top-0.5 left-2.5 w-1.5 h-1.5 bg-purple-500 rounded-full" />}
-                </button>
                 {canExcluir && (
                   <button
                     onClick={() => setConfirm(true)}
@@ -242,21 +239,6 @@ export default function LocalActivityRow({
         </tr>
       )}
 
-      {/* Modal de observações */}
-      {showObs && (
-        <tr>
-          <td colSpan={10} className="p-0">
-            <ObservationsModal
-              activity={activity}
-              onSaved={(updated) => {
-                onUpdated(updated);
-                setForm(f => ({ ...f, history_observations: updated.history_observations || "" }));
-              }}
-              onClose={() => setShowObs(false)}
-            />
-          </td>
-        </tr>
-      )}
     </>
   );
 }
