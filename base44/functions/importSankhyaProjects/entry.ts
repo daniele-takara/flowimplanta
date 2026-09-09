@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import {
-  sleep, fetchWithRetry, extractDate, normalizeField,
+  sleep, fetchWithRetry, extractDate, normalizeField, normalizeOrigin,
   norm, normalizeName, resolveModule, parseList, resolveUserByName,
 } from "../../shared/pipedriveUtils.ts";
 
@@ -131,6 +131,7 @@ Deno.serve(async (req) => {
       const gerenteEnumMap = enumMaps["30e71cbb54fad7e29fb71e3bcf9bfe59b4500743"] || {};
       const gerenteName = gerenteRaw ? (gerenteEnumMap[String(gerenteRaw)] || "") : "";
       const analystName = typeof deal.user_id === "object" ? (deal.user_id?.name || "") : "";
+      const canal = normalizeField(org?.["64fcc82db764fdd7f6bbc3add7735d6751bb5935"]);
 
       // Normalize modules
       const rawModules = parseList(org?.["a7cf0200e401a761fb5fff4f4122beb364de9adb"]);
@@ -155,6 +156,7 @@ Deno.serve(async (req) => {
         contracted_services: parseList(org?.["63d9aaa839860ca131fd6c6d8804ea502326f39b"]),
         contracted_employees: org?.["e7f28ae86be385212be4b97a442150ee45ebbb56"] ?? null,
         drive_folder: deal["818ba230f563236eb64f93c228328903a5376413"] || "",
+        canal,
       };
     });
 
@@ -207,7 +209,7 @@ Deno.serve(async (req) => {
           pause_reason: pause_reason || undefined,
           current_phase: "Abertura de projeto",
           progress_percent: 0,
-          origin: "Parceiro",
+          origin: normalizeOrigin(deal.canal) || undefined,
           start_date: deal.add_time || undefined,
           planned_end_date: deal.expected_close_date || undefined,
           aligned_end_date: deal.aligned_end_date || undefined,

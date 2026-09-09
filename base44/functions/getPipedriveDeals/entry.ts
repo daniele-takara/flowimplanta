@@ -27,20 +27,8 @@ function extractDate(val) {
 }
 
 function normalizeOrigin(val) {
-  const v = (val || "").toLowerCase().trim();
-  const map = {
-    "pontotel": "Pontotel",
-    "parceiro": "Parceiro",
-    "indicação": "Indicação",
-    "indicacao": "Indicação",
-    "inbound": "Inbound",
-    "outbound": "Outbound",
-    "sankhya": "Parceiro",
-    "sankhya rh": "Parceiro",
-    "pluxee": "Parceiro",
-    "tako": "Parceiro",
-  };
-  return map[v] || (v.includes("sankhya") ? "Parceiro" : "");
+  // Origem agora é texto livre — preserva exatamente o nome do canal do Pipedrive
+  return (val || "").trim();
 }
 
 function normalizeField(val) {

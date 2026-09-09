@@ -23,14 +23,7 @@
     },
     "origin": {
       "type": "string",
-      "description": "Origem do cliente",
-      "enum": [
-        "Pontotel",
-        "Parceiro",
-        "Indica\u00e7\u00e3o",
-        "Inbound",
-        "Outbound"
-      ]
+      "description": "Origem do cliente (texto livre \u2014 reflete o canal do Pipedrive)"
     },
     "mrr": {
       "type": "number",

@@ -57,19 +57,8 @@ export function normalizeField(val: any): string {
 }
 
 export function normalizeOrigin(val: string): string {
-  const v = (val || "").toLowerCase().trim();
-  const map: Record<string, string> = {
-    "pontotel": "Pontotel",
-    "parceiro": "Parceiro",
-    "indicação": "Indicação", "indicacao": "Indicação",
-    "inbound": "Inbound",
-    "outbound": "Outbound",
-    "sankhya": "Parceiro",
-    "sankhya rh": "Parceiro",
-    "pluxee": "Parceiro",
-    "tako": "Parceiro",
-  };
-  return map[v] || (v.includes("sankhya") ? "Parceiro" : "");
+  // Origem agora é texto livre — preserva exatamente o nome do canal do Pipedrive
+  return (val || "").trim();
 }
 
 export function norm(s: string): string {

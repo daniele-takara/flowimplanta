@@ -16,7 +16,7 @@ const ALL_SERVICES = [
   "Atendimento e Suporte dedicado"
 ];
 
-const ORIGINS = ["Pontotel", "Parceiro", "Indicação", "Inbound", "Outbound"];
+const ORIGIN_SUGGESTIONS = ["Pontotel", "Parceiro", "Indicação", "Inbound", "Outbound", "Sankhya", "Sankhya RH", "Pluxee", "Tako", "Outros Canais"];
 
 const inputClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";
 const labelClass = "block text-xs font-semibold text-slate-500 mb-1";
@@ -302,10 +302,16 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
               </div>
             </div>
             <Field label="Origem do cliente">
-              <select value={form.origin} onChange={set("origin")} className={inputClass}>
-                <option value="">Selecione...</option>
-                {ORIGINS.map(o => <option key={o}>{o}</option>)}
-              </select>
+              <input
+                value={form.origin}
+                onChange={set("origin")}
+                className={inputClass}
+                placeholder="Canal do Pipedrive"
+                list="origin-suggestions"
+              />
+              <datalist id="origin-suggestions">
+                {ORIGIN_SUGGESTIONS.map(o => <option key={o} value={o} />)}
+              </datalist>
             </Field>
             <Field label="MRR (R$)">
               <input type="number" value={form.mrr} onChange={set("mrr")} className={inputClass} placeholder="0,00" />
