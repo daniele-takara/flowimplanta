@@ -27,6 +27,7 @@ import CalcRulesKanban from './pages/CalcRulesKanban';
 import AlocacaoRecursos from './pages/AlocacaoRecursos';
 import WebhookConfig from './pages/WebhookConfig';
 import MonitorIntegracoes from './pages/MonitorIntegracoes';
+import ApiDocs from './pages/ApiDocs';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import NoPermissionScreen from './components/NoPermissionScreen';
@@ -156,6 +157,7 @@ function App() {
             {/* Public client route — no auth needed */}
             <Route path="/cliente/:token" element={<ClientCalcWizard />} />
             <Route path="/calculo" element={<StandaloneCalcWizard />} />
+            <Route path="/docs/api" element={<ApiDocs />} />
 
             {/* All other routes: gated by login */}
             <Route path="*" element={<AuthenticatedApp />} />

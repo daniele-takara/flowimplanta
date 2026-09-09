@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import {
   Plus, Trash2, Copy, CheckCircle, XCircle, KeyRound,
-  Eye, EyeOff, Code, Check, Power, AlertTriangle
+  Eye, EyeOff, Code, Check, Power, AlertTriangle, BookOpen, Link as LinkIcon
 } from "lucide-react";
 
 const inputClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white";
 
 const ENDPOINT = "https://gestao-projetos-pontotel.base44.app/functions/partnerApiProjects";
+const DOCS_URL = "https://gestao-projetos-pontotel.base44.app/docs/api";
 
 function generateApiKey() {
   const bytes = new Uint8Array(20);
@@ -41,6 +42,15 @@ export default function TabApiParceiros() {
   const [copiedId, setCopiedId] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [creating, setCreating] = useState(false);
+  const [docsCopied, setDocsCopied] = useState(false);
+
+  const copyDocsLink = async () => {
+    try {
+      await navigator.clipboard.writeText(DOCS_URL);
+      setDocsCopied(true);
+      setTimeout(() => setDocsCopied(false), 2500);
+    } catch {}
+  };
 
   const load = async () => {
     setLoading(true);
@@ -98,12 +108,31 @@ export default function TabApiParceiros() {
             Gere chaves de API para que parceiros externos consultem projetos (origem ≠ Pontotel).
           </p>
         </div>
-        <button
-          onClick={() => { setShowCreate(true); setGeneratedKey(null); setNewName(""); }}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors"
-        >
-          <Plus className="w-4 h-4" /> Nova Chave
-        </button>
+        <div className="flex items-center gap-2">
+          <a
+            href={DOCS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 rounded-xl transition-colors"
+            title="Abrir documentação pública da API"
+          >
+            <BookOpen className="w-4 h-4" /> Ver documentação
+          </a>
+          <button
+            onClick={copyDocsLink}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 rounded-xl transition-colors"
+            title="Copiar link da documentação para compartilhar com o parceiro"
+          >
+            {docsCopied ? <Check className="w-4 h-4 text-green-500" /> : <LinkIcon className="w-4 h-4" />}
+            {docsCopied ? "Link copiado!" : "Copiar link da doc"}
+          </button>
+          <button
+            onClick={() => { setShowCreate(true); setGeneratedKey(null); setNewName(""); }}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Nova Chave
+          </button>
+        </div>
       </div>
 
       {/* Documentação do endpoint */}
