@@ -86,12 +86,10 @@ function PhaseSection({
   // Drag & drop (estado compartilhado — vem do ScheduleTab)
   draggedId, dragOverId,
   onDragStartActivity, onDragOverActivity, onDropOnActivity, onDragEndActivity,
-  onDropOnPhaseHeader,
 }) {
   const [open, setOpen] = useState(true);
   const [completing, setCompleting] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [headerDragOver, setHeaderDragOver] = useState(false);
 
   const isInactive = phaseOverride?.is_active === false;
   const displayName = phaseOverride?.custom_name || phaseName;
@@ -111,16 +109,41 @@ function PhaseSection({
   );
   const total = visibleTasks.length + (showInactive ? phaseLocalActivities.length : activeLocalActivities.length);
 
+  // Lista mesclada: tasks do template (grupos/subgrupos/tasks) + atividades locais,
+  // ordenadas por order unificado (template-first no empate)
+  const mergedItems = useMemo(() => {
+    const items = [];
+    tasks.forEach(t => {
+      if (t.type === "task") {
+        const act = activitiesByTask[t.id];
+        const isInactivated = act && act.status === "Cancelado" && (act.history_observations || "").includes("[INATIVADO]");
+        if (isInactivated && !showInactive) return;
+        items.push({ kind: "tmpl", sortKey: getTaskOrder(t, manualOverrides), task: t });
+      } else {
+        items.push({ kind: t.type, sortKey: t.row, task: t });
+      }
+    });
+    phaseLocalActivities.forEach(a => {
+      const isInactivated = a.status === "Cancelado" && (a.history_observations || "").includes("[INATIVADO]");
+      if (isInactivated && !showInactive) return;
+      items.push({ kind: "local", sortKey: a.order ?? 99, activity: a });
+    });
+    items.sort((a, b) => {
+      if (a.sortKey !== b.sortKey) return a.sortKey - b.sortKey;
+      if (a.kind === "local" && b.kind !== "local") return 1;
+      if (a.kind !== "local" && b.kind === "local") return -1;
+      return 0;
+    });
+    return items;
+  }, [tasks, phaseLocalActivities, activitiesByTask, showInactive, manualOverrides]);
+
   if (visibleTasks.length === 0 && phaseLocalActivities.length === 0) return null;
 
   return (
     <div className={`mb-2 rounded-xl border overflow-hidden shadow-sm ${isInactive ? "border-slate-200 opacity-60" : "border-slate-200"}`}>
       <div
-        className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none flex-wrap ${isInactive ? "bg-slate-400" : "bg-blue-600"} ${headerDragOver ? "ring-2 ring-blue-300 ring-inset" : ""}`}
+        className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none flex-wrap ${isInactive ? "bg-slate-400" : "bg-blue-600"}`}
         onClick={() => setOpen(o => !o)}
-        onDragOver={(e) => { if (draggedId) { e.preventDefault(); setHeaderDragOver(true); } }}
-        onDragLeave={() => setHeaderDragOver(false)}
-        onDrop={(e) => { setHeaderDragOver(false); if (onDropOnPhaseHeader) onDropOnPhaseHeader(e, phaseName); }}
       >
         {open ? <ChevronDown className="w-4 h-4 text-white shrink-0" /> : <ChevronRight className="w-4 h-4 text-white shrink-0" />}
         <h3 className="text-sm font-bold text-white flex-1 min-w-0">{displayName}</h3>
@@ -233,10 +256,11 @@ function PhaseSection({
               </tr>
             </thead>
             <tbody>
-              {tasks.map(task => {
-                if (task.type === "group") return <GroupRow key={task.id} task={task} computedDates={computedDates} />;
-                if (task.type === "subgroup") return <SubGroupRow key={task.id} task={task} computedDates={computedDates} />;
-                if (task.type === "task") {
+              {mergedItems.map(item => {
+                if (item.kind === "group") return <GroupRow key={item.task.id} task={item.task} computedDates={computedDates} />;
+                if (item.kind === "subgroup") return <SubGroupRow key={item.task.id} task={item.task} computedDates={computedDates} />;
+                if (item.kind === "tmpl") {
+                  const task = item.task;
                   const isSubActivity = !!task.parentGroup;
                   return (
                     <TemplateTaskRow
@@ -255,25 +279,28 @@ function PhaseSection({
                     />
                   );
                 }
+                if (item.kind === "local") {
+                  const act = item.activity;
+                  return (
+                    <LocalActivityRow
+                      key={act.id} activity={act}
+                      onUpdated={onActivityUpdated}
+                      onRemoved={onActivityRemoved}
+                      readOnly={readOnly}
+                      showInactive={showInactive}
+                      canEdit={canEditActivity}
+                      canExcluir={canExcluirActivity}
+                      draggable={!readOnly && !isInactive && !!onDropOnActivity}
+                      onDragStart={onDragStartActivity} onDragOver={onDragOverActivity}
+                      onDrop={onDropOnActivity} onDragEnd={onDragEndActivity}
+                      isDragged={draggedId === `local:${act.id}`}
+                      isDragOver={dragOverId === `local:${act.id}`}
+                      dependencies={dependencies} activitiesMap={activitiesMap} onOpenDependencyModal={onOpenDependencyModal}
+                    />
+                  );
+                }
                 return null;
               })}
-              {phaseLocalActivities.map(act => (
-                <LocalActivityRow
-                  key={act.id} activity={act}
-                  onUpdated={onActivityUpdated}
-                  onRemoved={onActivityRemoved}
-                  readOnly={readOnly}
-                  showInactive={showInactive}
-                  canEdit={canEditActivity}
-                  canExcluir={canExcluirActivity}
-                  draggable={!readOnly && !isInactive && !!onDropOnActivity}
-                  onDragStart={onDragStartActivity} onDragOver={onDragOverActivity}
-                  onDrop={onDropOnActivity} onDragEnd={onDragEndActivity}
-                  isDragged={draggedId === `local:${act.id}`}
-                  isDragOver={dragOverId === `local:${act.id}`}
-                  dependencies={dependencies} activitiesMap={activitiesMap} onOpenDependencyModal={onOpenDependencyModal}
-                />
-              ))}
             </tbody>
           </table>
         </div>
@@ -977,7 +1004,94 @@ export default function ScheduleTab({
     }
   }, [savedActivities]);
 
-  // Drop sobre uma atividade — reordena (mesma fase, mesmo tipo) ou move (fase diferente)
+  // ── Lista mesclada de itens da fase (template + local) para reordenação unificada ──
+  const buildPhaseItems = useCallback((phaseName) => {
+    const items = [];
+    SCHEDULE_TASKS.forEach(t => {
+      if (t.type !== "task" || !visible.has(t.id)) return;
+      if (getTaskPhase(t, manualOverrides) !== phaseName) return;
+      const act = activitiesByTask[t.id];
+      const isInactivated = act && act.status === "Cancelado" && (act.history_observations || "").includes("[INATIVADO]");
+      if (isInactivated) return;
+      items.push({ type: "tmpl", id: t.id, order: getTaskOrder(t, manualOverrides) });
+    });
+    savedActivities.forEach(a => {
+      if (a.phase_name !== phaseName) return;
+      const isInactivated = a.status === "Cancelado" && (a.history_observations || "").includes("[INATIVADO]");
+      if (isInactivated) return;
+      items.push({ type: "local", id: a.id, order: a.order ?? 99 });
+    });
+    items.sort((a, b) => {
+      if (a.order !== b.order) return a.order - b.order;
+      if (a.type === "tmpl" && b.type === "local") return -1;
+      if (a.type === "local" && b.type === "tmpl") return 1;
+      return 0;
+    });
+    return items;
+  }, [visible, manualOverrides, savedActivities, activitiesByTask]);
+
+  // Persiste reordenação unificada (template via schedule_overrides, local via bulkUpdate)
+  const persistUnifiedReorder = useCallback(async (orderedItems, src, sourcePhase, targetPhase) => {
+    const prevOverrides = manualOverrides;
+    const prevActivities = savedActivities;
+
+    const templateUpdates = {};
+    const localUpdates = [];
+    orderedItems.forEach(it => {
+      if (it.type === "tmpl") {
+        templateUpdates[it.id] = it.newOrder;
+      } else {
+        const update = { id: it.id, order: it.newOrder };
+        if (sourcePhase !== targetPhase && it.id === src.id && src.type === "local") {
+          update.phase_name = targetPhase;
+        }
+        localUpdates.push(update);
+      }
+    });
+
+    let newOverrides = manualOverrides;
+    if (Object.keys(templateUpdates).length > 0) {
+      newOverrides = { ...manualOverrides };
+      Object.entries(templateUpdates).forEach(([taskId, order]) => {
+        newOverrides[taskId] = { ...(newOverrides[taskId] || {}), order };
+        if (sourcePhase !== targetPhase && taskId === src.id && src.type === "tmpl") {
+          newOverrides[taskId].phase_name = targetPhase;
+        }
+      });
+      localSavedOverridesRef.current = newOverrides;
+      setManualOverrides(newOverrides);
+    }
+
+    if (localUpdates.length > 0) {
+      const updateMap = {};
+      localUpdates.forEach(u => {
+        updateMap[u.id] = { order: u.order };
+        if (u.phase_name) updateMap[u.id].phase_name = u.phase_name;
+      });
+      setSavedActivities(prev => prev.map(a =>
+        updateMap[a.id] ? { ...a, ...updateMap[a.id] } : a
+      ));
+    }
+
+    try {
+      if (Object.keys(templateUpdates).length > 0) {
+        await base44.entities.Project.update(projectId, { schedule_overrides: newOverrides });
+      }
+      if (localUpdates.length > 0) {
+        await base44.entities.ScheduleActivity.bulkUpdate(localUpdates);
+      }
+      const newStatus = await autoPromoteToInProgress(projectId, project?.status);
+      if (newStatus !== project?.status && onStatusPromoted) onStatusPromoted();
+    } catch (err) {
+      console.error("[ScheduleTab] Erro ao persistir reordenação:", err);
+      localSavedOverridesRef.current = prevOverrides;
+      setManualOverrides(prevOverrides);
+      setSavedActivities(prevActivities);
+      toast({ title: "Erro ao reordenar atividades. Tente novamente.", variant: "destructive" });
+    }
+  }, [manualOverrides, savedActivities, projectId, project?.status, onStatusPromoted]);
+
+  // Drop sobre uma atividade — reordenação unificada (mesma fase, qualquer tipo) ou move (fase diferente)
   const handleDropOnActivity = useCallback(async (e, targetRef) => {
     e.preventDefault();
     if (!draggedId || draggedId === targetRef) {
@@ -987,18 +1101,6 @@ export default function ScheduleTab({
 
     const src = parseRef(draggedId);
     const tgt = parseRef(targetRef);
-
-    // Determina fase destino
-    let targetPhase;
-    if (tgt.type === "tmpl") {
-      const tgtTask = SCHEDULE_TASKS.find(t => t.id === tgt.id);
-      if (!tgtTask) { setDraggedId(null); setDragOverId(null); return; }
-      targetPhase = getTaskPhase(tgtTask, manualOverrides);
-    } else {
-      const tgtAct = savedActivities.find(a => a.id === tgt.id);
-      if (!tgtAct) { setDraggedId(null); setDragOverId(null); return; }
-      targetPhase = tgtAct.phase_name;
-    }
 
     // Determina fase origem
     let sourcePhase;
@@ -1012,66 +1114,53 @@ export default function ScheduleTab({
       sourcePhase = srcAct.phase_name;
     }
 
-    // Mesma fase → reordenar (apenas mesmo tipo)
-    if (sourcePhase === targetPhase) {
-      if (src.type === "tmpl" && tgt.type === "tmpl") {
-        await handleReorderTemplateTasks(sourcePhase, src.id, tgt.id);
-      } else if (src.type === "local" && tgt.type === "local") {
-        const phaseActs = savedActivities
-          .filter(a => a.phase_name === sourcePhase && !(a.status === "Cancelado" && (a.history_observations || "").includes("[INATIVADO]")))
-          .sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
-        const reordered = [...phaseActs];
-        const fromIdx = reordered.findIndex(a => a.id === src.id);
-        const toIdx = reordered.findIndex(a => a.id === tgt.id);
-        if (fromIdx !== -1 && toIdx !== -1) {
-          const [moved] = reordered.splice(fromIdx, 1);
-          reordered.splice(toIdx, 0, moved);
-          await handleReorderLocalActivities(reordered.map(a => a.id));
-        }
-      }
+    // Determina fase destino
+    let targetPhase;
+    if (tgt.type === "tmpl") {
+      const tgtTask = SCHEDULE_TASKS.find(t => t.id === tgt.id);
+      if (!tgtTask) { setDraggedId(null); setDragOverId(null); return; }
+      targetPhase = getTaskPhase(tgtTask, manualOverrides);
+    } else {
+      const tgtAct = savedActivities.find(a => a.id === tgt.id);
+      if (!tgtAct) { setDraggedId(null); setDragOverId(null); return; }
+      targetPhase = tgtAct.phase_name;
+    }
+
+    // Template task: só move para fases canônicas (PHASE_ORDER)
+    if (src.type === "tmpl" && sourcePhase !== targetPhase && !PHASE_ORDER.includes(targetPhase)) {
       setDraggedId(null); setDragOverId(null);
       return;
     }
 
-    // Fase diferente → mover
-    if (src.type === "tmpl") {
-      // Template task: só move para fases canônicas (PHASE_ORDER)
-      if (!PHASE_ORDER.includes(targetPhase)) {
-        setDraggedId(null); setDragOverId(null);
-        return;
-      }
-      await handleMoveTemplateTask(src.id, targetPhase);
+    // Construir lista mesclada da fase destino
+    const targetItems = buildPhaseItems(targetPhase);
+
+    // Remover item arrastado se estiver na mesma fase
+    let workList = targetItems;
+    let draggedEntry;
+    if (sourcePhase === targetPhase) {
+      draggedEntry = workList.find(it => it.type === src.type && it.id === src.id);
+      workList = workList.filter(it => !(it.type === src.type && it.id === src.id));
     } else {
-      // Atividade local: move para qualquer fase
-      await handleMoveLocalActivity(src.id, targetPhase);
+      draggedEntry = { type: src.type, id: src.id, order: 0 };
     }
 
-    setDraggedId(null); setDragOverId(null);
-  }, [draggedId, savedActivities, manualOverrides, handleReorderTemplateTasks, handleMoveTemplateTask, handleMoveLocalActivity, handleReorderLocalActivities]);
+    if (!draggedEntry) { setDraggedId(null); setDragOverId(null); return; }
 
-  // Drop sobre o cabeçalho da fase — move atividade para o final da fase destino
-  const handleDropOnPhaseHeader = useCallback(async (e, targetPhaseName) => {
-    e.preventDefault();
-    if (!draggedId) { setDraggedId(null); setDragOverId(null); return; }
+    // Encontrar índice do alvo e inserir item arrastado antes dele
+    const targetIndex = workList.findIndex(it => it.type === tgt.type && it.id === tgt.id);
+    if (targetIndex === -1) { setDraggedId(null); setDragOverId(null); return; }
 
-    const src = parseRef(draggedId);
+    workList.splice(targetIndex, 0, draggedEntry);
 
-    if (src.type === "tmpl") {
-      const srcTask = SCHEDULE_TASKS.find(t => t.id === src.id);
-      if (!srcTask) { setDraggedId(null); setDragOverId(null); return; }
-      const sourcePhase = getTaskPhase(srcTask, manualOverrides);
-      if (sourcePhase === targetPhaseName) { setDraggedId(null); setDragOverId(null); return; }
-      // Template task: só move para fases canônicas (PHASE_ORDER)
-      if (!PHASE_ORDER.includes(targetPhaseName)) { setDraggedId(null); setDragOverId(null); return; }
-      await handleMoveTemplateTask(src.id, targetPhaseName);
-    } else {
-      const srcAct = savedActivities.find(a => a.id === src.id);
-      if (!srcAct) { setDraggedId(null); setDragOverId(null); return; }
-      await handleMoveLocalActivity(src.id, targetPhaseName);
-    }
+    // Reatribuir ordens sequenciais
+    const orderedItems = workList.map((it, idx) => ({ ...it, newOrder: idx }));
+
+    // Persistir
+    await persistUnifiedReorder(orderedItems, src, sourcePhase, targetPhase);
 
     setDraggedId(null); setDragOverId(null);
-  }, [draggedId, savedActivities, manualOverrides, handleMoveTemplateTask, handleMoveLocalActivity]);
+  }, [draggedId, savedActivities, manualOverrides, buildPhaseItems, persistUnifiedReorder]);
 
   // Handlers para overrides de fases do template
   const handleInactivateTemplatePhase = useCallback(async (phaseName) => {
@@ -1381,7 +1470,6 @@ export default function ScheduleTab({
                 draggedId={draggedId} dragOverId={dragOverId}
                 onDragStartActivity={handleDragStartActivity} onDragOverActivity={handleDragOverActivity}
                 onDropOnActivity={handleDropOnActivity} onDragEndActivity={handleDragEndActivity}
-                onDropOnPhaseHeader={handleDropOnPhaseHeader}
               />
             );
           }
@@ -1410,7 +1498,6 @@ export default function ScheduleTab({
               onDragOverActivity={handleDragOverActivity}
               onDropOnActivity={handleDropOnActivity}
               onDragEndActivity={handleDragEndActivity}
-              onDropOnPhaseHeader={handleDropOnPhaseHeader}
             />
           );
         })

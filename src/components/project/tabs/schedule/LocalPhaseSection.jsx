@@ -42,14 +42,12 @@ export default function LocalPhaseSection({
   // Drag & drop (estado compartilhado entre fases — vem do ScheduleTab)
   draggedId, dragOverId,
   onDragStartActivity, onDragOverActivity, onDropOnActivity, onDragEndActivity,
-  onDropOnPhaseHeader,
 }) {
   const [open, setOpen] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [sorting, setSorting] = useState(false);
-  const [headerDragOver, setHeaderDragOver] = useState(false);
 
   const phaseActivities = (localActivities || [])
     .filter(a => a.phase_name === phase.phase_name)
@@ -108,11 +106,8 @@ export default function LocalPhaseSection({
     <div className={`mb-2 rounded-xl border overflow-hidden shadow-sm ${phase.is_active === false ? "border-slate-200 opacity-60" : "border-purple-200"}`}>
       {/* Header */}
       <div
-        className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none transition-all ${phase.is_active === false ? "bg-slate-400" : "bg-purple-600"} ${headerDragOver ? "ring-2 ring-purple-300 ring-inset" : ""}`}
+        className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none transition-all ${phase.is_active === false ? "bg-slate-400" : "bg-purple-600"}`}
         onClick={() => setOpen(o => !o)}
-        onDragOver={(e) => { if (draggedId) { e.preventDefault(); setHeaderDragOver(true); } }}
-        onDragLeave={() => setHeaderDragOver(false)}
-        onDrop={(e) => { setHeaderDragOver(false); if (onDropOnPhaseHeader) onDropOnPhaseHeader(e, phase.phase_name); }}
       >
         {open ? <ChevronDown className="w-4 h-4 text-white shrink-0" /> : <ChevronRight className="w-4 h-4 text-white shrink-0" />}
 
