@@ -247,7 +247,7 @@ export default function TemplateTaskRow({
       <tr
         className={rowClass}
         draggable={draggable && !isInactive}
-        onDragStart={draggable ? () => onDragStart?.(`tmpl:${task.id}`) : undefined}
+        onDragStart={draggable ? (e) => onDragStart?.(e, `tmpl:${task.id}`) : undefined}
         onDragOver={draggable ? (e) => onDragOver?.(e, `tmpl:${task.id}`) : undefined}
         onDrop={draggable ? (e) => onDrop?.(e, `tmpl:${task.id}`) : undefined}
         onDragEnd={draggable ? onDragEnd : undefined}

@@ -867,7 +867,12 @@ export default function ScheduleTab({
   }, []);
 
   // ── Drag & drop unificado (template + local) usando refs ────────────────────
-  const handleDragStartActivity = useCallback((ref) => {
+  const handleDragStartActivity = useCallback((e, ref) => {
+    // Necessário para Firefox e alguns navegadores — sem setData o drag não inicia
+    if (e && e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", ref);
+    }
     setDraggedId(ref);
   }, []);
 
@@ -1012,7 +1017,7 @@ export default function ScheduleTab({
       sourcePhase = srcAct.phase_name;
     }
 
-    // Mesma fase → reordenar (apenas mesmo tipo)
+    // Mesma fase → reordenar
     if (sourcePhase === targetPhase) {
       if (src.type === "tmpl" && tgt.type === "tmpl") {
         await handleReorderTemplateTasks(sourcePhase, src.id, tgt.id);
@@ -1026,6 +1031,18 @@ export default function ScheduleTab({
         if (fromIdx !== -1 && toIdx !== -1) {
           const [moved] = reordered.splice(fromIdx, 1);
           reordered.splice(toIdx, 0, moved);
+          await handleReorderLocalActivities(reordered.map(a => a.id));
+        }
+      } else if (src.type === "local" && tgt.type === "tmpl") {
+        // Local sobre template (mesma fase): move local para o final da lista de locais da fase
+        const phaseActs = savedActivities
+          .filter(a => a.phase_name === sourcePhase && !(a.status === "Cancelado" && (a.history_observations || "").includes("[INATIVADO]")))
+          .sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+        const reordered = [...phaseActs];
+        const fromIdx = reordered.findIndex(a => a.id === src.id);
+        if (fromIdx !== -1 && fromIdx !== reordered.length - 1) {
+          const [moved] = reordered.splice(fromIdx, 1);
+          reordered.push(moved);
           await handleReorderLocalActivities(reordered.map(a => a.id));
         }
       }

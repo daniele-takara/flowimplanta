@@ -144,7 +144,7 @@ export default function LocalActivityRow({
       <tr
         className={rowClass}
         draggable={draggable && !isInactive}
-        onDragStart={draggable ? () => onDragStart?.(`local:${activity.id}`) : undefined}
+        onDragStart={draggable ? (e) => onDragStart?.(e, `local:${activity.id}`) : undefined}
         onDragOver={draggable ? (e) => onDragOver?.(e, `local:${activity.id}`) : undefined}
         onDrop={draggable ? (e) => onDrop?.(e, `local:${activity.id}`) : undefined}
         onDragEnd={draggable ? onDragEnd : undefined}
