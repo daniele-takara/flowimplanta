@@ -27,6 +27,7 @@ function extractDate(val) {
 }
 
 function normalizeOrigin(val) {
+  const v = (val || "").toLowerCase().trim();
   const map = {
     "pontotel": "Pontotel",
     "parceiro": "Parceiro",
@@ -34,8 +35,12 @@ function normalizeOrigin(val) {
     "indicacao": "Indicação",
     "inbound": "Inbound",
     "outbound": "Outbound",
+    "sankhya": "Parceiro",
+    "sankhya rh": "Parceiro",
+    "pluxee": "Parceiro",
+    "tako": "Parceiro",
   };
-  return map[(val || "").toLowerCase().trim()] || "";
+  return map[v] || (v.includes("sankhya") ? "Parceiro" : "");
 }
 
 function normalizeField(val) {

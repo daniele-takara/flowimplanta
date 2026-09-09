@@ -57,6 +57,7 @@ export function normalizeField(val: any): string {
 }
 
 export function normalizeOrigin(val: string): string {
+  const v = (val || "").toLowerCase().trim();
   const map: Record<string, string> = {
     "pontotel": "Pontotel",
     "parceiro": "Parceiro",
@@ -64,8 +65,11 @@ export function normalizeOrigin(val: string): string {
     "inbound": "Inbound",
     "outbound": "Outbound",
     "sankhya": "Parceiro",
+    "sankhya rh": "Parceiro",
+    "pluxee": "Parceiro",
+    "tako": "Parceiro",
   };
-  return map[(val || "").toLowerCase().trim()] || "";
+  return map[v] || (v.includes("sankhya") ? "Parceiro" : "");
 }
 
 export function norm(s: string): string {
