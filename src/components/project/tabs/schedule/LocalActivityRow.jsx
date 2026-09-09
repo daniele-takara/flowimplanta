@@ -146,7 +146,7 @@ export default function LocalActivityRow({
         draggable={draggable && !isInactive}
         onDragStart={draggable ? (e) => onDragStart?.(e, `local:${activity.id}`) : undefined}
         onDragOver={draggable ? (e) => onDragOver?.(e, `local:${activity.id}`) : undefined}
-        onDrop={draggable ? (e) => onDrop?.(e, `local:${activity.id}`) : undefined}
+        onDrop={draggable ? (e) => { e.stopPropagation(); onDrop?.(e, `local:${activity.id}`); } : undefined}
         onDragEnd={draggable ? onDragEnd : undefined}
       >
         <td className="px-2 py-2.5 text-sm text-slate-700 max-w-[280px]">

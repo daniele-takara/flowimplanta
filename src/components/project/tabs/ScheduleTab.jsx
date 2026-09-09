@@ -117,13 +117,15 @@ function PhaseSection({
   if (visibleTasks.length === 0 && phaseLocalActivities.length === 0) return null;
 
   return (
-    <div className={`mb-2 rounded-xl border overflow-hidden shadow-sm ${isInactive ? "border-slate-200 opacity-60" : "border-slate-200"}`}>
+    <div
+      className={`mb-2 rounded-xl border overflow-hidden shadow-sm ${isInactive ? "border-slate-200 opacity-60" : "border-slate-200"} ${headerDragOver ? "ring-2 ring-blue-300 ring-inset" : ""}`}
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (draggedId) setHeaderDragOver(true); }}
+      onDragLeave={() => setHeaderDragOver(false)}
+      onDrop={(e) => { e.preventDefault(); lastDropAtRef.current = Date.now(); setHeaderDragOver(false); if (onDropOnPhaseHeader) onDropOnPhaseHeader(e, phaseName); }}
+    >
       <div
-        className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none flex-wrap ${isInactive ? "bg-slate-400" : "bg-blue-600"} ${headerDragOver ? "ring-2 ring-blue-300 ring-inset" : ""}`}
+        className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none flex-wrap ${isInactive ? "bg-slate-400" : "bg-blue-600"}`}
         onClick={() => { if (Date.now() - lastDropAtRef.current < 300) return; setOpen(o => !o); }}
-        onDragOver={(e) => { e.preventDefault(); if (draggedId) setHeaderDragOver(true); }}
-        onDragLeave={() => setHeaderDragOver(false)}
-        onDrop={(e) => { lastDropAtRef.current = Date.now(); setHeaderDragOver(false); if (onDropOnPhaseHeader) onDropOnPhaseHeader(e, phaseName); }}
       >
         {open ? <ChevronDown className="w-4 h-4 text-white shrink-0" /> : <ChevronRight className="w-4 h-4 text-white shrink-0" />}
         <h3 className="text-sm font-bold text-white flex-1 min-w-0">{displayName}</h3>
@@ -1078,7 +1080,7 @@ export default function ScheduleTab({
   const handleDropOnPhaseHeader = useCallback(async (e, targetPhaseName) => {
     e.preventDefault();
     const currentDraggedId = draggedIdRef.current;
-    if (!currentDraggedId) { draggedIdRef.current = null; draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
+    if (!currentDraggedId) { draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
 
     const src = parseRef(currentDraggedId);
 

@@ -249,7 +249,7 @@ export default function TemplateTaskRow({
         draggable={draggable && !isInactive}
         onDragStart={draggable ? (e) => onDragStart?.(e, `tmpl:${task.id}`) : undefined}
         onDragOver={draggable ? (e) => onDragOver?.(e, `tmpl:${task.id}`) : undefined}
-        onDrop={draggable ? (e) => onDrop?.(e, `tmpl:${task.id}`) : undefined}
+        onDrop={draggable ? (e) => { e.stopPropagation(); onDrop?.(e, `tmpl:${task.id}`); } : undefined}
         onDragEnd={draggable ? onDragEnd : undefined}
       >
         <td className={`py-2.5 text-sm text-slate-700 max-w-[280px] ${indented ? "pl-8 pr-2" : "px-2"}`}>

@@ -106,14 +106,16 @@ export default function LocalPhaseSection({
   };
 
   return (
-    <div className={`mb-2 rounded-xl border overflow-hidden shadow-sm ${phase.is_active === false ? "border-slate-200 opacity-60" : "border-purple-200"}`}>
+    <div
+      className={`mb-2 rounded-xl border overflow-hidden shadow-sm ${phase.is_active === false ? "border-slate-200 opacity-60" : "border-purple-200"} ${headerDragOver ? "ring-2 ring-purple-300 ring-inset" : ""}`}
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (draggedId) setHeaderDragOver(true); }}
+      onDragLeave={() => setHeaderDragOver(false)}
+      onDrop={(e) => { e.preventDefault(); lastDropAtRef.current = Date.now(); setHeaderDragOver(false); if (onDropOnPhaseHeader) onDropOnPhaseHeader(e, phase.phase_name); }}
+    >
       {/* Header */}
       <div
-        className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none transition-all ${phase.is_active === false ? "bg-slate-400" : "bg-purple-600"} ${headerDragOver ? "ring-2 ring-purple-300 ring-inset" : ""}`}
+        className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none transition-all ${phase.is_active === false ? "bg-slate-400" : "bg-purple-600"}`}
         onClick={() => { if (Date.now() - lastDropAtRef.current < 300) return; setOpen(o => !o); }}
-        onDragOver={(e) => { e.preventDefault(); if (draggedId) setHeaderDragOver(true); }}
-        onDragLeave={() => setHeaderDragOver(false)}
-        onDrop={(e) => { lastDropAtRef.current = Date.now(); setHeaderDragOver(false); if (onDropOnPhaseHeader) onDropOnPhaseHeader(e, phase.phase_name); }}
       >
         {open ? <ChevronDown className="w-4 h-4 text-white shrink-0" /> : <ChevronRight className="w-4 h-4 text-white shrink-0" />}
 
