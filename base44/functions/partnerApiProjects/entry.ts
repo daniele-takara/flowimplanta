@@ -32,17 +32,23 @@ export default async function(req: Request): Promise<Response> {
     const projects = await base44.asServiceRole.entities.Project.list();
     const accessible = (projects || []).filter((p: any) => p.origin !== 'Pontotel');
 
-    const formatProject = (p: any) => ({
-      id: p.id,
-      cnpj: p.cnpj || null,
-      nome_cliente: p.client_name || null,
-      origem: p.origin || null,
-      status: p.status || null,
-      data_prevista_encerramento: p.aligned_end_date || p.planned_end_date || null,
-      gerente_projeto: (p.pontotel_manager_name || p.pontotel_manager_email)
-        ? { nome: p.pontotel_manager_name || null, email: p.pontotel_manager_email || null }
-        : null,
-    });
+    const formatProject = (p: any) => {
+      const mainCnpj = (p.cnpj || '').replace(/\D/g, '');
+      const extraCnpjs = Array.isArray(p.cnpj_list) ? p.cnpj_list.map((c: string) => (c || '').replace(/\D/g, '')).filter(Boolean) : [];
+      const cnpjs = [mainCnpj, ...extraCnpjs].filter(Boolean);
+      return {
+        id: p.id,
+        cnpj: p.cnpj || null,
+        cnpjs,
+        nome_cliente: p.client_name || null,
+        origem: p.origin || null,
+        status: p.status || null,
+        data_prevista_encerramento: p.aligned_end_date || p.planned_end_date || null,
+        gerente_projeto: (p.pontotel_manager_name || p.pontotel_manager_email)
+          ? { nome: p.pontotel_manager_name || null, email: p.pontotel_manager_email || null }
+          : null,
+      };
+    };
 
     // 5. Retornar projeto único ou lista
     if (filterId) {
@@ -53,7 +59,12 @@ export default async function(req: Request): Promise<Response> {
 
     if (filterCnpj) {
       const clean = filterCnpj.replace(/\D/g, '');
-      const proj = accessible.find((p: any) => (p.cnpj || '').replace(/\D/g, '') === clean);
+      const proj = accessible.find((p: any) => {
+        const mainCnpj = (p.cnpj || '').replace(/\D/g, '');
+        if (mainCnpj === clean) return true;
+        const extraList = Array.isArray(p.cnpj_list) ? p.cnpj_list : [];
+        return extraList.some((c: string) => (c || '').replace(/\D/g, '') === clean);
+      });
       if (!proj) return Response.json({ error: 'Project not found' }, { status: 404 });
       return Response.json(formatProject(proj));
     }
