@@ -644,10 +644,14 @@ export default function ScheduleTab({
       throw err;
     }
 
+    // Atualiza o project do parent para que schedule_overrides reflita o save
+    // (evita reverter a âncora ao trocar de aba e remontar o componente)
+    if (onRefresh) onRefresh();
+
     // Promoção automática "Em aberto" → "Em andamento" ao editar o cronograma
     const newStatus = await autoPromoteToInProgress(projectId, project?.status);
     if (newStatus !== project?.status && onStatusPromoted) onStatusPromoted();
-  }, [projectId, project?.status, onStatusPromoted, manualOverrides]);
+  }, [projectId, project?.status, onStatusPromoted, onRefresh, manualOverrides]);
 
   const handleRemoveOverride = useCallback(async (taskId, field) => {
     const prevOverrides = manualOverrides;
@@ -674,8 +678,12 @@ export default function ScheduleTab({
       console.error("[ScheduleTab] Erro ao remover override:", err);
       localSavedOverridesRef.current = prevOverrides;
       setManualOverrides(prevOverrides);
+      return;
     }
-  }, [projectId, manualOverrides]);
+
+    // Atualiza o project do parent para que schedule_overrides reflita o save
+    if (onRefresh) onRefresh();
+  }, [projectId, onRefresh, manualOverrides]);
 
   const handleSaveActivity = useCallback(async (task, data) => {
     const existing = activitiesByTask[task.id];
