@@ -105,7 +105,9 @@ function PhaseSection({
     }
     return true;
   });
-  const phaseLocalActivities = localActivities.filter(a => a.phase_name === phaseName);
+  const phaseLocalActivities = localActivities
+    .filter(a => a.phase_name === phaseName)
+    .sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
   const activeLocalActivities = phaseLocalActivities.filter(a =>
     !(a.status === "Cancelado" && (a.history_observations || "").includes("[INATIVADO]"))
   );
@@ -384,6 +386,8 @@ export default function ScheduleTab({
   // Drag & drop entre fases (estado compartilhado entre todas as fases locais)
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
+  // Ref espelho do draggedId — garante valor sincronizado no onDrop (estado pode ser stale)
+  const draggedIdRef = useRef(null);
 
   // Ref para rastrear se já inicializamos para este projectId
   const initializedForProjectRef = useRef(null);
@@ -873,16 +877,18 @@ export default function ScheduleTab({
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("text/plain", ref);
     }
+    draggedIdRef.current = ref;
     setDraggedId(ref);
   }, []);
 
   const handleDragOverActivity = useCallback((e, ref) => {
     e.preventDefault();
-    if (ref === draggedId) return;
+    if (ref === draggedIdRef.current) return;
     setDragOverId(ref);
-  }, [draggedId]);
+  }, []);
 
   const handleDragEndActivity = useCallback(() => {
+    draggedIdRef.current = null;
     setDraggedId(null);
     setDragOverId(null);
   }, []);
@@ -985,23 +991,24 @@ export default function ScheduleTab({
   // Drop sobre uma atividade — reordena (mesma fase, mesmo tipo) ou move (fase diferente)
   const handleDropOnActivity = useCallback(async (e, targetRef) => {
     e.preventDefault();
-    if (!draggedId || draggedId === targetRef) {
-      setDraggedId(null); setDragOverId(null);
+    const currentDraggedId = draggedIdRef.current;
+    if (!currentDraggedId || currentDraggedId === targetRef) {
+      draggedIdRef.current = null; draggedIdRef.current = null; setDraggedId(null); setDragOverId(null);
       return;
     }
 
-    const src = parseRef(draggedId);
+    const src = parseRef(currentDraggedId);
     const tgt = parseRef(targetRef);
 
     // Determina fase destino
     let targetPhase;
     if (tgt.type === "tmpl") {
       const tgtTask = SCHEDULE_TASKS.find(t => t.id === tgt.id);
-      if (!tgtTask) { setDraggedId(null); setDragOverId(null); return; }
+      if (!tgtTask) { draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
       targetPhase = getTaskPhase(tgtTask, manualOverrides);
     } else {
       const tgtAct = savedActivities.find(a => a.id === tgt.id);
-      if (!tgtAct) { setDraggedId(null); setDragOverId(null); return; }
+      if (!tgtAct) { draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
       targetPhase = tgtAct.phase_name;
     }
 
@@ -1009,11 +1016,11 @@ export default function ScheduleTab({
     let sourcePhase;
     if (src.type === "tmpl") {
       const srcTask = SCHEDULE_TASKS.find(t => t.id === src.id);
-      if (!srcTask) { setDraggedId(null); setDragOverId(null); return; }
+      if (!srcTask) { draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
       sourcePhase = getTaskPhase(srcTask, manualOverrides);
     } else {
       const srcAct = savedActivities.find(a => a.id === src.id);
-      if (!srcAct) { setDraggedId(null); setDragOverId(null); return; }
+      if (!srcAct) { draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
       sourcePhase = srcAct.phase_name;
     }
 
@@ -1046,7 +1053,7 @@ export default function ScheduleTab({
           await handleReorderLocalActivities(reordered.map(a => a.id));
         }
       }
-      setDraggedId(null); setDragOverId(null);
+      draggedIdRef.current = null; setDraggedId(null); setDragOverId(null);
       return;
     }
 
@@ -1054,7 +1061,7 @@ export default function ScheduleTab({
     if (src.type === "tmpl") {
       // Template task: só move para fases canônicas (PHASE_ORDER)
       if (!PHASE_ORDER.includes(targetPhase)) {
-        setDraggedId(null); setDragOverId(null);
+        draggedIdRef.current = null; setDraggedId(null); setDragOverId(null);
         return;
       }
       await handleMoveTemplateTask(src.id, targetPhase);
@@ -1063,32 +1070,33 @@ export default function ScheduleTab({
       await handleMoveLocalActivity(src.id, targetPhase);
     }
 
-    setDraggedId(null); setDragOverId(null);
-  }, [draggedId, savedActivities, manualOverrides, handleReorderTemplateTasks, handleMoveTemplateTask, handleMoveLocalActivity, handleReorderLocalActivities]);
+    draggedIdRef.current = null; setDraggedId(null); setDragOverId(null);
+  }, [savedActivities, manualOverrides, handleReorderTemplateTasks, handleMoveTemplateTask, handleMoveLocalActivity, handleReorderLocalActivities]);
 
   // Drop sobre o cabeçalho da fase — move atividade para o final da fase destino
   const handleDropOnPhaseHeader = useCallback(async (e, targetPhaseName) => {
     e.preventDefault();
-    if (!draggedId) { setDraggedId(null); setDragOverId(null); return; }
+    const currentDraggedId = draggedIdRef.current;
+    if (!currentDraggedId) { draggedIdRef.current = null; draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
 
-    const src = parseRef(draggedId);
+    const src = parseRef(currentDraggedId);
 
     if (src.type === "tmpl") {
       const srcTask = SCHEDULE_TASKS.find(t => t.id === src.id);
-      if (!srcTask) { setDraggedId(null); setDragOverId(null); return; }
+      if (!srcTask) { draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
       const sourcePhase = getTaskPhase(srcTask, manualOverrides);
-      if (sourcePhase === targetPhaseName) { setDraggedId(null); setDragOverId(null); return; }
+      if (sourcePhase === targetPhaseName) { draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
       // Template task: só move para fases canônicas (PHASE_ORDER)
-      if (!PHASE_ORDER.includes(targetPhaseName)) { setDraggedId(null); setDragOverId(null); return; }
+      if (!PHASE_ORDER.includes(targetPhaseName)) { draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
       await handleMoveTemplateTask(src.id, targetPhaseName);
     } else {
       const srcAct = savedActivities.find(a => a.id === src.id);
-      if (!srcAct) { setDraggedId(null); setDragOverId(null); return; }
+      if (!srcAct) { draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
       await handleMoveLocalActivity(src.id, targetPhaseName);
     }
 
-    setDraggedId(null); setDragOverId(null);
-  }, [draggedId, savedActivities, manualOverrides, handleMoveTemplateTask, handleMoveLocalActivity]);
+    draggedIdRef.current = null; setDraggedId(null); setDragOverId(null);
+  }, [savedActivities, manualOverrides, handleMoveTemplateTask, handleMoveLocalActivity]);
 
   // Handlers para overrides de fases do template
   const handleInactivateTemplatePhase = useCallback(async (phaseName) => {
