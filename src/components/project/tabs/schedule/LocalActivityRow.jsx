@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { toast } from "@/components/ui/use-toast";
-import { Save, X, Trash2, Loader2, EyeOff, AlertTriangle, Pencil, GripVertical } from "lucide-react";
+import { Save, X, Trash2, Loader2, EyeOff, AlertTriangle, Pencil, GripVertical, MessageSquare } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import DependencyBadge from "./DependencyBadge.jsx";
 import { buildRef, parseRef } from "@/lib/scheduleDependencies.js";
@@ -215,7 +215,7 @@ export default function LocalActivityRow({
           >
             {form.history_observations
               ? <span className="truncate block max-w-[110px]">{form.history_observations}</span>
-              : <span className="text-slate-300 group-hover:text-slate-400">—</span>}
+              : <MessageSquare className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-500 transition-colors shrink-0" />}
             {form.history_observations && <span className="w-1.5 h-1.5 bg-blue-500 rounded-full shrink-0" />}
           </button>
         </td>

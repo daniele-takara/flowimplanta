@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from "react";
 import { toast } from "@/components/ui/use-toast";
 import {
   Save, X, Anchor, Pencil, Lock, AlertCircle, Loader2, RotateCcw,
-  Zap, EyeOff, GripVertical,
+  Zap, EyeOff, GripVertical, MessageSquare,
 } from "lucide-react";
 import { resolveRoleToName, RESPONSIBLE_ROLE_LABELS, RESPONSIBLE_ROLE_OPTIONS, resolveGeneralResponsible } from "@/lib/resolveResponsibleRole.js";
 import { logAudit } from "@/lib/auditLog";
@@ -381,7 +381,7 @@ export default function TemplateTaskRow({
           >
             {form.history_observations
               ? <span className="truncate block max-w-[110px]">{form.history_observations}</span>
-              : <span className="text-slate-300 group-hover:text-slate-400">—</span>}
+              : <MessageSquare className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-500 transition-colors shrink-0" />}
             {form.history_observations && <span className="w-1.5 h-1.5 bg-blue-500 rounded-full shrink-0" />}
           </button>
         </td>
