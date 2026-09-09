@@ -13,6 +13,27 @@ function InfoRow({ label, value }) {
   );
 }
 
+function formatCnpj(digits) {
+  const d = (digits || "").replace(/\D/g, "").padStart(14, "0");
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12, 14)}`;
+}
+
+function CnpjListRow({ list }) {
+  if (!list || list.length === 0) return <InfoRow label="CNPJs Extras" value={null} />;
+  return (
+    <div className="flex items-start py-2 border-b border-slate-50 last:border-0">
+      <span className="text-sm text-slate-400 w-48 shrink-0">CNPJs Extras</span>
+      <div className="flex flex-wrap gap-1.5">
+        {list.map((c, i) => (
+          <span key={i} className="text-xs px-2 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200 font-mono">
+            {formatCnpj(c)}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ParticipantCard({ role, name, email, phone, legacyContact }) {
   const displayEmail = email || "";
   const displayPhone = phone || "";
@@ -280,6 +301,7 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
           )}
           <InfoRow label="Cliente" value={project.client_name} />
           <InfoRow label="CNPJ" value={project.cnpj} />
+          <CnpjListRow list={project.cnpj_list} />
           <InfoRow label="ID da Empresa" value={project.empresa_id} />
           <InfoRow label="Origem" value={project.origin} />
           <InfoRow label="Tipo de Implantação" value={project.implantation_type} />
