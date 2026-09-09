@@ -159,7 +159,8 @@ export default function TabApiParceiros() {
           <pre className="text-xs text-slate-600 bg-white border border-slate-200 rounded-lg p-3 overflow-x-auto font-mono">{`[
   {
     "id": "abc123",
-    "cnpj": "00.000.000/0000-00",
+    "cnpj": "00000000000000",
+    "cnpjs": ["00000000000000", "11111111111111"],
     "nome_cliente": "Empresa XYZ",
     "origem": "Parceiro",
     "status": "Em andamento",

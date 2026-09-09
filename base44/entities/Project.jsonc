@@ -10,16 +10,12 @@
       "type": "string",
       "description": "Nome do cliente/Empresa"
     },
-    "cnpj": {
-      "type": "string",
-      "description": "CNPJ do cliente (formatado: 00.000.000/0000-00)"
-    },
     "cnpj_list": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "CNPJs extras do cliente (apenas d\u00edgitos). O CNPJ principal continua em 'cnpj'. A API de parceiros busca por qualquer um destes + o principal."
+      "description": "Lista de CNPJs do cliente (apenas d\u00edgitos). A API de parceiros busca por qualquer um destes. O primeiro item \u00e9 considerado o CNPJ principal."
     },
     "empresa_id": {
       "type": "string",

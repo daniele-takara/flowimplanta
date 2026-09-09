@@ -19,10 +19,10 @@ function formatCnpj(digits) {
 }
 
 function CnpjListRow({ list }) {
-  if (!list || list.length === 0) return <InfoRow label="CNPJs Extras" value={null} />;
+  if (!list || list.length === 0) return <InfoRow label="Lista de CNPJ" value={null} />;
   return (
     <div className="flex items-start py-2 border-b border-slate-50 last:border-0">
-      <span className="text-sm text-slate-400 w-48 shrink-0">CNPJs Extras</span>
+      <span className="text-sm text-slate-400 w-48 shrink-0">Lista de CNPJ</span>
       <div className="flex flex-wrap gap-1.5">
         {list.map((c, i) => (
           <span key={i} className="text-xs px-2 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200 font-mono">
@@ -300,7 +300,6 @@ export default function OverviewTab({ project, phases, onEditDadosIniciais, onPr
             </div>
           )}
           <InfoRow label="Cliente" value={project.client_name} />
-          <InfoRow label="CNPJ" value={project.cnpj} />
           <CnpjListRow list={project.cnpj_list} />
           <InfoRow label="ID da Empresa" value={project.empresa_id} />
           <InfoRow label="Origem" value={project.origin} />

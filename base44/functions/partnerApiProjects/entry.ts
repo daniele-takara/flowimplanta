@@ -33,12 +33,11 @@ export default async function(req: Request): Promise<Response> {
     const accessible = (projects || []).filter((p: any) => p.origin !== 'Pontotel');
 
     const formatProject = (p: any) => {
-      const mainCnpj = (p.cnpj || '').replace(/\D/g, '');
       const extraCnpjs = Array.isArray(p.cnpj_list) ? p.cnpj_list.map((c: string) => (c || '').replace(/\D/g, '')).filter(Boolean) : [];
-      const cnpjs = [mainCnpj, ...extraCnpjs].filter(Boolean);
+      const cnpjs = extraCnpjs;
       return {
         id: p.id,
-        cnpj: p.cnpj || null,
+        cnpj: cnpjs[0] || null,
         cnpjs,
         nome_cliente: p.client_name || null,
         origem: p.origin || null,
@@ -60,10 +59,8 @@ export default async function(req: Request): Promise<Response> {
     if (filterCnpj) {
       const clean = filterCnpj.replace(/\D/g, '');
       const proj = accessible.find((p: any) => {
-        const mainCnpj = (p.cnpj || '').replace(/\D/g, '');
-        if (mainCnpj === clean) return true;
-        const extraList = Array.isArray(p.cnpj_list) ? p.cnpj_list : [];
-        return extraList.some((c: string) => (c || '').replace(/\D/g, '') === clean);
+        const list = Array.isArray(p.cnpj_list) ? p.cnpj_list : [];
+        return list.some((c: string) => (c || '').replace(/\D/g, '') === clean);
       });
       if (!proj) return Response.json({ error: 'Project not found' }, { status: 404 });
       return Response.json(formatProject(proj));

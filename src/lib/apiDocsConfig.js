@@ -45,7 +45,7 @@ export const endpoints = [
         in: "query",
         required: false,
         type: "string",
-        description: "CNPJ do cliente (com ou sem formatação). Retorna um objeto único quando informado.",
+        description: "CNPJ do cliente (com ou sem formatação). Busca em todos os CNPJs vinculados ao projeto (campo cnpjs). Retorna um objeto único quando informado.",
         example: "00.000.000/0000-00",
       },
     ],
@@ -59,7 +59,8 @@ export const endpoints = [
     ],
     responseSchema: [
       { field: "id", type: "string", description: "Identificador único do projeto" },
-      { field: "cnpj", type: "string | null", description: "CNPJ do cliente formatado" },
+      { field: "cnpj", type: "string | null", description: "CNPJ principal do cliente (primeiro da lista, mantido por compatibilidade)" },
+      { field: "cnpjs", type: "string[]", description: "Lista de todos os CNPJs vinculados ao projeto (apenas dígitos). A busca por ?cnpj consulta qualquer um destes." },
       { field: "nome_cliente", type: "string | null", description: "Nome do cliente/empresa" },
       { field: "origem", type: "string | null", description: "Origem do cliente (Parceiro, Indicação, Inbound, Outbound)" },
       { field: "status", type: "string | null", description: "Status do projeto (Em aberto, Em andamento, Concluído, etc.)" },
@@ -69,7 +70,8 @@ export const endpoints = [
     exampleResponse: `[
   {
     "id": "abc123def456",
-    "cnpj": "00.000.000/0000-00",
+    "cnpj": "00000000000000",
+    "cnpjs": ["00000000000000", "11111111111111"],
     "nome_cliente": "Empresa XYZ",
     "origem": "Parceiro",
     "status": "Em andamento",

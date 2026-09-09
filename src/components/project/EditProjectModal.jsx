@@ -79,7 +79,7 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
   const [form, setForm] = useState({
     name: project?.name || "",
     client_name: project?.client_name || "",
-    cnpj: project?.cnpj || "",
+    cnpj_list: (project?.cnpj_list || []).map(c => String(c).replace(/\D/g, '')),
     origin: project?.origin || "",
     mrr: project?.mrr || "",
     start_date: project?.start_date || "",
@@ -178,7 +178,7 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
     setSaving(true);
     // Registra alterações no log de auditoria
     const auditFields = [
-      "name", "client_name", "cnpj", "origin", "start_date", "planned_end_date", "aligned_end_date",
+      "name", "client_name", "origin", "start_date", "planned_end_date", "aligned_end_date",
       "contracted_employees", "mrr", "observations", "drive_folder",
       "sponsor_name", "sponsor_email", "sponsor_phone",
       "project_leader_name", "project_leader_email", "project_leader_phone",
@@ -207,6 +207,11 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
     const newServices = JSON.stringify((form.contracted_services || []).sort());
     if (oldServices !== newServices) {
       logAudit({ project_id: project.id, screen: "Dados Iniciais", field: "contracted_services", old_value: oldServices, new_value: newServices });
+    }
+    const oldCnpjs = JSON.stringify((project?.cnpj_list || []).slice().sort());
+    const newCnpjs = JSON.stringify((form.cnpj_list || []).slice().sort());
+    if (oldCnpjs !== newCnpjs) {
+      logAudit({ project_id: project.id, screen: "Dados Iniciais", field: "cnpj_list", old_value: oldCnpjs, new_value: newCnpjs });
     }
 
     // Popula _contact legado para manter compatibilidade com código existente
@@ -275,9 +280,27 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
             <Field label="Cliente / Empresa">
               <input value={form.client_name} onChange={set("client_name")} className={inputClass} placeholder="Nome do cliente" />
             </Field>
-            <Field label="CNPJ">
-              <input value={form.cnpj} onChange={set("cnpj")} className={inputClass} placeholder="00.000.000/0000-00" />
-            </Field>
+            <div className="md:col-span-2">
+              <label className={labelClass}>Lista de CNPJ</label>
+              <div className="space-y-2">
+                {(form.cnpj_list || []).map((c, i) => (
+                  <div key={i} className="flex gap-2">
+                    <input
+                      value={c.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5")}
+                      onChange={e => setForm(f => ({ ...f, cnpj_list: f.cnpj_list.map((x, idx) => idx === i ? e.target.value.replace(/\D/g, "") : x) }))}
+                      className={inputClass}
+                      placeholder="00.000.000/0000-00"
+                    />
+                    <button type="button" onClick={() => setForm(f => ({ ...f, cnpj_list: f.cnpj_list.filter((_, idx) => idx !== i) }))} className="p-2 text-slate-400 hover:text-red-500 shrink-0">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setForm(f => ({ ...f, cnpj_list: [...(f.cnpj_list || []), ""] }))} className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700">
+                  <Plus className="w-3.5 h-3.5" /> Adicionar CNPJ
+                </button>
+              </div>
+            </div>
             <Field label="Origem do cliente">
               <select value={form.origin} onChange={set("origin")} className={inputClass}>
                 <option value="">Selecione...</option>
