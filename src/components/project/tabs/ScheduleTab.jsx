@@ -92,6 +92,7 @@ function PhaseSection({
   const [completing, setCompleting] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [headerDragOver, setHeaderDragOver] = useState(false);
+  const lastDropAtRef = useRef(0);
 
   const isInactive = phaseOverride?.is_active === false;
   const displayName = phaseOverride?.custom_name || phaseName;
@@ -119,10 +120,10 @@ function PhaseSection({
     <div className={`mb-2 rounded-xl border overflow-hidden shadow-sm ${isInactive ? "border-slate-200 opacity-60" : "border-slate-200"}`}>
       <div
         className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none flex-wrap ${isInactive ? "bg-slate-400" : "bg-blue-600"} ${headerDragOver ? "ring-2 ring-blue-300 ring-inset" : ""}`}
-        onClick={() => setOpen(o => !o)}
-        onDragOver={(e) => { if (draggedId) { e.preventDefault(); setHeaderDragOver(true); } }}
+        onClick={() => { if (Date.now() - lastDropAtRef.current < 300) return; setOpen(o => !o); }}
+        onDragOver={(e) => { e.preventDefault(); if (draggedId) setHeaderDragOver(true); }}
         onDragLeave={() => setHeaderDragOver(false)}
-        onDrop={(e) => { setHeaderDragOver(false); if (onDropOnPhaseHeader) onDropOnPhaseHeader(e, phaseName); }}
+        onDrop={(e) => { lastDropAtRef.current = Date.now(); setHeaderDragOver(false); if (onDropOnPhaseHeader) onDropOnPhaseHeader(e, phaseName); }}
       >
         {open ? <ChevronDown className="w-4 h-4 text-white shrink-0" /> : <ChevronRight className="w-4 h-4 text-white shrink-0" />}
         <h3 className="text-sm font-bold text-white flex-1 min-w-0">{displayName}</h3>

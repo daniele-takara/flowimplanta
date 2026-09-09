@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 import {
@@ -50,6 +50,7 @@ export default function LocalPhaseSection({
   const [processing, setProcessing] = useState(false);
   const [sorting, setSorting] = useState(false);
   const [headerDragOver, setHeaderDragOver] = useState(false);
+  const lastDropAtRef = useRef(0);
 
   const phaseActivities = (localActivities || [])
     .filter(a => a.phase_name === phase.phase_name)
@@ -109,10 +110,10 @@ export default function LocalPhaseSection({
       {/* Header */}
       <div
         className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none transition-all ${phase.is_active === false ? "bg-slate-400" : "bg-purple-600"} ${headerDragOver ? "ring-2 ring-purple-300 ring-inset" : ""}`}
-        onClick={() => setOpen(o => !o)}
-        onDragOver={(e) => { if (draggedId) { e.preventDefault(); setHeaderDragOver(true); } }}
+        onClick={() => { if (Date.now() - lastDropAtRef.current < 300) return; setOpen(o => !o); }}
+        onDragOver={(e) => { e.preventDefault(); if (draggedId) setHeaderDragOver(true); }}
         onDragLeave={() => setHeaderDragOver(false)}
-        onDrop={(e) => { setHeaderDragOver(false); if (onDropOnPhaseHeader) onDropOnPhaseHeader(e, phase.phase_name); }}
+        onDrop={(e) => { lastDropAtRef.current = Date.now(); setHeaderDragOver(false); if (onDropOnPhaseHeader) onDropOnPhaseHeader(e, phase.phase_name); }}
       >
         {open ? <ChevronDown className="w-4 h-4 text-white shrink-0" /> : <ChevronRight className="w-4 h-4 text-white shrink-0" />}
 
