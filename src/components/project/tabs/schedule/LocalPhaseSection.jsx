@@ -298,8 +298,8 @@ export default function LocalPhaseSection({
                   onDragOver={onDragOverActivity}
                   onDrop={onDropOnActivity}
                   onDragEnd={onDragEndActivity}
-                  isDragged={draggedId === act.id}
-                  isDragOver={dragOverId === act.id}
+                  isDragged={draggedId === `local:${act.id}`}
+                  isDragOver={dragOverId === `local:${act.id}`}
                   dependencies={dependencies}
                   activitiesMap={activitiesMap}
                   onOpenDependencyModal={onOpenDependencyModal}

@@ -15,6 +15,7 @@ import { jsPDF } from "jspdf";
 import { SCHEDULE_TASKS, PHASE_ORDER, ANCHOR_IDS } from "@/lib/scheduleTasks.js";
 import { computeSchedule } from "@/lib/scheduleEngine.js";
 import { resolveRoleToName, resolveGeneralResponsible } from "@/lib/resolveResponsibleRole.js";
+import { getTaskPhase, sortTasksByOrder } from "@/lib/scheduleOrderOverride.js";
 
 function loadImage(url) {
   return new Promise((resolve, reject) => {
@@ -131,14 +132,18 @@ export async function generateSchedulePDF({
     if (found) activityByTaskId[found.id] = a;
   });
 
-  // 3. Agrupar tasks visíveis por fase
+  // 3. Agrupar tasks visíveis por fase (usa override de fase se houver)
   const templatePhaseTasks = {};
   SCHEDULE_TASKS.forEach(task => {
     if (task.type !== "task") return;
     if (!visible.has(task.id)) return;
-    const ph = task.phase;
+    const ph = getTaskPhase(task, engineOverrides);
     if (!templatePhaseTasks[ph]) templatePhaseTasks[ph] = [];
     templatePhaseTasks[ph].push(task);
+  });
+  // Ordena cada fase pela ordem efetiva
+  Object.keys(templatePhaseTasks).forEach(ph => {
+    templatePhaseTasks[ph] = sortTasksByOrder(templatePhaseTasks[ph], engineOverrides);
   });
 
   // 4. Fases do template (ordem PHASE_ORDER, filtrando inativas)

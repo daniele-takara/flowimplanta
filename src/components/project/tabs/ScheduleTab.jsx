@@ -5,16 +5,16 @@ import {
   ChevronDown, ChevronRight, Save, X, Anchor, Pencil, Lock,
   AlertCircle, CheckCircle, CheckCircle2, Loader2, RefreshCw,
   Database, Plus, RotateCcw, Zap, Eye, MoreHorizontal, EyeOff, FileDown,
-  Maximize2, Minimize2
+  Maximize2, Minimize2, GripVertical
 } from "lucide-react";
 import { SCHEDULE_TASKS, PHASE_ORDER } from "@/lib/scheduleTasks.js";
 import { computeSchedule, workday } from "@/lib/scheduleEngine.js";
 import { classifyScheduleActivities } from "@/lib/scheduleActivityMatch.js";
-import { resolveRoleToName, RESPONSIBLE_ROLE_LABELS, RESPONSIBLE_ROLE_OPTIONS, resolveGeneralResponsible } from "@/lib/resolveResponsibleRole.js";
 import AddActivityModal from "./schedule/AddActivityModal.jsx";
 import LocalActivityRow from "./schedule/LocalActivityRow.jsx";
 import AddPhaseModal from "./schedule/AddPhaseModal.jsx";
 import LocalPhaseSection from "./schedule/LocalPhaseSection.jsx";
+import TemplateTaskRow from "./schedule/TemplateTaskRow.jsx";
 import PhaseOverrideModal from "./schedule/PhaseOverrideModal.jsx";
 import { generateSchedulePDF } from "@/lib/schedulePdfExport.js";
 import SchedulePDFColumnModal from "./schedule/SchedulePDFColumnModal.jsx";
@@ -27,6 +27,7 @@ import {
   buildRef, parseRef, wouldCreateCycle, computeSuccessorStart,
   getActivityEnd, cascadeRecalculate, computeTemplateEnd, computeDurationDays,
 } from "@/lib/scheduleDependencies.js";
+import { getTaskPhase, getTaskOrder, sortTasksByOrder } from "@/lib/scheduleOrderOverride.js";
 
 function fmtDate(d) {
   if (!d) return "—";
@@ -43,485 +44,6 @@ function buildAnswersMap(scopeItems) {
     }
   });
   return map;
-}
-
-const STATUS_OPTIONS = ["Não iniciado", "Em andamento", "Concluído", "Atrasado", "Bloqueado", "Cancelado"];
-
-const RESP_GERAL_OPTIONS = [
-  { value: "Pontotel", label: "Pontotel" },
-  { value: "Cliente", label: "Cliente" },
-  { value: "Pontotel e Cliente", label: "Pontotel e Cliente" },
-];
-
-function buildRoleOptions(project) {
-  return RESPONSIBLE_ROLE_OPTIONS.map(({ value: role, label }) => {
-    const name = resolveRoleToName(role, project);
-    return { value: role, label: name ? `${label}: ${name}` : label };
-  });
-}
-const STATUS_COLORS = {
-  "Não iniciado": "bg-slate-100 text-slate-500",
-  "Em andamento": "bg-blue-100 text-blue-700",
-  "Concluído":    "bg-green-100 text-green-700",
-  "Atrasado":     "bg-red-100 text-red-700",
-  "Bloqueado":    "bg-orange-100 text-orange-700",
-  "Cancelado":    "bg-slate-100 text-slate-400 line-through",
-};
-
-function StatusBadge({ status }) {
-  return (
-    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[status] || STATUS_COLORS["Não iniciado"]}`}>
-      {status || "Não iniciado"}
-    </span>
-  );
-}
-
-function getDateOrigin(taskId, field, manualOverrides) {
-  const override = manualOverrides?.[taskId];
-  if (!override) return "auto";
-  const key = field === "plannedStart" ? "plannedStart" : "plannedEnd";
-  if (!override[key]) return "auto";
-  const origin = override._origin?.[key];
-  if (origin === "pipedrive") return "pipedrive";
-  return "manual";
-}
-
-function DateOriginBadge({ origin }) {
-  if (origin === "pipedrive") return (
-    <span className="flex items-center gap-0.5 text-xs bg-orange-50 text-orange-600 border border-orange-200 px-1.5 py-0.5 rounded font-medium">
-      <Zap className="w-2.5 h-2.5" />Pipedrive
-    </span>
-  );
-  if (origin === "manual") return (
-    <span className="flex items-center gap-0.5 text-xs bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded font-medium">
-      <Pencil className="w-2.5 h-2.5" />Manual
-    </span>
-  );
-  return (
-    <span className="flex items-center gap-0.5 text-xs bg-slate-100 text-slate-400 border border-slate-200 px-1.5 py-0.5 rounded font-medium">
-      <Lock className="w-2.5 h-2.5" />Auto
-    </span>
-  );
-}
-
-// ── TaskRow ────────────────────────────────────────────────────────────────────
-function TaskRow({
-  task, computedDates, manualOverrides, onSaveOverride, onRemoveOverride,
-  onSaveActivity, onInactivateTask, existingActivity, project, templateConfig,
-  readOnly, canEditPlanned, canEditExecuted, indented = false,
-  dependencies, activitiesMap, onOpenDependencyModal,
-}) {
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [confirmInactivate, setConfirmInactivate] = useState(false);
-  const [obsEditing, setObsEditing] = useState(false);
-  const [obsText, setObsText] = useState("");
-  const [obsSaving, setObsSaving] = useState(false);
-  const obsTextareaRef = useRef(null);
-
-  useEffect(() => {
-    if (obsEditing && obsTextareaRef.current) {
-      obsTextareaRef.current.focus();
-      const len = obsTextareaRef.current.value.length;
-      obsTextareaRef.current.setSelectionRange(len, len);
-    }
-  }, [obsEditing]);
-
-  const isInactive = existingActivity?.status === "Cancelado" &&
-    (existingActivity?.history_observations || "").includes("[INATIVADO]");
-
-  // Dependências
-  const taskRef = buildRef("tmpl", task.id);
-  const myDeps = (dependencies || []).filter(d => d.successor_ref === taskRef);
-  const depNames = myDeps.map(d => activitiesMap?.[d.predecessor_ref]?.name || parseRef(d.predecessor_ref).id);
-
-  const override = manualOverrides?.[task.id] || {};
-  const dates    = computedDates[task.id] || {};
-  const isAnchor = task.plannedStart?.type === "anchor";
-
-  const displayStart = override.plannedStart || dates.plannedStart || "";
-  const displayEnd   = override.plannedEnd   || dates.plannedEnd   || "";
-
-  const actualStart   = existingActivity?.actual_start || "";
-  const actualEnd     = existingActivity?.actual_end   || "";
-  const derivedStatus = existingActivity?.status || (actualEnd ? "Concluído" : actualStart ? "Em andamento" : "Não iniciado");
-
-  const [form, setForm] = useState({
-    planned_start:        displayStart,
-    planned_end:          displayEnd,
-    actual_start:         actualStart,
-    actual_end:           actualEnd,
-    status:               derivedStatus,
-    history_observations: existingActivity?.history_observations || "",
-    responsible_leader:   existingActivity?.responsible_leader   || task.responsibleLeader  || "",
-    responsible_general:  existingActivity?.responsible_general  || task.responsibleGeneral || "",
-  });
-
-  useEffect(() => {
-    const nStart = existingActivity?.actual_start || "";
-    const nEnd   = existingActivity?.actual_end   || "";
-    setForm(f => ({
-      ...f,
-      actual_start:         nStart,
-      actual_end:           nEnd,
-      status:               existingActivity?.status || (nEnd ? "Concluído" : nStart ? "Em andamento" : "Não iniciado"),
-      history_observations: existingActivity?.history_observations || f.history_observations,
-      responsible_leader:   existingActivity?.responsible_leader   || f.responsible_leader,
-      responsible_general:  existingActivity?.responsible_general  || f.responsible_general,
-    }));
-  }, [existingActivity?.actual_start, existingActivity?.actual_end, existingActivity?.status]);
-
-  useEffect(() => {
-    const newStart = override.plannedStart || dates.plannedStart || "";
-    const newEnd   = override.plannedEnd   || dates.plannedEnd   || "";
-    setForm(f => ({ ...f, planned_start: newStart, planned_end: newEnd }));
-  }, [override.plannedStart, override.plannedEnd, dates.plannedStart, dates.plannedEnd]);
-
-  const taskConfig          = templateConfig?.[task.id];
-  const resolvedRoleName    = taskConfig?.responsible_role ? resolveRoleToName(taskConfig.responsible_role, project) : null;
-  const roleLabel           = taskConfig?.responsible_role ? RESPONSIBLE_ROLE_LABELS[taskConfig.responsible_role] || taskConfig.responsible_role : null;
-  const resolvedGeneralName = taskConfig?.responsible_general_type ? resolveGeneralResponsible(taskConfig.responsible_general_type, project) : null;
-
-  const startOrigin = getDateOrigin(task.id, "plannedStart", manualOverrides);
-  const endOrigin   = getDateOrigin(task.id, "plannedEnd",   manualOverrides);
-
-  const inputClass = "px-1.5 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 w-full bg-white";
-
-  const handleActualChange = (field, value) => {
-    setForm(f => {
-      const next = { ...f, [field]: value };
-      if (!["Bloqueado", "Cancelado"].includes(next.status)) {
-        if (next.actual_end)   next.status = "Concluído";
-        else if (next.actual_start) next.status = "Em andamento";
-        else                   next.status = "Não iniciado";
-      }
-      return next;
-    });
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const plannedStartChanged = form.planned_start && form.planned_start !== (dates.plannedStart || "");
-      const plannedEndChanged   = form.planned_end   && form.planned_end   !== (dates.plannedEnd   || "");
-      if ((plannedStartChanged || plannedEndChanged) && canEditPlanned) {
-        const overridePayload = { ...(override || {}) };
-        const newOrigin = { ...(override._origin || {}) };
-        if (plannedStartChanged) { overridePayload.plannedStart = form.planned_start; newOrigin.plannedStart = "manual"; }
-        if (plannedEndChanged)   { overridePayload.plannedEnd   = form.planned_end;   newOrigin.plannedEnd   = "manual"; }
-        overridePayload._origin = newOrigin;
-        await onSaveOverride(task.id, overridePayload);
-      }
-
-      // Só persiste dados executados se houve alteração REAL nos campos executados
-      const executedChanged =
-        form.actual_start !== (existingActivity?.actual_start || "") ||
-        form.actual_end   !== (existingActivity?.actual_end   || "") ||
-        form.status       !== (existingActivity?.status       || derivedStatus) ||
-        form.history_observations !== (existingActivity?.history_observations || "") ||
-        form.responsible_leader   !== (existingActivity?.responsible_leader   || task.responsibleLeader  || "") ||
-        form.responsible_general  !== (existingActivity?.responsible_general  || task.responsibleGeneral || "");
-
-      if (executedChanged) {
-        await onSaveActivity(task, {
-          actual_start:         form.actual_start,
-          actual_end:           form.actual_end,
-          status:               form.status,
-          history_observations: form.history_observations,
-          responsible_leader:   form.responsible_leader,
-          responsible_general:  form.responsible_general,
-        });
-      }
-      setEditing(false);
-    } catch (err) {
-      console.error("[TaskRow] Erro ao salvar:", task.id, err);
-      toast({ title: "Erro ao salvar. Verifique suas permissões ou tente novamente.", variant: "destructive" });
-    }
-    setSaving(false);
-  };
-
-  const handleSaveObs = async () => {
-    setObsSaving(true);
-    try {
-      await onSaveActivity(task, {
-        actual_start: form.actual_start,
-        actual_end: form.actual_end,
-        status: form.status,
-        history_observations: obsText,
-        responsible_leader: form.responsible_leader,
-        responsible_general: form.responsible_general,
-      });
-      setForm(f => ({ ...f, history_observations: obsText }));
-      setObsEditing(false);
-    } catch (err) {
-      console.error("[TaskRow] Erro ao salvar observação:", err);
-      toast({ title: "Erro ao salvar observação.", variant: "destructive" });
-    }
-    setObsSaving(false);
-  };
-
-  return (
-    <>
-      <tr className={`border-b border-slate-50 transition-colors ${isInactive ? "bg-slate-50/60 opacity-60" : "hover:bg-slate-50/80"}`}>
-        <td className={`py-2.5 text-sm text-slate-700 max-w-[280px] ${indented ? "pl-8 pr-2" : "px-2"}`}>
-          <div>
-            {indented && <span className="inline-block w-1 h-3 rounded-full bg-purple-300 mr-1.5 align-middle" />}
-            <span className={`leading-snug ${isInactive ? "line-through text-slate-400" : ""}`}>{task.activity}</span>
-            <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-              {isInactive && (
-                <span className="flex items-center gap-0.5 text-xs bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded font-medium">
-                  <EyeOff className="w-2.5 h-2.5" />Inativa
-                </span>
-              )}
-              {isAnchor && (
-                <span className="flex items-center gap-0.5 text-xs bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-medium">
-                  <Anchor className="w-2.5 h-2.5" />Âncora
-                </span>
-              )}
-              <DependencyBadge
-                count={myDeps.length}
-                predecessorNames={depNames}
-                onClick={() => onOpenDependencyModal(taskRef, task.activity)}
-                readOnly={readOnly}
-              />
-            </div>
-          </div>
-        </td>
-
-        <td className="px-1 py-2.5">
-          <div className="space-y-1">
-            {editing && canEditPlanned
-              ? <input type="date" value={form.planned_start} onChange={e => setForm(f => ({ ...f, planned_start: e.target.value }))} className={inputClass} />
-              : <span className="text-xs text-slate-600">{fmtDate(displayStart)}</span>
-            }
-            <div className="flex items-center gap-1">
-              <DateOriginBadge origin={startOrigin} />
-              {startOrigin === "manual" && !readOnly && (
-                <button onClick={() => onRemoveOverride(task.id, "plannedStart")} title="Voltar ao calculado" className="text-slate-300 hover:text-red-400">
-                  <RotateCcw className="w-2.5 h-2.5" />
-                </button>
-              )}
-            </div>
-          </div>
-        </td>
-
-        <td className="px-1 py-2.5">
-          <div className="space-y-1">
-            {editing && canEditPlanned
-              ? <input type="date" value={form.planned_end} onChange={e => setForm(f => ({ ...f, planned_end: e.target.value }))} className={inputClass} />
-              : <span className="text-xs text-slate-600">{fmtDate(displayEnd)}</span>
-            }
-            <div className="flex items-center gap-1">
-              <DateOriginBadge origin={endOrigin} />
-              {endOrigin === "manual" && !readOnly && (
-                <button onClick={() => onRemoveOverride(task.id, "plannedEnd")} title="Voltar ao calculado" className="text-slate-300 hover:text-red-400">
-                  <RotateCcw className="w-2.5 h-2.5" />
-                </button>
-              )}
-            </div>
-          </div>
-        </td>
-
-        <td className="px-1 py-2.5">
-          {editing && canEditExecuted
-            ? <input type="date" value={form.actual_start} onChange={e => handleActualChange("actual_start", e.target.value)} className={inputClass} />
-            : <span className="text-xs text-slate-500">{form.actual_start ? fmtDate(form.actual_start) : <span className="text-slate-300">—</span>}</span>
-          }
-        </td>
-
-        <td className="px-1 py-2.5">
-          {editing && canEditExecuted
-            ? <input type="date" value={form.actual_end} onChange={e => handleActualChange("actual_end", e.target.value)} className={inputClass} />
-            : <span className="text-xs text-slate-500">{form.actual_end ? fmtDate(form.actual_end) : <span className="text-slate-300">—</span>}</span>
-          }
-        </td>
-
-        <td className="px-1 py-2.5 max-w-[140px]">
-          {editing
-            ? (
-              <select value={form.responsible_general} onChange={e => setForm(f => ({ ...f, responsible_general: e.target.value }))} className={inputClass}>
-                <option value="">Selecione...</option>
-                {RESP_GERAL_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-              </select>
-            )
-            : <span className="text-xs text-slate-500 truncate block">{form.responsible_general || resolvedGeneralName || "—"}</span>
-          }
-        </td>
-
-        <td className="px-1 py-2.5 max-w-[140px]">
-          {editing
-            ? (
-              <select value={form.responsible_leader} onChange={e => setForm(f => ({ ...f, responsible_leader: e.target.value }))} className={inputClass}>
-                <option value="">Selecione...</option>
-                {buildRoleOptions(project).map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-              </select>
-            )
-            : form.responsible_leader
-              ? <span className="text-xs font-medium text-slate-700 block truncate">{resolveRoleToName(form.responsible_leader, project) || form.responsible_leader}</span>
-              : resolvedRoleName
-                ? <div>
-                    <span className="text-xs font-medium text-slate-700 block truncate">{resolvedRoleName}</span>
-                    <span className="text-xs text-slate-400 block truncate">{roleLabel}</span>
-                  </div>
-                : <span className="text-xs text-slate-500 truncate block">—</span>
-          }
-        </td>
-
-        <td className="px-1 py-2.5">
-          {editing
-            ? <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputClass}>
-                {STATUS_OPTIONS.map(s => <option key={s}>{s}</option>)}
-              </select>
-            : <StatusBadge status={form.status} />
-          }
-        </td>
-
-        <td className="px-1 py-2.5 max-w-[140px]">
-          <button
-            onClick={() => { if (!readOnly && !isInactive) { setObsText(form.history_observations); setObsEditing(true); } }}
-            disabled={readOnly || isInactive}
-            className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 px-0.5 group"
-            title={form.history_observations ? "Clique para expandir/editar" : "Adicionar observação"}
-          >
-            {form.history_observations
-              ? <span className="truncate block max-w-[110px]">{form.history_observations}</span>
-              : <span className="text-slate-300 group-hover:text-slate-400">—</span>}
-            {form.history_observations && <span className="w-1.5 h-1.5 bg-blue-500 rounded-full shrink-0" />}
-          </button>
-        </td>
-
-        <td className="px-1 py-2.5">
-          {editing ? (
-            <div className="flex gap-1">
-              <button onClick={handleSave} disabled={saving} className="p-1.5 text-green-600 hover:bg-green-50 rounded">
-                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-              </button>
-              <button onClick={() => setEditing(false)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1">
-              {!readOnly && !isInactive && (
-                <button onClick={() => setEditing(true)} className="flex items-center gap-1 text-xs text-blue-600 hover:underline px-1 whitespace-nowrap">
-                  <Pencil className="w-3 h-3" /> Editar
-                </button>
-              )}
-              {!readOnly && !isInactive && !form.actual_start && !form.actual_end && (
-                <button
-                  onClick={async () => {
-                    setSaving(true);
-                    await onSaveActivity(task, {
-                      actual_start: displayStart, actual_end: displayEnd, status: "Concluído",
-                      history_observations: form.history_observations,
-                      responsible_leader:   form.responsible_leader,
-                      responsible_general:  form.responsible_general,
-                    });
-                    setForm(f => ({ ...f, actual_start: displayStart || "", actual_end: displayEnd || "", status: "Concluído" }));
-                    setSaving(false);
-                  }}
-                  disabled={saving}
-                  className="text-xs text-green-600 hover:underline px-1 whitespace-nowrap"
-                >
-                  ✓ Conf. planejado
-                </button>
-              )}
-              {!readOnly && !isInactive && onInactivateTask && (
-                <button
-                  onClick={() => setConfirmInactivate(true)}
-                  className="flex items-center gap-1 text-xs text-red-400 hover:underline px-1 whitespace-nowrap"
-                  title="Inativar esta atividade neste projeto"
-                >
-                  <EyeOff className="w-3 h-3" /> Inativar
-                </button>
-              )}
-              {isInactive && (
-                <span className="text-xs text-slate-400 italic px-1">Inativa</span>
-              )}
-            </div>
-          )}
-        </td>
-      </tr>
-      {confirmInactivate && (
-        <tr className="bg-red-50">
-          <td colSpan={10} className="px-4 py-3">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-              <span className="text-xs text-red-800 flex-1">
-                Inativar "{task.activity}" apenas neste projeto? Os dados existentes serão preservados.
-              </span>
-              <button
-                onClick={async () => {
-                  setSaving(true);
-                  try {
-                    await onInactivateTask(task);
-                    setConfirmInactivate(false);
-                  } catch (err) {
-                    console.error("[TaskRow] Erro ao inativar:", err);
-                    toast({ title: "Erro ao inativar atividade. Verifique suas permissões.", variant: "destructive" });
-                  }
-                  setSaving(false);
-                }}
-                disabled={saving}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-60"
-              >
-                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <EyeOff className="w-3 h-3" />}
-                Confirmar inativação
-              </button>
-              <button onClick={() => setConfirmInactivate(false)} className="px-3 py-1.5 text-xs font-medium border border-red-200 text-red-600 rounded-lg hover:bg-red-100">
-                Cancelar
-              </button>
-            </div>
-          </td>
-        </tr>
-      )}
-
-      {/* Editor de observações inline expansível */}
-      {obsEditing && (
-        <tr className="bg-slate-50">
-          <td colSpan={10} className="px-4 py-3">
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm max-w-2xl">
-              <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100">
-                <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Observações</span>
-                <button onClick={() => setObsEditing(false)} className="text-slate-400 hover:text-slate-600">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="px-4 pt-3 pb-1">
-                <p className="text-sm font-semibold text-slate-700">{task.activity}</p>
-              </div>
-              <div className="px-4 pb-3">
-                <textarea
-                  ref={obsTextareaRef}
-                  value={obsText}
-                  onChange={e => setObsText(e.target.value)}
-                  rows={4}
-                  placeholder="Adicione observações, comentários ou histórico..."
-                  className="w-full px-3 py-2 text-sm text-slate-700 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 resize-y"
-                />
-              </div>
-              <div className="flex justify-end gap-2 px-4 py-3 border-t border-slate-100">
-                <button
-                  onClick={() => setObsEditing(false)}
-                  className="px-4 py-1.5 text-sm font-medium border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleSaveObs}
-                  disabled={obsSaving}
-                  className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-60"
-                >
-                  {obsSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                  Salvar
-                </button>
-              </div>
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
-  );
 }
 
 function GroupRow({ task, computedDates }) {
@@ -561,10 +83,15 @@ function PhaseSection({
   phaseOverride, onEditOverride, onInactivate, onReactivate,
   canEditPhase, canExcluirPhase,
   dependencies, activitiesMap, onOpenDependencyModal,
+  // Drag & drop (estado compartilhado — vem do ScheduleTab)
+  draggedId, dragOverId,
+  onDragStartActivity, onDragOverActivity, onDropOnActivity, onDragEndActivity,
+  onDropOnPhaseHeader,
 }) {
   const [open, setOpen] = useState(true);
   const [completing, setCompleting] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [headerDragOver, setHeaderDragOver] = useState(false);
 
   const isInactive = phaseOverride?.is_active === false;
   const displayName = phaseOverride?.custom_name || phaseName;
@@ -589,8 +116,11 @@ function PhaseSection({
   return (
     <div className={`mb-2 rounded-xl border overflow-hidden shadow-sm ${isInactive ? "border-slate-200 opacity-60" : "border-slate-200"}`}>
       <div
-        className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none flex-wrap ${isInactive ? "bg-slate-400" : "bg-blue-600"}`}
+        className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none flex-wrap ${isInactive ? "bg-slate-400" : "bg-blue-600"} ${headerDragOver ? "ring-2 ring-blue-300 ring-inset" : ""}`}
         onClick={() => setOpen(o => !o)}
+        onDragOver={(e) => { if (draggedId) { e.preventDefault(); setHeaderDragOver(true); } }}
+        onDragLeave={() => setHeaderDragOver(false)}
+        onDrop={(e) => { setHeaderDragOver(false); if (onDropOnPhaseHeader) onDropOnPhaseHeader(e, phaseName); }}
       >
         {open ? <ChevronDown className="w-4 h-4 text-white shrink-0" /> : <ChevronRight className="w-4 h-4 text-white shrink-0" />}
         <h3 className="text-sm font-bold text-white flex-1 min-w-0">{displayName}</h3>
@@ -709,7 +239,7 @@ function PhaseSection({
                 if (task.type === "task") {
                   const isSubActivity = !!task.parentGroup;
                   return (
-                    <TaskRow
+                    <TemplateTaskRow
                       key={task.id} task={task} computedDates={computedDates} manualOverrides={manualOverrides}
                       onSaveOverride={onSaveOverride} onRemoveOverride={onRemoveOverride} onSaveActivity={onSaveActivity}
                       onInactivateTask={onInactivateTask}
@@ -717,6 +247,11 @@ function PhaseSection({
                       readOnly={readOnly} canEditPlanned={canEditPlanned} canEditExecuted={canEditExecuted}
                       indented={isSubActivity}
                       dependencies={dependencies} activitiesMap={activitiesMap} onOpenDependencyModal={onOpenDependencyModal}
+                      draggable={!readOnly && !isInactive && !!onDropOnActivity}
+                      onDragStart={onDragStartActivity} onDragOver={onDragOverActivity}
+                      onDrop={onDropOnActivity} onDragEnd={onDragEndActivity}
+                      isDragged={draggedId === `tmpl:${task.id}`}
+                      isDragOver={dragOverId === `tmpl:${task.id}`}
                     />
                   );
                 }
@@ -731,6 +266,11 @@ function PhaseSection({
                   showInactive={showInactive}
                   canEdit={canEditActivity}
                   canExcluir={canExcluirActivity}
+                  draggable={!readOnly && !isInactive && !!onDropOnActivity}
+                  onDragStart={onDragStartActivity} onDragOver={onDragOverActivity}
+                  onDrop={onDropOnActivity} onDragEnd={onDragEndActivity}
+                  isDragged={draggedId === `local:${act.id}`}
+                  isDragOver={dragOverId === `local:${act.id}`}
                   dependencies={dependencies} activitiesMap={activitiesMap} onOpenDependencyModal={onOpenDependencyModal}
                 />
               ))}
@@ -935,12 +475,17 @@ export default function ScheduleTab({
     const grouped = {};
     SCHEDULE_TASKS.forEach(task => {
       if (!visible.has(task.id)) return;
-      const ph = task.phase || "Geral";
+      // Usa a fase efetiva (override de movimentação entre fases ou fase canônica)
+      const ph = getTaskPhase(task, manualOverrides) || "Geral";
       if (!grouped[ph]) grouped[ph] = [];
       grouped[ph].push(task);
     });
+    // Ordena cada fase pela ordem efetiva (override de reordenação ou row natural)
+    Object.keys(grouped).forEach(ph => {
+      grouped[ph] = sortTasksByOrder(grouped[ph], manualOverrides);
+    });
     return grouped;
-  }, [visible]);
+  }, [visible, manualOverrides]);
 
   // ── Cascata de dependências ──────────────────────────────────
   // Recalcula datas de sucessoras quando predecessoras mudam.
@@ -1015,7 +560,7 @@ export default function ScheduleTab({
       list.push({
         ref: buildRef("tmpl", t.id),
         name: t.activity,
-        phase: t.phase,
+        phase: getTaskPhase(t, manualOverrides),
         dateLabel: start ? fmtDate(start) : "—",
       });
     });
@@ -1313,15 +858,15 @@ export default function ScheduleTab({
     }
   }, []);
 
-  // ── Drag & drop entre fases (handlers compartilhados) ──────────────────────
-  const handleDragStartActivity = useCallback((id) => {
-    setDraggedId(id);
+  // ── Drag & drop unificado (template + local) usando refs ────────────────────
+  const handleDragStartActivity = useCallback((ref) => {
+    setDraggedId(ref);
   }, []);
 
-  const handleDragOverActivity = useCallback((e, id) => {
+  const handleDragOverActivity = useCallback((e, ref) => {
     e.preventDefault();
-    if (id === draggedId) return;
-    setDragOverId(id);
+    if (ref === draggedId) return;
+    setDragOverId(ref);
   }, [draggedId]);
 
   const handleDragEndActivity = useCallback(() => {
@@ -1329,92 +874,196 @@ export default function ScheduleTab({
     setDragOverId(null);
   }, []);
 
-  // Drop sobre uma atividade — reordena (mesma fase) ou move (fase diferente)
-  const handleDropOnActivity = useCallback(async (e, targetActivityId) => {
-    e.preventDefault();
-    if (!draggedId || draggedId === targetActivityId) {
-      setDraggedId(null); setDragOverId(null);
-      return;
-    }
-    const draggedAct = savedActivities.find(a => a.id === draggedId);
-    const targetAct = savedActivities.find(a => a.id === targetActivityId);
-    if (!draggedAct || !targetAct) {
-      setDraggedId(null); setDragOverId(null);
-      return;
-    }
-    const sourcePhase = draggedAct.phase_name;
-    const targetPhase = targetAct.phase_name;
+  // Reordena atividades do template dentro de uma fase — persiste order em schedule_overrides
+  const handleReorderTemplateTasks = useCallback(async (phaseName, draggedTaskId, targetTaskId) => {
+    const phaseTasks = SCHEDULE_TASKS.filter(t =>
+      t.type === "task" && visible.has(t.id) && getTaskPhase(t, manualOverrides) === phaseName
+    ).sort((a, b) => getTaskOrder(a, manualOverrides) - getTaskOrder(b, manualOverrides));
 
-    if (sourcePhase === targetPhase) {
-      // Mesma fase — reordenar
-      const phaseActs = savedActivities
-        .filter(a => a.phase_name === sourcePhase && !(a.status === "Cancelado" && (a.history_observations || "").includes("[INATIVADO]")))
-        .sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
-      const reordered = [...phaseActs];
-      const fromIdx = reordered.findIndex(a => a.id === draggedId);
-      const toIdx = reordered.findIndex(a => a.id === targetActivityId);
-      if (fromIdx !== -1 && toIdx !== -1) {
-        const [moved] = reordered.splice(fromIdx, 1);
-        reordered.splice(toIdx, 0, moved);
-        await handleReorderLocalActivities(reordered.map(a => a.id));
-      }
-    } else {
-      // Fase diferente — mover atividade para a fase destino
-      const targetPhaseActs = savedActivities
-        .filter(a => a.phase_name === targetPhase)
-        .sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
-      const newOrder = targetPhaseActs.length > 0
-        ? Math.max(...targetPhaseActs.map(a => a.order ?? 0)) + 1
-        : 0;
-      // Optimistic update
-      setSavedActivities(prev => prev.map(a =>
-        a.id === draggedId ? { ...a, phase_name: targetPhase, order: newOrder } : a
-      ));
-      try {
-        await base44.entities.ScheduleActivity.update(draggedId, { phase_name: targetPhase, order: newOrder });
-      } catch (err) {
-        console.error("[ScheduleTab] Erro ao mover atividade entre fases:", err);
-        toast({ title: "Erro ao mover atividade. Tente novamente.", variant: "destructive" });
-        // Reverte
-        setSavedActivities(prev => prev.map(a =>
-          a.id === draggedId ? { ...a, phase_name: sourcePhase, order: draggedAct.order } : a
-        ));
-      }
-    }
-    setDraggedId(null); setDragOverId(null);
-  }, [draggedId, savedActivities, handleReorderLocalActivities]);
+    const reordered = [...phaseTasks];
+    const fromIdx = reordered.findIndex(t => t.id === draggedTaskId);
+    const toIdx = reordered.findIndex(t => t.id === targetTaskId);
+    if (fromIdx === -1 || toIdx === -1) return;
 
-  // Drop sobre o cabeçalho da fase — move atividade para o final da fase destino
-  const handleDropOnPhaseHeader = useCallback(async (e, targetPhaseName) => {
-    e.preventDefault();
-    if (!draggedId) { setDraggedId(null); setDragOverId(null); return; }
-    const draggedAct = savedActivities.find(a => a.id === draggedId);
-    if (!draggedAct) { setDraggedId(null); setDragOverId(null); return; }
-    const sourcePhase = draggedAct.phase_name;
-    if (sourcePhase === targetPhaseName) {
-      setDraggedId(null); setDragOverId(null);
-      return;
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+
+    // Atribui ordem sequencial a todas as tasks da fase
+    const newOverrides = { ...manualOverrides };
+    reordered.forEach((t, idx) => {
+      newOverrides[t.id] = { ...(newOverrides[t.id] || {}), order: idx };
+    });
+
+    const prevOverrides = manualOverrides;
+    localSavedOverridesRef.current = newOverrides;
+    setManualOverrides(newOverrides);
+
+    try {
+      await base44.entities.Project.update(projectId, { schedule_overrides: newOverrides });
+      const newStatus = await autoPromoteToInProgress(projectId, project?.status);
+      if (newStatus !== project?.status && onStatusPromoted) onStatusPromoted();
+    } catch (err) {
+      console.error("[ScheduleTab] Erro ao reordenar template tasks:", err);
+      localSavedOverridesRef.current = prevOverrides;
+      setManualOverrides(prevOverrides);
+      toast({ title: "Erro ao reordenar atividades. Tente novamente.", variant: "destructive" });
     }
+  }, [visible, manualOverrides, projectId, project?.status, onStatusPromoted]);
+
+  // Move atividade do template para outra fase — persiste phase_name + order em schedule_overrides
+  const handleMoveTemplateTask = useCallback(async (taskId, targetPhaseName) => {
+    const targetPhaseTasks = SCHEDULE_TASKS.filter(t =>
+      t.type === "task" && visible.has(t.id) && getTaskPhase(t, manualOverrides) === targetPhaseName
+    ).sort((a, b) => getTaskOrder(a, manualOverrides) - getTaskOrder(b, manualOverrides));
+
+    const newOrder = targetPhaseTasks.length > 0
+      ? Math.max(...targetPhaseTasks.map(t => getTaskOrder(t, manualOverrides))) + 1
+      : 0;
+
+    const newOverrides = {
+      ...manualOverrides,
+      [taskId]: { ...(manualOverrides[taskId] || {}), phase_name: targetPhaseName, order: newOrder },
+    };
+
+    const prevOverrides = manualOverrides;
+    localSavedOverridesRef.current = newOverrides;
+    setManualOverrides(newOverrides);
+
+    try {
+      await base44.entities.Project.update(projectId, { schedule_overrides: newOverrides });
+      const newStatus = await autoPromoteToInProgress(projectId, project?.status);
+      if (newStatus !== project?.status && onStatusPromoted) onStatusPromoted();
+    } catch (err) {
+      console.error("[ScheduleTab] Erro ao mover template task:", err);
+      localSavedOverridesRef.current = prevOverrides;
+      setManualOverrides(prevOverrides);
+      toast({ title: "Erro ao mover atividade. Tente novamente.", variant: "destructive" });
+    }
+  }, [visible, manualOverrides, projectId, project?.status, onStatusPromoted]);
+
+  // Move atividade local para outra fase — atualiza phase_name + order via ScheduleActivity
+  const handleMoveLocalActivity = useCallback(async (activityId, targetPhaseName) => {
+    const draggedAct = savedActivities.find(a => a.id === activityId);
+    if (!draggedAct) return;
+    const sourcePhase = draggedAct.phase_name;
+    if (sourcePhase === targetPhaseName) return;
+
     const targetPhaseActs = savedActivities
       .filter(a => a.phase_name === targetPhaseName)
       .sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
     const newOrder = targetPhaseActs.length > 0
       ? Math.max(...targetPhaseActs.map(a => a.order ?? 0)) + 1
       : 0;
+
     setSavedActivities(prev => prev.map(a =>
-      a.id === draggedId ? { ...a, phase_name: targetPhaseName, order: newOrder } : a
+      a.id === activityId ? { ...a, phase_name: targetPhaseName, order: newOrder } : a
     ));
     try {
-      await base44.entities.ScheduleActivity.update(draggedId, { phase_name: targetPhaseName, order: newOrder });
+      await base44.entities.ScheduleActivity.update(activityId, { phase_name: targetPhaseName, order: newOrder });
     } catch (err) {
-      console.error("[ScheduleTab] Erro ao mover atividade para fase:", err);
+      console.error("[ScheduleTab] Erro ao mover atividade entre fases:", err);
       toast({ title: "Erro ao mover atividade. Tente novamente.", variant: "destructive" });
       setSavedActivities(prev => prev.map(a =>
-        a.id === draggedId ? { ...a, phase_name: sourcePhase, order: draggedAct.order } : a
+        a.id === activityId ? { ...a, phase_name: sourcePhase, order: draggedAct.order } : a
       ));
     }
+  }, [savedActivities]);
+
+  // Drop sobre uma atividade — reordena (mesma fase, mesmo tipo) ou move (fase diferente)
+  const handleDropOnActivity = useCallback(async (e, targetRef) => {
+    e.preventDefault();
+    if (!draggedId || draggedId === targetRef) {
+      setDraggedId(null); setDragOverId(null);
+      return;
+    }
+
+    const src = parseRef(draggedId);
+    const tgt = parseRef(targetRef);
+
+    // Determina fase destino
+    let targetPhase;
+    if (tgt.type === "tmpl") {
+      const tgtTask = SCHEDULE_TASKS.find(t => t.id === tgt.id);
+      if (!tgtTask) { setDraggedId(null); setDragOverId(null); return; }
+      targetPhase = getTaskPhase(tgtTask, manualOverrides);
+    } else {
+      const tgtAct = savedActivities.find(a => a.id === tgt.id);
+      if (!tgtAct) { setDraggedId(null); setDragOverId(null); return; }
+      targetPhase = tgtAct.phase_name;
+    }
+
+    // Determina fase origem
+    let sourcePhase;
+    if (src.type === "tmpl") {
+      const srcTask = SCHEDULE_TASKS.find(t => t.id === src.id);
+      if (!srcTask) { setDraggedId(null); setDragOverId(null); return; }
+      sourcePhase = getTaskPhase(srcTask, manualOverrides);
+    } else {
+      const srcAct = savedActivities.find(a => a.id === src.id);
+      if (!srcAct) { setDraggedId(null); setDragOverId(null); return; }
+      sourcePhase = srcAct.phase_name;
+    }
+
+    // Mesma fase → reordenar (apenas mesmo tipo)
+    if (sourcePhase === targetPhase) {
+      if (src.type === "tmpl" && tgt.type === "tmpl") {
+        await handleReorderTemplateTasks(sourcePhase, src.id, tgt.id);
+      } else if (src.type === "local" && tgt.type === "local") {
+        const phaseActs = savedActivities
+          .filter(a => a.phase_name === sourcePhase && !(a.status === "Cancelado" && (a.history_observations || "").includes("[INATIVADO]")))
+          .sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+        const reordered = [...phaseActs];
+        const fromIdx = reordered.findIndex(a => a.id === src.id);
+        const toIdx = reordered.findIndex(a => a.id === tgt.id);
+        if (fromIdx !== -1 && toIdx !== -1) {
+          const [moved] = reordered.splice(fromIdx, 1);
+          reordered.splice(toIdx, 0, moved);
+          await handleReorderLocalActivities(reordered.map(a => a.id));
+        }
+      }
+      setDraggedId(null); setDragOverId(null);
+      return;
+    }
+
+    // Fase diferente → mover
+    if (src.type === "tmpl") {
+      // Template task: só move para fases canônicas (PHASE_ORDER)
+      if (!PHASE_ORDER.includes(targetPhase)) {
+        setDraggedId(null); setDragOverId(null);
+        return;
+      }
+      await handleMoveTemplateTask(src.id, targetPhase);
+    } else {
+      // Atividade local: move para qualquer fase
+      await handleMoveLocalActivity(src.id, targetPhase);
+    }
+
     setDraggedId(null); setDragOverId(null);
-  }, [draggedId, savedActivities]);
+  }, [draggedId, savedActivities, manualOverrides, handleReorderTemplateTasks, handleMoveTemplateTask, handleMoveLocalActivity, handleReorderLocalActivities]);
+
+  // Drop sobre o cabeçalho da fase — move atividade para o final da fase destino
+  const handleDropOnPhaseHeader = useCallback(async (e, targetPhaseName) => {
+    e.preventDefault();
+    if (!draggedId) { setDraggedId(null); setDragOverId(null); return; }
+
+    const src = parseRef(draggedId);
+
+    if (src.type === "tmpl") {
+      const srcTask = SCHEDULE_TASKS.find(t => t.id === src.id);
+      if (!srcTask) { setDraggedId(null); setDragOverId(null); return; }
+      const sourcePhase = getTaskPhase(srcTask, manualOverrides);
+      if (sourcePhase === targetPhaseName) { setDraggedId(null); setDragOverId(null); return; }
+      // Template task: só move para fases canônicas (PHASE_ORDER)
+      if (!PHASE_ORDER.includes(targetPhaseName)) { setDraggedId(null); setDragOverId(null); return; }
+      await handleMoveTemplateTask(src.id, targetPhaseName);
+    } else {
+      const srcAct = savedActivities.find(a => a.id === src.id);
+      if (!srcAct) { setDraggedId(null); setDragOverId(null); return; }
+      await handleMoveLocalActivity(src.id, targetPhaseName);
+    }
+
+    setDraggedId(null); setDragOverId(null);
+  }, [draggedId, savedActivities, manualOverrides, handleMoveTemplateTask, handleMoveLocalActivity]);
 
   // Handlers para overrides de fases do template
   const handleInactivateTemplatePhase = useCallback(async (phaseName) => {
@@ -1721,6 +1370,10 @@ export default function ScheduleTab({
                 canEditPhase={canEditPhase && !readOnly}
                 canExcluirPhase={canExcluirPhase && !readOnly}
                 dependencies={dependencies} activitiesMap={activitiesMap} onOpenDependencyModal={handleOpenDependencyModal}
+                draggedId={draggedId} dragOverId={dragOverId}
+                onDragStartActivity={handleDragStartActivity} onDragOverActivity={handleDragOverActivity}
+                onDropOnActivity={handleDropOnActivity} onDragEndActivity={handleDragEndActivity}
+                onDropOnPhaseHeader={handleDropOnPhaseHeader}
               />
             );
           }

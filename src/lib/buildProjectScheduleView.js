@@ -38,6 +38,7 @@
 import { SCHEDULE_TASKS, PHASE_ORDER } from "@/lib/scheduleTasks.js";
 import { computeSchedule } from "@/lib/scheduleEngine.js";
 import { classifyScheduleActivities } from "@/lib/scheduleActivityMatch.js";
+import { getTaskPhase, getTaskOrder } from "@/lib/scheduleOrderOverride.js";
 
 const TODAY = () => new Date().toISOString().split("T")[0];
 
@@ -112,7 +113,8 @@ export function buildProjectScheduleView({
       const isInactivated = (act.history_observations || "").includes("[INATIVADO]");
       if (isInactivated) return;
 
-      const phaseName = task.phase;
+      // Usa a fase efetiva (override de movimentação entre fases ou fase canônica)
+      const phaseName = getTaskPhase(task, overrides);
       if (!templatePhaseData[phaseName]) {
         templatePhaseData[phaseName] = { tasks: [] };
       }
@@ -127,7 +129,13 @@ export function buildProjectScheduleView({
         actualStart: act.actual_start || null,
         actualEnd: act.actual_end || null,
         status: act.status || null,
+        _order: getTaskOrder(task, overrides),
       });
+    });
+
+    // Ordena tasks de cada fase pela ordem efetiva (override de reordenação ou row natural)
+    Object.keys(templatePhaseData).forEach(ph => {
+      templatePhaseData[ph].tasks.sort((a, b) => (a._order ?? 0) - (b._order ?? 0));
     });
 
     const today = TODAY();
