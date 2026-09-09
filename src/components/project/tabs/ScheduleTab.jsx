@@ -92,7 +92,6 @@ function PhaseSection({
   const [completing, setCompleting] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [headerDragOver, setHeaderDragOver] = useState(false);
-  const lastDropAtRef = useRef(0);
 
   const isInactive = phaseOverride?.is_active === false;
   const displayName = phaseOverride?.custom_name || phaseName;
@@ -106,9 +105,7 @@ function PhaseSection({
     }
     return true;
   });
-  const phaseLocalActivities = localActivities
-    .filter(a => a.phase_name === phaseName)
-    .sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+  const phaseLocalActivities = localActivities.filter(a => a.phase_name === phaseName);
   const activeLocalActivities = phaseLocalActivities.filter(a =>
     !(a.status === "Cancelado" && (a.history_observations || "").includes("[INATIVADO]"))
   );
@@ -117,16 +114,13 @@ function PhaseSection({
   if (visibleTasks.length === 0 && phaseLocalActivities.length === 0) return null;
 
   return (
-    <div
-      className={`mb-2 rounded-xl border overflow-hidden shadow-sm ${isInactive ? "border-slate-200 opacity-60" : "border-slate-200"} ${headerDragOver ? "ring-2 ring-blue-300 ring-inset" : ""}`}
-      onDragEnter={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (draggedId) setHeaderDragOver(true); }}
-      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (draggedId) setHeaderDragOver(true); }}
-      onDragLeave={() => setHeaderDragOver(false)}
-      onDrop={(e) => { e.preventDefault(); lastDropAtRef.current = Date.now(); setHeaderDragOver(false); if (onDropOnPhaseHeader) onDropOnPhaseHeader(e, phaseName); }}
-    >
+    <div className={`mb-2 rounded-xl border overflow-hidden shadow-sm ${isInactive ? "border-slate-200 opacity-60" : "border-slate-200"}`}>
       <div
-        className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none flex-wrap ${isInactive ? "bg-slate-400" : "bg-blue-600"}`}
-        onClick={() => { if (Date.now() - lastDropAtRef.current < 300) return; setOpen(o => !o); }}
+        className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer select-none flex-wrap ${isInactive ? "bg-slate-400" : "bg-blue-600"} ${headerDragOver ? "ring-2 ring-blue-300 ring-inset" : ""}`}
+        onClick={() => setOpen(o => !o)}
+        onDragOver={(e) => { if (draggedId) { e.preventDefault(); setHeaderDragOver(true); } }}
+        onDragLeave={() => setHeaderDragOver(false)}
+        onDrop={(e) => { setHeaderDragOver(false); if (onDropOnPhaseHeader) onDropOnPhaseHeader(e, phaseName); }}
       >
         {open ? <ChevronDown className="w-4 h-4 text-white shrink-0" /> : <ChevronRight className="w-4 h-4 text-white shrink-0" />}
         <h3 className="text-sm font-bold text-white flex-1 min-w-0">{displayName}</h3>
@@ -390,8 +384,6 @@ export default function ScheduleTab({
   // Drag & drop entre fases (estado compartilhado entre todas as fases locais)
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
-  // Ref espelho do draggedId — garante valor sincronizado no onDrop (estado pode ser stale)
-  const draggedIdRef = useRef(null);
 
   // Ref para rastrear se já inicializamos para este projectId
   const initializedForProjectRef = useRef(null);
@@ -875,24 +867,17 @@ export default function ScheduleTab({
   }, []);
 
   // ── Drag & drop unificado (template + local) usando refs ────────────────────
-  const handleDragStartActivity = useCallback((e, ref) => {
-    // Necessário para Firefox e alguns navegadores — sem setData o drag não inicia
-    if (e && e.dataTransfer) {
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", ref);
-    }
-    draggedIdRef.current = ref;
+  const handleDragStartActivity = useCallback((ref) => {
     setDraggedId(ref);
   }, []);
 
   const handleDragOverActivity = useCallback((e, ref) => {
     e.preventDefault();
-    if (ref === draggedIdRef.current) return;
+    if (ref === draggedId) return;
     setDragOverId(ref);
-  }, []);
+  }, [draggedId]);
 
   const handleDragEndActivity = useCallback(() => {
-    draggedIdRef.current = null;
     setDraggedId(null);
     setDragOverId(null);
   }, []);
@@ -995,24 +980,23 @@ export default function ScheduleTab({
   // Drop sobre uma atividade — reordena (mesma fase, mesmo tipo) ou move (fase diferente)
   const handleDropOnActivity = useCallback(async (e, targetRef) => {
     e.preventDefault();
-    const currentDraggedId = draggedIdRef.current;
-    if (!currentDraggedId || currentDraggedId === targetRef) {
-      draggedIdRef.current = null; setDraggedId(null); setDragOverId(null);
+    if (!draggedId || draggedId === targetRef) {
+      setDraggedId(null); setDragOverId(null);
       return;
     }
 
-    const src = parseRef(currentDraggedId);
+    const src = parseRef(draggedId);
     const tgt = parseRef(targetRef);
 
     // Determina fase destino
     let targetPhase;
     if (tgt.type === "tmpl") {
       const tgtTask = SCHEDULE_TASKS.find(t => t.id === tgt.id);
-      if (!tgtTask) { draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
+      if (!tgtTask) { setDraggedId(null); setDragOverId(null); return; }
       targetPhase = getTaskPhase(tgtTask, manualOverrides);
     } else {
       const tgtAct = savedActivities.find(a => a.id === tgt.id);
-      if (!tgtAct) { draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
+      if (!tgtAct) { setDraggedId(null); setDragOverId(null); return; }
       targetPhase = tgtAct.phase_name;
     }
 
@@ -1020,15 +1004,15 @@ export default function ScheduleTab({
     let sourcePhase;
     if (src.type === "tmpl") {
       const srcTask = SCHEDULE_TASKS.find(t => t.id === src.id);
-      if (!srcTask) { draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
+      if (!srcTask) { setDraggedId(null); setDragOverId(null); return; }
       sourcePhase = getTaskPhase(srcTask, manualOverrides);
     } else {
       const srcAct = savedActivities.find(a => a.id === src.id);
-      if (!srcAct) { draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
+      if (!srcAct) { setDraggedId(null); setDragOverId(null); return; }
       sourcePhase = srcAct.phase_name;
     }
 
-    // Mesma fase → reordenar
+    // Mesma fase → reordenar (apenas mesmo tipo)
     if (sourcePhase === targetPhase) {
       if (src.type === "tmpl" && tgt.type === "tmpl") {
         await handleReorderTemplateTasks(sourcePhase, src.id, tgt.id);
@@ -1044,20 +1028,8 @@ export default function ScheduleTab({
           reordered.splice(toIdx, 0, moved);
           await handleReorderLocalActivities(reordered.map(a => a.id));
         }
-      } else if (src.type === "local" && tgt.type === "tmpl") {
-        // Local sobre template (mesma fase): move local para o final da lista de locais da fase
-        const phaseActs = savedActivities
-          .filter(a => a.phase_name === sourcePhase && !(a.status === "Cancelado" && (a.history_observations || "").includes("[INATIVADO]")))
-          .sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
-        const reordered = [...phaseActs];
-        const fromIdx = reordered.findIndex(a => a.id === src.id);
-        if (fromIdx !== -1 && fromIdx !== reordered.length - 1) {
-          const [moved] = reordered.splice(fromIdx, 1);
-          reordered.push(moved);
-          await handleReorderLocalActivities(reordered.map(a => a.id));
-        }
       }
-      draggedIdRef.current = null; setDraggedId(null); setDragOverId(null);
+      setDraggedId(null); setDragOverId(null);
       return;
     }
 
@@ -1065,7 +1037,7 @@ export default function ScheduleTab({
     if (src.type === "tmpl") {
       // Template task: só move para fases canônicas (PHASE_ORDER)
       if (!PHASE_ORDER.includes(targetPhase)) {
-        draggedIdRef.current = null; setDraggedId(null); setDragOverId(null);
+        setDraggedId(null); setDragOverId(null);
         return;
       }
       await handleMoveTemplateTask(src.id, targetPhase);
@@ -1074,33 +1046,32 @@ export default function ScheduleTab({
       await handleMoveLocalActivity(src.id, targetPhase);
     }
 
-    draggedIdRef.current = null; setDraggedId(null); setDragOverId(null);
-  }, [savedActivities, manualOverrides, handleReorderTemplateTasks, handleMoveTemplateTask, handleMoveLocalActivity, handleReorderLocalActivities]);
+    setDraggedId(null); setDragOverId(null);
+  }, [draggedId, savedActivities, manualOverrides, handleReorderTemplateTasks, handleMoveTemplateTask, handleMoveLocalActivity, handleReorderLocalActivities]);
 
   // Drop sobre o cabeçalho da fase — move atividade para o final da fase destino
   const handleDropOnPhaseHeader = useCallback(async (e, targetPhaseName) => {
     e.preventDefault();
-    const currentDraggedId = draggedIdRef.current;
-    if (!currentDraggedId) { draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
+    if (!draggedId) { setDraggedId(null); setDragOverId(null); return; }
 
-    const src = parseRef(currentDraggedId);
+    const src = parseRef(draggedId);
 
     if (src.type === "tmpl") {
       const srcTask = SCHEDULE_TASKS.find(t => t.id === src.id);
-      if (!srcTask) { draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
+      if (!srcTask) { setDraggedId(null); setDragOverId(null); return; }
       const sourcePhase = getTaskPhase(srcTask, manualOverrides);
-      if (sourcePhase === targetPhaseName) { draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
+      if (sourcePhase === targetPhaseName) { setDraggedId(null); setDragOverId(null); return; }
       // Template task: só move para fases canônicas (PHASE_ORDER)
-      if (!PHASE_ORDER.includes(targetPhaseName)) { draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
+      if (!PHASE_ORDER.includes(targetPhaseName)) { setDraggedId(null); setDragOverId(null); return; }
       await handleMoveTemplateTask(src.id, targetPhaseName);
     } else {
       const srcAct = savedActivities.find(a => a.id === src.id);
-      if (!srcAct) { draggedIdRef.current = null; setDraggedId(null); setDragOverId(null); return; }
+      if (!srcAct) { setDraggedId(null); setDragOverId(null); return; }
       await handleMoveLocalActivity(src.id, targetPhaseName);
     }
 
-    draggedIdRef.current = null; setDraggedId(null); setDragOverId(null);
-  }, [savedActivities, manualOverrides, handleMoveTemplateTask, handleMoveLocalActivity]);
+    setDraggedId(null); setDragOverId(null);
+  }, [draggedId, savedActivities, manualOverrides, handleMoveTemplateTask, handleMoveLocalActivity]);
 
   // Handlers para overrides de fases do template
   const handleInactivateTemplatePhase = useCallback(async (phaseName) => {

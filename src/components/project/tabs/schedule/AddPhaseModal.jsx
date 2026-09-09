@@ -134,30 +134,43 @@ export default function AddPhaseModal({ projectId, phase, existingPhases = [], o
             />
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Posição">
-              <select value={form.position} onChange={set("position")} className={inputClass}>
-                {positionOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </Field>
-            {(form.position === "before" || form.position === "after") && existingPhases.length > 0 && (
-              <Field label={form.position === "before" ? "Antes de" : "Depois de"}>
-                <select value={form.reference_phase} onChange={set("reference_phase")} className={inputClass}>
-                  <option value="">Selecione a etapa...</option>
-                  {existingPhases.map(p => (
-                    <option key={p.phase_name} value={p.phase_name}>{p.phase_name}</option>
-                  ))}
-                </select>
-              </Field>
-            )}
-            {(form.position === "first" || form.position === "last") && (
+          {!isEditing ? (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Posição">
+                  <select value={form.position} onChange={set("position")} className={inputClass}>
+                    {positionOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </Field>
+                {(form.position === "before" || form.position === "after") && existingPhases.length > 0 && (
+                  <Field label={form.position === "before" ? "Antes de" : "Depois de"}>
+                    <select value={form.reference_phase} onChange={set("reference_phase")} className={inputClass}>
+                      <option value="">Selecione a etapa...</option>
+                      {existingPhases.map(p => (
+                        <option key={p.phase_name} value={p.phase_name}>{p.phase_name}</option>
+                      ))}
+                    </select>
+                  </Field>
+                )}
+                {(form.position === "first" || form.position === "last" || (form.position !== "before" && form.position !== "after")) && (
+                  <Field label="Status">
+                    <select value={form.status} onChange={set("status")} className={inputClass}>
+                      {STATUS_OPTIONS.map(s => <option key={s}>{s}</option>)}
+                    </select>
+                  </Field>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
               <Field label="Status">
                 <select value={form.status} onChange={set("status")} className={inputClass}>
                   {STATUS_OPTIONS.map(s => <option key={s}>{s}</option>)}
                 </select>
               </Field>
-            )}
-          </div>
+              <div />
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <Field label="Início planejado">

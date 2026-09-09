@@ -247,16 +247,16 @@ export default function TemplateTaskRow({
       <tr
         className={rowClass}
         draggable={draggable && !isInactive}
-        onDragStart={draggable ? (e) => onDragStart?.(e, `tmpl:${task.id}`) : undefined}
+        onDragStart={draggable ? () => onDragStart?.(`tmpl:${task.id}`) : undefined}
         onDragOver={draggable ? (e) => onDragOver?.(e, `tmpl:${task.id}`) : undefined}
-        onDrop={draggable ? (e) => { e.stopPropagation(); onDrop?.(e, `tmpl:${task.id}`); } : undefined}
+        onDrop={draggable ? (e) => onDrop?.(e, `tmpl:${task.id}`) : undefined}
         onDragEnd={draggable ? onDragEnd : undefined}
       >
         <td className={`py-2.5 text-sm text-slate-700 max-w-[280px] ${indented ? "pl-8 pr-2" : "px-2"}`}>
           <div className="flex items-start gap-1.5">
             {draggable && !readOnly && !isInactive && (
-              <span className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 mt-0.5 shrink-0" title="Arraste para reordenar ou mover entre fases">
-                <GripVertical className="w-4 h-4" />
+              <span className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 mt-0.5 shrink-0" title="Arraste para reordenar ou mover entre fases">
+                <GripVertical className="w-3.5 h-3.5" />
               </span>
             )}
             <div>

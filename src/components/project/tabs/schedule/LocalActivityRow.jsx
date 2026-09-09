@@ -144,16 +144,16 @@ export default function LocalActivityRow({
       <tr
         className={rowClass}
         draggable={draggable && !isInactive}
-        onDragStart={draggable ? (e) => onDragStart?.(e, `local:${activity.id}`) : undefined}
+        onDragStart={draggable ? () => onDragStart?.(`local:${activity.id}`) : undefined}
         onDragOver={draggable ? (e) => onDragOver?.(e, `local:${activity.id}`) : undefined}
-        onDrop={draggable ? (e) => { e.stopPropagation(); onDrop?.(e, `local:${activity.id}`); } : undefined}
+        onDrop={draggable ? (e) => onDrop?.(e, `local:${activity.id}`) : undefined}
         onDragEnd={draggable ? onDragEnd : undefined}
       >
         <td className="px-2 py-2.5 text-sm text-slate-700 max-w-[280px]">
           <div className="flex items-start gap-1.5">
             {draggable && !readOnly && !isInactive && (
-              <span className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 mt-0.5 shrink-0" title="Arraste para reordenar ou mover entre fases">
-                <GripVertical className="w-4 h-4" />
+              <span className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 mt-0.5 shrink-0" title="Arraste para reordenar">
+                <GripVertical className="w-3.5 h-3.5" />
               </span>
             )}
             <div className="flex flex-col gap-0.5 min-w-0">
