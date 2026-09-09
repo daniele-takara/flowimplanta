@@ -293,7 +293,7 @@ export default function LocalPhaseSection({
                   showInactive={showInactive}
                   canEdit={canEditActivity}
                   canExcluir={canExcluirActivity}
-                  draggable={!readOnly && !!onReorder && phase.is_active !== false}
+                  draggable={!readOnly && !!onDropOnActivity && phase.is_active !== false}
                   onDragStart={onDragStartActivity}
                   onDragOver={onDragOverActivity}
                   onDrop={onDropOnActivity}

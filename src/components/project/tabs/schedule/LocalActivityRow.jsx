@@ -152,8 +152,8 @@ export default function LocalActivityRow({
         <td className="px-2 py-2.5 text-sm text-slate-700 max-w-[280px]">
           <div className="flex items-start gap-1.5">
             {draggable && !readOnly && !isInactive && (
-              <span className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 mt-0.5 shrink-0" title="Arraste para reordenar">
-                <GripVertical className="w-3.5 h-3.5" />
+              <span className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 mt-0.5 shrink-0" title="Arraste para reordenar ou mover entre fases">
+                <GripVertical className="w-4 h-4" />
               </span>
             )}
             <div className="flex flex-col gap-0.5 min-w-0">

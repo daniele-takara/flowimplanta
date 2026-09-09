@@ -255,8 +255,8 @@ export default function TemplateTaskRow({
         <td className={`py-2.5 text-sm text-slate-700 max-w-[280px] ${indented ? "pl-8 pr-2" : "px-2"}`}>
           <div className="flex items-start gap-1.5">
             {draggable && !readOnly && !isInactive && (
-              <span className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 mt-0.5 shrink-0" title="Arraste para reordenar ou mover entre fases">
-                <GripVertical className="w-3.5 h-3.5" />
+              <span className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 mt-0.5 shrink-0" title="Arraste para reordenar ou mover entre fases">
+                <GripVertical className="w-4 h-4" />
               </span>
             )}
             <div>
