@@ -108,6 +108,7 @@ export default function LocalPhaseSection({
   return (
     <div
       className={`mb-2 rounded-xl border overflow-hidden shadow-sm ${phase.is_active === false ? "border-slate-200 opacity-60" : "border-purple-200"} ${headerDragOver ? "ring-2 ring-purple-300 ring-inset" : ""}`}
+      onDragEnter={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (draggedId) setHeaderDragOver(true); }}
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (draggedId) setHeaderDragOver(true); }}
       onDragLeave={() => setHeaderDragOver(false)}
       onDrop={(e) => { e.preventDefault(); lastDropAtRef.current = Date.now(); setHeaderDragOver(false); if (onDropOnPhaseHeader) onDropOnPhaseHeader(e, phase.phase_name); }}
