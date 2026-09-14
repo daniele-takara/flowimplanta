@@ -16,6 +16,7 @@ import { SCHEDULE_TASKS, PHASE_ORDER, ANCHOR_IDS } from "@/lib/scheduleTasks.js"
 import { computeSchedule } from "@/lib/scheduleEngine.js";
 import { resolveRoleToName, resolveGeneralResponsible } from "@/lib/resolveResponsibleRole.js";
 import { getTaskPhase, sortTasksByOrder } from "@/lib/scheduleOrderOverride.js";
+import { classifyScheduleActivities } from "@/lib/scheduleActivityMatch.js";
 
 function loadImage(url) {
   return new Promise((resolve, reject) => {
@@ -120,17 +121,12 @@ export async function generateSchedulePDF({
     SCHEDULE_TASKS, engineOverrides, answersMap, project
   );
 
-  // 2. Indexar atividades salvas
-  const activityByTaskId = {};
-  savedActivities.forEach(a => {
-    if (!a.activity_name) return;
-    const normA = norm(a.activity_name);
-    let found = SCHEDULE_TASKS.find(t => norm(t.activity) === normA);
-    if (!found) found = SCHEDULE_TASKS.find(t =>
-      norm(t.activity).includes(normA) || normA.includes(norm(t.activity))
-    );
-    if (found) activityByTaskId[found.id] = a;
-  });
+  // 2. Classificar atividades (mesma lógica da tela — classifyScheduleActivities)
+  const localPhaseNames = (localPhases || []).map(p => p.phase_name);
+  const customNames = Object.values(phaseOverrides || {})
+    .map(o => o.custom_name).filter(Boolean);
+  const { activitiesByTask: activityByTaskId, localActivities: classifiedLocal } =
+    classifyScheduleActivities(savedActivities, localPhaseNames, customNames);
 
   // 3. Agrupar tasks visíveis por fase (usa override de fase se houver)
   const templatePhaseTasks = {};
@@ -150,13 +146,7 @@ export async function generateSchedulePDF({
   const templatePhases = [];
   PHASE_ORDER.forEach((phaseName, idx) => {
     const tasks = templatePhaseTasks[phaseName] || [];
-    const hasLocalActs = savedActivities.some(a => {
-      if (!a.activity_name) return false;
-      const normA = norm(a.activity_name);
-      const inTemplate = SCHEDULE_TASKS.some(t => norm(t.activity) === normA
-        || norm(t.activity).includes(normA) || normA.includes(norm(t.activity)));
-      return !inTemplate && a.phase_name === phaseName;
-    });
+    const hasLocalActs = classifiedLocal.some(a => a.phase_name === phaseName);
     if (tasks.length === 0 && !hasLocalActs) return;
 
     const override = phaseOverrides[phaseName] || null;
@@ -171,14 +161,9 @@ export async function generateSchedulePDF({
     .filter(p => p.is_active !== false)
     .sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
 
-  // 6. Atividades locais (sem match no template)
+  // 6. Atividades locais por fase (classificadas por classifyScheduleActivities)
   const localActivitiesByPhase = {};
-  savedActivities.forEach(a => {
-    if (!a.activity_name) return;
-    const normA = norm(a.activity_name);
-    const inTemplate = SCHEDULE_TASKS.some(t => norm(t.activity) === normA
-      || norm(t.activity).includes(normA) || normA.includes(norm(t.activity)));
-    if (inTemplate) return;
+  classifiedLocal.forEach(a => {
     const ph = a.phase_name;
     if (!localActivitiesByPhase[ph]) localActivitiesByPhase[ph] = [];
     localActivitiesByPhase[ph].push(a);
