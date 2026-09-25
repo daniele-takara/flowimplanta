@@ -5,7 +5,7 @@ import {
   ChevronDown, ChevronRight, Save, X, Anchor, Pencil, Lock,
   AlertCircle, CheckCircle, CheckCircle2, Loader2, RefreshCw,
   Database, Plus, RotateCcw, Zap, Eye, MoreHorizontal, EyeOff, FileDown,
-  Maximize2, Minimize2, GripVertical
+  Maximize2, Minimize2, GripVertical, FileSpreadsheet
 } from "lucide-react";
 import { SCHEDULE_TASKS, PHASE_ORDER } from "@/lib/scheduleTasks.js";
 import { computeSchedule, workday } from "@/lib/scheduleEngine.js";
@@ -17,6 +17,7 @@ import LocalPhaseSection from "./schedule/LocalPhaseSection.jsx";
 import TemplateTaskRow from "./schedule/TemplateTaskRow.jsx";
 import PhaseOverrideModal from "./schedule/PhaseOverrideModal.jsx";
 import { generateSchedulePDF } from "@/lib/schedulePdfExport.js";
+import { generateScheduleExcel } from "@/lib/scheduleExcelExport.js";
 import SchedulePDFColumnModal from "./schedule/SchedulePDFColumnModal.jsx";
 import { logAudit } from "@/lib/auditLog";
 import ScheduleAgentChat from "./schedule/ScheduleAgentChat.jsx";
@@ -401,6 +402,7 @@ export default function ScheduleTab({
 
   // PDF generation state
   const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [generatingExcel, setGeneratingExcel] = useState(false);
   const [showPDFModal, setShowPDFModal] = useState(false);
 
   // Dependências
@@ -1267,6 +1269,25 @@ export default function ScheduleTab({
     setGeneratingPDF(false);
   }, [project, scopeItems, savedActivities, localPhases, phaseOverrides, manualOverrides, templateConfig]);
 
+  const handleGenerateExcel = useCallback(async () => {
+    setGeneratingExcel(true);
+    try {
+      await generateScheduleExcel({
+        project,
+        scopeItems,
+        savedActivities,
+        localPhases,
+        phaseOverrides,
+        manualOverrides,
+        templateConfig,
+      });
+    } catch (err) {
+      console.error("[ScheduleTab] Erro ao gerar Excel:", err);
+      toast({ title: "Erro ao gerar Excel do cronograma. Tente novamente.", variant: "destructive" });
+    }
+    setGeneratingExcel(false);
+  }, [project, scopeItems, savedActivities, localPhases, phaseOverrides, manualOverrides, templateConfig]);
+
   return (
     <div>
       {/* Toolbar */}
@@ -1317,6 +1338,16 @@ export default function ScheduleTab({
             >
               {generatingPDF ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
               Gerar PDF do Cronograma
+            </button>
+          )}
+          {canGeneratePDF && (
+            <button
+              onClick={handleGenerateExcel}
+              disabled={generatingExcel}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 disabled:opacity-60"
+            >
+              {generatingExcel ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
+              Baixar Excel
             </button>
           )}
           <button
