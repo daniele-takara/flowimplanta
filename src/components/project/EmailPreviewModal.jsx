@@ -6,13 +6,16 @@ const GMAIL_CONNECTOR_ID = "6a9acfd915942e418033757b";
 
 const ALWAYS_CC = "implantacao@pontotel.com.br";
 
-function buildDefaultTo(project) {
-  const emails = [
+function buildDefaultTo(project, teamMembers = []) {
+  const fixed = [
     project?.sponsor_email,
     project?.project_leader_email,
     project?.operation_email,
   ].filter(Boolean);
-  return emails.join(", ");
+  const extra = (teamMembers || [])
+    .filter(m => m.receives_status_report && m.email)
+    .map(m => m.email);
+  return [...fixed, ...extra].join(", ");
 }
 
 function buildDefaultSubject(project) {
@@ -31,6 +34,15 @@ export default function EmailPreviewModal({ html, onClose, project }) {
   const [to, setTo] = useState("");
   const [cc, setCc] = useState(ALWAYS_CC);
   const [subject, setSubject] = useState("");
+  const [teamMembers, setTeamMembers] = useState([]);
+
+  // Carrega membros da equipe com flag de Status Report para preencher o "Para"
+  useEffect(() => {
+    if (!project?.id) return;
+    base44.entities.ProjectTeamMember.filter({ project_id: project.id })
+      .then(list => setTeamMembers(list || []))
+      .catch(() => setTeamMembers([]));
+  }, [project?.id]);
 
   // Verifica conexão Gmail ao montar (Rule 2: data fetch = connection check)
   const checkConnection = async () => {
@@ -50,10 +62,10 @@ export default function EmailPreviewModal({ html, onClose, project }) {
   };
 
   useEffect(() => {
-    setTo(buildDefaultTo(project));
+    setTo(buildDefaultTo(project, teamMembers));
     setSubject(buildDefaultSubject(project));
     checkConnection();
-  }, [project]);
+  }, [project, teamMembers]);
 
   // Rule 3: abre popup OAuth, polla fechamento, re-busca conexão
   const handleConnect = async () => {

@@ -135,7 +135,7 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
   }, []);
 
   const addMember = (team) => {
-    setTeamMembers(prev => [...prev, { team, name: "", role: "", email: "", phone: "", _new: true }]);
+    setTeamMembers(prev => [...prev, { team, name: "", role: "", email: "", phone: "", receives_status_report: false, _new: true }]);
   };
   const updateMember = (idx, field, value) => {
     setTeamMembers(prev => prev.map((m, i) => i === idx ? { ...m, [field]: value } : m));
@@ -244,12 +244,14 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
         await base44.entities.ProjectTeamMember.create({
           project_id: project.id, team: m.team, name: m.name.trim(),
           role: m.role || "", email: m.email || "", phone: m.phone || "",
+          receives_status_report: !!m.receives_status_report,
         });
       }
       // Atualiza existentes
       for (const m of existing) {
         await base44.entities.ProjectTeamMember.update(m.id, {
           name: m.name, role: m.role, email: m.email, phone: m.phone,
+          receives_status_report: !!m.receives_status_report,
         });
       }
     }
@@ -368,20 +370,31 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
             </div>
             {/* Membros adicionais Pontotel */}
             {teamMembers.filter(m => m.team === "pontotel" && !m._deleted).map((m, i) => (
-              <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3 p-3 bg-purple-50/50 rounded-lg border border-purple-100">
-                <Field label="Função">
-                  <input value={m.role} onChange={e => updateMember(i, "role", e.target.value)} className={inputClass} placeholder="Ex: Consultor" />
-                </Field>
-                <Field label="Nome">
-                  <input value={m.name} onChange={e => updateMember(i, "name", e.target.value)} className={inputClass} />
-                </Field>
-                <Field label="E-mail">
-                  <input type="email" value={m.email} onChange={e => updateMember(i, "email", e.target.value)} className={inputClass} />
-                </Field>
-                <div className="flex items-end gap-2">
-                  <div className="flex-1"><Field label="Telefone"><input value={m.phone} onChange={e => updateMember(i, "phone", e.target.value)} className={inputClass} /></Field></div>
-                  <button onClick={() => removeMember(i)} className="p-2 text-slate-400 hover:text-red-500 mb-0.5"><Trash2 className="w-4 h-4" /></button>
+              <div key={i} className="mt-3 p-3 bg-purple-50/50 rounded-lg border border-purple-100">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <Field label="Função">
+                    <input value={m.role} onChange={e => updateMember(i, "role", e.target.value)} className={inputClass} placeholder="Ex: Consultor" />
+                  </Field>
+                  <Field label="Nome">
+                    <input value={m.name} onChange={e => updateMember(i, "name", e.target.value)} className={inputClass} />
+                  </Field>
+                  <Field label="E-mail">
+                    <input type="email" value={m.email} onChange={e => updateMember(i, "email", e.target.value)} className={inputClass} />
+                  </Field>
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1"><Field label="Telefone"><input value={m.phone} onChange={e => updateMember(i, "phone", e.target.value)} className={inputClass} /></Field></div>
+                    <button onClick={() => removeMember(i)} className="p-2 text-slate-400 hover:text-red-500 mb-0.5"><Trash2 className="w-4 h-4" /></button>
+                  </div>
                 </div>
+                <label className="flex items-center gap-2 mt-2 text-xs text-slate-600 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={!!m.receives_status_report}
+                    onChange={e => updateMember(i, "receives_status_report", e.target.checked)}
+                    className="w-3.5 h-3.5 accent-purple-600"
+                  />
+                  Recebe Status Report por e-mail
+                </label>
               </div>
             ))}
             <button onClick={() => addMember("pontotel")} className="mt-3 flex items-center gap-1.5 text-xs font-medium text-purple-600 hover:text-purple-700">
@@ -431,20 +444,31 @@ export default function EditProjectModal({ project, onClose, onSaved }) {
             </div>
             {/* Membros adicionais Cliente */}
             {teamMembers.filter(m => m.team === "cliente" && !m._deleted).map((m, i) => (
-              <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
-                <Field label="Função">
-                  <input value={m.role} onChange={e => updateMember(i, "role", e.target.value)} className={inputClass} placeholder="Ex: RH" />
-                </Field>
-                <Field label="Nome">
-                  <input value={m.name} onChange={e => updateMember(i, "name", e.target.value)} className={inputClass} />
-                </Field>
-                <Field label="E-mail">
-                  <input type="email" value={m.email} onChange={e => updateMember(i, "email", e.target.value)} className={inputClass} />
-                </Field>
-                <div className="flex items-end gap-2">
-                  <div className="flex-1"><Field label="Telefone"><input value={m.phone} onChange={e => updateMember(i, "phone", e.target.value)} className={inputClass} /></Field></div>
-                  <button onClick={() => removeMember(i)} className="p-2 text-slate-400 hover:text-red-500 mb-0.5"><Trash2 className="w-4 h-4" /></button>
+              <div key={i} className="mt-3 p-3 bg-blue-50/50 rounded-lg border border-blue-100">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <Field label="Função">
+                    <input value={m.role} onChange={e => updateMember(i, "role", e.target.value)} className={inputClass} placeholder="Ex: RH" />
+                  </Field>
+                  <Field label="Nome">
+                    <input value={m.name} onChange={e => updateMember(i, "name", e.target.value)} className={inputClass} />
+                  </Field>
+                  <Field label="E-mail">
+                    <input type="email" value={m.email} onChange={e => updateMember(i, "email", e.target.value)} className={inputClass} />
+                  </Field>
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1"><Field label="Telefone"><input value={m.phone} onChange={e => updateMember(i, "phone", e.target.value)} className={inputClass} /></Field></div>
+                    <button onClick={() => removeMember(i)} className="p-2 text-slate-400 hover:text-red-500 mb-0.5"><Trash2 className="w-4 h-4" /></button>
+                  </div>
                 </div>
+                <label className="flex items-center gap-2 mt-2 text-xs text-slate-600 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={!!m.receives_status_report}
+                    onChange={e => updateMember(i, "receives_status_report", e.target.checked)}
+                    className="w-3.5 h-3.5 accent-blue-600"
+                  />
+                  Recebe Status Report por e-mail
+                </label>
               </div>
             ))}
             <button onClick={() => addMember("cliente")} className="mt-3 flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700">

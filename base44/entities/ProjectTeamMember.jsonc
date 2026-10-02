@@ -29,6 +29,11 @@
     "phone": {
       "type": "string",
       "description": "Telefone do membro"
+    },
+    "receives_status_report": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se true, este membro \u00e9 inclu\u00eddo automaticamente no campo 'Para' do e-mail de Status Report"
     }
   },
   "required": [
