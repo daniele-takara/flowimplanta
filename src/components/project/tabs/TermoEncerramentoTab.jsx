@@ -265,7 +265,7 @@ ${finalConsiderations ? `
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function TermoEncerramentoTab({ project, scopeItems, reports, savedActivities, projectId, readOnly = false, canEditAutoFields = false, canGeneratePDF = true }) {
+export default function TermoEncerramentoTab({ project, scopeItems, reports, savedActivities, projectId, onRefresh, readOnly = false, canEditAutoFields = false, canGeneratePDF = true }) {
   const [termos, setTermos] = useState([]);
   const [current, setCurrent] = useState(null);
   const [loadingTermos, setLoadingTermos] = useState(true);
@@ -429,44 +429,49 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
     save(formRef.current);
   }, [save]);
 
-  // Atualizar dados automáticos
+  // Atualizar dados automáticos — busca TODOS os dados frescos diretamente do banco
+  // (projeto, atividades, escopo, overrides de fase, fases locais, relatórios) para evitar
+  // props stale do parent. Em seguida sincroniza o parent via onRefresh.
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      // Carregar overrides do banco (fonte de verdade) e localStorage (fallback)
-      const dbOverrides = project?.schedule_overrides && typeof project.schedule_overrides === "object" && !Array.isArray(project.schedule_overrides)
-        ? project.schedule_overrides : {};
+      const [freshProjectList, freshActivities, freshScopeItems, phaseOverrideList, localPhaseList, freshReports] = await Promise.all([
+        base44.entities.Project.filter({ id: projectId }),
+        base44.entities.ScheduleActivity.filter({ project_id: projectId }),
+        base44.entities.ScopeItem.filter({ project_id: projectId }, "order_number"),
+        base44.entities.SchedulePhaseOverride.filter({ project_id: projectId }),
+        base44.entities.LocalSchedulePhase.filter({ project_id: projectId }),
+        base44.entities.StatusReport.filter({ project_id: projectId }, "-report_date"),
+      ]);
+      const freshProject = freshProjectList[0] || project;
+
+      // Overrides do banco (fonte de verdade) + localStorage (fallback legado)
+      const dbOverrides = freshProject?.schedule_overrides && typeof freshProject.schedule_overrides === "object" && !Array.isArray(freshProject.schedule_overrides)
+        ? freshProject.schedule_overrides : {};
       let localOverrides = {};
       try { localOverrides = JSON.parse(localStorage.getItem(`schedule_overrides_${projectId}`) || "{}"); } catch {}
       const mergedOverrides = { ...dbOverrides };
       Object.entries(localOverrides).forEach(([k, v]) => { mergedOverrides[k] = { ...(mergedOverrides[k] || {}), ...v }; });
 
-      // Carregar phaseOverrides (inativações de fases do template) e fases locais
-      let phaseOverridesMap = {};
-      let localPhasesList = [];
-      try {
-        const [phaseOverrideList, localPhaseList] = await Promise.all([
-          base44.entities.SchedulePhaseOverride.filter({ project_id: projectId }),
-          base44.entities.LocalSchedulePhase.filter({ project_id: projectId }),
-        ]);
-        (phaseOverrideList || []).forEach(o => { phaseOverridesMap[o.phase_name] = o; });
-        localPhasesList = localPhaseList || [];
-      } catch (e) {
-        console.warn("[TermoEncerramentoTab] Erro ao carregar overrides de fase:", e);
-      }
+      const phaseOverridesMap = {};
+      (phaseOverrideList || []).forEach(o => { phaseOverridesMap[o.phase_name] = o; });
+      const localPhasesList = (localPhaseList || []).filter(p => p.is_active !== false);
+
+      // answersMap fresco a partir dos ScopeItems do banco (não do prop stale)
+      const freshAnswersMap = buildAnswersMap(freshScopeItems);
 
       const { macroPhases: phases } = computeMacroSchedule(
-        mergedOverrides, answersMap, project, savedActivities || [],
+        mergedOverrides, freshAnswersMap, freshProject, freshActivities || [],
         phaseOverridesMap, localPhasesList, mergedOverrides
       );
       setMacroPhases(phases);
 
-      // Buscar usabilidade: BigQuery (fonte primária), fallback para último StatusReport
+      // Buscar usabilidade: BigQuery (fonte primária), fallback para último StatusReport fresco
       let usability = null;
-      if (project?.empresa_id) {
+      if (freshProject?.empresa_id) {
         try {
           const bqRes = await base44.functions.invoke("queryBigQueryUsage", {
-            code: project.empresa_id,
+            code: freshProject.empresa_id,
             limite: 1,
           });
           const d = bqRes.data;
@@ -483,9 +488,8 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
           console.warn("[TermoEncerramentoTab] BigQuery falhou, usando último report:", e.message);
         }
       }
-      // Fallback: último StatusReport
       if (!usability) {
-        const latestReport = reports?.[0];
+        const latestReport = freshReports?.[0];
         if (latestReport?.usability_snapshot) {
           try { usability = JSON.parse(latestReport.usability_snapshot); } catch {}
         }
@@ -498,6 +502,9 @@ export default function TermoEncerramentoTab({ project, scopeItems, reports, sav
         auto_data_snapshot: autoSnapshot,
         last_auto_update: new Date().toISOString(),
       });
+
+      // Sincroniza o parent para que outras abas tenham dados frescos
+      if (onRefresh) { try { await onRefresh(); } catch {} }
     } catch (e) {
       console.error("[TermoEncerramentoTab] Erro ao atualizar:", e);
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { FileDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -64,6 +64,33 @@ export default function ProjectDetail() {
     return true;
   });
 
+  // Recarga silenciosa unificada — busca todas as entidades sem spinner global.
+  // Usada por todos os botões de "Atualizar" e callbacks de propagação entre abas.
+  const reloadAll = useCallback(async () => {
+    if (isMock) return;
+    try {
+      const [proj, ph, ac, sc, rp, ap, docs] = await Promise.all([
+        base44.entities.Project.filter({ id }),
+        base44.entities.SchedulePhase.filter({ project_id: id }, "order"),
+        base44.entities.ScheduleActivity.filter({ project_id: id }, "order"),
+        base44.entities.ScopeItem.filter({ project_id: id }, "order_number"),
+        base44.entities.StatusReport.filter({ project_id: id }, "-report_date"),
+        base44.entities.ActionPlan.filter({ project_id: id }, "-created_date"),
+        base44.entities.ProjectDocument.filter({ project_id: id })
+      ]);
+      setProject(proj[0] || null);
+      setPhases(ph);
+      setActivities(ac);
+      setScopeItems(sc);
+      setReports(rp);
+      setActions(ap);
+      setDocuments(docs);
+    } catch (e) {
+      console.error("[ProjectDetail] reloadAll erro:", e);
+    }
+  }, [id, isMock]);
+
+  // Carga inicial com spinner — apenas na primeira renderização / troca de projeto.
   const loadData = async () => {
     setLoading(true);
     try {
@@ -76,25 +103,7 @@ export default function ProjectDetail() {
         setActions(MOCK_ACTION_PLANS[id] || []);
         setDocuments([]);
       } else {
-        const [proj, ph, ac, sc, rp, ap, docs] = await Promise.all([
-          base44.entities.Project.filter({ id }),
-          base44.entities.SchedulePhase.filter({ project_id: id }, "order"),
-          base44.entities.ScheduleActivity.filter({ project_id: id }, "order"),
-          base44.entities.ScopeItem.filter({ project_id: id }, "order_number"),
-          base44.entities.StatusReport.filter({ project_id: id }, "-report_date"),
-          base44.entities.ActionPlan.filter({ project_id: id }, "-created_date"),
-          base44.entities.ProjectDocument.filter({ project_id: id })
-        ]);
-        const freshProject = proj[0] || null;
-        // Log para diagnóstico de módulos
-        console.log("[ProjectDetail] loadData → contracted_modules:", freshProject?.contracted_modules, "| contracted_services:", freshProject?.contracted_services);
-        setProject(freshProject);
-        setPhases(ph);
-        setActivities(ac);
-        setScopeItems(sc);
-        setReports(rp);
-        setActions(ap);
-        setDocuments(docs);
+        await reloadAll();
       }
     } catch (e) {
       console.error(e);
@@ -102,52 +111,49 @@ export default function ProjectDetail() {
     setLoading(false);
   };
 
-  // Recarrega apenas os ScopeItems — chamado silenciosamente após cada save no ScopeTab
-  // Isso garante que TAP, Cronograma e Termo de Encerramento recebam o answersMap atualizado
-  const reloadScopeItems = async () => {
-    if (isMock) return;
-    try {
-      const ts = new Date().toISOString().substr(11, 12);
-      console.log(`[ProjectDetail] ⏱ ${ts} reloadScopeItems — INÍCIO`);
-      const sc = await base44.entities.ScopeItem.filter({ project_id: id }, "order_number");
-      console.log("[ProjectDetail] reloadScopeItems — carregados", {
-        count: sc?.length || 0,
-        sampleWithAnswer: sc?.filter(s => s.answer).slice(0, 5).map(s => ({ question_id: s.question_id, order_number: s.order_number, answer: s.answer, observations: s.observations })),
-        itemsWithoutOrderNumber: sc?.filter(s => !s.order_number).map(s => ({ id: s.id, question_id: s.question_id })),
-      });
-      setScopeItems(sc);
-    } catch (e) {
-      console.error("[ProjectDetail] reloadScopeItems erro:", e);
-    }
-  };
-
-  // Recarrega apenas o projeto (contracted_modules, etc.) sem spinner global
-  const reloadProject = async () => {
-    if (isMock) return;
-    try {
-      const fresh = await base44.entities.Project.filter({ id });
-      if (fresh[0]) {
-        console.log("[ProjectDetail] reloadProject → contracted_modules:", fresh[0]?.contracted_modules);
-        setProject(fresh[0]);
-      }
-    } catch (e) {
-      console.error("[ProjectDetail] reloadProject erro:", e);
-    }
-  };
-
-  // Recarrega apenas os StatusReports — chamado após "Atualizar Status Report"
-  // para que o snapshot do parent reflita a última atualização e sobreviva à troca de abas
-  const reloadReports = async () => {
-    if (isMock) return;
-    try {
-      const rp = await base44.entities.StatusReport.filter({ project_id: id }, "-report_date");
-      setReports(rp);
-    } catch (e) {
-      console.error("[ProjectDetail] reloadReports erro:", e);
-    }
-  };
+  // Propagação instantânea de atividades do Cronograma para o parent (optimistic).
+  // O ScheduleTab chama com sua lista local atualizada; o parent atualiza o state
+  // para que Status Report e Termo de Encerramento recebam atividades frescas sem troca de página.
+  const handleActivitiesChanged = useCallback((updatedActivities) => {
+    setActivities(updatedActivities);
+  }, []);
 
   useEffect(() => { loadData(); }, [id]);
+
+  // Subscrições realtime nas entidades críticas — alterações (desta ou de outras
+  // sessões) refletem automaticamente no parent sem refresh manual.
+  useEffect(() => {
+    if (isMock || !id) return;
+
+    const applyEvent = (setter) => (event) => {
+      setter(prev => {
+        if (!prev) return prev;
+        if (event.type === "create") {
+          if (event.data?.project_id && event.data.project_id !== id) return prev;
+          const exists = prev.some(x => x.id === event.data.id);
+          return exists ? prev.map(x => x.id === event.data.id ? { ...x, ...event.data } : x) : [...prev, event.data];
+        }
+        if (event.type === "update") {
+          return prev.map(x => x.id === event.data.id ? { ...x, ...event.data } : x);
+        }
+        if (event.type === "delete") {
+          return prev.filter(x => x.id !== event.id);
+        }
+        return prev;
+      });
+    };
+
+    let unsubActivities, unsubScope, unsubReports;
+    try { unsubActivities = base44.entities.ScheduleActivity.subscribe(applyEvent(setActivities)); } catch (e) { console.warn("[ProjectDetail] subscribe ScheduleActivity falhou:", e); }
+    try { unsubScope = base44.entities.ScopeItem.subscribe(applyEvent(setScopeItems)); } catch (e) { console.warn("[ProjectDetail] subscribe ScopeItem falhou:", e); }
+    try { unsubReports = base44.entities.StatusReport.subscribe(applyEvent(setReports)); } catch (e) { console.warn("[ProjectDetail] subscribe StatusReport falhou:", e); }
+
+    return () => {
+      unsubActivities?.();
+      unsubScope?.();
+      unsubReports?.();
+    };
+  }, [id, isMock]);
 
   if (loading) {
     return (
@@ -167,14 +173,14 @@ export default function ProjectDetail() {
       <div className="flex flex-col min-h-screen bg-slate-50">
         <div className="flex-1 p-4 md:p-8">
           <div className={activeTab === "schedule" ? "" : "max-w-6xl mx-auto"}>
-            {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} project={project} onRefresh={loadData} onScopeSaved={reloadScopeItems} onStatusPromoted={reloadProject} readOnly={!perms.canEditScope} canUpdateTemplate={perms.canUpdateScopeTemplate} />}
+            {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} project={project} onRefresh={reloadAll} onScopeSaved={reloadAll} onStatusPromoted={reloadAll} readOnly={!perms.canEditScope} canUpdateTemplate={perms.canUpdateScopeTemplate} />}
             {activeTab === "calc" && (
               <ProtectedRoute allowed={perms.canReadCalcRules}>
                 <CalculationRulesTab projectId={id} project={project} />
               </ProtectedRoute>
             )}
-            {activeTab === "schedule" && <ScheduleTab scopeItems={scopeItems} project={project} projectId={id} onRefresh={reloadProject} onStatusPromoted={reloadProject} readOnly={!perms.canEditSchedule} canEditPlanned={perms.canEditSchedulePlanned} canEditExecuted={perms.canEditSchedule} canCompletePhase={perms.canCompletePhase} canRecalculate={perms.canRecalculateSchedule} canSyncPipedrive={perms.canSyncPipedriveCronograma} canAddActivity={perms.canAddScheduleActivity} canCreatePhase={perms.canCreateSchedulePhase} canEditPhase={perms.canEditSchedulePhase} canExcluirPhase={perms.canExcluirSchedulePhase} canExcluirActivity={perms.canExcluirScheduleActivity} canGeneratePDF={perms.canGenerateSchedulePDF} />}
-            {activeTab === "status" && <StatusReportTab reports={reports} projectId={id} projectClientName={project.client_name} project={project} scopeItems={scopeItems} savedActivities={activities} onRefresh={reloadReports} readOnly={!perms.canEditStatusReport} canUpdate={perms.canUpdateStatusReport} canGenerateEmail={perms.canGenerateStatusReportEmail} canSyncPipedrive={perms.canSyncPipedriveStatus} />}
+            {activeTab === "schedule" && <ScheduleTab scopeItems={scopeItems} project={project} projectId={id} onRefresh={reloadAll} onStatusPromoted={reloadAll} onActivitiesChanged={handleActivitiesChanged} readOnly={!perms.canEditSchedule} canEditPlanned={perms.canEditSchedulePlanned} canEditExecuted={perms.canEditSchedule} canCompletePhase={perms.canCompletePhase} canRecalculate={perms.canRecalculateSchedule} canSyncPipedrive={perms.canSyncPipedriveCronograma} canAddActivity={perms.canAddScheduleActivity} canCreatePhase={perms.canCreateSchedulePhase} canEditPhase={perms.canEditSchedulePhase} canExcluirPhase={perms.canExcluirSchedulePhase} canExcluirActivity={perms.canExcluirScheduleActivity} canGeneratePDF={perms.canGenerateSchedulePDF} />}
+            {activeTab === "status" && <StatusReportTab reports={reports} projectId={id} projectClientName={project.client_name} project={project} scopeItems={scopeItems} savedActivities={activities} onRefresh={reloadAll} readOnly={!perms.canEditStatusReport} canUpdate={perms.canUpdateStatusReport} canGenerateEmail={perms.canGenerateStatusReportEmail} canSyncPipedrive={perms.canSyncPipedriveStatus} />}
           </div>
         </div>
       </div>
@@ -218,7 +224,7 @@ export default function ProjectDetail() {
         <EditProjectModal
           project={project}
           onClose={() => setShowEditModal(false)}
-          onSaved={loadData}
+          onSaved={reloadAll}
         />
       )}
 
@@ -267,25 +273,24 @@ export default function ProjectDetail() {
             try {
               const fresh = await base44.entities.Project.filter({ id });
               if (fresh[0]) {
-                console.log("[ProjectDetail] onProjectUpdated → contracted_modules:", fresh[0]?.contracted_modules);
                 setProject(fresh[0]);
               }
             } catch {
               setProject(prev => ({ ...prev, ...updated }));
             }
           }} />}
-          {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} project={project} onRefresh={loadData} onScopeSaved={reloadScopeItems} onStatusPromoted={reloadProject} readOnly={!perms.canEditScope} canUpdateTemplate={perms.canUpdateScopeTemplate} />}
-          {activeTab === "tap" && <TAPTab project={project} scopeItems={scopeItems} documents={documents} projectId={id} onRefresh={loadData} onStatusPromoted={reloadProject} readOnly={!perms.canEditTAP} canGeneratePDF={perms.canGenerateTAPPDF} />}
-          {activeTab === "schedule" && <ScheduleTab scopeItems={scopeItems} project={project} projectId={id} onRefresh={reloadProject} readOnly={!perms.canEditSchedule} canEditPlanned={perms.canEditSchedulePlanned} canEditExecuted={perms.canEditSchedule} canCompletePhase={perms.canCompletePhase} canRecalculate={perms.canRecalculateSchedule} canSyncPipedrive={perms.canSyncPipedriveCronograma} canAddActivity={perms.canAddScheduleActivity} canCreatePhase={perms.canCreateSchedulePhase} canEditPhase={perms.canEditSchedulePhase} canExcluirPhase={perms.canExcluirSchedulePhase} canExcluirActivity={perms.canExcluirScheduleActivity} canGeneratePDF={perms.canGenerateSchedulePDF} />}
-          {activeTab === "status" && <StatusReportTab reports={reports} projectId={id} projectClientName={project.client_name} project={project} scopeItems={scopeItems} savedActivities={activities} onRefresh={reloadReports} readOnly={!perms.canEditStatusReport} canUpdate={perms.canUpdateStatusReport} canGenerateEmail={perms.canGenerateStatusReportEmail} canSyncPipedrive={perms.canSyncPipedriveStatus} />}
-          {activeTab === "actions" && <ActionPlanTab actions={actions} projectId={id} project={project} onRefresh={loadData} readOnly={!perms.canEditActionPlan} canDelete={perms.canDeleteActionPlan} />}
-          {activeTab === "termo" && <TermoEncerramentoTab project={project} scopeItems={scopeItems} reports={reports} savedActivities={activities} projectId={id} readOnly={!perms.canEditTermo} canEditAutoFields={perms.canEditTermoAutoFields} canGeneratePDF={perms.canGenerateTermoPDF} />}
+          {activeTab === "scope" && <ScopeTab scopeItems={scopeItems} projectId={id} project={project} onRefresh={reloadAll} onScopeSaved={reloadAll} onStatusPromoted={reloadAll} readOnly={!perms.canEditScope} canUpdateTemplate={perms.canUpdateScopeTemplate} />}
+          {activeTab === "tap" && <TAPTab project={project} scopeItems={scopeItems} documents={documents} projectId={id} onRefresh={reloadAll} onStatusPromoted={reloadAll} readOnly={!perms.canEditTAP} canGeneratePDF={perms.canGenerateTAPPDF} />}
+          {activeTab === "schedule" && <ScheduleTab scopeItems={scopeItems} project={project} projectId={id} onRefresh={reloadAll} onStatusPromoted={reloadAll} onActivitiesChanged={handleActivitiesChanged} readOnly={!perms.canEditSchedule} canEditPlanned={perms.canEditSchedulePlanned} canEditExecuted={perms.canEditSchedule} canCompletePhase={perms.canCompletePhase} canRecalculate={perms.canRecalculateSchedule} canSyncPipedrive={perms.canSyncPipedriveCronograma} canAddActivity={perms.canAddScheduleActivity} canCreatePhase={perms.canCreateSchedulePhase} canEditPhase={perms.canEditSchedulePhase} canExcluirPhase={perms.canExcluirSchedulePhase} canExcluirActivity={perms.canExcluirScheduleActivity} canGeneratePDF={perms.canGenerateSchedulePDF} />}
+          {activeTab === "status" && <StatusReportTab reports={reports} projectId={id} projectClientName={project.client_name} project={project} scopeItems={scopeItems} savedActivities={activities} onRefresh={reloadAll} readOnly={!perms.canEditStatusReport} canUpdate={perms.canUpdateStatusReport} canGenerateEmail={perms.canGenerateStatusReportEmail} canSyncPipedrive={perms.canSyncPipedriveStatus} />}
+          {activeTab === "actions" && <ActionPlanTab actions={actions} projectId={id} project={project} onRefresh={reloadAll} readOnly={!perms.canEditActionPlan} canDelete={perms.canDeleteActionPlan} />}
+          {activeTab === "termo" && <TermoEncerramentoTab project={project} scopeItems={scopeItems} reports={reports} savedActivities={activities} projectId={id} onRefresh={reloadAll} readOnly={!perms.canEditTermo} canEditAutoFields={perms.canEditTermoAutoFields} canGeneratePDF={perms.canGenerateTermoPDF} />}
           {activeTab === "calc" && (
             <ProtectedRoute allowed={perms.canReadCalcRules}>
               <CalculationRulesTab projectId={id} project={project} />
             </ProtectedRoute>
           )}
-          {activeTab === "closure" && <ClosureTab project={project} documents={documents} activities={activities} projectId={id} onRefresh={loadData} readOnly={!perms.canEditTermo} />}
+          {activeTab === "closure" && <ClosureTab project={project} documents={documents} activities={activities} projectId={id} onRefresh={reloadAll} readOnly={!perms.canEditTermo} />}
           {activeTab === "audit" && <AuditLogTab projectId={id} />}
         </div>
       </div>

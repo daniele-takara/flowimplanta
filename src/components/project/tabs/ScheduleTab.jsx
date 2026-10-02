@@ -377,6 +377,7 @@ export default function ScheduleTab({
   canEditExecuted = true, canAddActivity = true,
   canCreatePhase = true, canEditPhase = true, canExcluirPhase = true,
   canExcluirActivity = true,
+  onActivitiesChanged,
   canGeneratePDF = true,
 }) {
   const [anchorsLoaded, setAnchorsLoaded]       = useState(false);
@@ -458,6 +459,13 @@ export default function ScheduleTab({
   useEffect(() => {
     if (!activitiesLoaded && projectId) reloadActivities();
   }, [projectId, activitiesLoaded, reloadActivities]);
+
+  // Sincroniza as atividades locais com o parent (propagação instantânea entre abas).
+  // Toda mutação (create/update/delete/reorder/move/inactivate) passa por setSavedActivities,
+  // então este useEffect único cobre todos os casos sem espalhar callbacks.
+  useEffect(() => {
+    if (onActivitiesChanged) onActivitiesChanged(savedActivities);
+  }, [savedActivities, onActivitiesChanged]);
 
   // Carregar fases locais — inclui inativas para toggle
   useEffect(() => {
