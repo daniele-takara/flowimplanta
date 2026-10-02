@@ -496,12 +496,23 @@ export default function CalcRulesKanban() {
 
   const load = useCallback(async () => {
     try {
-      const list = await base44.entities.StandaloneCalcRule.list("-created_date", 100);
-      setRules(list || []);
+      // Pagina todos os registros até esgotar — sem limite fixo de 100
+      const all = [];
+      let cursor = null;
+      let hasMore = true;
+      while (hasMore) {
+        const opts = cursor ? { sort: "-created_date", cursor } : { sort: "-created_date" };
+        const page = await base44.entities.StandaloneCalcRule.list(opts);
+        const items = page?.items ?? page ?? [];
+        all.push(...items);
+        cursor = page?.next_cursor ?? null;
+        hasMore = page?.has_more === true && cursor;
+      }
+      setRules(all);
       // Sync selectedRule with fresh data so history updates in the modal
       setSelectedRule(prev => {
         if (!prev) return prev;
-        const fresh = (list || []).find(r => r.id === prev.id);
+        const fresh = all.find(r => r.id === prev.id);
         return fresh || prev;
       });
     } catch (e) {
