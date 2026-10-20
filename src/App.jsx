@@ -22,7 +22,7 @@ import DiagnosticoPipedrive from './pages/DiagnosticoPipedrive';
 import BigQueryConsultas from './pages/BigQueryConsultas';
 import Documentacao from './pages/Documentacao';
 import ClientCalcWizard from './pages/ClientCalcWizard';
-import StandaloneCalcWizard from './pages/StandaloneCalcWizard';
+import RedirectTo from '@/components/RedirectTo';
 import CalcRulesKanban from './pages/CalcRulesKanban';
 import AlocacaoRecursos from './pages/AlocacaoRecursos';
 import WebhookConfig from './pages/WebhookConfig';
@@ -156,7 +156,7 @@ function App() {
 
             {/* Public client route — no auth needed */}
             <Route path="/cliente/:token" element={<ClientCalcWizard />} />
-            <Route path="/calculo" element={<StandaloneCalcWizard />} />
+            <Route path="/calculo" element={<RedirectTo to="https://repo-implantacao.web.app/calculo" />} />
             <Route path="/docs/api" element={<ApiDocs />} />
 
             {/* All other routes: gated by login */}
